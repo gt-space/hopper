@@ -65,7 +65,7 @@ class Node():
         self._flash_from_DH(self.d, self.H)
 
         # node history dict initialization
-        self.history = {k: [] for k in ["time","Q","P","T","H","h","d","m","m_l","m_v", "fill_level"]}
+        self.history = {k: [] for k in ["time","Q","P","T","H","h","d","m","m_l","m_v", "fill_level", "s"]}
 
     def _flash_from_DH(self, d, H):
         """
@@ -83,6 +83,7 @@ class Node():
         try:
             T = PropsSI_auto('T', 'D', d, 'H', h, self.fluid)
             P = PropsSI_auto('P', 'D', d, 'H', h, self.fluid)
+            s = PropsSI_auto('S', 'D', d, 'H', h, self.fluid)
             phase = CP.PhaseSI('D', d, 'H', h, self.fluid) # use only CoolProp here, REFPROP phase lookup behaves weirdly
         except Exception as e:
             raise RuntimeError(f"CoolProp lookup failed in flash: d={d}, h={h}, err={e}") from e
@@ -91,6 +92,7 @@ class Node():
         self.P = P
         self.h = h
         self.d = d
+        self.s = s
 
         if phase == "twophase":
             Q = PropsSI_auto('Q', 'D', d, 'H', h, self.fluid)  # 0-1
@@ -168,6 +170,7 @@ class Node():
         self.history["m_l"].append(self.m_l)
         self.history["m_v"].append(self.m_v)
         self.history["fill_level"].append(self.fill_level)
+        self.history["s"].append(self.s)
 
 
 class Ambient(Node):
@@ -229,226 +232,133 @@ class Connection():
     Connection class. Defined by CdA (m^2), qdot (J/s), location on node (0-1), and state (open, closed).
     Initialized by CdA, qdot, location, and normal state.
     """
-    def __init__(self, CdA, qdot=0.0, location=0.0, normal_state=True):
+    def __init__(self, CdA, qdot=0.0, location=0.0, normal_state=True, checking=True, name="connection"):
         self.CdA = CdA
+        self.name = name
+        self.dP = 0 # to be used
         self.qdot = qdot
         self.location = location  # normalized height 0-1
         self.state = normal_state
-
+        self.checking = checking
+        self.mdot = 0
+        self.Hdot = 0
+        self.Q = None
+        self.history = {k: [] for k in ["time","CdA", "qdot","state", "mdot","Hdot","dP", "Q"]}
 
     def mdot_Hdot(self, node1, node2):
         """
         Return mdot (kg/s), Hdot (J/s) where positive means mass/enthalpy flows node1 -> node2.
-        Stream enthalpy is taken from donor's phase at the connection 'location'.
+        Includes Dyer model for two-phase flow (flashing).
         """
-        # check if connection is open
+        # Check if connection is open
         if not self.state:
             return 0.0, 0.0
-    
+
         dP = node1.P - node2.P
+        if self.checking and dP < 0:
+            return 0.0, 0.0
         if abs(dP) < 1e-12:
             return 0.0, 0.0
 
-        # determine donor and receiver
+        # Determine donor and receiver
         if dP > 0:
             donor, receiver = node1, node2
         else:
             donor, receiver = node2, node1
 
-        # choose stream phase based on donor.fill_level and connection location
-        # if fill_level > location -> stream draws from liquid; otherwise vapor
+        # Select phase based on donor fill
         if donor.fill_level > self.location:
-            # stream is liquid from donor
             h_stream = donor.h_l
-            # at receiver pressure
             d_stream = donor.d_l
         else:
-            # stream is vapor from donor
             h_stream = donor.h_v
             d_stream = donor.d_v
 
         abs_dP = abs(dP)
+        self.dP = abs_dP  # logging
 
-        # allow choked formula only if donor is gas-like (no two-phase)
         donor_phase = CP.PhaseSI('D', donor.d, 'H', donor.h, donor.fluid)
+
+        # --- GAS/CHOKED FLOW ---
         if donor_phase in ("gas", "supercritical") and donor.Cp and donor.Cv and donor.R:
-            # compressible/choked flow estimate
             gamma = donor.gamma
             R = donor.R
             Tdon = donor.T
-            crit_factor = ((gamma + 1.0) / 2.0) ** ( - (gamma + 1.0) / (2.0 * (gamma - 1.0)) )
-            mdot_mag = self.CdA * donor.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor
-        else:
-            # incompressible-like orifice
-            mdot_mag = self.CdA * np.sqrt(2.0 * max(d_stream, 1e-6) * abs_dP)
-            Q_fill = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, donor.fluid)
-            # If inside 0–1, it's two-phase
-            if 0 <= Q_fill <= 1:
-                h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, donor.fluid)
-                h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, donor.fluid)
-                m_vap = mdot_mag * Q_fill
-                m_liq = mdot_mag * (1 - Q_fill)
-                # Hdot adjusted for flashing
-                Hdot = m_vap * h_vap + m_liq * h_liq
+            crit_factor = ((gamma + 1.0) / 2.0) ** (-(gamma + 1.0) / (2.0 * (gamma - 1.0)))
+            Pcrit = donor.P * crit_factor
+
+            if receiver.P > Pcrit:
+                # Unchoked subsonic gas flow
+                mdot_mag = self.CdA * donor.P * np.sqrt(2 * abs(1 - (receiver.P / donor.P) ** ((gamma - 1) / gamma)) / (R * Tdon))
             else:
-                # single-phase at receiver P
+                # Choked
+                mdot_mag = self.CdA * donor.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor
+
+            Hdot = mdot_mag * h_stream
+        
+        # --- LIQUID / TWO-PHASE (Dyer model) ---
+        else:
+            h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, donor.fluid)
+            h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, donor.fluid)
+            Pv = PropsSI_auto('P', 'T', donor.T, 'Q', 1, donor.fluid)
+
+            # Single-phase incompressible term (SPI)
+            mdot_spi = self.CdA * np.sqrt(2.0 * max(d_stream, 1e-6) * abs_dP)
+
+            # Homogeneous equilibrium model term (HEM)
+            try:
+                h1 = h_stream
+                h2 = PropsSI_auto('H', 'P', receiver.P, 'S', donor.s, donor.fluid)
+                rho2p = 1.0 / PropsSI_auto('D', 'P', receiver.P, 'Q', 0.5, donor.fluid)
+                mdot_hem = self.CdA * rho2p * np.sqrt(2.0 * max(h1 - h2, 1e-9))
+            except Exception:
+                mdot_hem = mdot_spi
+
+            # Dyer blending factor
+            r = 1  # tunable, change based on test data
+            kappa = r * (donor.P - receiver.P) / max(Pv - receiver.P, 1e-6) # can also manually set kappa (2 is a good conservative value)
+
+            # Dyer blended mass flow
+            mdot_mag = (kappa / (1 + kappa)) * mdot_spi + (1 / (1 + kappa)) * mdot_hem
+
+            # Enthalpy flow rate (assume isenthalpic across connection to find quality)
+            # I am aware that an isenthalpic assumption here conflicts with the isentropic assumption for HEM...
+            # This is why we blend the models, but generally isenthalpic will be more accurate and conservative...
+            # Physically it makes a lot more sense than assuming isentropic (since flashing changes entropy)
+            self.Q = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, donor.fluid)
+            if 0 <= self.Q <= 1:
+                Hdot = mdot_mag * (self.Q * h_vap + (1 - self.Q) * h_liq)
+            else:
                 Hdot = mdot_mag * h_stream
 
-        # sign convention: positive mdot -> node1 -> node2
+        # Sign convention
         if donor is node1:
             mdot = mdot_mag
         else:
-            mdot = - mdot_mag
+            mdot = -mdot_mag
 
-        Hdot = mdot * h_stream + self.qdot
+        Hdot += self.qdot  # add any heat leak term
+        self.mdot, self.Hdot = mdot, Hdot
         return mdot, Hdot
 
-    def mdot_Hdot_Dyer(self, node1, node2, choke_samples=24):
+    def log_state(self, t=0.0):
         """
-        Compute mdot (kg/s) and Hdot (J/s) using a Dyer-style flashing relationship with automatic choking detection.
-        Positive means mass/enthalpy flows node1 -> node2.
-
-        choke_samples: number of downstream pressure samples to probe when searching for choked limit.
+        Log node state at each timestep throughout a network sim.
         """
-        # closed?
-        if not self.state:
-            return 0.0, 0.0
-
-        dP = node1.P - node2.P
-        if abs(dP) < 1e-12:
-            return 0.0, 0.0
-
-        # donor/receiver selection (donor = higher pressure side)
-        donor, receiver = (node1, node2) if dP > 0 else (node2, node1)
-        Pu = donor.P
-        Pd_actual = receiver.P
-        abs_dP = abs(dP)
-
-        # choose donor stream phase (based on fill height)
-        if donor.fill_level > self.location:
-            # drawing liquid from donor
-            h_stream = donor.h_l
-            rho_l = donor.d_l
-            rho_v = donor.d_v
-        else:
-            # drawing vapor from donor
-            h_stream = donor.h_v
-            rho_l = donor.d_l
-            rho_v = donor.d_v
-
-        # donor bulk-phase classification for branching
-        donor_phase = CP.PhaseSI('D', donor.d, 'H', donor.h, donor.fluid)
-
-        # helper: compute Dyer-like mdot magnitude for a given downstream pressure Pd
-        def dyer_mdot_for_Pd(Pd):
-            # if Pd >= Pu, no forward flow
-            if Pd >= Pu:
-                return 0.0
-
-            # fetch sat props at upstream pressure (Pu)
-            try:
-                h_lsat_up = PropsSI_auto('H', 'P', Pu, 'Q', 0, donor.fluid)
-                h_vsat_up = PropsSI_auto('H', 'P', Pu, 'Q', 1, donor.fluid)
-                h_fg_up = max(h_vsat_up - h_lsat_up, 1e-12)
-            except Exception:
-                # if CoolProp cannot provide saturated props at Pu, fallback to simple orifice
-                return self.CdA * np.sqrt(2.0 * max(rho_l, 1e-6) * (Pu - Pd))
-
-            # donor specific enthalpy (bulk)
-            hu = donor.h
-
-            # available flashing fraction based on upstream energy
-            x_available = (hu - h_lsat_up) / h_fg_up
-            x_available = float(np.clip(x_available, 0.0, 1.0))
-
-            # Dyer-style empirical factor to account for two-phase expansion:
-            # build a blending based on density ratio and available quality.
-            Rho_ratio_sqrt = np.sqrt(max(rho_l / max(rho_v, 1e-12), 1e-12))
-            Y = (1.0 + Rho_ratio_sqrt * x_available) / (1.0 + Rho_ratio_sqrt)
-
-            # base mass-flux-like term
-            deltaP = max(Pu - Pd, 0.0)
-            G = np.sqrt(2.0 * rho_l * deltaP * Y)  # [kg/(m^2 s)] approximate
-
-            mdot_mag = self.CdA * G
-            return float(mdot_mag)
-
-        # --- compute candidate mdot for actual Pd (no choke cap yet) ---
-        if donor_phase in ("gas", "supercritical"):
-            # single-phase gas: use choked-gas expression (isentropic approximate)
-            if donor.Cp and donor.Cv and donor.R and donor.gamma:
-                gamma = donor.gamma
-                R = donor.R
-                Tdon = donor.T
-                crit_factor = ((gamma + 1.0) / 2.0) ** ( - (gamma + 1.0) / (2.0 * (gamma - 1.0)) )
-                mdot_mag_nominal = self.CdA * donor.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor
-            else:
-                mdot_mag_nominal = self.CdA * np.sqrt(2.0 * max((rho_l if rho_l is not None else 1.0), 1e-6) * abs_dP)
-        else:
-            # flashing/two-phase or liquid: use Dyer-like mdot at actual Pd
-            mdot_mag_nominal = dyer_mdot_for_Pd(Pd_actual)
-
-        # --- choking detection & cap (only meaningful for two-phase/flashing donors) ---
-        mdot_mag = mdot_mag_nominal
-        if donor_phase in ("twophase", "liquid", "supercritical_liquid"):
-            # scan Pd values from Pd_actual down to a small fraction of Pu to find max possible mdot
-            Pd_min = max(Pu * 1e-4, 1.0)  # avoid zero
-            # log-spaced samples between Pd_actual and Pd_min (including Pd_actual)
-            # ensure Pd_actual >= Pd_min
-            low = min(Pd_actual, Pd_min)
-            high = max(Pd_actual, Pd_min)
-            # sample logspace between high and low (descending)
-            Pd_samples = np.unique(
-                np.concatenate((
-                    np.linspace(Pd_actual, Pu * 1e-4, choke_samples),
-                    np.geomspace(max(Pd_actual, 1e-3), max(Pu * 1e-4, 1e-3), choke_samples)
-                ))
-            )
-            # compute mdot for each Pd sample
-            mdot_vals = np.array([dyer_mdot_for_Pd(Pd) for Pd in Pd_samples])
-            mdot_max = float(np.max(mdot_vals)) if mdot_vals.size else mdot_mag_nominal
-            # if the nominal mdot exceeds the maximum achievable massflux, cap it
-            if mdot_mag_nominal > mdot_max:
-                mdot_mag = mdot_max
-            else:
-                mdot_mag = mdot_mag_nominal
-
-        # --- compute Hdot consistent with receiver-phase flashing at Pd_actual ---
-        # First, find stream enthalpy at donor (we already have h_stream as donor.h_l or h_v)
-        # Now evaluate quality at receiver pressure for that h_stream
-        Hdot = 0.0
-        try:
-            Q_recv = PropsSI_auto('Q', 'P', Pd_actual, 'H', h_stream, donor.fluid)
-        except Exception:
-            # If CoolProp can't compute Q (e.g. single phase), fallback to single-phase convective enthalpy
-            Q_recv = None
-
-        if Q_recv is not None and (0.0 <= Q_recv <= 1.0):
-            # Stream flashed at receiver pressure: split enthalpy into saturated contributions
-            h_liq_recv = PropsSI_auto('H', 'P', Pd_actual, 'Q', 0, donor.fluid)
-            h_vap_recv = PropsSI_auto('H', 'P', Pd_actual, 'Q', 1, donor.fluid)
-            m_vap = mdot_mag * Q_recv
-            m_liq = mdot_mag * (1.0 - Q_recv)
-            Hdot = m_vap * h_vap_recv + m_liq * h_liq_recv
-        else:
-            # single-phase stream at receiver P: use donor stream enthalpy as convected
-            Hdot = mdot_mag * h_stream
-
-        # add heat transfer through the connection
-        Hdot = Hdot + self.qdot
-
-        # sign convention: positive mdot -> node1 -> node2
-        if donor is node1:
-            mdot = mdot_mag
-        else:
-            mdot = - mdot_mag
-
-        return mdot, Hdot
+        self.history["time"].append(t)
+        self.history["CdA"].append(self.CdA)
+        self.history["qdot"].append(self.qdot)
+        self.history["state"].append(self.state)
+        self.history["mdot"].append(self.mdot)
+        self.history["Hdot"].append(self.Hdot)
+        self.history["dP"].append(self.dP)
+        self.history["Q"].append(self.Q)
 
 
 class Regulator(Connection):
     def __init__(self, CdA, set_pressure, droop_curve=None, qdot=0.0, location=0.0, normal_state=True):
         """
+        NOTE: STILL IN DEVELOPLENT
         A pressure regulator connection that limits downstream pressure. Defined by: CdA (m^2), set_pressure (Pa),
         droop_curve (function that maps mdot -> pressure drop (Pa)), qdot (J/s), location (0-1), state (open, closed).
         """
@@ -554,9 +464,92 @@ class ThrottleValve(Connection):
     """
     Subclass of Connection to represent a throttle valve.
     """
-    # TODO
-    pass
+    def __init__(self, CdA_max, qdot=0, location=0, normal_state=0, checking=True, target_mdot=0, step=0.02, name="throttle_valve"):
+        super().__init__(CdA_max*target_mdot*normal_state, qdot, location, normal_state, checking, name)
+        self.name = name
+        self.target_mdot = target_mdot # target mdot for throttle valve [kg/s]
+        self.CdA_max = CdA_max
 
+    def mdot_Hdot(self, node1, node2):
+        # TODO ADD DYER
+        """
+        Return mdot (kg/s), Hdot (J/s) where positive means mass/enthalpy flows node1 -> node2.
+        Stream enthalpy is taken from donor's phase at the connection 'location'.
+        """
+        # check if connection is open
+        if not self.state:
+            return 0.0, 0.0
+    
+        dP = node1.P - node2.P
+        if self.checking & (dP < 0):
+            return 0.0, 0.0
+        
+        if abs(dP) < 1e-12:
+            return 0.0, 0.0
+
+        self.target_mdot = self.state
+        # determine donor and receiver
+        if dP > 0:
+            donor, receiver = node1, node2
+        else:
+            donor, receiver = node2, node1
+
+        # choose stream phase based on donor.fill_level and connection location
+        # if fill_level > location -> stream draws from liquid; otherwise vapor
+        if donor.fill_level > self.location:
+            # stream is liquid from donor
+            h_stream = donor.h_l
+            # at receiver pressure
+            d_stream = donor.d_l
+        else:
+            # stream is vapor from donor
+            h_stream = donor.h_v
+            d_stream = donor.d_v
+
+        abs_dP = abs(dP)
+        self.dP = abs_dP # logging
+
+        # allow choked formula only if donor is gas-like (no two-phase)
+        donor_phase = CP.PhaseSI('D', donor.d, 'H', donor.h, donor.fluid)
+        if donor_phase in ("gas", "supercritical") and donor.Cp and donor.Cv and donor.R:
+            # compressible/choked flow estimate
+            gamma = donor.gamma
+            R = donor.R
+            Tdon = donor.T
+            crit_factor = ((gamma + 1.0) / 2.0) ** ( - (gamma + 1.0) / (2.0 * (gamma - 1.0)) )
+            self.CdA = min(self.CdA_max, self.state / (donor.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor))
+        else:
+            # incompressible-like orifice
+            self.CdA = min(self.CdA_max, self.state / np.sqrt(2.0 * max(d_stream, 1e-6) * abs_dP))
+            self.Q = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, donor.fluid)
+
+            # isentropic assumption test
+            # s = PropsSI_auto('S', 'P', donor.P, 'H', h_stream, donor.fluid)
+            # self.Q = PropsSI_auto('Q', 'P', receiver.P, 'S', s, donor.fluid)
+
+            # If inside 0–1, it's two-phase
+            if 0 <= self.Q <= 1:
+                h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, donor.fluid)
+                h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, donor.fluid)
+                m_vap = self.target_mdot * self.Q
+                m_liq = self.target_mdot * (1 - self.Q)
+                # Hdot adjusted for flashing
+                Hdot = m_vap * h_vap + m_liq * h_liq
+            else:
+                # single-phase at receiver P
+                Hdot = self.target_mdot * h_stream
+
+        # sign convention: positive mdot -> node1 -> node2
+        if donor is node1:
+            mdot = self.target_mdot
+        else:
+            mdot = - self.target_mdot
+
+        Hdot = mdot * h_stream + self.qdot
+        self.mdot = mdot # logging
+        self.Hdot = Hdot # logging
+        return mdot, Hdot
+    
 
 class CheckValve(Connection):
     """
@@ -608,6 +601,7 @@ class Network():
                 mdot_contrib[n2] += mdot
                 Hdot_contrib[n1] -= Hdot
                 Hdot_contrib[n2] += Hdot
+                conn.log_state(time_now)
 
             # update nodes simultaneously
             for node in list(mdot_contrib.keys()):
@@ -616,55 +610,6 @@ class Network():
                 # print only first few steps to avoid log overload
                     print(f"[t={time_now:.4f}] {node.name} mdot_net={mdot_contrib[node]:.6f}, Hdot_net={Hdot_contrib[node]:.3f}")
                 node.log_state(time_now)
-
-    def plot_nodes(self, nodes, units="SI"):
-        """
-        Plots pressure, temperature, mass, density, quality, and fill level vs time
-        for each node as subplots in one figure per node.
-
-        Args:
-            time [s] (array): array of time values
-            nodes (list): list of Node objects with histories recorded
-            units (str): SI or E
-        """
-        if units == "E":
-            psi = 1 / 6894.75729
-        else:
-            psi = 1
-        for node in nodes:
-            time = node.history['time']
-            fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
-            axs = axs.flatten()  # make it a flat list for easy indexing
-            fig.suptitle(f"Node: {node.name}", fontsize=14)
-
-            # Pressure
-            axs[0].plot(time, node.history['P']*psi)
-            axs[0].set_ylabel("Pressure [Pa]")
-
-            # Temperature
-            axs[1].plot(time, node.history['T'])
-            axs[1].set_ylabel("Temperature [K]")
-
-            # Mass
-            axs[2].plot(time, node.history['m'])
-            axs[2].set_ylabel("Mass [kg]")
-
-            # Density
-            axs[3].plot(time, node.history['d'])
-            axs[3].set_ylabel("Density [kg/m³]")
-
-            # Quality
-            axs[4].plot(time, node.history['Q'])
-            axs[4].set_ylabel("Quality [-]")
-            axs[4].set_ylim(0, 1)  # quality is between 0–1
-
-            # Fill level
-            axs[5].plot(time, node.history['fill_level'])
-            axs[5].set_ylabel("Fill level [m]")
-            axs[5].set_xlabel("Time [s]")
-
-            plt.tight_layout(rect=[0, 0, 1, 0.96])
-            plt.show()
 
     def plot_nodes_overlay(self, nodes, title="Node Comparison", units="SI"):
         """
@@ -706,6 +651,53 @@ class Network():
         axs[4].set_ylim(0, 1)
         axs[5].set_ylabel("Fill level [-]")
         axs[5].set_xlabel("Time [s]")
+
+        # Add legends
+        for ax in axs:
+            ax.legend()
+            ax.grid(True)
+
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        plt.show()
+
+    def plot_connections_overlay(self, connections, title="Connection Comparison", units="SI"):
+        """
+        Overlay plots of CdA, qdot, state, mdot, Hdot
+        and dP vs time for all nodes on the same set of subplots.
+        Args:
+            nodes (list): list of Node objects with histories recorded
+            title (str): plot title
+            units (str): SI or E
+        """
+        fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
+        axs = axs.flatten()
+        fig.suptitle(title, fontsize=14)
+
+        # Loop over nodes and add each to the plots
+        for conn in connections:
+            time = conn.history['time']
+            if units == "E":
+                axs[0].plot(time, conn.history['mdot'], label=conn.name)
+                axs[1].plot(time, np.array(conn.history['dP']) / 6894.75729, label=conn.name)
+            else:
+                axs[0].plot(time, conn.history['mdot'], label=conn.name)
+                axs[1].plot(time, conn.history['dP'], label=conn.name)
+            axs[2].plot(time, conn.history['CdA'], label=conn.name)
+            axs[3].plot(time, conn.history['Hdot'], label=conn.name)
+            axs[4].plot(time, conn.history['Q'], label=conn.name)
+            axs[5].plot(time, conn.history['state'], label=conn.name)
+
+        # Labels
+        if units == "E":
+            axs[0].set_ylabel("mdot [kg/s]")
+            axs[1].set_ylabel("dP [psi]")
+        else:
+            axs[0].set_ylabel("mdot [kg/s]")
+            axs[1].set_ylabel("dP [Pa]")
+        axs[2].set_ylabel("CdA [m^2]")
+        axs[3].set_ylabel("Hdot [J/s]")
+        axs[4].set_ylabel("Q [0-1]")
+        axs[5].set_ylabel("State [-]")
 
         # Add legends
         for ax in axs:
