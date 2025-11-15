@@ -469,87 +469,103 @@ class ThrottleValve(Connection):
         self.name = name
         self.target_mdot = target_mdot # target mdot for throttle valve [kg/s]
         self.CdA_max = CdA_max
+    
 
     def mdot_Hdot(self, node1, node2):
-        # TODO ADD DYER
         """
         Return mdot (kg/s), Hdot (J/s) where positive means mass/enthalpy flows node1 -> node2.
-        Stream enthalpy is taken from donor's phase at the connection 'location'.
+        Includes Dyer model for two-phase flow (flashing).
         """
-        # check if connection is open
+        # Check if connection is open
         if not self.state:
             return 0.0, 0.0
-    
+
         dP = node1.P - node2.P
-        if self.checking & (dP < 0):
+        if self.checking and dP < 0:
             return 0.0, 0.0
-        
         if abs(dP) < 1e-12:
             return 0.0, 0.0
-
-        self.target_mdot = self.state
-        # determine donor and receiver
+        
+        # Determine donor and receiver
         if dP > 0:
             donor, receiver = node1, node2
         else:
             donor, receiver = node2, node1
 
-        # choose stream phase based on donor.fill_level and connection location
-        # if fill_level > location -> stream draws from liquid; otherwise vapor
+        # Select phase based on donor fill
         if donor.fill_level > self.location:
-            # stream is liquid from donor
             h_stream = donor.h_l
-            # at receiver pressure
             d_stream = donor.d_l
         else:
-            # stream is vapor from donor
             h_stream = donor.h_v
             d_stream = donor.d_v
 
         abs_dP = abs(dP)
-        self.dP = abs_dP # logging
+        self.dP = abs_dP  # logging
 
-        # allow choked formula only if donor is gas-like (no two-phase)
         donor_phase = CP.PhaseSI('D', donor.d, 'H', donor.h, donor.fluid)
+
+        # --- GAS/CHOKED FLOW ---
         if donor_phase in ("gas", "supercritical") and donor.Cp and donor.Cv and donor.R:
-            # compressible/choked flow estimate
             gamma = donor.gamma
             R = donor.R
             Tdon = donor.T
-            crit_factor = ((gamma + 1.0) / 2.0) ** ( - (gamma + 1.0) / (2.0 * (gamma - 1.0)) )
-            self.CdA = min(self.CdA_max, self.state / (donor.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor))
-        else:
-            # incompressible-like orifice
-            self.CdA = min(self.CdA_max, self.state / np.sqrt(2.0 * max(d_stream, 1e-6) * abs_dP))
-            self.Q = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, donor.fluid)
+            crit_factor = ((gamma + 1.0) / 2.0) ** (-(gamma + 1.0) / (2.0 * (gamma - 1.0)))
+            Pcrit = donor.P * crit_factor
 
-            # isentropic assumption test
-            # s = PropsSI_auto('S', 'P', donor.P, 'H', h_stream, donor.fluid)
-            # self.Q = PropsSI_auto('Q', 'P', receiver.P, 'S', s, donor.fluid)
-
-            # If inside 0–1, it's two-phase
-            if 0 <= self.Q <= 1:
-                h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, donor.fluid)
-                h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, donor.fluid)
-                m_vap = self.target_mdot * self.Q
-                m_liq = self.target_mdot * (1 - self.Q)
-                # Hdot adjusted for flashing
-                Hdot = m_vap * h_vap + m_liq * h_liq
+            if receiver.P > Pcrit:
+                # Unchoked subsonic gas flow
+                self.CdA = min(self.CdA_max, self.state / (donor.P * np.sqrt(2 * abs(1 - (receiver.P / donor.P) ** ((gamma - 1) / gamma)) / (R * Tdon))))
             else:
-                # single-phase at receiver P
-                Hdot = self.target_mdot * h_stream
+                # Choked
+                self.CdA = min(self.CdA_max, self.state / (donor.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor))
 
-        # sign convention: positive mdot -> node1 -> node2
-        if donor is node1:
-            mdot = self.target_mdot
+            Hdot = self.state * h_stream
+        
+        # --- LIQUID / TWO-PHASE (Dyer model) ---
         else:
-            mdot = - self.target_mdot
+            h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, donor.fluid)
+            h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, donor.fluid)
+            Pv = PropsSI_auto('P', 'T', donor.T, 'Q', 1, donor.fluid)
 
-        Hdot = mdot * h_stream + self.qdot
-        self.mdot = mdot # logging
-        self.Hdot = Hdot # logging
+            # Single-phase incompressible term (SPI) without CdA
+            mdot_spi = np.sqrt(2.0 * max(d_stream, 1e-6) * abs_dP)
+
+            # Homogeneous equilibrium model term (HEM) without CdA
+            try:
+                h1 = h_stream
+                h2 = PropsSI_auto('H', 'P', receiver.P, 'S', donor.s, donor.fluid)
+                rho2p = 1.0 / PropsSI_auto('D', 'P', receiver.P, 'Q', 0.5, donor.fluid)
+                mdot_hem = rho2p * np.sqrt(2.0 * max(h1 - h2, 1e-9))
+            except Exception:
+                mdot_hem = mdot_spi
+
+            # Dyer blending factor
+            r = 1  # tunable, change based on test data
+            kappa = r * (donor.P - receiver.P) / max(Pv - receiver.P, 1e-6) # can also manually set kappa (2 is a good conservative value)
+
+            # Dyer blended mass flow CdA calculation
+            self.CdA = self.state / ((kappa / (1 + kappa)) * mdot_spi + (1 / (1 + kappa)) * mdot_hem)
+            # Enthalpy flow rate (assume isenthalpic across connection to find quality)
+            # I am aware that an isenthalpic assumption here conflicts with the isentropic assumption for HEM...
+            # This is why we blend the models, but generally isenthalpic will be more accurate and conservative...
+            # Physically it makes a lot more sense than assuming isentropic (since flashing changes entropy)
+            self.Q = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, donor.fluid)
+            if 0 <= self.Q <= 1:
+                Hdot = self.state * (self.Q * h_vap + (1 - self.Q) * h_liq)
+            else:
+                Hdot = self.state * h_stream
+
+        # Sign convention
+        if donor is node1:
+            mdot = self.state
+        else:
+            mdot = -self.state
+
+        Hdot += self.qdot  # add any heat leak term
+        self.mdot, self.Hdot = mdot, Hdot
         return mdot, Hdot
-    
+
 
 class CheckValve(Connection):
     """
@@ -682,7 +698,7 @@ class Network():
             else:
                 axs[0].plot(time, conn.history['mdot'], label=conn.name)
                 axs[1].plot(time, conn.history['dP'], label=conn.name)
-            axs[2].plot(time, conn.history['CdA'], label=conn.name)
+            axs[2].plot(time, np.array(conn.history['CdA']) * 1000000, label=conn.name)
             axs[3].plot(time, conn.history['Hdot'], label=conn.name)
             axs[4].plot(time, conn.history['Q'], label=conn.name)
             axs[5].plot(time, conn.history['state'], label=conn.name)
@@ -694,7 +710,7 @@ class Network():
         else:
             axs[0].set_ylabel("mdot [kg/s]")
             axs[1].set_ylabel("dP [Pa]")
-        axs[2].set_ylabel("CdA [m^2]")
+        axs[2].set_ylabel("CdA [mm^2]")
         axs[3].set_ylabel("Hdot [J/s]")
         axs[4].set_ylabel("Q [0-1]")
         axs[5].set_ylabel("State [-]")

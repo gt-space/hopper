@@ -14,31 +14,31 @@ import math
 
 # LIQUID PULL FILL
 # target mass: 36 kg
-n = 7 # num bottles
-vehicle_tank = Node("N2O", 1, 50, 293, "Vehcle Tank")
-fill_tanks = Node("N2O", 9.0718 * n, 13.4 * n, 293, "Fill Tanks")
-amb_node = Ambient()
-fill_line = Connection(0.000006, 0, 0)
-vent_line = Connection(0.0000003, 0, 1, False)
-omv = Connection(0.000008, 0, 0, False)
-test_network = Network({fill_line: (fill_tanks, vehicle_tank), vent_line: (vehicle_tank, amb_node), omv: (vehicle_tank, amb_node)})
-test_network.sim(1100, 1, {300: (vent_line, True), 950: (fill_line, False), 1040: (omv, True)})
-test_network.plot_nodes_overlay((fill_tanks, vehicle_tank), title="LIQUID PULL 40L", units="E")
-test_network.plot_connections_overlay([fill_line], units="E")
+# n = 7 # num bottles
+# vehicle_tank = Node("N2O", 1, 50, 293, "Vehcle Tank")
+# fill_tanks = Node("N2O", 9.0718 * n, 13.4 * n, 293, "Fill Tanks")
+# amb_node = Ambient()
+# fill_line = Connection(0.000006, 0, 0)
+# vent_line = Connection(0.0000003, 0, 1, False)
+# omv = Connection(0.000008, 0, 0, False)
+# test_network = Network({fill_line: (fill_tanks, vehicle_tank), vent_line: (vehicle_tank, amb_node), omv: (vehicle_tank, amb_node)})
+# test_network.sim(1100, 1, {300: (vent_line, True), 950: (fill_line, False), 1040: (omv, True)})
+# test_network.plot_nodes_overlay((fill_tanks, vehicle_tank), title="LIQUID PULL 40L", units="E")
+# test_network.plot_connections_overlay([fill_line], units="E")
 
 # TV SIM
-# vehicle_tank1 = Node("N2O", 36, 50, 288, "Full Tank 50L")
-# vehicle_tank2 = Node("N2O", 36, 50, 288, "Full Tank 50L")
+vehicle_tank1 = Node("N2O", 36, 50, 288, "Full Tank 50L")
+vehicle_tank2 = Node("N2O", 36, 50, 288, "Full Tank 50L")
 
-# chamber = Ambient(P=101325*435/14.7)
-# tv1 = ThrottleValve(1, target_mdot=0.5, normal_state=0.5)
-# tv2 = ThrottleValve(1, target_mdot=0.5, normal_state=0.125)
+chamber = Ambient(P=101325*435/14.7)
+tv1 = ThrottleValve(1, target_mdot=0.57, normal_state=0.57)
+tv2 = ThrottleValve(1, target_mdot=0.57, normal_state=0.125)
 
-# test_network = Network({tv1: (vehicle_tank1, chamber), tv2: (vehicle_tank2, chamber)})
-# throttle_profile = {30: (tv2, 0.5)}
-# test_network.sim(60, 0.1, throttle_profile)
-# test_network.plot_nodes_overlay([vehicle_tank1, vehicle_tank2], units="E")
-# test_network.plot_connections_overlay([tv1, tv2], units="E")
+test_network = Network({tv1: (vehicle_tank1, chamber), tv2: (vehicle_tank2, chamber)})
+throttle_profile = {30: (tv2, 0.5)}
+test_network.sim(53, 0.1, throttle_profile)
+test_network.plot_nodes_overlay([vehicle_tank1], units="E")
+test_network.plot_connections_overlay([tv1], units="E")
 
 # LIQUID PULL SMALL TANK
 # n = 1
