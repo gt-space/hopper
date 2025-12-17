@@ -1,37 +1,49 @@
 
 % Simulation Parameters
 dt = 0.01; % Time step (s)
-T = 10; % Time Span (s)
+T = 20; % Time Span (s)
 N = T/dt + 1; % Number of simulated states
 
 % Vehicle Parameters
-params.g = 9.81; % Gravity (m/s^2)
+vehicle.g = 9.81; % Gravity (m/s^2)
 
-params.Tmax = 1556.88; % max thrust [N]
-params.Isp = 260; % seconds
-params.mass_w = 100; % Wet mass (kg)
-params.mass_d = 50; % Dry mass (kg)
+vehicle.Tmax = 1556.88; % max thrust [N]
+vehicle.Isp = 260; % seconds
+vehicle.mr = 3.8; % O/F Mixture Ratio
 
-params.tvc_cg_dist_full = 1.2; % distance from CG to nozzle when full [m]
-params.tvc_cg_dist_empty = 0.9; % distance from CG to nozzle when empty [m]
-params.initial_actuator_length = 0.17; % Neutral length of actuator
-params.actuator_gain = 4.5; % How much the TVC angle changes with the actuator length (rad/m)
+vehicle.n2o_mass_0 = 40; % Initial Propellant Masses 
+vehicle.ipa_mass_0 = 9; 
 
-params.ure = 0; % Mass flow reference velocities
-params.wre = 0;
+vehicle.n2o_tank_height = 0.5; % Propellant tank heights
+vehicle.ipa_tank_height = 0.85;
 
-m = 100; % Mass (kg)
-Iyy = 5000; % Moment of Inertia (kg*m^2)
+vehicle.n2o_tank_bottom = 0.5; % Bottom position of tanks
+vehicle.ipa_tank_bottom = 0.5;
 
-x = [0; 0; 0; 0; 0; 0; m; Iyy]; % Initial state
+vehicle.cg_dry = 2; % Dry CG of vehicle
+
+vehicle.mass_d = 50; % Dry mass (kg)
+
+vehicle.Iyy_dry = 2500; % Dry moment of inertia (kg*m^2)
+
+vehicle.tvc_pos = 0.1; % Vertical distance ofT TVC to ground
+vehicle.initial_actuator_length = 0.17; % Neutral length of actuator
+vehicle.actuator_gain = 4.5; % How much the TVC angle changes with the actuator length (rad/m)
+
+vehicle.ure = 0; % Mass flow reference velocities
+vehicle.wre = 0;
+
+[Iyy, ~, ~, ~, ~, ~] = hopper_3dof_inertia_calculator(vehicle.n2o_mass_0, vehicle.ipa_mass_0, 0, vehicle);
+
+x = [0; 0; 0; 0; 0; 0; vehicle.n2o_mass_0; vehicle.ipa_mass_0; Iyy]; % Initial state
 
 
-data = zeros(length(x)+7,N); % Store state history
+data = zeros(length(x)+8,N); % Store state history
 
 % Simulation Loop
 for i = 1:N
-    u_ctrl = hopper_3dof_controller(x);
-    [x, ctrl_data] = hopper_3dof_dynamics(x, u_ctrl, dt, params);
+    u_ctrl = hopper_3dof_controller(x,i);
+    [x, ctrl_data] = hopper_3dof_dynamics(x, u_ctrl, dt, vehicle);
     data(:,i) = [x ; ctrl_data];
 end
 

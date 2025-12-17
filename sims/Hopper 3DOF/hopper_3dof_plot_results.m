@@ -8,15 +8,17 @@ q     = X(3,:);
 theta = X(4,:);
 xe    = X(5,:);
 ze    = X(6,:);
-m     = X(7,:);
-Iyy   = X(8,:);
-u_dot = X(9,:);
-w_dot = X(10,:);
-q_dot = X(11,:);
-m_dot = X(12,:);
-lever =  X(13,:);
-thrust = X(14,:);
-phi = X(15,:);
+n2o_mass = X(7,:);
+ipa_mass = X(8,:);
+Iyy   = X(9,:);
+u_dot = X(10,:);
+w_dot = X(11,:);
+q_dot = X(12,:);
+m_dot = X(13,:);
+m = X(14,:);
+cg =  X(15,:);
+thrust = X(16,:);
+phi = X(17,:);
 
 
 figure('Name','Hopper 3DOF Rotational & Translation States','Color','k');
@@ -30,7 +32,7 @@ ylabel('X Position (m)')
 title('Downrange Position')
 
 subplot(3,3,2)
-plot(t, ze, 'LineWidth',1.5)
+plot(t, -ze, 'LineWidth',1.5)
 grid on
 ylabel('Z Position (m)')
 title('Altitude Position')
@@ -89,7 +91,7 @@ title('Trajectory')
 
 figure('Name','Hopper 3DOF Mass States','Color','k');
 % --- Mass ---
-subplot(2,2,1)
+subplot(2,3,1)
 plot(t, m, 'LineWidth',1.5)
 grid on
 ylabel('Mass (kg)')
@@ -97,23 +99,39 @@ xlabel('Time (s)')
 title('Mass Depletion')
 
 % --- Mass Rate ---
-subplot(2,2,2)
+subplot(2,3,4)
 plot(t, m_dot, 'LineWidth',1.5)
 grid on
 ylabel('m_{dot} (kg/s)')
 xlabel('Time (s)')
 title('Mass Depletion Rate')
 
-% --- Lever Arm ---
-subplot(2,2,3)
-plot(t, lever, 'LineWidth',1.5)
+% --- N2O Mass ---
+subplot(2,3,2)
+plot(t, n2o_mass, 'LineWidth',1.5)
 grid on
-ylabel('Lever Arm (m)')
+ylabel('N2O Mass (kg)')
 xlabel('Time (s)')
-title('Lever Arm Profile')
+title('N2O Mass Profile')
+
+% --- IPA Mass ---
+subplot(2,3,5)
+plot(t, ipa_mass, 'LineWidth',1.5)
+grid on
+ylabel('IPA Mass (kg)')
+xlabel('Time (s)')
+title('IPA Mass Profile')
+
+% --- CG ---
+subplot(2,3,3)
+plot(t, cg, 'LineWidth',1.5)
+grid on
+ylabel('CG (m)')
+xlabel('Time (s)')
+title('CG Profile')
 
 % --- Moment of Inertia ---
-subplot(2,2,4)
+subplot(2,3,6)
 plot(t, Iyy, 'LineWidth',1.5)
 grid on
 ylabel('I_{yy} (kg*m^2)')
