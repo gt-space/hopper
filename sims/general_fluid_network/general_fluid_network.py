@@ -67,6 +67,8 @@ class Node():
         # node history dict initialization
         self.history = {k: [] for k in ["time","Q","P","T","H","h","d","m","m_l","m_v", "fill_level", "s"]}
 
+    # def __init__(self, node):
+    #     self.
     def _flash_from_DH(self, d, H):
         """
         Given bulk density d (kg/m3) and total enthalpy H (J),
@@ -203,11 +205,14 @@ class Manifold(Node):
     pass
 
 
-class Accumulator(Node):
+class PistonTank(Node):
     """
-    Subclass of Node to represent an accumulator.
+    Subclass of Node to represent an piston tank. Defined by 
     """
     # TODO
+    def __init__(self, fluid, m, V, T, linked_node, name="node"):
+        super().__init__(fluid, m, V, T, name)
+
     pass
 
 
