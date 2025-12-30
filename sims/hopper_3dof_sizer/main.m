@@ -1,134 +1,34 @@
-%% Hopper Vehicle Sizer - Main Entry Point
-clear; clc;
-
-%% =======================
-% Add project paths
-%% =======================
-root = fileparts(mfilename('fullpath'));
-addpath(genpath(root));
-
-%% =======================
-% Load inputs
-%% =======================
 IN = mission_inputs();
 
-%% =======================
-% User-defined fixed inputs
-%% =======================
-IN.propulsion.Isp_vac = 245;              % s (guess)
-IN.propulsion.OF = 4.0;
-IN.propulsion.chamber_pressure = 24e5;    % Pa (300 psi)
+TANKS = size_tanks(IN);
 
-IN.avionics.mass = 3.0;                   % kg
-IN.avionics.power = 80;                   % W
+VEH.mass.tanks = TANKS.singular.total_mass;
+VEH.mass.engine = 12; % placeholder
+VEH.mass.dry = VEH.mass.engine + VEH.mass.tanks + IN.structures.payload_mass;
+% PROP = size_propellant(IN, VEH, ENGINE); need engine code to rum this
 
-%% =======================
-% Initial vehicle mass guess
-%% =======================
-vehicle = struct();
-vehicle.mass_dry = 40;    % kg initial guess
-vehicle.mass_wet = vehicle.mass_dry;
+VEH.mass.wet = VEH.mass.dry + ...
+    IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass ;
 
-%% =======================
-% Convergence settings
-%% =======================
-tol = 0.5;          % kg
-max_iter = 20;
+STRUCT = size_structures(IN, VEH);
 
-fprintf('Starting vehicle sizing loop...\n');
+OUT = Outputs(IN, VEH, TANKS, STRUCT);
+fprintf('\n===== VEHICLE SUMMARY =====\n');
 
-for iter = 1:max_iter
+fprintf('Dry Mass: %.2f kg\n', OUT.Vehicle.DryMass);
+fprintf('Wet Mass: %.2f kg\n', OUT.Vehicle.WetMass);
 
-    fprintf('\nIteration %d\n', iter);
+fprintf('Initial TWR: %.2f\n', OUT.Vehicle.InitialTWR);
+fprintf('Final TWR: %.2f\n', OUT.Vehicle.FinalTWR);
 
-    %% =======================
-    % Engine sizing
-    %% =======================
-    engine = size_engine(IN, vehicle);
+fprintf('\n--- Propellant ---\n');
+fprintf('Oxidizer Mass: %.2f kg\n', IN.propulsion.oxidizer_mass);
+fprintf('Fuel Mass: %.2f kg\n', IN.propulsion.fuel_mass);
 
-    %% =======================
-    % Propellant sizing
-    %% =======================
-    prop = size_propellant(IN, engine, vehicle);
+fprintf('\n--- Tank Volumes ---\n');
+fprintf('Ox Tank Volume: %.4f m^3\n', OUT.Structures.OxTankVolume);
+fprintf('Fuel Tank Volume: %.4f m^3\n', OUT.Structures.FuelTankVolume);
 
-    %% =======================
-    % Tank sizing
-    %% =======================
-    tanks = size_tanks(IN, prop);
-
-    %% =======================
-    % Update vehicle masses
-    %% =======================
-    m_prop = prop.m_total;
-    m_tanks = tanks.ox.mass + tanks.fu.mass;
-
-    vehicle.mass_dry = ...
-        IN.structures.payload_mass + ...
-        IN.avionics.mass + ...
-        engine.mass + ...
-        m_tanks;
-
-    vehicle.mass_wet = vehicle.mass_dry + m_prop + IN.margins.mass_growth;
-
-    %% =======================
-    % Structural sizing
-    %% =======================
-    structures = size_structures(IN, vehicle);
-    vehicle.mass_dry = vehicle.mass_dry + structures.total;
-    vehicle.mass_wet = vehicle.mass_wet + structures.total;
-
-    %% =======================
-    % Battery sizing
-    %% =======================
-    battery = size_batteries(IN, []);
-    vehicle.mass_dry = vehicle.mass_dry + battery.mass;
-    vehicle.mass_wet = vehicle.mass_wet + battery.mass;
-
-    %% =======================
-    % Convergence check
-    %% =======================
-    if iter > 1
-        delta = abs(vehicle.mass_wet - mass_prev);
-        fprintf('  Wet mass = %.2f kg (Δ = %.2f)\n', vehicle.mass_wet, delta);
-        if delta < tol
-            fprintf('Converged.\n');
-            break;
-        end
-    else
-        fprintf('  Wet mass = %.2f kg\n', vehicle.mass_wet);
-    end
-
-    mass_prev = vehicle.mass_wet;
-
-end
-
-%% =======================
-% Final outputs
-%% =======================
-Vehicle = vehicle;
-
-OUT = struct();
-OUT.vehicle.mass_dry = vehicle.mass_dry;
-OUT.vehicle.mass_wet = vehicle.mass_wet;
-OUT.vehicle.TWR_initial = engine.thrust_nom / (vehicle.mass_wet * IN.const.g0);
-OUT.vehicle.TWR_final = engine.thrust_nom / (vehicle.mass_dry * IN.const.g0);
-
-OUT.propellant = prop;
-OUT.engine = engine;
-OUT.tanks = tanks;
-OUT.structures = structures;
-OUT.battery = battery;
-
-%% =======================
-% Print summary
-%% =======================
-fprintf('\n=== FINAL VEHICLE SUMMARY ===\n');
-fprintf('Dry Mass: %.2f kg\n', vehicle.mass_dry);
-fprintf('Wet Mass: %.2f kg\n', vehicle.mass_wet);
-fprintf('Initial TWR: %.2f\n', OUT.vehicle.TWR_initial);
-fprintf('Final TWR: %.2f\n', OUT.vehicle.TWR_final);
-%% =======================
-% Save results
-%% =======================
-save('hopper_sizing_output.mat','IN','OUT','Vehicle');
-
+fprintf('\n--- Structures ---\n');
+fprintf('Landing Legs + Intertank: %.2f kg\n', ...
+    OUT.Vehicle.MassDistribution.Structures);

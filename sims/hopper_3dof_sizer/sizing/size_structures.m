@@ -1,25 +1,43 @@
-function structures = size_structures(IN, vehicle)
+function STRUCT = size_structures(IN, VEH)
+% Sizes landing legs and intertank structure
 
-m = vehicle.mass_wet;
-h = IN.mission.target_altitude;
+%% Material Al6061
+rho = 2700;        % kg/m^3
+E   = 69e9;        % Pa
 
-%% Landing legs (Euler buckling proxy)
-E = 69e9; % Pa (Al)
-L = 0.5;  % m
-I = 1e-8; % m^4
+g = IN.const.g0;
+FS = IN.const.FS_struct;
+
+%% Vehicle loads
+W = VEH.mass.wet * g;
+H = 0.33;   % engine bay height [m] (adjust if needed)
+leg_length = H / cosd(30);
+
+%% Leg sizing
+N_legs = 4;
+F_leg = W / N_legs * IN.legs.tip_factor;
+
+% Buckling-limited rod
+L = leg_length;
+r = 0.015; % m (guess)
+I = pi*r^4/4;
 
 Pcr = pi^2 * E * I / L^2;
-assert(Pcr > m*IN.const.g0, 'Landing leg buckling');
 
-m_legs = 0.05 * m * IN.legs.tip_factor;
+while Pcr < FS * F_leg
+    r = r * 1.05;
+    I = pi*r^4/4;
+    Pcr = pi^2 * E * I / L^2;
+end
 
-%% TVC actuators
-m_tvc = 0.02 * m;
+A = pi*r^2;
+m_leg = A * L * rho;
 
-%% Pack
-structures = struct();
-structures.legs = m_legs;
-structures.tvc = m_tvc;
-structures.total = m_legs + m_tvc;
+STRUCT.legs.mass = N_legs * m_leg * 1.5;
+
+%% Intertank structure
+STRUCT.intertank.mass = 0.08 * VEH.mass.tanks; % guess
+
+STRUCT.total = STRUCT.legs.mass + STRUCT.intertank.mass;
 
 end

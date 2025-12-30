@@ -30,8 +30,8 @@ IN.avionics.hours = 1.0;            % hr
 %  PROPULSION
 IN.propulsion.oxidizer = 'N2O';
 IN.propulsion.fuel = 'IPA';
-IN.propulsion.oxidizer_mass = 40; % kg -> internal
-IN.propulsion.fuel_mass = 10; % kg -> internal
+IN.propulsion.oxidizer_mass = 40; % kg internal
+IN.propulsion.fuel_mass = 10; % kg internal
 IN.propulsion.nominal_thrust = 500 * 4.44822; % N
 IN.propulsion.throttle_range = [0.25 1.1];
 
@@ -61,7 +61,7 @@ IN.tvc.max_gimbal_rate = deg2rad(20); % rad/s ?
 
 %  LANDING LEGS
 IN.legs.material = 'Al6061';
-IN.legs.tip_factor = 1.5; % accounts for non-symmetric landing (leg takes 50% extra load)
+IN.legs.tip_factor = 1.5;
 
 %  BATTERIES
 IN.battery.energy_density = 200;   % Wh/kg
