@@ -1,0 +1,58 @@
+function AVI = size_avionics(IN, vehicle)
+%% Description
+% Power is drawn from solenoid valves, 2X TVC Actuators, 2X Throttle
+% Valves, and avionics boards.
+
+% Standby and Flight Time are separate hours cases that power must be
+% supplied for when umbilical is dicsonnected and it depends on each component.
+
+% Empirical correlations will be used to return the 
+
+% Capabilities
+% 1) Calculate required battery, boards, and harness mass
+% 2) Calculate total power draw for the vehicle
+
+% Battery Specs from here - https://www.18650batterystore.com/collections/18650-batteries
+
+%% Unpack Inputs
+standby_hours = IN.avionics.standby_hours; % hr
+flight_time = IN.avionics.flight_time / 3600; % sec -> hr
+lcoms_time = IN.avionics.lcoms_time / 3600; % sec -- > hr
+battery_voltage = IN.avionics.voltage; % V
+
+% Power Calculations
+TVC_power = vehicle.tvc.voltage * vehicle.tvc.current; % W
+Motor_power = vehicle.throttle_valve.voltage * vehicle.throttle_valve.current; % W
+Boards_power = vehicle.avionics.boards.voltage * vehicle.avionics.boards.current; % W
+Valves_power = vehicle.solenoid_valve_quantity * vehicle.valves.voltage * vehicle.valves.current; % W
+
+% Capacity Calculations
+energy_standby = standby_hours * (Boards_power + Motor_power); % Wh
+energy_flight = flight_time * (TVC_power + Motor_power + Valves_power + Boards_power); % Wh
+energy_lcoms = lcoms_time * Valves_power; % Wh
+tot_energy = energy_standby + energy_flight + energy_lcoms; % Wh
+vehicle.avionics.capacity = (tot_energy * (1 * 1 * 1.15)) / (48 * 0.2); % Ah
+
+% Cell Sizing
+V_load_max = 30 / 100;
+V_charging = 4.2; % V
+num_cells = ceil((battery_voltage * (1 + V_load_max)) / V_charging);
+
+% Battery Specs (from website)
+m_batt = 50 / 1000; % g --> kg
+
+% flight time * 2
+% 2 hrs for boards without motors/actuators
+
+% Mass Tracker
+boards_mass = 8 * 0.453592; % lbm --> kg, includes structural mass, 11 lbm for Vespula as baseline
+battery_mass = m_batt * num_cells; % kg
+harnesses_mass = 3 * 0.453592; % lbm --> kg
+avi_mass = boards_mass + battery_mass + harnesses_mass; % kg
+
+% Pack Outputs
+AVI = struct();
+AVI.boards_mass = 
+
+
+end

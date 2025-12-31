@@ -23,9 +23,10 @@ IN.structures.payload_mass = 34 * 0.453592; % kg
 IN.structures.payload_cg_z = [];            % m (from cad/aidan)
 
 %  AVIONICS
-IN.avionics.mass = [];              % kg
-IN.avionics.power = [];             % W
-IN.avionics.hours = 1.0;            % hr
+IN.avionics.standby_hours = 2.0; % hr
+IN.avionics.flight_time = 2 * 30; % sec
+IN.avionics.lcoms_time = 10 * 60; % min --> sec
+IN.avionics.battery_voltage = 48; % V
 
 %  PROPULSION
 IN.propulsion.oxidizer = 'N2O';
@@ -62,10 +63,6 @@ IN.tvc.max_gimbal_rate = deg2rad(20); % rad/s ?
 %  LANDING LEGS
 IN.legs.material = 'Al6061';
 IN.legs.tip_factor = 1.5; % accounts for non-symmetric landing (leg takes 50% extra load)
-
-%  BATTERIES
-IN.battery.energy_density = 200;   % Wh/kg
-IN.battery.margin = 1.5;
 
 %  SIMULATION SETTINGS
 IN.sim.dt = 0.01;                  % s
