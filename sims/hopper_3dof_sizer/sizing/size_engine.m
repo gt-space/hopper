@@ -1,5 +1,21 @@
 function engine = size_engine(IN, vehicle)
 
+% Outline
+% Unpack Inputs - nominal thrust, throttle range, Pe, C* efficiency
+% size for fully expanded at 20% stiffness at 100% thrust
+
+% create conical nozzle curve of engine - assume 0.5" thickness at each
+% station to calculate the volume of the disks - discretize step points and
+% add the volumes
+
+% material list - 
+
+% calculate mass of TCA
+
+% assume injector is 1.5" puck made of stainless steel of the same diameter
+% and calculate mass of injector
+
+
 % Unpack
 g0   = IN.const.g0;
 Tnom = IN.propulsion.nominal_thrust;
