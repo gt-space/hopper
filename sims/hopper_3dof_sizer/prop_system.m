@@ -1,9 +1,11 @@
 %% Hopper Propulsion System
 
-function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR] = prop_system(thrust_target, ox_name, fu_name, fu_temp, ox_vap_P, ox_tank_P, fu_tank_P, ox_sys_CdA, fu_sys_CdA, eta_cstar, At, eps)
+function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR, ox_valve_CdA, fu_valve_CdA] = prop_system(thrust_target, ox_name, fu_name, fu_temp, ox_vap_P, ox_tank_P, fu_tank_P, ox_sys_CdA, fu_sys_CdA, eta_cstar, At, eps)
+    % Instructions for CP Download
+    % Verify that a Python version from 3.8 - 3.11 is installed
+    % do "pip install CoolProp" in a terminal
     
-    %pyenv
-    %CP = py.importlib.import_module('CoolProp.CoolProp');
+    pyenv % Python call
     
     % Hardcoded Pa - implement this as a function of altitude so it changes
     % with launch site as well
@@ -21,9 +23,10 @@ function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR] = prop_system(thrust_targe
     % Cstar Theoretical
     cstar_theo = 1513; % m/s
     cstar_act = eta_cstar * cstar_theo; % m/s
-
-    ox_rho = 896; % kg/m^3
-    fu_rho = 786; % kg/m^2
+    
+    % Density Call
+    ox_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', ox_vap_P, 'Q', 0, ox_name)); % kg/m^3
+    fu_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', fu_tank_P, 'T', fu_temp, fu_name)); % kg/m^3
 
     % Solve Area-Mach Relation
     f = @(M) (eps)^2 - (1 / M^2) * (((2 / (gamma + 1)) * (1 + 0.5*(gamma - 1)*M^2))^((gamma + 1) / (gamma - 1)));
@@ -61,14 +64,13 @@ function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR] = prop_system(thrust_targe
     MR = x(10);
     T0 = x(11);
     U_e = x(12);
-    thrust = x(13);
+    thrust = x(13);    
 
-    % import CEA tables - output all gas properties
-    
-    % vary Pc to solve for thrust - keep constant MR
+    % Upgrades to Add
+    % 1. Import CEA Tables for gas properties and interpolate (not major
+    % change to output (gamma, cstar, MW will change)
 
-    % Assign - OX Mdot, FU mdot, Total Mdot, Pc
-    % - vary the 
+    % 2. Vary MR (after engine designed)
     
 
 end
