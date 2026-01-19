@@ -25,8 +25,8 @@ function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR, ox_valve_CdA, fu_valve_CdA
     cstar_act = eta_cstar * cstar_theo; % m/s
     
     % Density Call
-    ox_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', ox_vap_P, 'Q', 0, ox_name)); % kg/m^3
-    fu_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', fu_tank_P, 'T', fu_temp, fu_name)); % kg/m^3
+    ox_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', ox_vap_P, 'Q', 0, ox_name)) % kg/m^3
+    fu_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', fu_tank_P, 'T', fu_temp, fu_name)) % kg/m^3
 
     % Solve Area-Mach Relation
     f = @(M) (eps)^2 - (1 / M^2) * (((2 / (gamma + 1)) * (1 + 0.5*(gamma - 1)*M^2))^((gamma + 1) / (gamma - 1)));
