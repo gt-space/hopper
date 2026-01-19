@@ -23,14 +23,17 @@ OUT.Vehicle.MassDistribution.Payload = IN.structures.payload_mass;
 
 OUT.Vehicle.DryMass = VEH.mass.dry;
 OUT.Vehicle.WetMass = VEH.mass.wet;
+OUT.Vehicle.MassRatio = 100 * ((VEH.mass.wet - VEH.mass.dry) / VEH.mass.wet);
 
 %% TWR
 OUT.Vehicle.InitialTWR = ...
     IN.propulsion.nominal_thrust / ...
     (OUT.Vehicle.WetMass * IN.const.g0);
 
+OUT.Vehicle.minThrust = IN.propulsion.throttle_range(1) * IN.propulsion.nominal_thrust; 
+OUT.Vehicle.maxThrust = IN.propulsion.throttle_range(2) * IN.propulsion.nominal_thrust; 
 OUT.Vehicle.FinalTWR = ...
-    IN.propulsion.nominal_thrust / ...
+    OUT.Vehicle.minThrust / ...
     (OUT.Vehicle.DryMass * IN.const.g0);
 
 end

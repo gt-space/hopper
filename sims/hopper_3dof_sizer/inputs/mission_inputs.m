@@ -4,11 +4,11 @@ IN.const.g0 = 9.80665;              % m/s^2
 IN.const.R_univ = 8.314462618;      % J/mol-K
 IN.const.FS_struct = 1.5;           % structural factor of safety
 
-%  MISSION CONSTRAINTS
-IN.mission.target_altitude = 55;    % m
-IN.mission.hover_time_55m = 5;      % s
-IN.mission.max_ascent_vel = 10;     % m/s
-IN.mission.max_descent_vel = 10;    % m/s
+%  MISSION CONSTRAINTS (checked after flight simulation)
+IN.mission.target_altitude = 51;    % m
+IN.mission.hover_time_55m = 2;      % s
+IN.mission.max_ascent_vel = 7;     % m/s
+IN.mission.max_descent_vel = 7;    % m/s
 IN.mission.hover_time_1m = 1;       %s
 IN.mission.landing_vel = 0;         % m/s at 1 m
 IN.mission.landing_alt = 1;         % m
@@ -19,7 +19,8 @@ IN.mission.max_vehicle_height = 2.5; % m
 IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
 
 %  STRUCTURES
-IN.structures.payload_mass = 34 * 0.453592; % kg
+IN.structures.payload_mass = 15; % kg, CPLC Requirement
+IN.structures.extra_payload_mass = 15; % kg
 IN.structures.payload_cg_z = [];            % m (from cad/aidan)
 
 %  AVIONICS
@@ -27,6 +28,8 @@ IN.avionics.standby_hours = 2.0; % hr
 IN.avionics.flight_time = 2 * 30; % sec
 IN.avionics.lcoms_time = 10 * 60; % min --> sec
 IN.avionics.battery_voltage = 48; % V
+IN.avionics.boards.voltage = 12; % V
+IN.avionics.boards.current = 0.5; % A
 
 %  PROPULSION
 IN.propulsion.oxidizer = 'N2O';
@@ -34,7 +37,14 @@ IN.propulsion.fuel = 'IPA';
 IN.propulsion.oxidizer_mass = 40; % kg -> internal
 IN.propulsion.fuel_mass = 10; % kg -> internal
 IN.propulsion.nominal_thrust = 500 * 4.44822; % N
-IN.propulsion.throttle_range = [0.25 1.1];
+IN.propulsion.throttle_range = [0.35 1.1];
+IN.solenoid_valve_quantity = 5;
+IN.valves.voltage = 12; % V
+IN.valves.current = 1; % A
+
+% ENGINE
+IN.inj_material = "SS316L";
+IN.TCA_material = "AlSi10Mg";
 
 %  PRESSURIZATION MODE
 IN.press.mode = 'copv';  % 'copv' or 'autogenous'
@@ -59,6 +69,13 @@ IN.tanks.max_radius = 8*0.0254; % in -> m
 %  TVC
 IN.tvc.max_gimbal_angle = deg2rad(5); % ?
 IN.tvc.max_gimbal_rate = deg2rad(20); % rad/s ?
+IN.tvc.voltage = 24; % V
+IN.tvc.current = 3; % A
+
+% THROTTLE VALVE
+IN.throttle_valve.voltage = 24; % V
+IN.throttle_valve.current = 1; % A
+IN.throttle_valve.mass = 2.3; % kg
 
 %  LANDING LEGS
 IN.legs.material = 'Al6061';

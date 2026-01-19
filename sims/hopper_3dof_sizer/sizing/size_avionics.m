@@ -18,7 +18,7 @@ function AVI = size_avionics(IN)
 standby_hours = IN.avionics.standby_hours; % hr
 flight_time = IN.avionics.flight_time / 3600; % sec -> hr
 lcoms_time = IN.avionics.lcoms_time / 3600; % sec -- > hr
-battery_voltage = IN.avionics.voltage; % V
+battery_voltage = IN.avionics.battery_voltage; % V
 
 % Power Calculations
 TVC_power = IN.tvc.voltage * IN.tvc.current; % W
@@ -31,7 +31,7 @@ energy_standby = standby_hours * (Boards_power + Motor_power); % Wh
 energy_flight = flight_time * (TVC_power + Motor_power + Valves_power + Boards_power); % Wh
 energy_lcoms = lcoms_time * Valves_power; % Wh
 tot_load = energy_standby + energy_flight + energy_lcoms; % Wh
-capacity = (tot_energy * (1 * 1 * 1.15)) / (48 * 0.2); % Ah
+capacity = (tot_load * (1 * 1 * 1.15)) / (48 * 0.2); % Ah
 
 % Cell Sizing
 V_load_max = 30 / 100;
