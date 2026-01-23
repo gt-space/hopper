@@ -50,25 +50,24 @@ class Node():
     Node class. State defined by total density d (kg/m^3) and enthalpy K(J).
     Initialized by fluid, mass m (kg), volume V (L), tempurature T (K), and name.
     """
-    def __init__(self, fluid, m, V, T, name="node"):
-        self.fluid = fluid
-        self.m = float(m) # node mass [kg]
-        self.V = float(V) / 1000.0  # convert L -> m^3
-        self.name = name
+    def __init__(self, fluid, m, V, T, name="node", type="m"):
+        if type == "m":
+            self.fluid = fluid
+            self.m = float(m) # node mass [kg]
+            self.V = float(V) / 1000.0  # convert L -> m^3
+            self.name = name
 
-        # Initialize state using T and density computed from m/V
-        self.d = self.m / self.V
-        # specific enthalpy from (D,T)
-        h_spec = PropsSI_auto('H', 'D', self.d, 'T', float(T), self.fluid)  # J/kg
-        self.H = self.m * h_spec # total enthalpy [J]
-        # derived (will also populate m_l, m_v)
-        self._flash_from_DH(self.d, self.H)
+            # Initialize state using T and density computed from m/V
+            self.d = self.m / self.V
+            # specific enthalpy from (D,T)
+            h_spec = PropsSI_auto('H', 'D', self.d, 'T', float(T), self.fluid)  # J/kg
+            self.H = self.m * h_spec # total enthalpy [J]
+            # derived (will also populate m_l, m_v)
+            self._flash_from_DH(self.d, self.H)
 
-        # node history dict initialization
-        self.history = {k: [] for k in ["time","Q","P","T","H","h","d","m","m_l","m_v", "fill_level", "s"]}
+            # node history dict initialization
+            self.history = {k: [] for k in ["time","Q","P","T","H","h","d","m","m_l","m_v", "fill_level", "s"]}
 
-    # TODO write P, V, T init method @ ADAM
-    
     def _flash_from_DH(self, d, H):
         """
         Given bulk density d (kg/m3) and total enthalpy H (J),
@@ -568,7 +567,7 @@ class Valve(Connection):
 
 class BangBang(Connection):
     """
-    Subclass of Node to represent a sharp-edged orifice.
+    Subclass of Node to represent a bang-bang valve.
     """
     def __init__(self, CdA, target_pressure, qdot=0.0, location=0.0, normal_state=True, checking=True, name="connection"):
         super().__init__(CdA, qdot, location, normal_state, checking=True, name="bang_bang")

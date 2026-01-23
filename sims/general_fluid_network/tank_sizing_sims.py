@@ -1,4 +1,4 @@
-from general_fluid_network import Node, Ambient, Connection, ThrottleValve, Network, Tank
+from general_fluid_network import Node, Ambient, Connection, ThrottleValve, Network, Tank, BangBang, Regulator
 #################### TEST CONFIGS #########################
 import math
 
@@ -16,22 +16,22 @@ import math
 
 # FILL + FULL THROTTLE
 # target mass: 40 kg
-n = 7 # num bottles
-vol = 50 # L
-bottle_temp = 305 # K
-burn_duration = 60 # s
-fill_duration = 1100 # s
-vehicle_tank = Node("N2O", 1, vol, 293, "Vehicle Tank")
-fill_tanks = Node("N2O", 9.0718 * n, 13.4 * n, bottle_temp, "Fill Tanks")
-amb_node = Ambient()
-chamber = Ambient(P=101325*350*1.25/14.7)
-fill_line = Connection(0.00005, 0, 0)
-vent_line = Connection(0.0000005, 0, 1, False)
-tv1 = ThrottleValve(1, target_mdot=0.0, normal_state=0.0)
-test_network = Network({fill_line: (fill_tanks, vehicle_tank), vent_line: (vehicle_tank, amb_node), tv1: (vehicle_tank, chamber)})
-test_network.sim(fill_duration+burn_duration, 1, {300: (vent_line, True), fill_duration-10: (fill_line, False), fill_duration-1: (vent_line, False), fill_duration: (tv1, 0.57*0.5), fill_duration+10: (tv1, 0.57)})
-test_network.plot_nodes_overlay((fill_tanks, vehicle_tank), title=f"{burn_duration}s, {vol}L, {n} Bottles, {bottle_temp}K", units="E")
-test_network.plot_connections_overlay([tv1], units="E")
+# n = 7 # num bottles
+# vol = 50 # L
+# bottle_temp = 305 # K
+# burn_duration = 60 # s
+# fill_duration = 1100 # s
+# vehicle_tank = Node("N2O", 1, vol, 293, "Vehicle Tank")
+# fill_tanks = Node("N2O", 9.0718 * n, 13.4 * n, bottle_temp, "Fill Tanks")
+# amb_node = Ambient()
+# chamber = Ambient(P=101325*350*1.25/14.7)
+# fill_line = Connection(0.00005, 0, 0)
+# vent_line = Connection(0.0000005, 0, 1, False)
+# tv1 = ThrottleValve(1, target_mdot=0.0, normal_state=0.0)
+# test_network = Network({fill_line: (fill_tanks, vehicle_tank), vent_line: (vehicle_tank, amb_node), tv1: (vehicle_tank, chamber)})
+# test_network.sim(fill_duration+burn_duration, 1, {300: (vent_line, True), fill_duration-10: (fill_line, False), fill_duration-1: (vent_line, False), fill_duration: (tv1, 0.57*0.5), fill_duration+10: (tv1, 0.57)})
+# test_network.plot_nodes_overlay((fill_tanks, vehicle_tank), title=f"{burn_duration}s, {vol}L, {n} Bottles, {bottle_temp}K", units="E")
+# test_network.plot_connections_overlay([tv1], units="E")
 
 # TV SIM
 # vehicle_tank1 = Node("N2O", 40, 50, 288, "1")
@@ -65,10 +65,11 @@ test_network.plot_connections_overlay([tv1], units="E")
 # amb_node = Ambient()
 # tank_substitute = Ambient(fluid="Nitrogen", P=101325*400/14.7)
 # reg = Regulator(0.00000063, 101325*400/14.7)
+# manifold = Node("Nitrogen", 0.01, 0.1, 287, "manifold")
 # fluid_system = Connection(0.0000063, 0, 0)
-# network = Network({reg: (copv, vehicle_tank), fluid_system: (vehicle_tank, amb_node)})
+# network = Network({reg: (copv, manifold), fluid_system: (manifold, amb_node)})
 # network.sim(60, 1)
-# network.plot_nodes_overlay((copv, vehicle_tank), units="E")
+# network.plot_nodes_overlay((copv, manifold), units="E")
 
 # DARCY SPACE FILL VALIDATION
 # target mass: 108.86 kg
@@ -84,38 +85,40 @@ test_network.plot_connections_overlay([tv1], units="E")
 # test_network.plot_nodes_overlay((fill_tanks, vehicle_tank), title="Darcy Space Validation", units="E")
 
 # GN2 TEST
-# gas_bottle = Node("Nitrogen", 0.15, 3, 293)
-# amb_node = Ambient()
-# vent_diameter = 3 # mm
-# vent_CdA = 0.8 * vent_diameter**2 * 0.25 * math.pi # mm^2
-# # vent_CdA = vent_CdA * 1e-6
-# gas_vent = Connection(vent_CdA, 0, 0, checking=False)
-# gas_network = Network({gas_vent : {gas_bottle, amb_node}})
-# gas_network.sim(60, 1)
-# gas_network.plot_nodes_overlay([gas_bottle], units="E")
+gas_bottle = Node("Nitrogen", 0.15, 3, 293)
+amb_node = Ambient()
+vent_diameter = 3 # mm
+vent_CdA = 0.8 * vent_diameter**2 * 0.25 * math.pi # mm^2
+vent_CdA = vent_CdA * 1e-6
+gas_vent = Connection(vent_CdA, 0, 0, checking=True)
+gas_network = Network({gas_vent : (gas_bottle, amb_node)})
+gas_network.sim(60, 0.1)
+gas_network.plot_nodes_overlay([gas_bottle], units="E")
 
 # ACTIVE PRESS + FILL + FULL THROTTLE
 # fill params
-n = 7 # num bottles
-vol = 50 # L
-bottle_temp = 305 # K
-burn_duration = 60 # s
-fill_duration = 1100 # s
-# vehicle tanks
-copv = Node("Nitrogen", 2.4, 6.61, 293, "COPV") #subscale copv
-ox_tank = Tank("N2O", 40, "Nitrogen", 1, )
-fuel_tank = Tank()
-amb_node = Ambient()
-chamber = Ambient(P=101325*350*1.25/14.7)
-# valves
-bb_ox = Connection(0.00005, 0, 0) # PLV
-bb_fuel = Connection(0.00005, 0, 0) # PLV
-tv_ox = ThrottleValve(1, target_mdot=0.0, normal_state=0.0)
-tv_fuel = ThrottleValve(1, target_mdot=0.0, normal_state=0.0)
-# network and som
-test_network = Network({fill_line: (fill_tanks, vehicle_tank), vent_line: (vehicle_tank, amb_node), tv1: (vehicle_tank, chamber)})
-test_network.sim(fill_duration+burn_duration, 1, {300: (vent_line, True), fill_duration-10: (fill_line, False), fill_duration-1: (vent_line, False), fill_duration: (tv1, 0.57*0.5), fill_duration+10: (tv1, 0.57)})
-test_network.plot_nodes_overlay((fill_tanks, vehicle_tank), title=f"{burn_duration}s, {vol}L, {n} Bottles, {bottle_temp}K", units="E")
-test_network.plot_connections_overlay([tv1], units="E")
+# n = 7 # num bottles
+# vol = 50 # L
+# bottle_temp = 305 # K
+# burn_duration = 60 # s
+# fill_duration = 1100 # s
+# # vehicle tanks
+# copv = Node("Nitrogen", 2, 6.61, 293, "COPV") #subscale copv
+# ox_tank = Tank("N2O", 0.926*40*1.1, "Nitrogen", 1, 60, 270, 290, "ox_tank")
+# fuel_tank = Tank("ISOPROPANOL", 0.309*40*1.1, "Nitrogen", 0.1, 20, 285, 290, "fu_tank")
+# amb_node = Ambient()
+# chamber = Ambient(P=101325*350*1.25/14.7)
+# # valves
+# # mdots: OX Mdot = 0.926 kg/s, FU Mdot = 0.309 kg/s
+# bb_ox = BangBang(0.000005, 3.4474E+06, 0) # PLV
+# bb_fuel = BangBang(0.000005, 3.4474E+06, 0) # PLV
+# tv_ox = ThrottleValve(1, target_mdot=0.926*0.6, normal_state=0.926*0.6)
+# tv_fuel = ThrottleValve(1, target_mdot=0.309*0.6, normal_state=0.309*0.6)
+# # # network and sim
+# test_network = Network({bb_ox: (copv, ox_tank), bb_fuel: (copv, fuel_tank), tv_ox: (ox_tank, chamber), tv_fuel: (fuel_tank, chamber)})
+# test_network.sim(burn_duration, 1)
+# test_network.plot_nodes_overlay((copv, ox_tank, fuel_tank), title=f"bs", units="E")
+# test_network.plot_connections_overlay([tv_ox, bb_ox, bb_fuel], units="E")
+
 
 
