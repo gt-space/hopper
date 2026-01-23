@@ -1,6 +1,6 @@
 %% Hopper Propulsion System
 
-function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR, ox_valve_CdA, fu_valve_CdA] = prop_system(thrust_target, ox_name, fu_name, fu_temp, ox_vap_P, ox_tank_P, fu_tank_P, ox_sys_CdA, fu_sys_CdA, eta_cstar, At, eps)
+function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR, ox_valve_CdA, fu_valve_CdA] = prop_system(thrust_target, ox_name, fu_name, fu_temp, ox_temp, ox_tank_P, fu_tank_P, ox_sys_CdA, fu_sys_CdA, eta_cstar, At, eps)
     % Instructions for CP Download
     % Verify that a Python version from 3.8 - 3.11 is installed
     % do "pip install CoolProp" in a terminal
@@ -13,19 +13,19 @@ function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR, ox_valve_CdA, fu_valve_CdA
 
     % Constants
     R = 8.314; % J/mol-K
-    MW = 21.683 / 1000; % g/mol --> kg/mol
+    MW = 21.094 / 1000; % g/mol --> kg/mol
     
-    MR_target = 3;
+    MR_target = 2;
 
     % Gamma set - implement CEA to calculate gamma!
-    gamma = 1.26;
+    gamma = 1.19;
 
     % Cstar Theoretical
-    cstar_theo = 1513; % m/s
+    cstar_theo = 1798; % m/s
     cstar_act = eta_cstar * cstar_theo; % m/s
     
     % Density Call
-    ox_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', ox_vap_P, 'Q', 0, ox_name)) % kg/m^3
+    ox_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', ox_tank_P, 'T', ox_temp, ox_name)) % kg/m^3
     fu_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', fu_tank_P, 'T', fu_temp, fu_name)) % kg/m^3
 
     % Solve Area-Mach Relation
