@@ -13,6 +13,10 @@ AVI = size_avionics(IN);
 ENGINE = size_engine(IN);
 
 VEH.mass.tanks = TANKS.singular.total_mass;
+VEH.mass.ox_tank = TANKS.singular.oxidizer.mass;
+VEH.mass.fu_tank = TANKS.singular.fuel.mass;
+VEH.h.ox_tank = TANKS.singular.oxidizer.h;
+VEH.h.fu_tank = TANKS.singular.fuel.h;
 VEH.mass.engine = ENGINE.mass;
 VEH.mass.avi = AVI.mass;
 VEH.mass.dry = VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass;

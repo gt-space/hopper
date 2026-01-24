@@ -4,14 +4,13 @@ import math
 
 
 # GAS PULL
-# test_node1 = Node("N2O", 35, 60, 293, "Liquid Pull")
 # test_node2 = Node("N2O", 35, 60, 293, "Gas Pull")
 # amb_node = Ambient()
 # test_connection1 = Connection(0.0000063, 0, 0)
 # test_connection2 = Connection(0.00001521, 0, 1)
 # test_connection3 = Connection(0.0000001742, 0, 0)
-# test_network = Network({test_connection1: (test_node1, amb_node), test_connection2: (test_node2, amb_node)})
-# test_network.sim(60, 1)
+# test_network = Network({test_connection1: (test_node2, amb_node)})
+# test_network.sim(1000, 1)
 # test_network.plot_nodes_overlay((test_node1, test_node2), units="E")
 
 # FILL + FULL THROTTLE
@@ -85,15 +84,15 @@ import math
 # test_network.plot_nodes_overlay((fill_tanks, vehicle_tank), title="Darcy Space Validation", units="E")
 
 # GN2 TEST
-gas_bottle = Node("Nitrogen", 0.15, 3, 293)
-amb_node = Ambient()
-vent_diameter = 3 # mm
-vent_CdA = 0.8 * vent_diameter**2 * 0.25 * math.pi # mm^2
-vent_CdA = vent_CdA * 1e-6
-gas_vent = Connection(vent_CdA, 0, 0, checking=True)
-gas_network = Network({gas_vent : (gas_bottle, amb_node)})
-gas_network.sim(60, 0.1)
-gas_network.plot_nodes_overlay([gas_bottle], units="E")
+# gas_bottle = Node("Nitrogen", 0.15, 3, 293)
+# amb_node = Ambient()
+# vent_diameter = 3 # mm
+# vent_CdA = 0.8 * vent_diameter**2 * 0.25 * math.pi # mm^2
+# vent_CdA = vent_CdA * 1e-6
+# gas_vent = Connection(vent_CdA, 0, 0, checking=True)
+# gas_network = Network({gas_vent : (gas_bottle, amb_node)})
+# gas_network.sim(60, 0.1)
+# gas_network.plot_nodes_overlay([gas_bottle], units="E")
 
 # ACTIVE PRESS + FILL + FULL THROTTLE
 # fill params
@@ -120,5 +119,90 @@ gas_network.plot_nodes_overlay([gas_bottle], units="E")
 # test_network.plot_nodes_overlay((copv, ox_tank, fuel_tank), title=f"bs", units="E")
 # test_network.plot_connections_overlay([tv_ox, bb_ox, bb_fuel], units="E")
 
+# --- SIMULATION SETUP ---
+
+# 1. Unit Conversions and Constants
+# PSI_TO_PA = 6894.75729
+# L_TO_M3 = 0.001
+# MM2_TO_M2 = 1e-6
+
+# # Connections
+# cda_orifice = 5.0 * MM2_TO_M2  # Reasonable restriction for 4500->350 psi regulation
+
+# # Nodes
+# p_ambient = 300 * PSI_TO_PA
+# copv = Node("Nitrogen", 8.27*9/26.67, 9, 293, name="COPV")
+# ox_tank = Tank(V_total_L=20, 
+#             fluid_liq='Oxygen', 
+#             m_liq=19.43, 
+#             T_liq=90, 
+#             fluid_ullage="Nitrogen", 
+#             P_ullage=500*PSI_TO_PA, 
+#             T_ullage=293,
+#             radius=0.1, 
+#             name="OxTank", htc=200)
+# fu_tank = Tank(V_total_L=15.2, 
+#             fluid_liq='n-Dodecane', 
+#             m_liq=9.7, 
+#             T_liq=293, 
+#             fluid_ullage="Nitrogen", 
+#             P_ullage=500*PSI_TO_PA, 
+#             T_ullage=293,
+#             radius=0.1, 
+#             name="FuTank", htc=0)
+# amb = Ambient(fluid="Air", P=300*1.2*PSI_TO_PA, T=293.15, name="Ambient")
 
 
+# # 5. Instantiate Connections
+# # Orifice: COPV -> Tank
+# # Connects to the Ullage of the tank (location=1.0)
+# obb = BangBang(CdA=cda_orifice, 
+#                     target_pressure=(500*PSI_TO_PA),
+#                     hysteresis=(5*PSI_TO_PA),
+#                     location=1.0, 
+#                     name="Ox Bang-Bang")
+# fbb = BangBang(CdA=cda_orifice, 
+#                     target_pressure=(500*PSI_TO_PA),
+#                     hysteresis=(5*PSI_TO_PA),
+#                     location=1.0, 
+#                     name="Fu Bang-Bang")
+
+# # Outlet: Tank -> Ambient
+# # Connects to the Liquid of the tank (location=0.0)
+# otv = ThrottleValve(1,
+#                     location=0.0, 
+#                     name="OxThrottle", normal_state=0.777, target_mdot=0.777)
+# ftv = ThrottleValve(1,
+#                     location=0.0, 
+#                     name="FuThrottle", normal_state=0.388, target_mdot=0.388)
+
+
+# # 6. Define Network Graph
+# # {Connection: (Upstream_Node, Downstream_Node)}
+# # Note: Flow direction is automatic based on pressure, but we define topology here.
+# graph = {
+#     obb: (copv, ox_tank),
+#     otv:  (ox_tank, amb),
+#     fbb: (copv, fu_tank),
+#     ftv: (fu_tank, amb)
+# }
+
+# network = Network(graph)
+
+
+# # 7. Run Simulation
+# print("Starting Simulation...")
+# print(f"Initial State: COPV={copv.P/PSI_TO_PA:.0f} psi, Tank={ox_tank.P/PSI_TO_PA:.0f} psi, Amb={amb.P/PSI_TO_PA:.0f} psi")
+
+# dt = 0.1 # 100ms timestep
+# runtime = 25.0 # Run for 20 seconds
+# network.sim(runtime, dt, verbose_steps=250)
+
+
+# # 8. Plotting
+# # Filter nodes for plotting
+# plot_nodes = [copv, ox_tank, ox_tank.ullage, fu_tank, fu_tank.ullage]
+# network.plot_nodes_overlay(plot_nodes, title="Blowdown Simulation: COPV to LOX Tank", units="E")
+
+# plot_conns = [obb, otv, fbb, ftv]
+# network.plot_connections_overlay(plot_conns, title="Connection Flow Rates", units="E")

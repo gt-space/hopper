@@ -32,12 +32,14 @@ IN.avionics.boards.voltage = 12; % V
 IN.avionics.boards.current = 0.5; % A
 
 %  PROPULSION
-IN.propulsion.oxidizer = 'N2O';
-IN.propulsion.fuel = 'IPA';
-IN.propulsion.oxidizer_mass = 40; % kg -> internal
-IN.propulsion.fuel_mass = 10; % kg -> internal
+IN.propulsion.oxidizer = 'Oxygen';
+IN.propulsion.fuel = 'Kerosene';
+IN.propulsion.oxidizer_mass = 19.43; % kg -> internal
+IN.propulsion.fuel_mass = 9.7; % kg -> internal
+IN.propulsion.ox_vol = 0.020; % m^3
+IN.propulsion.fu_vol = 0.0152; % m^3
 IN.propulsion.nominal_thrust = 500 * 4.44822; % N
-IN.propulsion.throttle_range = [0.35 1.1];
+IN.propulsion.throttle_range = [0.4 1.1];
 IN.solenoid_valve_quantity = 5;
 IN.valves.voltage = 12; % V
 IN.valves.current = 1; % A
@@ -52,9 +54,12 @@ IN.press.mode = 'copv';  % 'copv' or 'autogenous'
 % --- COPV Parameters ---
 % subscale COPV params
 IN.press.copv.max_pressure = 4500 * 6894.76; % Pa
-IN.press.copv.max_volume = 0.0061;               % m^3
+IN.press.copv.max_volume = 0.0267;               % m^3
 IN.press.copv.gas = 'GN2';
-IN.press.copv.initial_temperature = 300;             % K
+IN.press.copv.initial_temperature = 293;             % K
+IN.press.copv.mass = 5; % kg
+IN.press.copv.amount = 3;
+IN.press.copv.gas_mass = 8.27;
 
 % --- Autogenous Parameters ---
 IN.press.autogenous.gas = 'N2O';

@@ -87,6 +87,8 @@ class Node():
             s = PropsSI_auto('S', 'D', d, 'H', h, self.fluid)
             phase = CP.PhaseSI('D', d, 'H', h, self.fluid) # use only CoolProp here, REFPROP phase lookup behaves weirdly
         except Exception as e:
+            # Fallback for extreme states or errors
+            # Attempt to recover using P-H or T-Q if possible, otherwise raise
             raise RuntimeError(f"CoolProp lookup failed in flash: d={d}, h={h}, err={e}") from e
 
         self.T = T
@@ -153,9 +155,6 @@ class Node():
         d_new = self.m / self.V
         self._flash_from_DH(d_new, self.H)
 
-        # debug print
-        # print(f"{self.name}: t-update P={self.P:.1f} Pa, T={self.T:.3f} K, m={self.m:.6f} kg, m_l={self.m_l:.6f}, m_v={self.m_v:.6f}, Q={self.Q}")
-
     def log_state(self, t=0.0):
         """
         Log node state at each timestep throughout a network sim.
@@ -206,12 +205,11 @@ class Manifold(Node):
 
 class PistonTank(Node):
     """
-    Subclass of Node to represent an piston tank. Defined by 
+    Subclass of Node to represent an piston tank.
     """
     # TODO
     def __init__(self, fluid, m, V, T, linked_node, name="node"):
         super().__init__(fluid, m, V, T, name)
-
     pass
 
 
@@ -233,33 +231,88 @@ class Chamber(Node):
 
 class Tank(Node):
     """
-    Two-phase Tank Node.
+    Two-phase Tank Node with Heat Transfer.
     The 'Tank' instance itself represents the Liquid node (bottom).
     It contains a .ullage attribute which is the Gas node (top).
     
     The two nodes are coupled by a Volume constraint: V_liq + V_gas = V_tank.
     Pressure is iterated until this constraint is met.
+    
+    Includes lumped capacitance heat transfer between Liquid and Ullage (Collapse).
     """
-    def __init__(self, fluid_liq, m_liq, fluid_gas, m_gas, V_total_L, T_liq, T_gas, name="tank"):
+    def __init__(self, V_total_L, fluid_liq, m_liq, T_liq, fluid_ullage, P_ullage, T_ullage, 
+                 radius=None, htc=50.0, name="tank"):
+        """
+        Args:
+            V_total_L: Total tank volume in Liters.
+            fluid_liq: String name of liquid fluid.
+            m_liq: Initial mass of liquid (kg).
+            T_liq: Initial temperature of liquid (K).
+            fluid_ullage: String name of ullage fluid.
+            P_ullage: Initial ullage pressure (Pa).
+            T_ullage: Initial ullage temperature (K).
+            radius (optional): Tank radius (m) for heat transfer area calc. 
+            htc (optional): Heat transfer coefficient (W/m^2K) for ullage-liquid HT.
+        """
         self.V_total = float(V_total_L) / 1000.0  # Store fixed tank volume [m^3]
+        self.radius = radius
+        self.htc = htc
         
-        # 1. Initialize the Liquid Node (The Tank object itself)
-        # We start with an arbitrary guess for volume (e.g. 50% fill), it will be corrected immediately.
-        V_guess_l = self.V_total * 0.5
-        super().__init__(fluid_liq, m_liq, V_guess_l * 1000.0, T_liq, name=name)
+        # Calculate Heat Transfer Area
+        if self.radius:
+            self.area_interface = np.pi * self.radius**2
+        else:
+            self.area_interface = 0.0
+
+        # --- 1. Calculate Initial Conditions to Satisfy Inputs ---
         
-        # 2. Initialize the Ullage Node (Internal Node object)
-        V_guess_g = self.V_total - V_guess_l
-        self.ullage = Node(fluid_gas, m_gas, V_guess_g * 1000.0, T_gas, name=f"{name}_ullage")
+        # Calculate Liquid Density/Volume based on Ullage Pressure (assuming mechanical equilibrium)
+        # Note: Neglecting hydrostatic head for 0D initialization
+        try:
+            rho_liq = PropsSI_auto('D', 'P', P_ullage, 'T', T_liq, fluid_liq)
+        except:
+            # Fallback if P/T combo is invalid (e.g. subcooled logic fail), try sat liquid
+            rho_liq = PropsSI_auto('D', 'P', P_ullage, 'Q', 0, fluid_liq)
+
+        V_liq = m_liq / rho_liq
         
-        # 3. Force an initial equilibrium solve to set correct P and V for both
+        # Calculate Ullage Volume and Mass
+        V_ull = self.V_total - V_liq
+        if V_ull < 0:
+            raise ValueError(f"Tank {name}: Liquid mass {m_liq}kg exceeds total volume at {T_liq}K.")
+            
+        rho_ull = PropsSI_auto('D', 'P', P_ullage, 'T', T_ullage, fluid_ullage)
+        m_ull = V_ull * rho_ull
+
+        # --- 2. Initialize Nodes ---
+        
+        # Initialize Liquid Node (Self)
+        # We assume the liquid fills its computed volume initially
+        super().__init__(fluid_liq, m_liq, V_liq * 1000.0, T_liq, name=name)
+        
+        # Initialize Ullage Node
+        self.ullage = Node(fluid_ullage, m_ull, V_ull * 1000.0, T_ullage, name=f"{name}_ullage")
+        
+        # Correct Fill Level for Tank Geometry (Node class defaults fill_level to phase fraction)
+        self.fill_level = self.V / self.V_total
+
+        # --- 3. Force initial balance ---
         self._balance_volumes()
 
     def update(self, mdot_l, Hdot_l, mdot_g, Hdot_g, dt):
         """
-        Custom update that handles mass/energy fluxes for both phases
-        and enforces the shared pressure/volume constraint.
+        Custom update that handles mass/energy fluxes for both phases,
+        applies heat transfer, and enforces the shared pressure/volume constraint.
         """
+        # --- Step 0: Heat Transfer (Ullage Collapse / Evap) ---
+        # Lumped capacitance: Q = h * A * (T_ullage - T_liquid)
+        if self.area_interface > 0:
+            # Positive Q flows from Ullage -> Liquid
+            Q_transfer = self.htc * self.area_interface * (self.ullage.T - self.T)
+            
+            # Hdot_l += Q_transfer
+            Hdot_g -= Q_transfer
+
         # --- Step 1: Integrate Mass and Energy (Euler Step) ---
         self.m += mdot_l * dt
         self.H += Hdot_l * dt
@@ -276,12 +329,12 @@ class Tank(Node):
         self._balance_volumes()
 
         # --- Step 3: Update Fluid States (Flash) ---
-        # Now that volumes are correct, we update the thermodynamic state (T, P, x, etc)
-        # based on the new density (m/V) and specific enthalpy (H/m).
-        
         # Update Liquid State
         self.d = self.m / self.V
         self._flash_from_DH(self.d, self.H)
+        
+        # Override fill_level to mean "Tank Fill" (not liquid phase fraction)
+        self.fill_level = self.V / self.V_total
         
         # Update Ullage State
         self.ullage.d = self.ullage.m / self.ullage.V
@@ -395,41 +448,81 @@ class Connection():
         else:
             donor, receiver = node2, node1
 
-        # Select phase based on donor fill
-        if donor.fill_level > self.location:
-            h_stream = donor.h_l
-            d_stream = donor.d_l
+        # --- Phase / Source Selection Logic ---
+        # Check if donor is a Tank (has ullage)
+        if hasattr(donor, 'ullage'):
+            # It is a Tank: Compare connection location to tank fill level
+            if self.location > donor.fill_level:
+                # Connection is in the Ullage (Gas)
+                source_node = donor.ullage
+            else:
+                # Connection is in the Liquid
+                source_node = donor
         else:
-            h_stream = donor.h_v
-            d_stream = donor.d_v
+            # Standard Node: Logic relies on internal phase fraction if two-phase
+            if donor.fill_level > self.location:
+                source_node = donor # Liquid part of node (if split) or Bulk
+            else:
+                source_node = donor # Gas part... 
+                # Note: For standard nodes, we often just use bulk properties unless we specifically 
+                # implemented separated h_l/h_v access. Below we handle the bulk/separation.
+
+        # Retrieve source properties
+        # If we selected the Ullage node, it acts as a single-phase gas node.
+        # If we selected the Liquid node (Tank), it acts as a liquid node (potentially 2-phase if boiling).
+        
+        # Are we pulling liquid or vapor?
+        # If source_node is ullage -> It's gas.
+        # If source_node is tank/node -> Check its internal phase.
+        
+        # Simplified Logic using available properties on the chosen source node:
+        # If the source node is "pure" (like the ullage node), h_l approx h_v approx h.
+        
+        if source_node.fill_level > 0.5: # Mostly liquid
+            h_stream = source_node.h_l if hasattr(source_node, 'h_l') else source_node.h
+            d_stream = source_node.d_l if hasattr(source_node, 'd_l') else source_node.d
+        else:
+            h_stream = source_node.h_v if hasattr(source_node, 'h_v') else source_node.h
+            d_stream = source_node.d_v if hasattr(source_node, 'd_v') else source_node.d
+
+        # For explicit Tank Ullage access, we override the above:
+        if hasattr(donor, 'ullage') and self.location > donor.fill_level:
+            # We are explicitly in the ullage node
+            h_stream = donor.ullage.h
+            d_stream = donor.ullage.d
+        elif hasattr(donor, 'ullage') and self.location <= donor.fill_level:
+            # We are explicitly in the liquid node
+            h_stream = donor.h
+            d_stream = donor.d
 
         abs_dP = abs(dP)
         self.dP = abs_dP  # logging
 
-        donor_phase = CP.PhaseSI('D', donor.d, 'H', donor.h, donor.fluid)
+        # Determine phase for flow model
+        donor_phase = CP.PhaseSI('D', source_node.d, 'H', source_node.h, source_node.fluid)
 
         # --- GAS/CHOKED FLOW ---
-        if donor_phase in ("gas", "supercritical") and donor.Cp and donor.Cv and donor.R:
-            gamma = donor.gamma
-            R = donor.R
-            Tdon = donor.T
+        if donor_phase in ("gas", "supercritical") and source_node.Cp and source_node.Cv and source_node.R:
+            gamma = source_node.gamma
+            R = source_node.R
+            Tdon = source_node.T
             crit_factor = ((gamma + 1.0) / 2.0) ** (-(gamma + 1.0) / (2.0 * (gamma - 1.0)))
-            Pcrit = donor.P * crit_factor
+            Pcrit = source_node.P * crit_factor
 
             if receiver.P > Pcrit:
                 # Unchoked subsonic gas flow
-                mdot_mag = self.CdA * donor.P * np.sqrt(2 * abs(1 - (receiver.P / donor.P) ** ((gamma - 1) / gamma)) / (R * Tdon))
+                mdot_mag = self.CdA * source_node.P * np.sqrt(2 * abs(1 - (receiver.P / source_node.P) ** ((gamma - 1) / gamma)) / (R * Tdon))
             else:
                 # Choked
-                mdot_mag = self.CdA * donor.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor
+                mdot_mag = self.CdA * source_node.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor
 
             Hdot = mdot_mag * h_stream
         
         # --- LIQUID / TWO-PHASE (Dyer model) ---
         else:
-            h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, donor.fluid)
-            h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, donor.fluid)
-            Pv = PropsSI_auto('P', 'T', donor.T, 'Q', 1, donor.fluid)
+            h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, source_node.fluid)
+            h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, source_node.fluid)
+            Pv = PropsSI_auto('P', 'T', source_node.T, 'Q', 1, source_node.fluid)
 
             # Single-phase incompressible term (SPI)
             mdot_spi = self.CdA * np.sqrt(2.0 * max(d_stream, 1e-6) * abs_dP)
@@ -437,24 +530,21 @@ class Connection():
             # Homogeneous equilibrium model term (HEM)
             try:
                 h1 = h_stream
-                h2 = PropsSI_auto('H', 'P', receiver.P, 'S', donor.s, donor.fluid)
-                rho2p = 1.0 / PropsSI_auto('D', 'P', receiver.P, 'Q', 0.5, donor.fluid)
+                h2 = PropsSI_auto('H', 'P', receiver.P, 'S', source_node.s, source_node.fluid)
+                rho2p = 1.0 / PropsSI_auto('D', 'P', receiver.P, 'Q', 0.5, source_node.fluid)
                 mdot_hem = self.CdA * rho2p * np.sqrt(2.0 * max(h1 - h2, 1e-9))
             except Exception:
                 mdot_hem = mdot_spi
 
             # Dyer blending factor
             r = 1  # tunable, change based on test data
-            kappa = r * (donor.P - receiver.P) / max(Pv - receiver.P, 1e-6) # can also manually set kappa (2 is a good conservative value)
+            kappa = r * (source_node.P - receiver.P) / max(Pv - receiver.P, 1e-6) # can also manually set kappa (2 is a good conservative value)
 
             # Dyer blended mass flow
             mdot_mag = (kappa / (1 + kappa)) * mdot_spi + (1 / (1 + kappa)) * mdot_hem
 
-            # Enthalpy flow rate (assume isenthalpic across connection to find quality)
-            # I am aware that an isenthalpic assumption here conflicts with the isentropic assumption for HEM...
-            # This is why we blend the models, but generally isenthalpic will be more accurate and conservative...
-            # Physically it makes a lot more sense than assuming isentropic (since flashing changes entropy)
-            self.Q = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, donor.fluid)
+            # Enthalpy flow rate
+            self.Q = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, source_node.fluid)
             if 0 <= self.Q <= 1:
                 Hdot = mdot_mag * (self.Q * h_vap + (1 - self.Q) * h_liq)
             else:
@@ -533,20 +623,30 @@ class Regulator(Connection):
             effective_dP = max(upstream.P - P_down_target, 0.0)
 
         # Now use inherited orifice logic for the flow
-        if upstream.fill_level > self.location:
-            h_stream = upstream.h_l
-            d_stream = upstream.d_l
+        # Source Selection Logic (Regulator specific)
+        if hasattr(upstream, 'ullage') and self.location > upstream.fill_level:
+             source = upstream.ullage
         else:
-            h_stream = upstream.h_v
-            d_stream = upstream.d_v
+             source = upstream
 
-        donor_phase = CP.PhaseSI('D', upstream.d, 'H', upstream.h, upstream.fluid)
-        if donor_phase in ("gas", "supercritical") and upstream.Cp and upstream.Cv and upstream.R:
-            gamma = upstream.gamma
-            R = upstream.R
-            Tdon = upstream.T
+        if source.fill_level > self.location:
+            h_stream = source.h_l if hasattr(source, 'h_l') else source.h
+            d_stream = source.d_l if hasattr(source, 'd_l') else source.d
+        else:
+            h_stream = source.h_v if hasattr(source, 'h_v') else source.h
+            d_stream = source.d_v if hasattr(source, 'd_v') else source.d
+            
+        # Simplified access
+        h_stream = source.h
+        d_stream = source.d
+
+        donor_phase = CP.PhaseSI('D', source.d, 'H', source.h, source.fluid)
+        if donor_phase in ("gas", "supercritical") and source.Cp and source.Cv and source.R:
+            gamma = source.gamma
+            R = source.R
+            Tdon = source.T
             crit_factor = ((gamma + 1.0) / 2.0) ** ( - (gamma + 1.0) / (2.0 * (gamma - 1.0)) )
-            mdot_mag = self.CdA * upstream.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor
+            mdot_mag = self.CdA * source.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor
         else:
             mdot_mag = self.CdA * np.sqrt(2.0 * max(d_stream, 1e-6) * effective_dP)
 
@@ -567,18 +667,35 @@ class Valve(Connection):
 
 class BangBang(Connection):
     """
-    Subclass of Node to represent a bang-bang valve.
+    Bang-bang valve controller.
+    Opens if downstream P < target - hysteresis.
+    Closes if downstream P > target + hysteresis.
     """
-    def __init__(self, CdA, target_pressure, qdot=0.0, location=0.0, normal_state=True, checking=True, name="connection"):
-        super().__init__(CdA, qdot, location, normal_state, checking=True, name="bang_bang")
+    def __init__(self, CdA, target_pressure, hysteresis=0.0, qdot=0.0, location=0.0, normal_state=True, checking=True, name="bang_bang"):
+        super().__init__(CdA, qdot, location, normal_state, checking, name)
         self.target_pressure = target_pressure
+        self.hysteresis = hysteresis
 
-    def select_state(self, downstream_node):
-        if downstream_node.P > self.target_pressure:
-            self.state = False
+    def update_control(self, node1, node2):
+        """
+        Determines the downstream node and updates state based on pressure.
+        """
+        # Determine which node is downstream based on pressure gradient
+        # (Or you could enforce a direction, but this is more general)
+        if node1.P > node2.P:
+            downstream = node2
         else:
-            self.state = True
+            downstream = node1
 
+        # Control Logic with Hysteresis
+        if self.state:
+            # If currently OPEN, stay open until we hit the upper limit
+            if downstream.P > (self.target_pressure + self.hysteresis):
+                self.state = False
+        else:
+            # If currently CLOSED, stay closed until we hit the lower limit
+            if downstream.P < (self.target_pressure - self.hysteresis):
+                self.state = True
 
 class SharpEdgedOrifice(Connection):
     """
@@ -636,41 +753,43 @@ class ThrottleValve(Connection):
         else:
             donor, receiver = node2, node1
 
-        # Select phase based on donor fill
-        if donor.fill_level > self.location:
-            h_stream = donor.h_l
-            d_stream = donor.d_l
+        # Source Selection
+        if hasattr(donor, 'ullage') and self.location > donor.fill_level:
+            source = donor.ullage
         else:
-            h_stream = donor.h_v
-            d_stream = donor.d_v
+            source = donor
+
+        # Use bulk properties of the selected source (Liquid or Gas Node)
+        h_stream = source.h
+        d_stream = source.d
 
         abs_dP = abs(dP)
         self.dP = abs_dP  # logging
 
-        donor_phase = CP.PhaseSI('D', donor.d, 'H', donor.h, donor.fluid)
+        donor_phase = CP.PhaseSI('D', source.d, 'H', source.h, source.fluid)
 
         # --- GAS/CHOKED FLOW ---
-        if donor_phase in ("gas", "supercritical") and donor.Cp and donor.Cv and donor.R:
-            gamma = donor.gamma
-            R = donor.R
-            Tdon = donor.T
+        if donor_phase in ("gas", "supercritical") and source.Cp and source.Cv and source.R:
+            gamma = source.gamma
+            R = source.R
+            Tdon = source.T
             crit_factor = ((gamma + 1.0) / 2.0) ** (-(gamma + 1.0) / (2.0 * (gamma - 1.0)))
-            Pcrit = donor.P * crit_factor
+            Pcrit = source.P * crit_factor
 
             if receiver.P > Pcrit:
                 # Unchoked subsonic gas flow
-                self.CdA = min(self.CdA_max, self.state / (donor.P * np.sqrt(2 * abs(1 - (receiver.P / donor.P) ** ((gamma - 1) / gamma)) / (R * Tdon))))
+                self.CdA = min(self.CdA_max, self.state / (source.P * np.sqrt(2 * abs(1 - (receiver.P / source.P) ** ((gamma - 1) / gamma)) / (R * Tdon))))
             else:
                 # Choked
-                self.CdA = min(self.CdA_max, self.state / (donor.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor))
+                self.CdA = min(self.CdA_max, self.state / (source.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor))
 
             Hdot = self.state * h_stream
         
         # --- LIQUID / TWO-PHASE (Dyer model) ---
         else:
-            h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, donor.fluid)
-            h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, donor.fluid)
-            Pv = PropsSI_auto('P', 'T', donor.T, 'Q', 1, donor.fluid)
+            h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, source.fluid)
+            h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, source.fluid)
+            Pv = PropsSI_auto('P', 'T', source.T, 'Q', 1, source.fluid)
 
             # Single-phase incompressible term (SPI) without CdA
             mdot_spi = np.sqrt(2.0 * max(d_stream, 1e-6) * abs_dP)
@@ -678,23 +797,20 @@ class ThrottleValve(Connection):
             # Homogeneous equilibrium model term (HEM) without CdA
             try:
                 h1 = h_stream
-                h2 = PropsSI_auto('H', 'P', receiver.P, 'S', donor.s, donor.fluid)
-                rho2p = 1.0 / PropsSI_auto('D', 'P', receiver.P, 'Q', 0.5, donor.fluid)
+                h2 = PropsSI_auto('H', 'P', receiver.P, 'S', source.s, source.fluid)
+                rho2p = 1.0 / PropsSI_auto('D', 'P', receiver.P, 'Q', 0.5, source.fluid)
                 mdot_hem = rho2p * np.sqrt(2.0 * max(h1 - h2, 1e-9))
             except Exception:
                 mdot_hem = mdot_spi
 
             # Dyer blending factor
             r = 1  # tunable, change based on test data
-            kappa = r * (donor.P - receiver.P) / max(Pv - receiver.P, 1e-6) # can also manually set kappa (2 is a good conservative value)
+            kappa = r * (source.P - receiver.P) / max(Pv - receiver.P, 1e-6) # can also manually set kappa (2 is a good conservative value)
 
             # Dyer blended mass flow CdA calculation
             self.CdA = self.state / ((kappa / (1 + kappa)) * mdot_spi + (1 / (1 + kappa)) * mdot_hem)
-            # Enthalpy flow rate (assume isenthalpic across connection to find quality)
-            # I am aware that an isenthalpic assumption here conflicts with the isentropic assumption for HEM...
-            # This is why we blend the models, but generally isenthalpic will be more accurate and conservative...
-            # Physically it makes a lot more sense than assuming isentropic (since flashing changes entropy)
-            self.Q = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, donor.fluid)
+            
+            self.Q = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, source.fluid)
             if 0 <= self.Q <= 1:
                 Hdot = self.state * (self.Q * h_vap + (1 - self.Q) * h_liq)
             else:
@@ -726,7 +842,6 @@ class Pump(Connection):
     # TODO
     pass
 
-
 class Network():
     """
     Network class. Defined by a graph of connections and nodes.
@@ -735,104 +850,115 @@ class Network():
     def __init__(self, graph):
         self.graph = graph  # {connection: (node1, node2)}
         
-        # Pre-scan the graph to identify Tank objects. 
-        # We need this list so we can prioritize their coupled updates in sim().
+        # Pre-scan the graph to identify Tank objects.
         self.tanks = set()
         for pair in self.graph.values():
             for node in pair:
-                # Check if this node is an instance of the Tank class
-                # (We check type name to avoid strict import dependencies, 
-                # or use isinstance(node, Tank) if Tank is in scope)
                 if type(node).__name__ == 'Tank': 
                     self.tanks.add(node)
 
     def sim(self, t, dt, actions={}, verbose_steps=5):
         """
-        Runs transient sim. Handles standard Nodes and coupled Tank Nodes.
+        Runs transient sim. Handles standard Nodes, coupled Tank Nodes, and Active Valves.
+        Includes Smart Routing to direct flux to/from the correct Tank phase (Liquid vs Ullage).
         """
         steps = int(t / dt)
         
         for i in range(steps):
             time_now = i * dt
             
-            # 1. Apply Actions
+            # 1. Apply Scripted Actions
             if time_now in actions:
                 conn, state = actions[time_now]
                 conn.state = state
                 if verbose_steps > 0:
                     print(f"--- Action at {time_now}s: {conn.name} set to {state} ---")
 
-            # 2. Compute Fluxes (mdot, Hdot) for all connections
-            # We initialize contributions for ALL nodes found in the graph
-            all_nodes = set(node for pair in self.graph.values() for node in pair)
+            # 2. Update Active Components (BangBang, Regulators)
+            for conn, (n1, n2) in self.graph.items():
+                if hasattr(conn, 'update_control'):
+                    conn.update_control(n1, n2)
+
+            # 3. Initialize Flux Containers
+            # Must include ALL base nodes AND their sub-nodes (ullage)
+            all_nodes = set()
+            for pair in self.graph.values():
+                for node in pair:
+                    all_nodes.add(node)
+                    if hasattr(node, 'ullage'):
+                        all_nodes.add(node.ullage)
+            
             mdot_contrib = {n: 0.0 for n in all_nodes}
             Hdot_contrib = {n: 0.0 for n in all_nodes}
 
+            # 4. Compute and Route Fluxes
             for conn, (n1, n2) in self.graph.items():
                 mdot, Hdot = conn.mdot_Hdot(n1, n2)
-                if conn is BangBang:
-                    conn.select_state(n2)
+                
+                # --- SMART ROUTING LOGIC ---
+                # Determine the effective Source Node
+                if hasattr(n1, 'ullage') and hasattr(n1, 'fill_level'):
+                    # Node 1 is a Tank: Route based on connection location
+                    effective_n1 = n1.ullage if conn.location > n1.fill_level else n1
+                else:
+                    effective_n1 = n1
+
+                # Determine the effective Target Node
+                if hasattr(n2, 'ullage') and hasattr(n2, 'fill_level'):
+                    # Node 2 is a Tank: Route based on connection location
+                    effective_n2 = n2.ullage if conn.location > n2.fill_level else n2
+                else:
+                    effective_n2 = n2
+
+                # Apply Fluxes to the EFFECTIVE nodes
                 # Flow convention: n1 -> n2 is positive
-                mdot_contrib[n1] -= mdot
-                mdot_contrib[n2] += mdot
-                Hdot_contrib[n1] -= Hdot
-                Hdot_contrib[n2] += Hdot
+                mdot_contrib[effective_n1] -= mdot
+                mdot_contrib[effective_n2] += mdot
+                Hdot_contrib[effective_n1] -= Hdot
+                Hdot_contrib[effective_n2] += Hdot
                 
                 conn.log_state(time_now)
 
-            # 3. Update Nodes
-            # We track which nodes have been updated to avoid double-counting
+            # 5. Update Nodes
             processed_nodes = set()
 
             # --- A. Update Tanks (Coupled Liquid + Ullage) ---
             for tank in self.tanks:
-                # Get Liquid fluxes
+                # Tank.update expects fluxes for both liquid and ullage separately
                 mdot_l = mdot_contrib.get(tank, 0.0)
                 Hdot_l = Hdot_contrib.get(tank, 0.0)
-                
-                # Get Ullage fluxes (access the .ullage attribute of the tank)
                 mdot_g = mdot_contrib.get(tank.ullage, 0.0)
                 Hdot_g = Hdot_contrib.get(tank.ullage, 0.0)
 
-                # Perform the coupled update
                 tank.update(mdot_l, Hdot_l, mdot_g, Hdot_g, dt)
-                
-                # Mark both parts of the tank as processed
                 processed_nodes.add(tank)
                 processed_nodes.add(tank.ullage)
                 
-                # Logging
                 if i < verbose_steps:
-                    print(f"[t={time_now:.4f}] {tank.name} (Tank) P={tank.P/1e5:.2f} bar")
+                    print(f"[t={time_now:.4f}] {tank.name} P={tank.P/1e5:.2f} bar, Fill={tank.fill_level:.2f}")
 
             # --- B. Update Standard Nodes ---
             for node in mdot_contrib:
                 if node not in processed_nodes:
-                    # Standard update
-                    node.update(mdot_contrib[node], Hdot_contrib[node], dt)
+                    # Only update if there was flux (optimization) or if it's an active node
+                    if abs(mdot_contrib[node]) > 0 or abs(Hdot_contrib[node]) > 0 or not hasattr(node, 'update'):
+                         # Note: Ambient nodes have empty update() pass, so it's safe
+                        node.update(mdot_contrib[node], Hdot_contrib[node], dt)
                     processed_nodes.add(node)
                     
-                    if i < verbose_steps:
+                    if i < verbose_steps and abs(mdot_contrib[node]) > 1e-6:
                         print(f"[t={time_now:.4f}] {node.name} mdot_net={mdot_contrib[node]:.6f}")
 
-            # 4. Log States for all nodes
+            # 6. Log States
             for node in processed_nodes:
                 node.log_state(time_now)
-
+    
+    # ... (Keep plotting methods the same) ...
     def plot_nodes_overlay(self, nodes, title="Node Comparison", units="SI"):
-        """
-        Overlay plots of pressure, temperature, mass, density, quality,
-        and fill level vs time for all nodes on the same set of subplots.
-        Args:
-            nodes (list): list of Node objects with histories recorded
-            title (str): plot title
-            units (str): SI or E
-        """
         fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
         axs = axs.flatten()
         fig.suptitle(title, fontsize=14)
 
-        # Loop over nodes and add each to the plots
         for node in nodes:
             time = node.history['time']
             if units == "E":
@@ -846,7 +972,6 @@ class Network():
             axs[4].plot(time, node.history['Q'], label=node.name)
             axs[5].plot(time, node.history['fill_level'], label=node.name)
 
-        # Labels
         if units == "E":
             axs[0].set_ylabel("Pressure [psi]")
             axs[1].set_ylabel("Temperature [F]")
@@ -860,7 +985,6 @@ class Network():
         axs[5].set_ylabel("Fill level [-]")
         axs[5].set_xlabel("Time [s]")
 
-        # Add legends
         for ax in axs:
             ax.legend()
             ax.grid(True)
@@ -869,19 +993,10 @@ class Network():
         plt.show()
 
     def plot_connections_overlay(self, connections, title="Connection Comparison", units="SI"):
-        """
-        Overlay plots of CdA, qdot, state, mdot, Hdot
-        and dP vs time for all nodes on the same set of subplots.
-        Args:
-            nodes (list): list of Node objects with histories recorded
-            title (str): plot title
-            units (str): SI or E
-        """
         fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
         axs = axs.flatten()
         fig.suptitle(title, fontsize=14)
 
-        # Loop over nodes and add each to the plots
         for conn in connections:
             time = conn.history['time']
             if units == "E":
@@ -895,7 +1010,6 @@ class Network():
             axs[4].plot(time, conn.history['Q'], label=conn.name)
             axs[5].plot(time, conn.history['state'], label=conn.name)
 
-        # Labels
         if units == "E":
             axs[0].set_ylabel("mdot [kg/s]")
             axs[1].set_ylabel("dP [psi]")
@@ -907,10 +1021,191 @@ class Network():
         axs[4].set_ylabel("Q [0-1]")
         axs[5].set_ylabel("State [-]")
 
-        # Add legends
         for ax in axs:
             ax.legend()
             ax.grid(True)
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         plt.show()
+# class Network():
+#     """
+#     Network class. Defined by a graph of connections and nodes.
+#     Automatically detects 'Tank' objects to handle coupled liquid/ullage updates.
+#     """
+#     def __init__(self, graph):
+#         self.graph = graph  # {connection: (node1, node2)}
+        
+#         # Pre-scan the graph to identify Tank objects. 
+#         # We need this list so we can prioritize their coupled updates in sim().
+#         self.tanks = set()
+#         for pair in self.graph.values():
+#             for node in pair:
+#                 # Check if this node is an instance of the Tank class
+#                 # (We check type name to avoid strict import dependencies, 
+#                 # or use isinstance(node, Tank) if Tank is in scope)
+#                 if type(node).__name__ == 'Tank': 
+#                     self.tanks.add(node)
+
+#     def sim(self, t, dt, actions={}, verbose_steps=5):
+#             """
+#             Runs transient sim. Handles standard Nodes, coupled Tank Nodes, and Active Valves.
+#             """
+#             steps = int(t / dt)
+            
+#             for i in range(steps):
+#                 time_now = i * dt
+                
+#                 # 1. Apply Scripted Actions (Overrides active control)
+#                 if time_now in actions:
+#                     conn, state = actions[time_now]
+#                     conn.state = state
+#                     if verbose_steps > 0:
+#                         print(f"--- Action at {time_now}s: {conn.name} set to {state} ---")
+
+#                 # 2. Update Active Components (BangBang, Regulators, etc)
+#                 # We iterate over connections to let them self-adjust state before flow calculation
+#                 for conn, (n1, n2) in self.graph.items():
+#                     if hasattr(conn, 'update_control'):
+#                         conn.update_control(n1, n2)
+
+#                 # 3. Compute Fluxes (mdot, Hdot) for all connections
+#                 all_nodes = set(node for pair in self.graph.values() for node in pair)
+#                 mdot_contrib = {n: 0.0 for n in all_nodes}
+#                 Hdot_contrib = {n: 0.0 for n in all_nodes}
+
+#                 for conn, (n1, n2) in self.graph.items():
+#                     mdot, Hdot = conn.mdot_Hdot(n1, n2)
+                    
+#                     # Flow convention: n1 -> n2 is positive
+#                     mdot_contrib[n1] -= mdot
+#                     mdot_contrib[n2] += mdot
+#                     Hdot_contrib[n1] -= Hdot
+#                     Hdot_contrib[n2] += Hdot
+                    
+#                     conn.log_state(time_now)
+
+#                 # 4. Update Nodes
+#                 processed_nodes = set()
+
+#                 # --- A. Update Tanks (Coupled Liquid + Ullage) ---
+#                 for tank in self.tanks:
+#                     mdot_l = mdot_contrib.get(tank, 0.0)
+#                     Hdot_l = Hdot_contrib.get(tank, 0.0)
+#                     mdot_g = mdot_contrib.get(tank.ullage, 0.0)
+#                     Hdot_g = Hdot_contrib.get(tank.ullage, 0.0)
+
+#                     tank.update(mdot_l, Hdot_l, mdot_g, Hdot_g, dt)
+#                     processed_nodes.add(tank)
+#                     processed_nodes.add(tank.ullage)
+                    
+#                     if i < verbose_steps:
+#                         print(f"[t={time_now:.4f}] {tank.name} (Tank) P={tank.P/1e5:.2f} bar")
+
+#                 # --- B. Update Standard Nodes ---
+#                 for node in mdot_contrib:
+#                     if node not in processed_nodes:
+#                         node.update(mdot_contrib[node], Hdot_contrib[node], dt)
+#                         processed_nodes.add(node)
+                        
+#                         if i < verbose_steps:
+#                             print(f"[t={time_now:.4f}] {node.name} mdot_net={mdot_contrib[node]:.6f}")
+
+#                 # 5. Log States for all nodes
+#                 for node in processed_nodes:
+#                     node.log_state(time_now)
+
+#     def plot_nodes_overlay(self, nodes, title="Node Comparison", units="SI"):
+#         """
+#         Overlay plots of pressure, temperature, mass, density, quality,
+#         and fill level vs time for all nodes on the same set of subplots.
+#         Args:
+#             nodes (list): list of Node objects with histories recorded
+#             title (str): plot title
+#             units (str): SI or E
+#         """
+#         fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
+#         axs = axs.flatten()
+#         fig.suptitle(title, fontsize=14)
+
+#         # Loop over nodes and add each to the plots
+#         for node in nodes:
+#             time = node.history['time']
+#             if units == "E":
+#                 axs[0].plot(time, np.array(node.history['P']) / 6894.75729, label=node.name)
+#                 axs[1].plot(time, (np.array(node.history['T']) - 273.15) * 1.8 + 32, label=node.name)
+#             else:
+#                 axs[0].plot(time, node.history['P'], label=node.name)
+#                 axs[1].plot(time, node.history['T'], label=node.name)
+#             axs[2].plot(time, node.history['m'], label=node.name)
+#             axs[3].plot(time, node.history['d'], label=node.name)
+#             axs[4].plot(time, node.history['Q'], label=node.name)
+#             axs[5].plot(time, node.history['fill_level'], label=node.name)
+
+#         # Labels
+#         if units == "E":
+#             axs[0].set_ylabel("Pressure [psi]")
+#             axs[1].set_ylabel("Temperature [F]")
+#         else:
+#             axs[0].set_ylabel("Pressure [Pa]")
+#             axs[1].set_ylabel("Temperature [K]")
+#         axs[2].set_ylabel("Mass [kg]")
+#         axs[3].set_ylabel("Density [kg/m³]")
+#         axs[4].set_ylabel("Quality [-]")
+#         axs[4].set_ylim(0, 1)
+#         axs[5].set_ylabel("Fill level [-]")
+#         axs[5].set_xlabel("Time [s]")
+
+#         # Add legends
+#         for ax in axs:
+#             ax.legend()
+#             ax.grid(True)
+
+#         plt.tight_layout(rect=[0, 0, 1, 0.95])
+#         plt.show()
+
+#     def plot_connections_overlay(self, connections, title="Connection Comparison", units="SI"):
+#         """
+#         Overlay plots of CdA, qdot, state, mdot, Hdot
+#         and dP vs time for all nodes on the same set of subplots.
+#         Args:
+#             nodes (list): list of Node objects with histories recorded
+#             title (str): plot title
+#             units (str): SI or E
+#         """
+#         fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
+#         axs = axs.flatten()
+#         fig.suptitle(title, fontsize=14)
+
+#         # Loop over nodes and add each to the plots
+#         for conn in connections:
+#             time = conn.history['time']
+#             if units == "E":
+#                 axs[0].plot(time, conn.history['mdot'], label=conn.name)
+#                 axs[1].plot(time, np.array(conn.history['dP']) / 6894.75729, label=conn.name)
+#             else:
+#                 axs[0].plot(time, conn.history['mdot'], label=conn.name)
+#                 axs[1].plot(time, conn.history['dP'], label=conn.name)
+#             axs[2].plot(time, np.array(conn.history['CdA']) * 1000000, label=conn.name)
+#             axs[3].plot(time, conn.history['Hdot'], label=conn.name)
+#             axs[4].plot(time, conn.history['Q'], label=conn.name)
+#             axs[5].plot(time, conn.history['state'], label=conn.name)
+
+#         # Labels
+#         if units == "E":
+#             axs[0].set_ylabel("mdot [kg/s]")
+#             axs[1].set_ylabel("dP [psi]")
+#         else:
+#             axs[0].set_ylabel("mdot [kg/s]")
+#             axs[1].set_ylabel("dP [Pa]")
+#         axs[2].set_ylabel("CdA [mm^2]")
+#         axs[3].set_ylabel("Hdot [J/s]")
+#         axs[4].set_ylabel("Q [0-1]")
+#         axs[5].set_ylabel("State [-]")
+
+#         # Add legends
+#         for ax in axs:
+#             ax.legend()
+#             ax.grid(True)
+
+#         plt.tight_layout(rect=[0, 0, 1, 0.95])
+#         plt.show()

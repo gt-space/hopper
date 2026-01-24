@@ -29,9 +29,9 @@ m_descent = (IN.propulsion.nominal_thrust / (engine.Isp * g0)) * ... % update ca
 m_prop_total = m_hover + m_ascent + m_descent;
 
 % Split by mixture ratio
-OF = IN.propulsion.OF;
-m_ox = m_prop_total * OF / (1 + OF);
-m_fu = m_prop_total / (1 + OF);
+%OF = IN.propulsion.OF;
+%m_ox = m_prop_total * OF / (1 + OF);
+%m_fu = m_prop_total / (1 + OF);
 
 % Pack output
 PROP = struct();
