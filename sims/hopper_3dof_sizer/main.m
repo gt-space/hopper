@@ -19,13 +19,14 @@ VEH.h.ox_tank = TANKS.singular.oxidizer.h;
 VEH.h.fu_tank = TANKS.singular.fuel.h;
 VEH.mass.engine = ENGINE.mass;
 VEH.mass.avi = AVI.mass;
-VEH.mass.dry = VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass;
+VEH.mass.press = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
+VEH.mass.dry = VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
 % PROP = size_propellant(IN, VEH, ENGINE); need engine code to rum this
 
 VEH.mass.wet = VEH.mass.dry + ...
     IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass ;
 
-STRUCT = size_structures(IN, VEH);
+[STRUCT, VEH] = size_structures(IN, VEH);
 
 % VEHICLE SIZING OUTPUTS
 OUT = Outputs(IN, VEH, TANKS, STRUCT);

@@ -20,7 +20,7 @@ IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
 
 %  STRUCTURES
 IN.structures.payload_mass = 15; % kg, CPLC Requirement
-IN.structures.extra_payload_mass = 16.13; % kg
+IN.structures.extra_payload_mass = 39.13; % kg
 IN.structures.payload_cg_z = [];            % m (from cad/aidan)
 
 %  AVIONICS
@@ -34,8 +34,8 @@ IN.avionics.boards.current = 0.5; % A
 %  PROPULSION
 IN.propulsion.oxidizer = 'Oxygen';
 IN.propulsion.fuel = 'Kerosene';
-IN.propulsion.oxidizer_mass = 16; % kg -> internal
-IN.propulsion.fuel_mass = 9; % kg -> internal
+IN.propulsion.oxidizer_mass = 19.43; % kg -> internal
+IN.propulsion.fuel_mass = 9.7; % kg -> internal
 IN.propulsion.ox_vol = 0.020; % m^3
 IN.propulsion.fu_vol = 0.0152; % m^3
 IN.propulsion.nominal_thrust = 500 * 4.44822; % N
@@ -84,7 +84,7 @@ IN.throttle_valve.mass = 2.3; % kg
 
 %  LANDING LEGS
 IN.legs.material = 'Al6061';
-IN.legs.tip_factor = 2; % accounts for non-symmetric landing (leg takes 50% extra load)
+IN.legs.tip_factor = 3; % accounts for non-symmetric landing (leg takes 50% extra load)
 
 %  SIMULATION SETTINGS
 IN.sim.dt = 0.01;                  % s

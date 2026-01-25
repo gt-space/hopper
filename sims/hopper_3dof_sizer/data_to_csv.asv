@@ -1,0 +1,3 @@
+thrust = table(ou.Time, simSignal.Data, ...
+          'VariableNames', {'Time','Signal'});
+writetable(T, 'signal_output.csv');
