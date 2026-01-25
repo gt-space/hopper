@@ -20,7 +20,7 @@ IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
 
 %  STRUCTURES
 IN.structures.payload_mass = 15; % kg, CPLC Requirement
-IN.structures.extra_payload_mass = 15; % kg
+IN.structures.extra_payload_mass = 44.13; % kg
 IN.structures.payload_cg_z = [];            % m (from cad/aidan)
 
 %  AVIONICS
@@ -69,7 +69,7 @@ IN.press.autogenous.piston_friction = 0;      % Pa
 %  TANK OPTIONS
 IN.tanks.geometry = 'stacked'; % stacked, concentric, clustered
 IN.tanks.material = 'Al6061';
-IN.tanks.max_radius = 8*0.0254; % in -> m
+IN.tanks.max_radius = 4*0.0254; % in -> m
 
 %  TVC
 IN.tvc.max_gimbal_angle = deg2rad(5); % ?
