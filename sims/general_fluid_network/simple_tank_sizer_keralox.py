@@ -43,6 +43,7 @@ def size_regulated_leg(fluid_name, mdot, T_fluid, collapse_factor):
     # 1. Propellant Volume
     m_prop = mdot * burn_duration
     rho_prop = CP.PropsSI('D', 'T', T_fluid, 'P', P_tank_eol_psi*PSI_TO_PA, fluid_name)
+    print(rho_prop)
     V_prop = m_prop / rho_prop
     
     # 2. Tank Volume
