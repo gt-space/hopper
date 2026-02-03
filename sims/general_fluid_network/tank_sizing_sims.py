@@ -179,10 +179,10 @@ fbb = BangBang(CdA=cda_orifice,
 # Connects to the Liquid of the tank (location=0.0)
 otv = ThrottleValve(1,
                     location=0.0, 
-                    name="OxThrottle", normal_state=0.36)
+                    name="OxThrottle", normal_state=0.777)
 ftv = ThrottleValve(1,
                     location=0.0, 
-                    name="FuThrottle", normal_state=0.18)
+                    name="FuThrottle", normal_state=0.388)
 
 # throttle profile
 actions = {
@@ -276,7 +276,7 @@ print("Starting Simulation...")
 print(f"Initial State: COPV={copv.P/PSI_TO_PA:.0f} psi, Tank={ox_tank.P/PSI_TO_PA:.0f} psi, Amb={amb.P/PSI_TO_PA:.0f} psi")
 
 dt = 0.1 # 100ms timestep
-runtime = 30  # Run for 20 seconds
+runtime = 25  # Run for 20 seconds
 network.sim(runtime, dt, actions, verbose_steps=10)
 
 

@@ -11,6 +11,7 @@ try:
     REFPROP = True
     print("Using REFPROP.")
 except ValueError:
+    pass
     REFPROP = False
     print("Using CoolProp.")
 
@@ -42,6 +43,16 @@ def PropsSI_auto(output: str, key1: str, val1: float, key2: str, val2: float, fl
 
         return result.Output[0]
     else:
+        if output == "E":
+            output = "U"
+        elif output == "CV":
+            output = "CVMASS"
+        elif output == "CP":
+            output = "CPMASS"
+        if key1 == "E":
+            key1 = "U"
+        if key2 == "E":
+            key2 = "U"
         return  CP.PropsSI(output, key1, val1, key2, val2, fluid)
 
 
@@ -371,7 +382,7 @@ class Tank(Node):
         p_guess = self.P
         p_step = 1000.0 # 1 kPa perturbation
         
-        # Solver loop (Secant Method)
+        # Pressure balance solver loop (Secant Method)
         for i in range(20):
             # Calculate Residual for P1
             err1 = self._get_vol_error(p_guess, u_l, u_g)
@@ -401,7 +412,6 @@ class Tank(Node):
         rho_g = PropsSI_auto('D', 'P', p_guess, 'E', u_g, self.ullage.fluid)
         
         self.V = self.m / rho_l
-        old_V = self.ullage.V
         self.ullage.V = self.ullage.m / rho_g
         self.P = p_guess
         self.ullage.P = p_guess
@@ -716,6 +726,11 @@ class BangBang(Connection):
             # If currently CLOSED, stay closed until we hit the lower limit
             if downstream.P < (self.target_pressure - self.hysteresis):
                 self.state = True
+
+class StraightLine(Connection):
+    def __init__(self, ID, roughness, length, qdot=0, location=0, normal_state=True, checking=True, name="line"):
+        m = 0
+        super().__init__(CdA, qdot, location, normal_state, checking, name)
 
 class SharpEdgedOrifice(Connection):
     """
