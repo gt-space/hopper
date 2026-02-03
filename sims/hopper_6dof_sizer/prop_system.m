@@ -1,0 +1,80 @@
+%% Hopper Propulsion System
+
+function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR, ox_valve_CdA, fu_valve_CdA, Isp] = prop_system(thrust_target, ox_name, fu_name, fu_temp, ox_temp, ox_tank_P, fu_tank_P, ox_sys_CdA, fu_sys_CdA, eta_cstar, At, eps)
+    % Instructions for CP Download
+    % Verify that a Python version from 3.8 - 3.11 is installed
+    % do "pip install CoolProp" in a terminal
+    
+    pyenv % Python call
+    
+    % Hardcoded Pa - implement this as a function of altitude so it changes
+    % with launch site as well
+    Pa = 14.8; % psia
+
+    % Constants
+    R_bar = 8.314; % J/mol-K
+    MW = 20.660 / 1000; % g/mol --> kg/mol
+    R = R_bar / MW; % J/kg-K
+    
+    MR_target = 2.00;
+
+    % Gamma set - implement CEA to calculate gamma!
+    gamma = 1.1626;
+
+    % Cstar Theoretical
+    cstar_theo = 1516.4; % m/s
+    cstar_act = eta_cstar * cstar_theo; % m/s
+    
+    % Density Call
+    ox_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', ox_tank_P, 'T', ox_temp, ox_name)); % kg/m^3
+    fu_rho = double(py.CoolProp.CoolProp.PropsSI('D', 'P', fu_tank_P, 'T', fu_temp, fu_name)); % kg/m^3
+
+    % Solve Area-Mach Relation
+    f = @(M) (eps)^2 - (1 / M^2) * (((2 / (gamma + 1)) * (1 + 0.5*(gamma - 1)*M^2))^((gamma + 1) / (gamma - 1)));
+    M0 = 3;
+    M = fzero(f, M0);
+    
+    % Equations -- x(1) = ox_mdot, x(2) = fu_mdot, x(3) = Pc, x(4) = tot_mdot
+    fun = @(x) [
+        x(7) - (sqrt(1 / ((1 / (ox_sys_CdA^2)) + (1 / (x(5)^2)))));
+        x(8) - (sqrt(1 / ((1 / (fu_sys_CdA^2)) + (1 / (x(6)^2)))));
+        x(1) - (x(7) * sqrt(2 * ox_rho * (ox_tank_P - x(3))));
+        x(2) - (x(8) * sqrt(2 * fu_rho * (fu_tank_P - x(3))));
+        x(4) - (x(1) + x(2));
+        cstar_act - ((x(3) * At) / x(4));
+        x(9) - (x(3) / ((1 + 0.5*(gamma - 1)*M^2) ^ (gamma / (gamma - 1))));
+        x(10) - (x(1) / x(2));
+        x(10) - MR_target;
+        x(11) - (gamma / (((1 / (cstar_act * ((0.5*(gamma + 1))^((-gamma - 1) / (2 * (gamma - 1))))))^2) * (R_bar/MW))); % K 
+        x(12) - (sqrt(((2 * gamma) / (gamma - 1)) * (R_bar / MW) * (x(11)) * (1 - ((x(9) / x(3))^((gamma - 1)/gamma))))); % m/s
+        x(13) - (x(4) * x(12) + At * eps * (x(9) - Pa));
+        x(13) - thrust_target;
+    ];
+    x0 = [0.777, 0.388, 250*6894.7, 1.1, 2.1824E-5, 1.347E-5, 1.3806E-5, 8.522E-6, 101325, 2, 3000, 2000, 1334]; % Initial Guess
+    options = optimoptions('fsolve', 'MaxFunctionEvaluations', 8000);
+    x = fsolve(fun, x0, options);
+    ox_mdot  = x(1);
+    fu_mdot  = x(2);
+    Pc       = x(3);
+    tot_mdot = x(4);
+    ox_valve_CdA = x(5);
+    fu_valve_CdA = x(6);
+    ox_tot_CdA = x(7);
+    fu_tot_CdA = x(8);
+    Pe = x(9);
+    MR = x(10);
+    T0 = x(11);
+    U_e = x(12);
+    thrust = x(13);  
+
+    Isp = thrust / (tot_mdot * 9.81); % s
+
+    % Upgrades to Add
+    % 1. Import CEA Tables for gas properties and interpolate (not major
+    % change to output (gamma, cstar, MW will change)
+
+    % 2. Vary MR (after engine designed)
+    
+
+end
+
