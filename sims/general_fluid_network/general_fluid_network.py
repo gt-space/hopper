@@ -727,10 +727,10 @@ class BangBang(Connection):
             if downstream.P < (self.target_pressure - self.hysteresis):
                 self.state = True
 
-class StraightLine(Connection):
-    def __init__(self, ID, roughness, length, qdot=0, location=0, normal_state=True, checking=True, name="line"):
-        m = 0
-        super().__init__(CdA, qdot, location, normal_state, checking, name)
+# class StraightLine(Connection):
+#     def __init__(self, ID, roughness, length, qdot=0, location=0, normal_state=True, checking=True, name="line"):
+#         m = 0
+#         super().__init__(CdA, qdot, location, normal_state, checking, name)
 
 class SharpEdgedOrifice(Connection):
     """
