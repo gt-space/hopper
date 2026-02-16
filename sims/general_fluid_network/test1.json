@@ -1,0 +1,83 @@
+{
+    "version": 1.0,
+    "settings": {
+        "duration": "5.0",
+        "dt": "0.01"
+    },
+    "nodes": [
+        {
+            "id": 0,
+            "type": "Ambient",
+            "x": 236.0,
+            "y": -295.0,
+            "params": {
+                "fluid": "Air",
+                "P": 101325.0,
+                "T": 293.15,
+                "name": "ambient"
+            }
+        },
+        {
+            "id": 1,
+            "type": "Tank",
+            "x": -5.0,
+            "y": -109.0,
+            "params": {
+                "V_total_L": 100.0,
+                "fluid_liq": "Water",
+                "m_liq": 10.0,
+                "T_liq": 293.15,
+                "fluid_ullage": "Nitrogen",
+                "P_ullage": 101325.0,
+                "T_ullage": 293.15,
+                "radius": 0.5,
+                "htc": 50.0,
+                "name": "tank"
+            }
+        },
+        {
+            "id": 2,
+            "type": "Node",
+            "x": -272.0,
+            "y": -85.0,
+            "params": {
+                "fluid": "Water",
+                "m": 1.0,
+                "V": 1.0,
+                "T": 293.15,
+                "name": "node",
+                "type": "m"
+            }
+        }
+    ],
+    "connections": [
+        {
+            "type": "ThrottleValve",
+            "start_id": 1,
+            "end_id": 0,
+            "params": {
+                "CdA_max": 0.0001,
+                "target_mdot": 0.1,
+                "qdot": 0.0,
+                "location": 0.0,
+                "normal_state": 0.0,
+                "checking": 1,
+                "step": 0.02,
+                "name": "throttle"
+            }
+        },
+        {
+            "type": "Connection",
+            "start_id": 2,
+            "end_id": 1,
+            "params": {
+                "CdA": 0.0001,
+                "qdot": 0.0,
+                "location": 0.0,
+                "normal_state": 1,
+                "checking": 1,
+                "name": "pipe"
+            }
+        }
+    ]
+}

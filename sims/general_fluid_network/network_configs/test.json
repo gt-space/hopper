@@ -1,0 +1,51 @@
+{
+    "version": 1.1,
+    "settings": {
+        "duration": "60.0",
+        "dt": "0.1"
+    },
+    "nodes": [
+        {
+            "id": 0,
+            "type": "Ambient",
+            "x": -534.0,
+            "y": -489.0,
+            "params": {
+                "fluid": "Air",
+                "P": 101325.0,
+                "T": 293.15,
+                "name": "ambient"
+            }
+        },
+        {
+            "id": 1,
+            "type": "Node",
+            "x": -782.0,
+            "y": -443.0,
+            "params": {
+                "fluid": "Nitrogen",
+                "m": 8.0,
+                "V": 27.0,
+                "T": 293.15,
+                "name": "copv",
+                "type": "m"
+            }
+        }
+    ],
+    "connections": [
+        {
+            "type": "Connection",
+            "start_id": 1,
+            "end_id": 0,
+            "params": {
+                "CdA": 1.4e-06,
+                "qdot": 0.0,
+                "location": 0.0,
+                "normal_state": 1,
+                "checking": 1,
+                "name": "pipe"
+            }
+        }
+    ],
+    "actions": []
+}

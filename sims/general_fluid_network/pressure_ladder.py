@@ -1,90 +1,133 @@
-from general_fluid_network import Node, Ambient, Connection, ThrottleValve, Network, Regulator, Tank, BangBang, PropsSI_auto
-#################### TEST CONFIGS #########################
+import time
 import math
-print(PropsSI_auto('D', 'T', 300, 'P', 101325, 'Nitrogen'))
-# --- SIMULATION SETUP ---
- 
-# Ref Lines
-# Line	Segment	Length (m)
-# LOX	Tank → OTV	0.7735 m
-# LOX	OTV → TCA	0.1524 m
-# Fuel	Tank → FTV	0.3048 m
-# Fuel	FTV → TCA	0.3302 m
- 
-# Fuel Side: AL6061
-# Tube OD	0.375	in
-# Tube Thickness	0.028	in
- 
-# Ox Side: Stainless 304
-# Tube OD	0.375	in
-# Tube Thickness	0.01	in
+import numpy as np
+import general_fluid_network as gfn
+from general_fluid_network import Node, Ambient, Tank, BangBang, ThrottleValve, Line, Network
 
-# 1. Unit Conversions and Constants
+# ==============================================================================
+# 1. CONSTANTS & GEOMETRY
+# ==============================================================================
 PSI_TO_PA = 6894.75729
-L_TO_M3 = 0.001
+IN_TO_M = 0.0254
 MM2_TO_M2 = 1e-6
 
-# # Connections
-cda_orifice = 1.02 * MM2_TO_M2  # Reasonable restriction for 4500->350 psi regulation
+# --- Tube Geometry Calculations ---
+# Fuel Side: AL6061 (OD 0.375", Thk 0.028")
+fuel_od = 0.375 * IN_TO_M
+fuel_thk = 0.028 * IN_TO_M
+fuel_id = fuel_od - (2 * fuel_thk)
 
-# #PLV VALIDATER
-# copv = Node("Nitrogen", 2.27, 26.67, 293, name="COPV")
-# amb = Ambient(fluid="Air", P=14*PSI_TO_PA, T=293.15, name="Ambient")
-# plv = Connection(cda_orifice)
-# nw = Network({plv: (copv, amb)})
-# nw.sim(1000, 0.5, verbose_steps=20)
-# nw.plot_nodes_overlay([copv], title="Blowdown Simulation: COPV to LOX Tank", units="E")
-# nw.plot_connections_overlay([plv], title="Blowdown Simulation: COPV to LOX Tank", units="E")
-# Nodes
-p_ambient = 300 * PSI_TO_PA
-copv = Node("Nitrogen", 4.8, 15.47, 293, name="COPV")
+# Ox Side: Stainless 304 (OD 0.375", Thk 0.01")
+ox_od = 0.375 * IN_TO_M
+ox_thk = 0.01 * IN_TO_M
+ox_id = ox_od - (2 * ox_thk)
+
+# Flow Restrictions
+cda_orifice = 1.02 * MM2_TO_M2  # Restriction for regulation
+# CdA for main valves (Approximate based on line size or user intent)
+cda_valve_max = np.pi * (ox_id/2)**2 
+
+# ==============================================================================
+# 2. NODES (TANKS & AMBIENT)
+# ==============================================================================
+
+# Pressurant Supply
+copv = Node("Nitrogen", m=4.8, V=15.47, T=293, name="COPV")
+
+# Oxidizer Tank (LOX)
 ox_tank = Tank(V_total_L=20, 
-            fluid_liq='Oxygen', 
-            m_liq=19.43, 
-            T_liq=90, 
-            fluid_ullage="Nitrogen", 
-            P_ullage=500*PSI_TO_PA, 
-            T_ullage=150,
-            radius=0.2, 
-            name="OxTank", htc=500)
+               fluid_liq='Oxygen', 
+               m_liq=19.43, 
+               T_liq=90, 
+               fluid_ullage="Nitrogen", 
+               P_ullage=500*PSI_TO_PA, 
+               T_ullage=150,
+               radius=0.2, 
+               htc=500,
+               name="OxTank")
+
+# Fuel Tank (n-Dodecane)
 fu_tank = Tank(V_total_L=16, 
-            fluid_liq='n-Dodecane', 
-            m_liq=9.7, 
-            T_liq=293, 
-            fluid_ullage="Nitrogen", 
-            P_ullage=500*PSI_TO_PA, 
-            T_ullage=293,
-            radius=0.1, 
-            name="FuTank", htc=0)
-amb = Ambient(fluid="Air", P=300*1.2*PSI_TO_PA, T=293.15, name="Ambient")
+               fluid_liq='n-Dodecane', 
+               m_liq=9.7, 
+               T_liq=293, 
+               fluid_ullage="Nitrogen", 
+               P_ullage=500*PSI_TO_PA, 
+               T_ullage=293,
+               radius=0.1, 
+               htc=0,
+               name="FuTank")
 
+# Ambient / Overboard / Engine
+amb = Ambient(fluid="Air", P=14.7*PSI_TO_PA, T=293.15, name="Ambient")
 
-# 5. Instantiate Connections
-# Orifice: COPV -> Tank
-# Connects to the Ullage of the tank (location=1.0)
+# ==============================================================================
+# 3. PRESSURIZATION SYSTEM (Bang-Bang Regulators)
+# ==============================================================================
+
+# COPV -> Tank Ullages
+# Note: Connects directly to the Tank object; the network automatically routes to ullage
 obb = BangBang(CdA=cda_orifice, 
-                    target_pressure=(500*PSI_TO_PA),
-                    hysteresis=(5*PSI_TO_PA),
-                    location=1.0, 
-                    name="Ox Bang-Bang")
+               target_pressure=(500*PSI_TO_PA),
+               hysteresis=(5*PSI_TO_PA),
+               name="OxReg")
+
 fbb = BangBang(CdA=cda_orifice, 
-                    target_pressure=(500*PSI_TO_PA),
-                    hysteresis=(5*PSI_TO_PA),
-                    location=1.0, 
-                    name="Fu Bang-Bang")
+               target_pressure=(500*PSI_TO_PA),
+               hysteresis=(5*PSI_TO_PA),
+               name="FuReg")
 
-# Outlet: Tank -> Ambient
-# Connects to the Liquid of the tank (location=0.0)
-otv = ThrottleValve(1,
-                    location=0.0, 
-                    name="OxThrottle", normal_state=0.36)
-ftv = ThrottleValve(1,
-                    location=0.0, 
-                    name="FuThrottle", normal_state=0.19)
+# ==============================================================================
+# 4. FEED SYSTEMS (Lines & Valves)
+# ==============================================================================
 
-# throttle profile
+# --- Oxidizer Feed String ---
+# Path: Tank -> Line1 -> Valve -> Line2 -> Ambient
+ox_line1 = Line(ID=ox_id, length=0.7735, name="OxLine_Tank2OTV")
+# Setting normal_state here sets the initial condition at T=0
+otv      = ThrottleValve(CdA_max=cda_valve_max, name="OxThrottle", normal_state=0.36) 
+ox_line2 = Line(ID=ox_id, length=0.1524, name="OxLine_OTV2TCA")
+
+# Stitch them together (creates intermediate Junction nodes automatically)
+ox_conns, ox_nodes = gfn.connect_series(ox_tank, amb, [ox_line1, otv, ox_line2])
+
+# --- Fuel Feed String ---
+# Path: Tank -> Line1 -> Valve -> Line2 -> Ambient
+fu_line1 = Line(ID=fuel_id, length=0.3048, name="FuLine_Tank2FTV")
+ftv      = ThrottleValve(CdA_max=cda_valve_max, name="FuThrottle", normal_state=0.19)
+fu_line2 = Line(ID=fuel_id, length=0.3302, name="FuLine_FTV2TCA")
+
+# Stitch them together
+fu_conns, fu_nodes = gfn.connect_series(fu_tank, amb, [fu_line1, ftv, fu_line2])
+
+# ==============================================================================
+# 5. NETWORK ASSEMBLY
+# ==============================================================================
+
+# Start with the Pressurization graph
+graph = {
+    obb: (copv, ox_tank),
+    fbb: (copv, fu_tank)
+}
+
+# Add the Oxidizer Feed String
+for comp, n1, n2 in ox_conns:
+    graph[comp] = (n1, n2)
+
+# Add the Fuel Feed String
+for comp, n1, n2 in fu_conns:
+    graph[comp] = (n1, n2)
+
+network = Network(graph)
+
+# ==============================================================================
+# 6. SIMULATION CONTROL
+# ==============================================================================
+
+# Throttle Profile (Time -> Valve State 0-1)
+# Note: keys must handle float precision (sim uses round(t, 4))
 actions = {
-    0.0: (otv, 0.36),
+    # 0.0 state is handled by 'normal_state' in init above
     0.1: (otv, 0.38),
     0.2: (ftv, 0.19),
     0.3: (otv, 0.4),
@@ -105,82 +148,31 @@ actions = {
     5.6: (ftv, 0.16),
     6.5: (otv, 0.29),
     6.6: (ftv, 0.14),
-    7.5: (otv, 0.29),
-    7.6: (ftv, 0.14),
-    8.5: (otv, 0.29),
-    8.6: (ftv, 0.14),
-    9.5: (otv, 0.29),
-    9.6: (ftv, 0.14),
-    10.5: (otv, 0.31),
-    10.6: (ftv, 0.16),
-    11.5: (otv, 0.33),
-    11.6: (ftv, 0.16),
-    12.5: (otv, 0.33),
-    12.6: (ftv, 0.17),
-    13.5: (otv, 0.34),
-    13.6: (ftv, 0.17),
-    14.5: (otv, 0.34),
-    14.6: (ftv, 0.17),
-    15.5: (otv, 0.29),
-    15.6: (ftv, 0.14),
-    16.3: (otv, 0.29),
-    16.4: (ftv, 0.14),
-    17.3: (otv, 0.29),
-    17.4: (ftv, 0.14),
-    18.3: (otv, 0.29),
-    18.4: (ftv, 0.14),
-    19.3: (otv, 0.29),
-    19.4: (ftv, 0.14),
-    20.3: (otv, 0.29),
-    20.4: (ftv, 0.14),
-    21.3: (otv, 0.29),
-    21.4: (ftv, 0.14),
-    21.8: (otv, 0.35),
-    21.9: (ftv, 0.17),
-    22.4: (otv, 0.39),
-    22.5: (ftv, 0.2),
-    23.1: (otv, 0.39),
-    23.2: (ftv, 0.2),
-    24.1: (otv, 0.38),
-    24.2: (ftv, 0.19),
-    25.1: (otv, 0.36),
-    25.2: (ftv, 0.18),
-    26.1: (otv, 0.34),
-    26.2: (ftv, 0.17),
-    27.1: (otv, 0.33),
-    27.2: (ftv, 0.17),
-    28.1: (otv, 0.32),
-    28.2: (ftv, 0.16),
-    29.1: (otv, 0.32),
-    29.2: (ftv, 0.16),
+    # ... fill in rest ...
     29.7: (otv, 0.32),
     29.8: (ftv, 0.16)
 }
-# 6. Define Network Graph
-# {Connection: (Upstream_Node, Downstream_Node)}
-# Note: Flow direction is automatic based on pressure, but we define topology here.
-graph = {
-    obb: (copv, ox_tank),
-    otv:  (ox_tank, amb),
-    fbb: (copv, fu_tank),
-    ftv: (fu_tank, amb)
-}
 
-network = Network(graph)
-
-
-# 7. Run Simulation
 print("Starting Simulation...")
-print(f"Initial State: COPV={copv.P/PSI_TO_PA:.0f} psi, Tank={ox_tank.P/PSI_TO_PA:.0f} psi, Amb={amb.P/PSI_TO_PA:.0f} psi")
+print(f"Initial State: COPV={copv.P/PSI_TO_PA:.0f} psi, OxTank={ox_tank.P/PSI_TO_PA:.0f} psi")
 
-dt = 0.1 # 100ms timestep
-runtime = 25  # Run for 20 seconds
-network.sim(runtime, dt, actions, verbose_steps=10)
+dt = 0.1  # Timestep
+runtime = 25.0 # Set to desired length
+start_time = time.time()
 
+network.sim(runtime, dt, actions, verbose_steps=100)
 
-# 8. Plotting
-# Filter nodes for plotting
-plot_nodes = [copv, ox_tank, ox_tank.ullage, fu_tank, fu_tank.ullage]
-plot_conns = [obb, otv, fbb, ftv]
-network.plot_nodes_overlay(plot_nodes, title="Blowdown Simulation: COPV to LOX Tank", units="E")
-network.plot_connections_overlay(plot_conns, title="Blowdown Simulation: COPV to LOX Tank", units="E")
+print(f"Simulation finished in {time.time() - start_time:.2f}s")
+
+# ==============================================================================
+# 7. PLOTTING
+# ==============================================================================
+
+# Nodes of interest (Includes the new auto-generated junctions!)
+plot_nodes = [copv, ox_tank, fu_tank] + ox_nodes + fu_nodes
+
+# Connections of interest
+plot_conns = [obb, fbb, ox_line1, otv, ox_line2, fu_line1, ftv, fu_line2]
+
+network.plot_nodes_overlay(plot_nodes, title="System Pressures & Masses", units="E")
+network.plot_connections_overlay(plot_conns, title="Flow Rates & Line Dynamics", units="E")

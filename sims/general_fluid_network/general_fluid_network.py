@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 from ctREFPROP.ctREFPROP import REFPROPFunctionLibrary
 import CoolProp.CoolProp as CP
 
-# Initialize REFPROP/CoolProp
+# ==============================================================================
+# EOS SOLVER INITIALIZATION
+# ==============================================================================
+
 try:
     RP = REFPROPFunctionLibrary('C:\\Program Files\\REFPROP') # Modify your install location if necessary
     RP.SETPATHdll(os.environ.get('RPPREFIX', r"C:\Program Files\REFPROP")) # Modify your install location if necessary
@@ -14,6 +17,7 @@ except ValueError:
     pass
     REFPROP = False
     print("Using CoolProp.")
+    REFPROP=False
 
 def PropsSI_auto(output: str, key1: str, val1: float, key2: str, val2: float, fluid: str):
     """
@@ -55,6 +59,32 @@ def PropsSI_auto(output: str, key1: str, val1: float, key2: str, val2: float, fl
             key2 = "U"
         return  CP.PropsSI(output, key1, val1, key2, val2, fluid)
 
+# ==============================================================================
+# AUXILLARY CLASSES
+# ==============================================================================
+"""
+TODO:
+CREATE HEAT TRANSFER CLASS: IDEA IS THAT IT CAN BE ADDED TO A NODE OR CONNECTION AND CAN EFFECTIVELY CREATE A THERMAL NETWORK
+ACTUALLY SHOULD JUST ADD A THERMAL NETWORK THAT YOU CAN JUST STICK TO NODES
+
+CREATE CONTROLLER CLASS AND SUBCLASSES:
+CAN ATTACH TO VALVE-LIKE CONNECTIONS 
+UPDATE IN NETWORK SIM TO CONTROL VALVE OPENING/THROTTLE BASED ON WHATEVER CONTROL SCHEME
+BANG BANG
+THROTTLE
+PID CONTROL
+REDLINES
+"""
+class HeatTranfer():
+    pass
+
+
+class Controller():
+    def __init__(self):
+        pass
+# ==============================================================================
+# NODE CLASS AND SUBCLASSES
+# ==============================================================================
 
 class Node():
     """
@@ -193,14 +223,8 @@ class Ambient(Node):
     Unchanging regardless of updates into or out of it.
     """
     def __init__(self, fluid="Air", P=101325, T=293.15, name="ambient"):
-        super().__init__(fluid, m=1.0, V=1.0, T=T, name=name)
-
-        # Set fixed ambient conditions
-        self.P = P
-        self.T = T
-        self.h = PropsSI_auto("H", "P", self.P, "T", self.T, fluid)
-        self.H = self.h * self.m
-        self.d = PropsSI_auto("D", "P", self.P, "T", self.T, fluid)
+        d = PropsSI_auto("D", "P", P, "T", T, fluid)
+        super().__init__(fluid, m=1.0, V=1000.0/d, T=T, name=name)
 
     def update(self, mdot, Hdot, dt):
         """
@@ -217,25 +241,7 @@ class Manifold(Node):
     pass
 
 
-class PistonTank(Node):
-    """
-    Subclass of Node to represent an piston tank.
-    """
-    # TODO
-    def __init__(self, fluid, m, V, T, linked_node, name="node"):
-        super().__init__(fluid, m, V, T, name)
-    pass
-
-
-class HeatExchanger(Node):
-    """
-    Subclass of Node to represnt a heat exchanger.
-    """
-    # TODO
-    pass
-
-
-class Chamber(Node):
+class Engine(Node):
     """
     Subclass of Node to represent a engine combustion chamber.
     """
@@ -435,7 +441,19 @@ class Tank(Node):
             # If PropsSI fails (e.g. out of bounds), return large error
             return 1.0
         
-
+# ==============================================================================
+# CONNECTION CLASS AND SUBCLASSES
+# ==============================================================================
+"""
+TODO: 
+REDEFINE CONNECTION CLASSES TO MODEL INERTANCE
+ADD INLET AND OUTLET LOCATIONS FOR CONNECTION (IDK IF THIS ACTUALLY MATTERS)
+REDEFINE QDOT IN WITH HEATTRANSFER OBJECT
+REDEFINE THROTTLE CONTROL
+REDEFINE ALL CONTROL USING CONTROL OBJECT/SUBCLASSES
+REWRITE CLASSES TO NOT OVERRIDE MDOT HDOT FUNCTION? SHOULD BE CLEAN LIKE 
+CREATE LINE AND SERIES CLASSES
+"""
 class Connection():
     """
     Connection class. Defined by CdA (m^2), qdot (J/s), location on node (0-1), and state (open, closed).
@@ -521,10 +539,8 @@ class Connection():
             # We are explicitly in the liquid node
             h_stream = donor.h
             d_stream = donor.d
-
         abs_dP = abs(dP)
-        self.dP = abs_dP  # logging
-
+        self.dP = abs(dP)  # logging
         # Determine phase for flow model
         donor_phase = CP.PhaseSI('D', source_node.d, 'H', source_node.h, source_node.fluid)
         # --- GAS/CHOKED FLOW --- 
@@ -602,6 +618,33 @@ class Connection():
         self.history["Hdot"].append(self.Hdot)
         self.history["dP"].append(self.dP)
         self.history["Q"].append(self.Q)
+
+
+class Line(Connection):
+    def __init__(self, ID, length, roughness):
+        self.ID = ID # m
+        self.length = length #m 
+        self.voulume = length * ID * np.pi/4
+        self.roughness = roughness
+        # aelf.friction_factor = solve for friction factor choose darcy or fanno
+        # CdA = solve for cda based on friction
+        super.__init__()
+
+
+class Series(Connection):
+    """
+    Class to combine all the connections in series between nodes.
+    Takes in an ordered connection list.
+    """
+    def __init__(self, connections, checking=True, name='series'):
+        self.connections = connections
+        total_CdA = np.array([1/i.CdA for i in connections])
+        normal_state = True
+        for i in connections:
+            if i.normal_state == False:
+                normal_state = False
+                break
+        super().__init__(total_CdA, 0, connections[0].location, normal_state, checking, name)
 
 
 class Regulator(Connection):
@@ -687,14 +730,6 @@ class Regulator(Connection):
         return mdot, Hdot
 
 
-class Valve(Connection):
-    """
-    Subclass of Connection to represent a valve.
-    """
-    # TODO
-    pass
-
-
 class BangBang(Connection):
     """
     Bang-bang valve controller.
@@ -727,30 +762,10 @@ class BangBang(Connection):
             if downstream.P < (self.target_pressure - self.hysteresis):
                 self.state = True
 
-# class StraightLine(Connection):
-#     def __init__(self, ID, roughness, length, qdot=0, location=0, normal_state=True, checking=True, name="line"):
-#         m = 0
-#         super().__init__(CdA, qdot, location, normal_state, checking, name)
 
 class SharpEdgedOrifice(Connection):
     """
     Subclass of Node to represent a sharp-edged orifice.
-    """
-    # TODO
-    pass
-
-
-class Engine(Connection):
-    """
-    Subclass of Connection to represent an engine.
-    """    
-    # TODO
-    pass
-
-
-class Injector(Connection):
-    """
-    Subclass of Connection to represent an injector.
     """
     # TODO
     pass
@@ -866,21 +881,9 @@ class ThrottleValve(Connection):
         self.mdot, self.Hdot = mdot, Hdot
         return mdot, Hdot
 
-
-class CheckValve(Connection):
-    """
-    Subclass of Connection to represent a check valve.
-    """
-    # TODO
-    pass
-
-
-class Pump(Connection):
-    """
-    Subclass of Connection to represent a pump.
-    """
-    # TODO
-    pass
+# ==============================================================================
+# NETWORK CLASS AND PLOTTING
+# ==============================================================================
 
 class Network():
     """
