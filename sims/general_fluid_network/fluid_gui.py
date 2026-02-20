@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QGraphicsScene, QGraphic
                              QDockWidget, QListWidget, QVBoxLayout, QWidget, QLabel, 
                              QFormLayout, QLineEdit, QPushButton, QGraphicsItem, 
                              QGraphicsLineItem, QInputDialog, QMessageBox, QGraphicsPathItem, QFileDialog, QTableWidgetItem, QComboBox,
-                             QTableWidget, QHeaderView)
+                             QTableWidget, QHeaderView, QGraphicsDropShadowEffect, QDialog)
 from PyQt5.QtCore import Qt, QMimeData, QPointF, QRectF, QLineF
 from PyQt5.QtGui import QDrag, QPainter, QPen, QBrush, QColor, QPainterPath, QImage, QPainterPathStroker
 
@@ -70,6 +70,83 @@ COMPONENT_DEFS = {
 }
 
 # =============================================================================
+#  FLUID PROPERTY LOOKUP (REFPROP -> CoolProp)
+# =============================================================================
+
+def _normalize_prop_key(key):
+    if not isinstance(key, str):
+        return ""
+    return key.strip().upper()
+
+def _try_props_refprop_then_coolprop(fluid, out_key, in1_key, in1_val, in2_key, in2_val):
+    """
+    Try REFPROP backend first (via CoolProp), then fallback to CoolProp default backend.
+    Units: SI (T K, P Pa, D kg/m3, H J/kg, S J/kg/K, Q 0-1).
+    """
+    try:
+        from CoolProp.CoolProp import PropsSI
+    except Exception as e:
+        raise RuntimeError(f"CoolProp not available: {e}")
+
+    out_key = _normalize_prop_key(out_key)
+    in1_key = _normalize_prop_key(in1_key)
+    in2_key = _normalize_prop_key(in2_key)
+
+    if not fluid or not out_key or not in1_key or not in2_key:
+        raise ValueError("Fluid and property keys are required.")
+
+    # Try REFPROP backend first through CoolProp
+    refprop_fluid = f"REFPROP::{fluid}"
+    try:
+        return PropsSI(out_key, in1_key, in1_val, in2_key, in2_val, refprop_fluid)
+    except Exception:
+        # Fallback to CoolProp default backend
+        return PropsSI(out_key, in1_key, in1_val, in2_key, in2_val, fluid)
+
+# =============================================================================
+#  UNITS MAP (UI LABELS)
+# =============================================================================
+
+UNITS_MAP = {
+    # Common state variables
+    "T": "K",
+    "P": "Pa",
+    "D": "kg/m3",
+    "H": "J/kg",
+    "S": "J/kg/K",
+    "Q": "-",
+    "m": "kg",
+    "V": "m3",
+    # Component params
+    "V_total_L": "L",
+    "m_liq": "kg",
+    "T_liq": "K",
+    "P_ullage": "Pa",
+    "T_ullage": "K",
+    "radius": "m",
+    "htc": "W/m2/K",
+    "CdA": "m2",
+    "CdA_max": "m2",
+    "qdot": "W",
+    "location": "m",
+    "set_pressure": "Pa",
+    "target_mdot": "kg/s",
+    "step": "-",
+    "hysteresis": "Pa",
+}
+
+def _label_with_units(key):
+    unit = UNITS_MAP.get(key)
+    return f"{key} [{unit}]" if unit else key
+
+# =============================================================================
+#  UI CONSTANTS
+# =============================================================================
+
+GLOW_COLOR = QColor(0, 200, 255, 180)
+COMMON_FLUIDS = ["Water", "Air", "Nitrogen", "Oxygen", "Methane", "Propane", "CO2"]
+
+# =============================================================================
 #  GRAPHICS ITEMS (The Visuals)
 # =============================================================================
 
@@ -85,6 +162,12 @@ class NodeItem(QGraphicsItem):
         self.width = 80
         self.height = 60
         self.color = QColor("#3498db") if "Tank" not in node_type else QColor("#e67e22")
+        self._glow = QGraphicsDropShadowEffect()
+        self._glow.setBlurRadius(25)
+        self._glow.setColor(GLOW_COLOR)
+        self._glow.setOffset(0, 0)
+        self._glow.setEnabled(False)
+        self.setGraphicsEffect(self._glow)
 
     def boundingRect(self):
         return QRectF(-self.width/2, -self.height/2, self.width, self.height)
@@ -99,6 +182,9 @@ class NodeItem(QGraphicsItem):
         painter.drawText(self.boundingRect(), Qt.AlignCenter, name)
 
     def itemChange(self, change, value):
+        if change == QGraphicsItem.ItemSelectedHasChanged:
+            if self._glow:
+                self._glow.setEnabled(bool(self.isSelected()))
         if change == QGraphicsItem.ItemPositionChange:
             scene = self.scene()
             if scene:
@@ -152,6 +238,11 @@ class ConnectionLine(QGraphicsPathItem):
         return path_stroker.createStroke(path)
 
     def paint(self, painter, option, widget):
+        if self.isSelected():
+            glow_pen = QPen(GLOW_COLOR, 10, Qt.SolidLine, Qt.RoundCap)
+            painter.setPen(glow_pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawPath(self.path())
         super().paint(painter, option, widget)
         
         # Draw label box
@@ -193,13 +284,25 @@ class FluidEditor(QMainWindow):
         self.view.setRenderHint(QPainter.Antialiasing)
         self.setCentralWidget(self.view)
 
+        # Property calc state
+        self._prop_calc_widgets = {}
+        self._prop_calc_last = {
+            "p1": "T",
+            "p2": "P",
+            "out": "D",
+        }
+        self._prop_calc_item = None
+
         # 2. Component Library (Sidebar)
         self.create_library_dock()
         
         # 3. Property Editor (Sidebar)
         self.create_property_dock()
 
-        # 4. Simulation Controls (Top)
+        # 4. Fluid Property Calc (Bottom Left)
+        self.create_prop_calc_dock()
+
+        # 5. Simulation Controls (Top)
         self.create_sim_dock()
 
         # Event wiring
@@ -208,6 +311,7 @@ class FluidEditor(QMainWindow):
 
     def create_library_dock(self):
         dock = QDockWidget("Library", self)
+        dock.setObjectName("LibraryDock")
         list_widget = QListWidget()
         
         # Populate from Config
@@ -221,6 +325,7 @@ class FluidEditor(QMainWindow):
         dock.setWidget(list_widget)
         self.addDockWidget(Qt.LeftDockWidgetArea, dock)
         self.library_list = list_widget
+        self.library_dock = dock
 
     def start_drag_library(self, supportedActions):
         item = self.library_list.currentItem()
@@ -239,6 +344,73 @@ class FluidEditor(QMainWindow):
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
         self.current_editing_item = None
 
+    def create_prop_calc_dock(self):
+        dock = QDockWidget("Fluid Property Calc", self)
+        widget = QWidget()
+        layout = QFormLayout()
+
+        prop_keys = ["T", "P", "D", "H", "S", "Q"]
+
+        self.calc_cmb_fluid = QComboBox()
+        self.calc_cmb_fluid.setEditable(True)
+        self.calc_cmb_fluid.addItems(COMMON_FLUIDS)
+        self.calc_cmb_fluid.setCurrentText("Water")
+        layout.addRow("fluid", self.calc_cmb_fluid)
+
+        self.calc_cmb_p1 = QComboBox()
+        self.calc_cmb_p1.addItems(prop_keys)
+        self.calc_cmb_p1.setCurrentText(self._prop_calc_last["p1"])
+        self.calc_inp_p1 = QLineEdit("")
+        self.calc_lbl_p1v = QLabel(_label_with_units(self.calc_cmb_p1.currentText()))
+        layout.addRow("prop1", self.calc_cmb_p1)
+        layout.addRow(self.calc_lbl_p1v, self.calc_inp_p1)
+
+        self.calc_cmb_p2 = QComboBox()
+        self.calc_cmb_p2.addItems(prop_keys)
+        self.calc_cmb_p2.setCurrentText(self._prop_calc_last["p2"])
+        self.calc_inp_p2 = QLineEdit("")
+        self.calc_lbl_p2v = QLabel(_label_with_units(self.calc_cmb_p2.currentText()))
+        layout.addRow("prop2", self.calc_cmb_p2)
+        layout.addRow(self.calc_lbl_p2v, self.calc_inp_p2)
+
+        self.calc_cmb_out = QComboBox()
+        self.calc_cmb_out.addItems(prop_keys)
+        self.calc_cmb_out.setCurrentText(self._prop_calc_last["out"])
+        self.calc_out_val = QLineEdit("")
+        self.calc_out_val.setReadOnly(True)
+        self.calc_lbl_outv = QLabel(_label_with_units(self.calc_cmb_out.currentText()))
+        layout.addRow("target", self.calc_cmb_out)
+        layout.addRow(self.calc_lbl_outv, self.calc_out_val)
+
+        btn_calc = QPushButton("Compute")
+        btn_calc.clicked.connect(self.compute_fluid_property)
+        layout.addRow("", btn_calc)
+
+        widget.setLayout(layout)
+        dock.setWidget(widget)
+        if hasattr(self, "library_dock") and self.library_dock:
+            self.addDockWidget(Qt.LeftDockWidgetArea, dock)
+            self.splitDockWidget(self.library_dock, dock, Qt.Vertical)
+        else:
+            self.addDockWidget(Qt.LeftDockWidgetArea, dock)
+
+        self._prop_calc_widgets = {
+            "fluid": self.calc_cmb_fluid,
+            "p1": self.calc_cmb_p1,
+            "p1_val": self.calc_inp_p1,
+            "p2": self.calc_cmb_p2,
+            "p2_val": self.calc_inp_p2,
+            "out": self.calc_cmb_out,
+            "out_val": self.calc_out_val,
+            "lbl_p1_val": self.calc_lbl_p1v,
+            "lbl_p2_val": self.calc_lbl_p2v,
+            "lbl_out_val": self.calc_lbl_outv,
+        }
+
+        self.calc_cmb_p1.currentTextChanged.connect(self.update_prop_calc_labels)
+        self.calc_cmb_p2.currentTextChanged.connect(self.update_prop_calc_labels)
+        self.calc_cmb_out.currentTextChanged.connect(self.update_prop_calc_labels)
+
     def create_sim_dock(self):
         dock = QDockWidget("Simulation", self)
         widget = QWidget()
@@ -252,6 +424,7 @@ class FluidEditor(QMainWindow):
         btn_run = QPushButton("RUN SIMULATION")
         btn_run.setStyleSheet("background-color: #2ecc71; color: white; font-weight: bold; padding: 10px;")
         btn_run.clicked.connect(self.run_simulation)
+        self.btn_run = btn_run
         
         layout.addWidget(self.lbl_time)
         layout.addWidget(self.inp_time)
@@ -263,6 +436,19 @@ class FluidEditor(QMainWindow):
         widget.setLayout(layout)
         dock.setWidget(widget)
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
+
+    def _show_sim_running_dialog(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Simulation Running")
+        dlg.setModal(False)
+        dlg.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Simulation running..."))
+        dlg.setLayout(layout)
+        dlg.resize(240, 80)
+        dlg.show()
+        QApplication.processEvents()
+        return dlg
 
     # --- DRAG AND DROP ONTO CANVAS ---
     def dragEnterEvent(self, event): # On QMainWindow
@@ -663,13 +849,18 @@ class MainApp(FluidEditor):
 
     # --- RUN LOGIC ---
     def run_simulation(self):
-        node_items = [i for i in self.scene.items() if isinstance(i, NodeItem)]
-        conn_items = [i for i in self.scene.items() if isinstance(i, ConnectionLine)]
-        
-        if not node_items: return
-
-        item_map = {} 
+        sim_dialog = None
+        if hasattr(self, "btn_run") and self.btn_run:
+            self.btn_run.setEnabled(False)
         try:
+            sim_dialog = self._show_sim_running_dialog()
+            node_items = [i for i in self.scene.items() if isinstance(i, NodeItem)]
+            conn_items = [i for i in self.scene.items() if isinstance(i, ConnectionLine)]
+            
+            if not node_items:
+                return
+
+            item_map = {} 
             # Instantiate Nodes
             for n_item in node_items:
                 cls = getattr(gfn, n_item.node_type)
@@ -719,6 +910,11 @@ class MainApp(FluidEditor):
             QMessageBox.critical(self, "Simulation Error", str(e))
             import traceback
             traceback.print_exc()
+        finally:
+            if sim_dialog:
+                sim_dialog.close()
+            if hasattr(self, "btn_run") and self.btn_run:
+                self.btn_run.setEnabled(True)
 
     # --- HELPERS (Copied to ensure completeness) ---
     def create_connection(self, node1, node2):
@@ -746,10 +942,64 @@ class MainApp(FluidEditor):
 
         self.param_inputs = {}
         for key, val in item.params.items():
-            inp = QLineEdit(str(val))
-            inp.textChanged.connect(lambda text, k=key: self.update_param(k, text))
-            self.prop_layout.addRow(key, inp)
+            if key in ("fluid", "fluid_ullage"):
+                inp = QComboBox()
+                inp.setEditable(True)
+                inp.addItems(COMMON_FLUIDS)
+                inp.setCurrentText(str(val))
+                inp.currentTextChanged.connect(lambda text, k=key: self.update_param(k, text))
+            else:
+                inp = QLineEdit(str(val))
+                inp.textChanged.connect(lambda text, k=key: self.update_param(k, text))
+            self.prop_layout.addRow(_label_with_units(key), inp)
             self.param_inputs[key] = inp
+
+        if isinstance(item, NodeItem):
+            self._prop_calc_item = item
+            fluid_default = (
+                item.params.get("fluid")
+                or item.params.get("fluid_liq")
+                or item.params.get("fluid_ullage")
+                or "Water"
+            )
+            if self._prop_calc_widgets.get("fluid"):
+                self._prop_calc_widgets["fluid"].setCurrentText(str(fluid_default))
+        else:
+            self._prop_calc_item = None
+
+    def update_prop_calc_labels(self):
+        w = self._prop_calc_widgets
+        if not w:
+            return
+        w["lbl_p1_val"].setText(_label_with_units(w["p1"].currentText()))
+        w["lbl_p2_val"].setText(_label_with_units(w["p2"].currentText()))
+        w["lbl_out_val"].setText(_label_with_units(w["out"].currentText()))
+
+    def compute_fluid_property(self):
+        w = self._prop_calc_widgets
+        if not w:
+            return
+        try:
+            fluid = w["fluid"].currentText().strip()
+            p1 = w["p1"].currentText().strip()
+            p2 = w["p2"].currentText().strip()
+            out = w["out"].currentText().strip()
+            v1 = float(w["p1_val"].text().strip())
+            v2 = float(w["p2_val"].text().strip())
+
+            val = _try_props_refprop_then_coolprop(fluid, out, p1, v1, p2, v2)
+            w["out_val"].setText(f"{val:.6g}")
+
+            # Remember last choices
+            self._prop_calc_last.update({"p1": p1, "p2": p2, "out": out})
+
+            # Optionally write back to params if key exists
+            if self._prop_calc_item and out in self._prop_calc_item.params:
+                self._prop_calc_item.params[out] = val
+                if out in self.param_inputs:
+                    self.param_inputs[out].setText(str(val))
+        except Exception as e:
+            QMessageBox.warning(self, "Property Calc Error", str(e))
 
     def update_param(self, key, text):
         if self.current_editing_item:
