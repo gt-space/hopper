@@ -1,3 +1,3 @@
-This code is not finalized and have some mistakes will be updated 
-To run the code, Run (run_hopper) and will call all other functions
-01/27/2026
+This code is working better but still needs some modifications and gains tuning
+To run the code, Run (Hopper_lqr_main) and will call all other functions
+02/17/2026
