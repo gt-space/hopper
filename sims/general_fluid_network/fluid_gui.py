@@ -35,9 +35,19 @@ COMPONENT_DEFS = {
         "Ambient": {
             "fluid": "Air", "P": 101325.0, "T": 293.15, "name": "ambient"
         },
-        # Add placeholders for future classes if you implement them
         "Manifold": {"fluid": "Nitrogen", "m": 0.1, "V": 1.0, "T": 293.15, "name": "manifold"},
-        "Chamber": {"fluid": "CombustionGas", "m": 0.01, "V": 5.0, "T": 3000.0, "name": "chamber"},
+        "Engine": {
+            "fuel": "Kerosene",
+            "oxidizer": "LOX",
+            "mdot_ox": 2.6,
+            "mdot_fuel": 1.0,
+            "Pc": 3e6,
+            "eta_cstar": 0.95,
+            "At": 0.002026,
+            "Ae": 0.01013,
+            "Pa": 101325.0,
+            "name": "engine"
+        },
     },
     "Connections": {
         "Connection": {
@@ -133,6 +143,13 @@ UNITS_MAP = {
     "target_mdot": "kg/s",
     "step": "-",
     "hysteresis": "Pa",
+    #Engine units
+    "Pc": "Pa",
+    "Pa": "Pa",
+    "mdot_ox": "kg/s",
+    "mdot_fuel": "kg/s",
+    "At": "m²",
+    "Ae": "m²",
 }
 
 def _label_with_units(key):
@@ -531,13 +548,30 @@ class DesignView(QGraphicsView):
         super().mouseReleaseEvent(event)
     
     # --- PLOTTING LOGIC (Updated to Match GFN Exactly) ---
+    #chat did this so lowkey might've messed other things up
     def mouseDoubleClickEvent(self, event):
         item = self.scene().itemAt(self.mapToScene(event.pos()), self.transform())
-        if item and item.parentItem(): 
+        
+        if item and item.parentItem():
             item = item.parentItem()
-            
+
         if isinstance(item, (NodeItem, ConnectionLine)) and item.sim_instance:
-             self.plot_detailed_results(item)
+
+            instance = item.sim_instance
+
+            # --- Engine special case ---
+            if instance.__class__.__name__ == "Engine":
+                msg = QMessageBox()
+                msg.setWindowTitle("Engine Performance")
+
+                msg.setText(instance.get_summary_text())
+
+                msg.exec_()
+                return
+
+            # --- All other components behave normally ---
+            self.plot_detailed_results(item)
+
         super().mouseDoubleClickEvent(event)
 
     def plot_detailed_results(self, item):
