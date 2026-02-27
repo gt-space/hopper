@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ctREFPROP.ctREFPROP import REFPROPFunctionLibrary
 import CoolProp.CoolProp as CP
+from rocketcea.cea_obj import CEA_Obj
+from scipy.optimize import fsolve
 
 # ==============================================================================
 # EOS SOLVER INITIALIZATION
@@ -82,6 +84,8 @@ class HeatTranfer():
 class Controller():
     def __init__(self):
         pass
+    
+
 # ==============================================================================
 # NODE CLASS AND SUBCLASSES
 # ==============================================================================
@@ -241,12 +245,141 @@ class Manifold(Node):
     pass
 
 
-class Engine(Node):
+class Engine:
     """
-    Subclass of Node to represent a engine combustion chamber.
+    Engine combustion chamber + nozzle model.
+
+    Computes:
+        - MR
+        - mdot
+        - C* (ideal + actual)
+        - T0
+        - gamma
+        - MW
+        - Exit Mach
+        - Exit Pressure
+        - Exit Temperature
+        - Exit Velocity
+        - Thrust
     """
-    # TODO
-    pass
+
+    def __init__(self,
+                 fuel,
+                 oxidizer,
+                 mdot_ox,
+                 mdot_fuel,
+                 Pc,            # Pa
+                 eta_cstar,
+                 At,            # m^2
+                 Ae,            # m^2
+                 Pa,            # Pa
+                 name="engine"):
+
+        # -------------------------
+        # Basic Inputs
+        # -------------------------
+        self.fuel = fuel
+        self.oxidizer = oxidizer
+        self.mdot_ox = float(mdot_ox)
+        self.mdot_fuel = float(mdot_fuel)
+        self.P = float(Pc)
+        self.eta_cstar = float(eta_cstar)
+        self.At = float(At)
+        self.Ae = float(Ae)
+        self.Pa = float(Pa)
+        self.name = name
+
+        # -------------------------
+        # Combustion Properties
+        # -------------------------
+        self.mdot = self.mdot_ox + self.mdot_fuel
+        self.MR = self.mdot_ox / self.mdot_fuel
+
+        Pc_psi = self.P / 6894.75729
+
+        self.cea = CEA_Obj(oxName=self.oxidizer,
+                           fuelName=self.fuel)
+
+        # C*
+        Cstar_ft = self.cea.get_Cstar(Pc=Pc_psi, MR=self.MR)
+        self.Cstar_ideal = Cstar_ft * 0.3048
+        self.Cstar = self.eta_cstar * self.Cstar_ideal
+
+        # Chamber temperature
+        T0_R = self.cea.get_Tcomb(Pc=Pc_psi, MR=self.MR)
+        self.T = T0_R * 5.0 / 9.0
+
+        # Gamma and MW
+        mw, gamma = self.cea.get_Chamber_MolWt_gamma(Pc=Pc_psi, MR=self.MR)
+        self.MW = mw
+        self.gamma = gamma
+
+        # -------------------------
+        # Nozzle Performance
+        # -------------------------
+        self._compute_nozzle()
+
+    # ==========================================================
+    # NOZZLE MODEL
+    # ==========================================================
+    def _compute_nozzle(self):
+
+        gamma = self.gamma
+        Pc = self.P
+        T0 = self.T
+        mdot = self.mdot
+        At = self.At
+        Ae = self.Ae
+        Pa = self.Pa
+
+        Ru = 8314.0
+        R = Ru / self.MW
+
+        epsilon = Ae / At
+
+        # Area–Mach equation
+        def area_mach(M):
+            return (
+                (1/M)
+                * ((2/(gamma+1)
+                   * (1 + (gamma-1)/2 * M**2))
+                   ** ((gamma+1)/(2*(gamma-1))))
+                - epsilon
+            )
+
+        # Solve for supersonic exit Mach
+        self.Me = fsolve(area_mach, 2.5)[0]
+
+        # Exit pressure
+        self.Pe = Pc * (1 + (gamma-1)/2 * self.Me**2) ** (-gamma/(gamma-1))
+
+        # Exit temperature
+        self.Te = T0 / (1 + (gamma-1)/2 * self.Me**2)
+
+        # Exit velocity
+        self.ve = self.Me * np.sqrt(gamma * R * self.Te)
+
+        # Thrust
+        self.thrust = mdot * self.ve + (self.Pe - Pa) * Ae
+
+    # ==========================================================
+    # SUMMARY
+    # ==========================================================
+    def get_summary_text(self):
+        return (
+            f"Fuel: {self.fuel}\n"
+            f"Oxidizer: {self.oxidizer}\n"
+            f"Pc: {self.P/1e6:.3f} MPa\n"
+            f"MR: {self.MR:.4f}\n"
+            f"Total mdot: {self.mdot:.4f} kg/s\n"
+            f"C* ideal: {self.Cstar_ideal:.2f} m/s\n"
+            f"C* actual: {self.Cstar:.2f} m/s\n"
+            f"T0: {self.T:.2f} K\n"
+            f"Exit Mach: {self.Me:.3f}\n"
+            f"Exit Pressure: {self.Pe:.0f} Pa\n"
+            f"Exit Velocity: {self.ve:.2f} m/s\n"
+            f"Thrust: {self.thrust:.2f} N"
+        )
 
 
 class Tank(Node):
