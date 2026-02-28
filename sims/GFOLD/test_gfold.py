@@ -1,0 +1,16 @@
+import sys
+sys.path.append(r"C:\Users\joshu")
+
+from gfold import GFoldSolver
+import numpy as np
+
+# Create solver
+solver = GFoldSolver()
+
+# Try to see what we can do
+print("Solver config:", solver.config)
+print("Config spacecraft:", solver.config.spacecraft)
+
+# Solve with defaults
+result = solver.solve(verbose=True)
+print("Result keys:", result.keys())
