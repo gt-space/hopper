@@ -1,4 +1,4 @@
-function [cg, MoI, dcg_dMfu, dcg_dMox, dI_dMox, dI_dMfu] = cg_moi_init(ox_mdot, fu_mdot, ox_mass, fu_mass, engine_mass, engine_cg, ox_tank_mass, ox_tank_cg, ox_tank_wall_thick, fu_tank_mass, fu_tank_cg, fu_tank_wall_thick, structures_mass, structures_cg, avi_mass, avi_cg, fluids_mass, fluids_cg, payload_mass, payload_cg, ox_tank_h, fu_tank_h, tank_r, it_h, copv_mass, copv_r, copv_t, copv_h, copv_zcg, copv_ycg)
+function [cg, MoI, dcg_dMfu, dcg_dMox, dI_dMox, dI_dMfu] = cg_moi_init(ox_mass, fu_mass, engine_mass, engine_cg, ox_tank_mass, ox_tank_cg, ox_tank_wall_thick, fu_tank_mass, fu_tank_cg, fu_tank_wall_thick, structures_mass, structures_cg, avi_mass, avi_cg, fluids_mass, fluids_cg, payload_mass, payload_cg, ox_tank_h, fu_tank_h, tank_r, it_h, copv_mass, copv_r, copv_t, copv_h, copv_zcg, copv_ycg)
 %CG_SIM Calculates the Center of Gravity and Moment of Inertia Matrix
 %   Inputs are masses (kg), CG positions (m), and dimensions (m).
     

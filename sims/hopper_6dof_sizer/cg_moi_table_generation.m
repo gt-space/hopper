@@ -45,7 +45,7 @@ for i = 1:length(ox_masses)
         dcg_dMox_table(i,j) = dcg_dMox;
         dcg_dMfu_table(i,j) = dcg_dMfu;
         dI_dMox_table(i,j, :) = reshape(dI_dMox,1,1,9);
-        dI_dMfu_table(i,j, :) = reshape(dI_dMox,1,1,9);
+        dI_dMfu_table(i,j, :) = reshape(dI_dMfu,1,1,9);
     end
 end
 
