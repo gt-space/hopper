@@ -42,8 +42,8 @@ fprintf('Max Thrust: %.3f N\n', OUT.Vehicle.maxThrust)
 fprintf('\n=== Propellant ===\n');
 fprintf('Oxidizer Mass: %.2f kg\n', IN.propulsion.oxidizer_mass);
 fprintf('Fuel Mass: %.2f kg\n', IN.propulsion.fuel_mass);
-fprintf('Oxidizer Tank Pressure: %.2f psia\n', ox_tank_P / 6894.76);
-fprintf('Fuel Tank Pressure: %.2f psia\n', fu_tank_P / 6894.76);
+fprintf('Oxidizer Tank Pressure: %.2f psia\n', IN.propulsion.ox_press / 6894.76);
+fprintf('Fuel Tank Pressure: %.2f psia\n', IN.propulsion.fu_press / 6894.76);
 
 fprintf('\n=== Tanks ===\n');
 fprintf('Ox Tank Volume: %.4f L\n', OUT.Structures.OxTankVolume * 1000);
@@ -72,9 +72,9 @@ fprintf('# of Cells: %.4f \n', AVI.num_cells);
 fprintf('Mass: %.4f kg\n', AVI.mass);
 
 fprintf('\n=== Engines ===\n');
-fprintf('C Star Efficiency: %.2f \n', eta_cstar);
-fprintf('Throat Area: %.3f in^2\n', At / 0.00064516);
-fprintf('Expansion Ratio: %.3f \n', eps);
+fprintf('C Star Efficiency: %.2f \n', IN.propulsion.eta_cstar);
+fprintf('Throat Area: %.3f in^2\n', IN.propulsion.At / 0.00064516);
+fprintf('Expansion Ratio: %.3f \n', IN.propulsion.eps);
 fprintf('Injector Mass: %.2f kg\n', ENGINE.inj_mass);
 fprintf('TCA Mass: %.2f kg\n', ENGINE.TCA_mass);
 fprintf('TVC Mass: %.2f kg\n', ENGINE.TVC_mass);

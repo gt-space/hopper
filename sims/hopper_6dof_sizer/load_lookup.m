@@ -6,3 +6,6 @@ tbl2 = data(:,3);
 
 %load wind
 load('wind_vectors2.mat');
+
+% Load CG MOI Tables
+load("cg_I_LUT.mat");

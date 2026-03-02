@@ -38,6 +38,15 @@ IN.propulsion.oxidizer_mass = 16; % kg -> internal
 IN.propulsion.fuel_mass = 9; % kg -> internal
 IN.propulsion.ox_vol = 0.020; % m^3
 IN.propulsion.fu_vol = 0.0152; % m^3
+IN.propulsion.ox_press = 500 * 6894.76; % Pa
+IN.propulsion.fu_press = 500 * 6894.76; % Pa
+IN.propulsion.fu_temp = 293; % K
+IN.propulsion.ox_temp = 93; % K
+IN.propulsion.ox_sys_CdA = 1.7827-5; % m^2
+IN.propulsion.fu_sys_CdA = 1.1E-5; % m^2
+IN.propulsion.eta_cstar = 0.85;
+IN.propulsion.At = 1.138 * 0.00064516; % in^2 --> m^2
+IN.propulsion.eps = 3.655;
 IN.propulsion.nominal_thrust = 500 * 4.44822; % N
 IN.propulsion.throttle_range = [0.4 1.1];
 IN.solenoid_valve_quantity = 5;
@@ -47,6 +56,8 @@ IN.valves.current = 1; % A
 % ENGINE
 IN.inj_material = "SS316L";
 IN.TCA_material = "AlSi10Mg";
+IN.off_axis_y = 0; % m^2  % Body Frame
+IN.off_axis_z = 0; % m^2 
 
 %  PRESSURIZATION MODE
 IN.press.mode = 'copv';  % 'copv' or 'autogenous'
