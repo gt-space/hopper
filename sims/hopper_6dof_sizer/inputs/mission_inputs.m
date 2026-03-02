@@ -83,8 +83,8 @@ IN.tanks.material = 'Al6061';
 IN.tanks.max_radius = 4*0.0254; % in -> m
 
 %  TVC
-IN.tvc.max_gimbal_angle = deg2rad(5); % ?
-IN.tvc.max_gimbal_rate = deg2rad(20); % rad/s ?
+IN.tvc.max_gimbal_angle = deg2rad(15); % ?
+IN.tvc.max_gimbal_rate = deg2rad(30); % rad/s ?
 IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
 
@@ -92,6 +92,7 @@ IN.tvc.current = 3; % A
 IN.throttle_valve.voltage = 24; % V
 IN.throttle_valve.current = 1; % A
 IN.throttle_valve.mass = 2.3; % kg
+IN.throttle_valve.rate_limit = 90 * 4.44822; % N
 
 %  LANDING LEGS
 IN.legs.material = 'Al6061';
