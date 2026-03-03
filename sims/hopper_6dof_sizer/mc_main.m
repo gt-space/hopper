@@ -1,4 +1,4 @@
-function mc_main(scenario)
+function result = mc_main(scenario)
 
 % File Additions
 addpath('./sizing')
@@ -22,7 +22,7 @@ VEH.h.fu_tank = TANKS.singular.fuel.h;
 VEH.mass.engine = ENGINE.mass;
 VEH.mass.avi = AVI.mass;
 VEH.mass.press = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
-VEH.mass.dry = scenario.mass_factor * VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
+%VEH.mass.dry = scenario.mass_factor * VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
 % PROP = size_propellant(IN, VEH, ENGINE); need engine code to rum this
 
 VEH.mass.wet = VEH.mass.dry + ...
@@ -90,5 +90,56 @@ OUT = Outputs(IN, VEH, TANKS, STRUCT);
 % fprintf('\n=== Payload ===\n');
 % fprintf('CPLC Payload Mass: %.2f kg\n', IN.structures.payload_mass);
 % fprintf('Remaining Payload Mass: %.2f kg\n', IN.structures.extra_payload_mass);
+
+
+%OUT = Outputs(IN, VEH, TANKS, STRUCT);
+
+result.scenario = scenario;
+
+result.vehicle.dry_mass    = OUT.Vehicle.DryMass;
+result.vehicle.wet_mass    = OUT.Vehicle.WetMass;
+result.vehicle.mass_ratio  = OUT.Vehicle.MassRatio;
+result.vehicle.twr_initial = OUT.Vehicle.InitialTWR;
+result.vehicle.twr_final   = OUT.Vehicle.FinalTWR;
+result.vehicle.thrust_min  = OUT.Vehicle.minThrust;
+result.vehicle.thrust_max  = OUT.Vehicle.maxThrust;
+
+result.propellant.ox_mass      = IN.propulsion.oxidizer_mass;
+result.propellant.fuel_mass    = IN.propulsion.fuel_mass;
+result.propellant.ox_press_psi = IN.propulsion.ox_press / 6894.76;
+result.propellant.fu_press_psi = IN.propulsion.fu_press / 6894.76;
+
+result.tanks.ox_volume_L = OUT.Structures.OxTankVolume * 1000;
+result.tanks.fu_volume_L = OUT.Structures.FuelTankVolume * 1000;
+result.tanks.ox_mass     = TANKS.singular.oxidizer.mass;
+result.tanks.ox_height   = TANKS.singular.oxidizer.h;
+result.tanks.fu_mass     = TANKS.singular.fuel.mass;
+result.tanks.fu_height   = TANKS.singular.fuel.h;
+result.tanks.total_mass  = TANKS.singular.total_mass;
+result.tanks.radius      = TANKS.singular.radius;
+
+result.copv.mass          = IN.press.copv.mass;
+result.copv.gas_mass      = IN.press.copv.gas_mass;
+result.copv.amount        = IN.press.copv.amount;
+result.copv.volume        = IN.press.copv.max_volume;
+result.copv.max_press_psi = IN.press.copv.max_pressure / 6894.76;
+
+result.structures.mass = OUT.Vehicle.MassDistribution.Structures;
+
+result.avionics.battery_capacity = AVI.battery_capacity;
+result.avionics.num_cells        = AVI.num_cells;
+result.avionics.mass             = AVI.mass;
+
+result.engine.eta_cstar   = IN.propulsion.eta_cstar;
+result.engine.throat_area = IN.propulsion.At / 0.00064516;
+result.engine.eps         = IN.propulsion.eps;
+result.engine.inj_mass    = ENGINE.inj_mass;
+result.engine.TCA_mass    = ENGINE.TCA_mass;
+result.engine.TVC_mass    = ENGINE.TVC_mass;
+result.engine.total_mass  = ENGINE.mass;
+
+result.status.success = true;
+result.status.error   = '';
+
 
 end
