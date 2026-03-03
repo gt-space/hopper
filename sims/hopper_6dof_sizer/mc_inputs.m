@@ -1,4 +1,4 @@
-function IN = mission_inputs()
+function IN = mc_inputs(scenario_params)
 %  GLOBAL CONSTANTS
 IN.const.g0 = 9.80665;              % m/s^2
 IN.const.R_univ = 8.314462618;      % J/mol-K
