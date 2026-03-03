@@ -99,6 +99,7 @@ IN.throttle_valve_latency = 0.01; % s
 %  LANDING LEGS
 IN.legs.material = 'Al6061';
 IN.legs.tip_factor = 2; % accounts for non-symmetric landing (leg takes 50% extra load)
+IN.legs.feet_radial_dist = 0.5; % m
 
 %  SIMULATION SETTINGS
 IN.sim.dt = 0.01;                  % s
