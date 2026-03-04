@@ -16,7 +16,7 @@ IN.mission.TWR_hover_landing = 1;
 IN.mission.max_vehicle_height = 2.5; % m
 
 %  MASS GROWTH MARGIN
-IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
+IN.margins.mass_growth = 20 * 0.453592;  % lb ->  kg
 
 %  STRUCTURES
 IN.structures.payload_mass = 15; % kg, CPLC Requirement
