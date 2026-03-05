@@ -22,7 +22,7 @@ VEH.h.fu_tank = TANKS.singular.fuel.h;
 VEH.mass.engine = ENGINE.mass;
 VEH.mass.avi = AVI.mass;
 VEH.mass.press = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
-%VEH.mass.dry = scenario.mass_factor * VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
+VEH.mass.dry = IN.mass_factor * VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
 % PROP = size_propellant(IN, VEH, ENGINE); need engine code to rum this
 
 VEH.mass.wet = VEH.mass.dry + ...
@@ -138,14 +138,36 @@ result.engine.TCA_mass    = ENGINE.TCA_mass;
 result.engine.TVC_mass    = ENGINE.TVC_mass;
 result.engine.total_mass  = ENGINE.mass;
 
-altitude    = sim_out.altitude.Data;
-velocity    = sim_out.velocity.Data;
+% altitude    = sim_out.altitude.Data;
+% velocity    = sim_out.velocity.Data;
+% 
+% result.flight.max_altitude    = max(altitude);
+% result.flight.max_ascent_vel  = max(velocity);
+% result.flight.max_descent_vel = abs(min(velocity));
+% result.flight.landing_vel     = abs(velocity(end));
+% result.flight.time            = sim_out.altitude.Time(end);
+
+% z        = sim_out.z.Data;
+% x        = sim_out.x.Data;
+% y        = sim_out.y.Data;
+altitude   = sim_out.x.Data;
+ox_mass  = sim_out.ox_mass.Data;
+fu_mass  = sim_out.fuel_mass.Data;
+cg       = sim_out.cg.Data;
+t        = sim_out.x.Time;
+% Vertical velocity (derivative of z)
+vz       = gradient(altitude, t);
 
 result.flight.max_altitude    = max(altitude);
-result.flight.max_ascent_vel  = max(velocity);
-result.flight.max_descent_vel = abs(min(velocity));
-result.flight.landing_vel     = abs(velocity(end));
-result.flight.time            = sim_out.altitude.Time(end);
+result.flight.max_ascent_vel  = max(vz);
+result.flight.max_descent_vel = abs(min(vz));
+result.flight.landing_vel     = abs(vz(end));
+result.flight.flight_time     = t(end);
+result.flight.final_ox_mass   = ox_mass(end);
+result.flight.final_fu_mass   = fu_mass(end);
+result.flight.cg_init         = cg(1);
+result.flight.cg_final        = cg(end);
+
 
 result.status.success = true;
 result.status.error   = '';
