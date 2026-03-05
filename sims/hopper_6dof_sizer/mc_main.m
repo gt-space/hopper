@@ -1,4 +1,4 @@
-function result = mc_main(scenario)
+function result = mc_main(scenario, sim_out)
 
 % File Additions
 addpath('./sizing')
@@ -137,6 +137,15 @@ result.engine.inj_mass    = ENGINE.inj_mass;
 result.engine.TCA_mass    = ENGINE.TCA_mass;
 result.engine.TVC_mass    = ENGINE.TVC_mass;
 result.engine.total_mass  = ENGINE.mass;
+
+altitude    = sim_out.altitude.Data;
+velocity    = sim_out.velocity.Data;
+
+result.flight.max_altitude    = max(altitude);
+result.flight.max_ascent_vel  = max(velocity);
+result.flight.max_descent_vel = abs(min(velocity));
+result.flight.landing_vel     = abs(velocity(end));
+result.flight.time            = sim_out.altitude.Time(end);
 
 result.status.success = true;
 result.status.error   = '';

@@ -32,8 +32,8 @@ IN.avionics.boards.voltage = 12; % V
 IN.avionics.boards.current = 0.5; % A
 
 %  PROPULSION
-IN.propulsion.oxidizer = 'Oxygen';
-IN.propulsion.fuel = 'Kerosene';
+IN.propulsion.oxidizer = 'O2';
+IN.propulsion.fuel = 'Dodecane';
 IN.propulsion.oxidizer_mass = 16; % kg -> internal
 IN.propulsion.fuel_mass = 9; % kg -> internal
 IN.propulsion.ox_vol = 0.020; % m^3
@@ -107,5 +107,7 @@ IN.legs.feet_radial_dist = 0.5; % m
 IN.sim.dt = 0.01;                  % s
 IN.sim.t_max = 60;                 % s
 IN.sim.use_simulink = true;
+
+IN.mass_factor = scenario_params.mass_factor;
 
 end
