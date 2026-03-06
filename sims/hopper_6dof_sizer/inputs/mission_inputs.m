@@ -38,6 +38,15 @@ IN.propulsion.oxidizer_mass = 16; % kg -> internal
 IN.propulsion.fuel_mass = 9; % kg -> internal
 IN.propulsion.ox_vol = 0.020; % m^3
 IN.propulsion.fu_vol = 0.0152; % m^3
+IN.propulsion.ox_press = 500 * 6894.76; % Pa
+IN.propulsion.fu_press = 500 * 6894.76; % Pa
+IN.propulsion.fu_temp = 293; % K
+IN.propulsion.ox_temp = 93; % K
+IN.propulsion.ox_sys_CdA = 1.7827-5; % m^2
+IN.propulsion.fu_sys_CdA = 1.1E-5; % m^2
+IN.propulsion.eta_cstar = 0.85;
+IN.propulsion.At = 1.138 * 0.00064516; % in^2 --> m^2
+IN.propulsion.eps = 3.655;
 IN.propulsion.nominal_thrust = 500 * 4.44822; % N
 IN.propulsion.throttle_range = [0.4 1.1];
 IN.solenoid_valve_quantity = 5;
@@ -47,6 +56,8 @@ IN.valves.current = 1; % A
 % ENGINE
 IN.inj_material = "SS316L";
 IN.TCA_material = "AlSi10Mg";
+IN.off_axis_y = 0; % m^2  % Body Frame
+IN.off_axis_z = 0; % m^2 
 
 %  PRESSURIZATION MODE
 IN.press.mode = 'copv';  % 'copv' or 'autogenous'
@@ -70,21 +81,27 @@ IN.press.autogenous.piston_friction = 0;      % Pa
 IN.tanks.geometry = 'stacked'; % stacked, concentric, clustered
 IN.tanks.material = 'Al6061';
 IN.tanks.max_radius = 4*0.0254; % in -> m
+IN.tanks.lateral_damping = 0.02;
+IN.tanks.axial_damping = 0.1;
 
 %  TVC
-IN.tvc.max_gimbal_angle = deg2rad(5); % ?
-IN.tvc.max_gimbal_rate = deg2rad(20); % rad/s ?
+IN.tvc.max_gimbal_angle = deg2rad(15); % ?
+IN.tvc.max_gimbal_rate = deg2rad(30); % rad/s ?
 IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
+IN.tvc.actuator_latency = 0.01; % s
 
 % THROTTLE VALVE
 IN.throttle_valve.voltage = 24; % V
 IN.throttle_valve.current = 1; % A
 IN.throttle_valve.mass = 2.3; % kg
+IN.throttle_valve.rate_limit = 90 * 4.44822; % N
+IN.throttle_valve_latency = 0.01; % s
 
 %  LANDING LEGS
 IN.legs.material = 'Al6061';
 IN.legs.tip_factor = 2; % accounts for non-symmetric landing (leg takes 50% extra load)
+IN.legs.feet_radial_dist = 0.5; % m
 
 %  SIMULATION SETTINGS
 IN.sim.dt = 0.01;                  % s
