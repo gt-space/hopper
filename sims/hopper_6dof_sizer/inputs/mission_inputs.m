@@ -57,7 +57,7 @@ IN.valves.current = 1; % A
 IN.inj_material = "SS316L";
 IN.TCA_material = "AlSi10Mg";
 IN.off_axis_y = 0; % m^2  % Body Frame
-IN.off_axis_z = 0; % m^2 
+IN.off_axis_x = 0; % m^2 
 
 %  PRESSURIZATION MODE
 IN.press.mode = 'copv';  % 'copv' or 'autogenous'
