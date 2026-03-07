@@ -219,11 +219,11 @@ function [cg, MoI, dcg_dMfu, dcg_dMox, dI_dMox, dI_dMfu] = cg_moi_init(ox_mass, 
     dIyy_dMfu = dIxx_dMfu;
     dIzz_dMfu = 1/2 * tank_r^2;
 
-    dI_dMox = [dIxx_dMox, 0, 0; 
+    dI_dMox = [dIzz_dMox, 0, 0; 
               0, dIyy_dMox, 0; 
-              0, 0, dIzz_dMox];
+              0, 0, dIxx_dMox];
 
-    dI_dMfu = [dIxx_dMfu, 0, 0; 
+    dI_dMfu = [dIzz_dMfu, 0, 0; 
               0, dIyy_dMfu, 0; 
-              0, 0, dIzz_dMfu];
+              0, 0, dIxx_dMfu];
 end
