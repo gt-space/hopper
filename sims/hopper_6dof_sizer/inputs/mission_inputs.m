@@ -91,6 +91,12 @@ IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
 IN.tvc.actuator_latency = 0.01; % s
 
+% RCS
+IN.rcs.max_thrust = 3.53; % N
+IN.rcs.max_speed = 62500; % RPM
+IN.rcs.min_speed = 0.05; % RPM
+IN.rcs_time_constant = 0.1;
+
 % THROTTLE VALVE
 IN.throttle_valve.voltage = 24; % V
 IN.throttle_valve.current = 1; % A
