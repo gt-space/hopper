@@ -7,4 +7,4 @@ cg_moi_test();
 
 %prop_system_testing();
 
-% LinerizationMaster();
+ LinerizationMaster();

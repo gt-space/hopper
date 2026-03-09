@@ -1,17 +1,20 @@
-clear all; close all; clc;
+%clear all; 
+close all; clc;
 
 load('thrust.mat');
 load('vz.mat');
 load('z.mat');
 
+Trajectory2();
+
 % x y z vx vy vz P Q R q0 q1 q2 q3
 
 Sf = [1 0 0 0 0 0 0 0 0 0 0 0 0; % x
       0 1 0 0 0 0 0 0 0 0 0 0 0; % y
-      0 0 100 0 0 0 0 0 0 0 0 0 0; % z
+      0 0 10000000000000000000 0 0 0 0 0 0 0 0 0 0; % z
       0 0 0 1 0 0 0 0 0 0 0 0 0; % vx
       0 0 0 0 1 0 0 0 0 0 0 0 0; % vy
-      0 0 0 0 0 100000000000 0 0 0 0 0 0 0; % vz
+      0 0 0 0 0 350000000000 0 0 0 0 0 0 0; % vz
       0 0 0 0 0 0 1 0 0 0 0 0 0; % P
       0 0 0 0 0 0 0 1 0 0 0 0 0; % Q
       0 0 0 0 0 0 0 0 1 0 0 0 0; % R
@@ -22,10 +25,10 @@ Sf = [1 0 0 0 0 0 0 0 0 0 0 0 0; % x
 
 Q =  [1 0 0 0 0 0 0 0 0 0 0 0 0; % x
       0 1 0 0 0 0 0 0 0 0 0 0 0; % y
-      0 0 100000000 0 0 0 0 0 0 0 0 0 0; % z
+      0 0 40000000000 0 0 0 0 0 0 0 0 0 0; % z
       0 0 0 1 0 0 0 0 0 0 0 0 0; % vx
       0 0 0 0 1 0 0 0 0 0 0 0 0; % vy
-      0 0 0 0 0 10 0 0 0 0 0 0 0; % vz
+      0 0 0 0 0 1 0 0 0 0 0 0 0; % vz
       0 0 0 0 0 0 1 0 0 0 0 0 0; % P
       0 0 0 0 0 0 0 1 0 0 0 0 0; % Q
       0 0 0 0 0 0 0 0 1 0 0 0 0; % R
@@ -34,13 +37,15 @@ Q =  [1 0 0 0 0 0 0 0 0 0 0 0 0; % x
       0 0 0 0 0 0 0 0 0 0 0 1000 0; % q2
       0 0 0 0 0 0 0 0 0 0 0 0 1000]; % q3
 
-% T delta
-R = [10 0 0 0;
-     0 1 0 0; 
-     0 0 1 0 
-     0 0 0 1];
+% T delta rcs
+R = [2000000 0 0 0;
+     0 1000 0 0; 
+     0 0 1000 0 
+     0 0 0 1000];
 
 t = thrust_mat(:,1);
+t = z_ts.Time;
+
 
 % T_profile = thrust_mat(:,2)';
 % 
@@ -51,12 +56,17 @@ t = thrust_mat(:,1);
 % 
 % unom = [T_profile,delta_y_profile,delta_z_profile,rcsp];
 
+
+%Test =trajectory2_mat
 T_profile = thrust_mat(:,2);                 % Nx1  (column)
 delta_y_profile = zeros(length(t),1);        % Nx1
 delta_z_profile = zeros(length(t),1);        % Nx1
 rcsp = zeros(length(t),1);                   % Nx1
 
-unom = [T_profile, delta_y_profile, delta_z_profile, rcsp];  % Nx4
+
+
+Tprof2 = zeros(length(t),1);
+unom = [Tprof2, delta_y_profile, delta_z_profile, rcsp];  % Nx4
 
 tf = t(end);
 t0=0;
@@ -67,13 +77,17 @@ t0=0;
 
 x_trajectory = zeros(1,length(t));
 y_trajectory = zeros(1,length(t));
-z_trajectory = -z_mat(:,2)';
+%z_trajectory = -z(:,2)';
+z_trajectory = -z';
 vx_trajectory = zeros(1,length(t));
 vy_trajectory = zeros(1,length(t));
-vz_trajectory = -vz_mat(:,2)';
+%vz_trajectory = -vz_mat(:,2)';
+vz_trajectory = diff(-z)'./diff(t)';
 P_trajectory = zeros(1,length(t));
 Q_trajectory = zeros(1,length(t));
 R_trajectory = zeros(1,length(t));
+
+vz_trajectory(end+1)=vz_trajectory(end);
 
 %up?
 q0_trajectory = ones(1,length(t)).*(sqrt(2)/2);
@@ -123,7 +137,8 @@ B  = zeros(nx,nu,N);
 for i = 1:N
     x_i = Target_Trajectory(i,:).';   % 13x1
     u_i = unom(i,:).';               % 4x1
-    [A(:,:,i), B(:,:,i)] = HopperLinearization_6DOF_inertial(x_i, u_i, params);
+    [A(:,:,i), B(:,:,i),f_i] = HopperLinearization_6DOF_inertial(x_i, u_i, params);
+    Fref(i,:) = f_i.';
 end
 
 
@@ -133,15 +148,15 @@ end
 tgrid = t;
 
 % Call gains using consistent (unique) grid + consistent trajectory
-GainTable = TrajectoryFollowingGains(Sf,Q,R,Target_Trajectory,A,B,tgrid,T_profile);
-
+%GainTable = TrajectoryFollowingGains(Sf,Q,R,Target_Trajectory,A,B,tgrid,T_profile);
+GainTable = TrajectoryFollowingGains2(Sf,Q,R,Target_Trajectory,A,B,tgrid,unom,params,Fref);
 %%
 
 K1 = GainTable.K1;
 K2grid = GainTable.K2';   % keep your Simulink convention (N×2)
 
 
-K2grid = zeros(length(t),4);
+%K2grid = zeros(length(t),4);
 
 %fix for 6dof
 % Flatten K1 for Simulink (N×12)  
@@ -154,5 +169,5 @@ end
 
 
 z_ref_ts = timeseries(z_trajectory, t);
-T_ref_ts = timeseries(T_profile, t);
+T_ref_ts = timeseries(T_profile, thrust_mat(:,1));
 vz_ref_ts = timeseries(vz_trajectory, t);

@@ -1,4 +1,4 @@
-function [A,B] = HopperLinearization_6DOF_inertial(x, u, params)
+function [A,B,f0] = HopperLinearization_6DOF_inertial(x, u, params)
 % x = [X Y Z Vx Vy Vz P Q R q0 q1 q2 q3]'
 % u = [T delta_p delta_y F_rcs]'   (radians)
 % params.m, params.I (3x3), params.g, params.d, params.r_m
