@@ -5,7 +5,7 @@ function [A,B,f0] = HopperLinearization_6DOF_inertial(x, u, params)
 
 f0 = hopper_f(x,u,params);
 
-h = 1e-20;                     % complex-step size
+h = 1e-12;                     % complex-step size
 nx = numel(x); nu = numel(u);
 A  = zeros(nx,nx);
 B  = zeros(nx,nu);  
