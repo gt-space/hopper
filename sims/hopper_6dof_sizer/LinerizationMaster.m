@@ -24,7 +24,7 @@ Sf = [1 0 0 0 0 0 0 0 0 0 0 0 0; % x
      0 0 0 0 0 0 0 0 0 0 0 1 0; % q2
      0 0 0 0 0 0 0 0 0 0 0 0 1]; % q3
 
-Q =  [1 0 0 0 0 0 0 0 0 0 0 0 0; % x
+Q =  [1000 0 0 0 0 0 0 0 0 0 0 0 0; % x
      0 1 0 0 0 0 0 0 0 0 0 0 0; % y
      0 0 40000000000 0 0 0 0 0 0 0 0 0 0; % z
      0 0 0 1 0 0 0 0 0 0 0 0 0; % vx
@@ -40,8 +40,8 @@ Q =  [1 0 0 0 0 0 0 0 0 0 0 0 0; % x
 
 % T delta rcs
 R = [2000000 0 0 0;
-    0 1000 0 0;
-    0 0 1000 0
+    0 10000000000 0 0;
+    0 0 10000000000 0
     0 0 0 1000];
 
 %t = thrust_mat(:,1);
@@ -107,9 +107,9 @@ params.r_m = 0.125;     % m   moment arm for RCS term (your r_m)
 params.n_rcs = 1;       % unitless (if you keep it)
 
 % inertia (constant, BODY frame about CG)
-Ix = 16.5;   %[kg*m^2]
-Iy = 16.5; 
-Iz = 16.5; 
+Ix = 1;   %[kg*m^2]
+Iy = 41; 
+Iz = 41; 
 Ixy = 0; Ixz = 0; Iyz = 0;
 params.I = [ Ix  -Ixy -Ixz;
            -Ixy  Iy  -Iyz;
