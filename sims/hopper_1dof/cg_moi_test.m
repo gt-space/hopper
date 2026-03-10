@@ -29,7 +29,7 @@ copv_zcg = 1.21;
 copv_ycg = 0.23;
 it_h = TANKS.singular.radius;
 
-[cg, MoI, ~, ~, ~, ~] = cg_moi_init(ox_mass, fu_mass, engine_mass, engine_cg, ox_tank_mass, ox_tank_cg, ox_tank_wall_thick, fu_tank_mass, fu_tank_cg, fu_tank_wall_thick, structures_mass, structures_cg, avi_mass, avi_cg, fluids_mass, fluids_cg, payload_mass, payload_cg, ox_tank_h, fu_tank_h, tank_r, it_h, copv_mass, copv_r, copv_t, copv_h, copv_zcg, copv_ycg);
+[cg_init, MoI_init, ~, ~, ~, ~] = cg_moi_init(ox_mass, fu_mass, engine_mass, engine_cg, ox_tank_mass, ox_tank_cg, ox_tank_wall_thick, fu_tank_mass, fu_tank_cg, fu_tank_wall_thick, structures_mass, structures_cg, avi_mass, avi_cg, fluids_mass, fluids_cg, payload_mass, payload_cg, ox_tank_h, fu_tank_h, tank_r, it_h, copv_mass, copv_r, copv_t, copv_h, copv_zcg, copv_ycg);
 
 ox_masses = linspace(0,IN.propulsion.oxidizer_mass,100);
 fu_masses =  linspace(0,IN.propulsion.fuel_mass,100);
