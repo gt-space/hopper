@@ -5,7 +5,7 @@ close all
 %% VEHICLE PARAMETERS
 
 m0 = 114;
-mf = 89;
+mf = 94;
 g  = 9.81;
 
 Tmin = 890;
@@ -14,7 +14,7 @@ Tmax = 2400;
 h_target = 50;
 
 t_ascend  = 10;
-t_hover   = 5;
+t_hover   = 3;
 t_descend = 10;
 
 dt = 0.02;
@@ -36,9 +36,9 @@ m_profile = m0 - (m0-mf)*(tgrid/tf);
 
 %% INERTIA PROFILE
 
-Ix0 = 16.5;
-Iy0 = 16.5;
-Iz0 = 16.5;
+Ix0 = 1;
+Iy0 = 40;
+Iz0 = 40;
 
 I_profile = zeros(3,3,N);
 
