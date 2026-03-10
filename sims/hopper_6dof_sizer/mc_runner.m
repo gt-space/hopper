@@ -1,6 +1,6 @@
 function results = mc_runner(n_scenarios, params_file, output_file)
 
-if nargin < 1; n_scenarios = 500;              end
+if nargin < 1; n_scenarios = 100;              end
 if nargin < 2; params_file = 'mc_params.json'; end
 if nargin < 3; output_file = 'mc_results.mat'; end
 
@@ -9,7 +9,7 @@ addpath('./inputs')
 addpath('./propulsion')
 addpath('./dynamics')
 
-load_system('hopper_6dof');
+load_system('hopper_6dof_NED_wind2');
 
 scenarios    = generateScenarios(params_file, n_scenarios);
 results_cell = cell(n_scenarios, 1);
@@ -21,7 +21,7 @@ for i = 1:n_scenarios
     try
         fprintf('Running scenario %d / %d\n', i, n_scenarios);
         mc_sim_setup(scenarios(i));
-        sim_out = sim('hopper_6dof');
+        sim_out = sim('hopper_6dof_NED_wind2');
         r = mc_main(scenarios(i), sim_out);
         r = check_constraints(r);
     catch err
