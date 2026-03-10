@@ -1,11 +1,9 @@
-function [Trajectory,unom,tgrid,m_profile,I_profile] = Trajectory3()
-
-close all
+function [Trajectory,unom,tgrid,m_profile,I_profile] = HopperTrajectory3()
 
 %% VEHICLE PARAMETERS
 
-m0 = 114;
-mf = 94;
+m0 = 114;       % initial mass
+mf = 89;        % final mass
 g  = 9.81;
 
 Tmin = 890;
@@ -30,15 +28,15 @@ N = length(tgrid);
 
 tf = tgrid(end);
 
-%% MASS PROFILE
+%% MASS PROFILE (linear burn)
 
 m_profile = m0 - (m0-mf)*(tgrid/tf);
 
-%% INERTIA PROFILE
+%% INERTIA PROFILE (assume scales with mass)
 
-Ix0 = 1;
-Iy0 = 40;
-Iz0 = 40;
+Ix0 = 16.5;
+Iy0 = 16.5;
+Iz0 = 16.5;
 
 I_profile = zeros(3,3,N);
 
@@ -50,7 +48,7 @@ for i=1:N
 
 end
 
-%% MINIMUM JERK ALTITUDE
+%% ALTITUDE (minimum jerk)
 
 z  = zeros(N,1);
 vz = zeros(N,1);
@@ -71,30 +69,30 @@ k = length(t1);
 for i = 1:length(t2)
 
     idx = k+i;
-
-    z(idx)  = h_target;
-    vz(idx) = 0.1*sin(0.2*tgrid(idx));  % small oscillation
-    az(idx) = 0;
+    z(idx)=h_target;
+    vz(idx)=0;
+    az(idx)=0;
 
 end
 
-k = length(t1) + length(t2);
+k = length(t1)+length(t2);
 
 for i = 1:length(t3)
 
     idx = k+i;
 
-    s = (t3(i)-t3(1))/t_descend;
+    s=(t3(i)-t3(1))/t_descend;
 
-    z(idx)  = h_target*(1-(10*s^3-15*s^4+6*s^5));
-    vz(idx) = -h_target*(30*s^2-60*s^3+30*s^4)/t_descend;
-    az(idx) = -h_target*(60*s-180*s^2+120*s^3)/t_descend^2;
+    z(idx)=h_target*(1-(10*s^3-15*s^4+6*s^5));
+    vz(idx)=-h_target*(30*s^2-60*s^3+30*s^4)/t_descend;
+    az(idx)=-h_target*(60*s-180*s^2+120*s^3)/t_descend^2;
 
 end
 
-%% THRUST PROFILE (MASS DEPENDENT)
+%% THRUST (mass-correct)
 
 T = m_profile .* (g + az);
+
 T = min(max(T,Tmin),Tmax);
 
 %% ATTITUDE EXCITATION
@@ -113,20 +111,15 @@ R = gradient(yaw,dt);
 
 q = zeros(N,4);
 
-for i = 1:N
+for i=1:N
 
-phi = roll(i);
-theta = pitch(i);
-psi = yaw(i);
+phi=roll(i); theta=pitch(i); psi=yaw(i);
 
-cy = cos(psi/2);
-sy = sin(psi/2);
-cp = cos(theta/2);
-sp = sin(theta/2);
-cr = cos(phi/2);
-sr = sin(phi/2);
+cy=cos(psi/2); sy=sin(psi/2);
+cp=cos(theta/2); sp=sin(theta/2);
+cr=cos(phi/2); sr=sin(phi/2);
 
-q(i,:) = [
+q(i,:)=[ ...
 cr*cp*cy + sr*sp*sy
 sr*cp*cy - cr*sp*sy
 cr*sp*cy + sr*cp*sy
@@ -136,110 +129,102 @@ end
 
 %% POSITION
 
-X = zeros(N,1);
-Y = zeros(N,1);
-Z = -z;
+X=zeros(N,1);
+Y=zeros(N,1);
+Z=-z;
 
-Vx = zeros(N,1);
-Vy = zeros(N,1);
-Vz = -vz;
+Vx=zeros(N,1);
+Vy=zeros(N,1);
+Vz=-vz;
 
-%% TVC INPUTS
+%% TVC
 
 delta_p = deg2rad(1)*sin(0.3*tgrid);
 delta_y = deg2rad(1)*cos(0.25*tgrid);
 
-%% RCS INPUT
+%% RCS
 
 F_rcs = 20*sin(0.35*tgrid);
 
-%% OUTPUT ARRAYS
+%% OUTPUT
 
-Trajectory = [
+Trajectory=[ ...
 X Y Z ...
 Vx Vy Vz ...
 P Q R ...
 q];
 
-unom = [
+unom=[ ...
 T ...
 delta_p ...
 delta_y ...
 F_rcs];
 
-%% ======================== PLOTS ========================
+end
 
-%% ALTITUDE / VELOCITY / THRUST
+%% ================= PLOTS =================
 
-figure('Name','Vertical Motion')
+figure('Name','Trajectory')
 
-subplot(3,1,1)
+subplot(5,1,1)
 plot(tgrid,-Z,'LineWidth',2)
 ylabel('Altitude (m)')
-title('Altitude')
+title('Hopper Trajectory')
+xlim([0 t3(end)])
 grid on
-xlim([0 tf])
 
-subplot(3,1,2)
+subplot(5,1,2)
 plot(tgrid,Vz,'LineWidth',2)
-ylabel('Vertical Velocity (m/s)')
+xlim([0 t3(end)])
+ylabel('Vz (m/s)')
 grid on
-xlim([0 tf])
 
-subplot(3,1,3)
+subplot(5,1,3)
 plot(tgrid,T,'LineWidth',2)
+xlim([0 t3(end)])
 ylabel('Thrust (N)')
-xlabel('Time (s)')
 grid on
-xlim([0 tf])
 
-%% CONTROL INPUTS
-
-figure('Name','Control Inputs')
-
-subplot(3,1,1)
+subplot(5,1,4)
 plot(tgrid,rad2deg(delta_p),'LineWidth',2)
-ylabel('Pitch TVC (deg)')
-grid on
-xlim([0 tf])
-
-subplot(3,1,2)
+hold on
 plot(tgrid,rad2deg(delta_y),'LineWidth',2)
-ylabel('Yaw TVC (deg)')
+ylabel('TVC (deg)')
+legend('Pitch','Yaw')
+xlim([0 t3(end)])
 grid on
-xlim([0 tf])
 
-subplot(3,1,3)
+subplot(5,1,5)
 plot(tgrid,F_rcs,'LineWidth',2)
-ylabel('RCS Force (N)')
+ylabel('RCS (N)')
 xlabel('Time (s)')
+xlim([0 t3(end)])
 grid on
-xlim([0 tf])
 
-%% ATTITUDE
+%% Attitude
 
 figure('Name','Attitude')
 
 subplot(3,1,1)
 plot(tgrid,rad2deg(roll),'LineWidth',2)
 ylabel('Roll (deg)')
+xlim([0 t3(end)])
 grid on
-xlim([0 tf])
 
 subplot(3,1,2)
 plot(tgrid,rad2deg(pitch),'LineWidth',2)
 ylabel('Pitch (deg)')
+xlim([0 t3(end)])
 grid on
-xlim([0 tf])
 
 subplot(3,1,3)
 plot(tgrid,rad2deg(yaw),'LineWidth',2)
 ylabel('Yaw (deg)')
 xlabel('Time (s)')
+xlim([0 t3(end)])
 grid on
-xlim([0 tf])
 
-%% BODY RATES
+%% Body Rates
 
 figure('Name','Body Rates')
 
@@ -247,29 +232,29 @@ plot(tgrid,[P Q R]*180/pi,'LineWidth',2)
 xlabel('Time (s)')
 ylabel('Rate (deg/s)')
 legend('P','Q','R')
+xlim([0 t3(end)])
 grid on
-xlim([0 tf])
 
-%% MASS
+%% Quaternion
 
-figure('Name','Mass Profile')
+figure('Name','Quaternion')
 
-plot(tgrid,m_profile,'LineWidth',2)
+plot(tgrid,q,'LineWidth',2)
+legend('q0','q1','q2','q3')
 xlabel('Time (s)')
-ylabel('Mass (kg)')
+ylabel('Value')
+xlim([0 t3(end)])
 grid on
-xlim([0 tf])
 
-%% 3D TRAJECTORY
+%% 3D Path
 
-figure('Name','3D Trajectory')
+figure('Name','3D Path')
 
 plot3(X,Y,-Z,'LineWidth',2)
-xlabel('X (m)')
-ylabel('Y (m)')
-zlabel('Altitude (m)')
-title('Rocket Flight Path')
 grid on
-view(35,25)
+xlabel('X')
+ylabel('Y')
+zlabel('Altitude')
+title('Rocket Trajectory')
 
 end
