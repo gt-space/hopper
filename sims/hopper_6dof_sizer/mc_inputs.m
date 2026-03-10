@@ -57,7 +57,7 @@ IN.valves.current = 1; % A
 IN.inj_material = "SS316L";
 IN.TCA_material = "AlSi10Mg";
 IN.off_axis_y = 0; % m^2  % Body Frame
-IN.off_axis_z = 0; % m^2 
+IN.off_axis_x = 0; % m^2 
 
 %  PRESSURIZATION MODE
 IN.press.mode = 'copv';  % 'copv' or 'autogenous'
@@ -90,6 +90,13 @@ IN.tvc.max_gimbal_rate = deg2rad(30); % rad/s ?
 IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
 IN.tvc.actuator_latency = 0.01; % s
+
+% RCS
+IN.rcs.max_thrust = 3.53; % N
+IN.rcs.max_speed = 62500; % RPM
+IN.rcs.min_speed = 0.05; % RPM
+IN.rcs_time_constant = 0.1;
+
 
 % THROTTLE VALVE
 IN.throttle_valve.voltage = 24; % V
