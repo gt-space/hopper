@@ -1,6 +1,10 @@
 
-plot3(out.z.Data, out.y.Data, out.x.Data)
+plot3(out.x.Data, out.y.Data, -1 * out.z.Data)
 xlabel('Z (m^2)')
 ylabel('Y (m^2)')
 zlabel('X (m^2)')
+grid("on")
+xlim([-20 20])
+ylim([-20 20])
+zlim([0 60])
 view(10,25)
