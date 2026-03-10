@@ -73,7 +73,7 @@ for i = 1:length(t2)
     idx = k+i;
 
     z(idx)  = h_target;
-    vz(idx) = 0.1*sin(0.2*tgrid(idx));  % small oscillation
+    vz(idx) = 0.2*sin(5*tgrid(idx));  % small oscillation
     az(idx) = 0;
 
 end
