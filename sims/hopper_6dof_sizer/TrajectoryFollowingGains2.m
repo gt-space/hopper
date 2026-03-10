@@ -58,6 +58,7 @@ K1 = zeros(nu,nx,N);
 K2 = zeros(nu,N);
 
 for i = 1:N
+    disp("Calculating" + i + "th Gain")
     Bi = B(:,:,i);
     Si = S_on_grid(:,:,i);
     Vi = V_on_grid(:,i);
