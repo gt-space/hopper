@@ -32,9 +32,9 @@ q = x(10:13);   % [q0 q1 q2 q3]'
 T       = u(1);
 delta_p = u(2);
 delta_y = u(3);
-F_rcs   = u(4);
+Tor_rcs   = u(4);
 
-m = p.m; g = p.g; I = p.I; d = p.d; r_m = p.r_m;
+m = p.m; g = p.g; I = p.I; d = p.d; 
 
 Rbn = Rbody2NED(q);
 
@@ -54,7 +54,7 @@ posdot = [Vx;Vy;Vz];
 % Moments in body
 r_tvc = [-d;0;0];
 M_tvc = cross(r_tvc, F_Tb);
-M_body = [M_tvc(1) + r_m*F_rcs;
+M_body = [(M_tvc(1) +Tor_rcs);
           M_tvc(2);
           M_tvc(3)];
 

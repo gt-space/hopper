@@ -44,15 +44,15 @@ scenario = Simulink.SimulationData.Dataset;
 scenario = scenario.addElement(z_ts, "z_ref");   % element name inside dataset
 
 % Save MAT file exactly how Signal Editor expects
-save("trajectory2.mat","scenario");
+%save("trajectory2.mat","scenario");
 
 % Plot: time vs position
-figure;
-plot(t, z, "LineWidth", 1.5);
-grid on;
-xlabel("Time (s)");
-ylabel("z_{ref} (m)");
-title("Aggressive z_{ref} trajectory (100 Hz)");
+% figure;
+% plot(t, z, "LineWidth", 1.5);
+% grid on;
+% xlabel("Time (s)");
+% ylabel("z_{ref} (m)");
+% title("Aggressive z_{ref} trajectory (100 Hz)");
 
-disp("Saved Signal Editor compatible file: trajectory2.mat (contains variable: scenario)");
+%disp("Saved Signal Editor compatible file: trajectory2.mat (contains variable: scenario)");
 
