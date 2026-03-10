@@ -147,10 +147,10 @@ result.engine.total_mass  = ENGINE.mass;
 % result.flight.landing_vel     = abs(velocity(end));
 % result.flight.time            = sim_out.altitude.Time(end);
 
-% z        = sim_out.z.Data;
-% x        = sim_out.x.Data;
-% y        = sim_out.y.Data;
-altitude   = sim_out.x.Data;
+x_pos = sim_out.x.Data;
+y_pos = sim_out.y.Data;
+z_pos = sim_out.z.Data;
+altitude   = -(sim_out.z.Data);
 ox_mass  = sim_out.ox_mass.Data;
 fu_mass  = sim_out.fuel_mass.Data;
 cg       = sim_out.cg.Data;
@@ -167,6 +167,18 @@ result.flight.final_ox_mass   = ox_mass(end);
 result.flight.final_fu_mass   = fu_mass(end);
 result.flight.cg_init         = cg(1);
 result.flight.cg_final        = cg(end);
+
+% Full time series for plotting
+result.timeseries.t        = t;
+result.timeseries.altitude = altitude;
+result.timeseries.x        = x_pos;
+result.timeseries.y        = y_pos;
+result.timeseries.z        = z_pos;
+result.timeseries.ox_mass  = ox_mass;
+result.timeseries.fu_mass  = fu_mass;
+result.timeseries.tot_mass = fu_mass + ox_mass;
+result.timeseries.vz       = vz;
+
 
 
 result.status.success = true;

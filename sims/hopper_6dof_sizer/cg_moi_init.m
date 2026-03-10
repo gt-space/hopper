@@ -211,12 +211,12 @@ function [cg, MoI, dcg_dMfu, dcg_dMox, dI_dMox, dI_dMfu] = cg_moi_init(ox_mass, 
         (1/12) * (3 * tank_r^2 + h_fu_fluid^2) + ...
         (1/12) * fu_mass * (2 * h_fu_fluid * dh_dMfu);
 
-    dIxx_pa_ox = ...
+    dIxx_pa_fu = ...
         (z_fu_fluid - cg)^2 + ...
         2 * fu_mass * (z_fu_fluid - cg) * (dzfu_dm - dcg_dMfu);
 
     dIxx_dMfu = dIxx_local_fu + dIxx_pa_ox;
-    dIyy_dMfu = dIxx_dMfu;
+    dIyy_dMfu = dIxx_dMfu + dIxx_pa_fu;
     dIzz_dMfu = 1/2 * tank_r^2;
 
     dI_dMox = [dIzz_dMox, 0, 0; 

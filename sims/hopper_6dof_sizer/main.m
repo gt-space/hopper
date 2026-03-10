@@ -30,7 +30,7 @@ VEH.mass.wet = VEH.mass.dry + ...
 
 r_leg_1 = [0 IN.legs.feet_radial_dist 0];
 r_leg_2 = [0 -IN.legs.feet_radial_dist 0];
-r_leg_3 = [0 0 IN.legs.feet_radial_dist];
+r_leg_3 = [0 0 IN.legs.feet_radial_dist ];
 r_leg_4 = [0 0 -IN.legs.feet_radial_dist];
 
 % VEHICLE SIZING OUTPUTS
