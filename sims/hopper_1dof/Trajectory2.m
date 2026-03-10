@@ -5,7 +5,7 @@
 
 
 % Trajectory settings
-zf     = 30;     % m
+zf     = 50;     % m
 Tup    = 12;      % s  aggressive ascent
 Thover = 5;      % s
 Tdown  = 10;      % s  aggressive descent
