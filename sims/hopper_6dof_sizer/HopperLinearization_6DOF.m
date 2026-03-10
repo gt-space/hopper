@@ -67,7 +67,7 @@ Rbn = quat2rot(q);
 
 Fx =  T*cos(delta_p)*cos(delta_y);
 Fy = -T*cos(delta_p)*sin(delta_y);
-Fz = -T*sin(delta_p);
+Fz = -T*sin(delta_p)*cos(delta_p);
 
 Ftb = [Fx;Fy;Fz];
 

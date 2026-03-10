@@ -92,8 +92,8 @@ pitch_amp = deg2rad(2);  % pitch small for pitch TVC
 yaw_amp   = deg2rad(2);  % yaw small for yaw TVC
 
 roll  = roll_amp*sin(0.35*tgrid);   % RCS aligned with roll
-pitch = pitch_amp*sin(0.20*tgrid);  % pitch TVC
-yaw   = yaw_amp*cos(0.25*tgrid);    % yaw TVC
+pitch = pitch_amp*sin(0.25*tgrid);  % pitch TVC
+yaw   = yaw_amp*sin(0.25*tgrid);    % yaw TVC
 
 dt_grid = tgrid(2)-tgrid(1);
 P = gradient(roll,dt_grid);
@@ -126,7 +126,7 @@ end
 A_lat = 0.01;  % m
 f_lat = 0.1;   % rad/s
 X = A_lat*sin(f_lat*tgrid);
-Y = A_lat*cos(f_lat*tgrid);
+Y = A_lat*sin(f_lat*tgrid);
 Z = -z;
 Vx = zeros(N,1);
 Vy = zeros(N,1);
@@ -135,7 +135,7 @@ Vz = -vz;
 %% CONTROL INPUTS (mostly aligned, but with small cross-coupling)
 delta_p = 0.8*pitch + 0.1*yaw + 0.1*roll;  % pitch TVC
 delta_y = 0.8*yaw   + 0.1*pitch + 0.1*roll; % yaw TVC
-F_rcs   = 0.8*roll  + 0.1*pitch + 0.1*yaw;  % RCS
+F_rcs   = 10*(0.8*roll  + 0.1*pitch + 0.1*yaw);  % RCS
 
 %% OUTPUT ARRAYS
 Trajectory = [
@@ -176,7 +176,7 @@ plot(tgrid,rad2deg(delta_y),'LineWidth',2)
 ylabel('Yaw TVC (deg)'); grid on; xlim([0 tf])
 subplot(3,1,3)
 plot(tgrid,rad2deg(F_rcs),'LineWidth',2)
-ylabel('RCS (deg)'); xlabel('Time (s)'); grid on; xlim([0 tf])
+ylabel('RCS (N*m)'); xlabel('Time (s)'); grid on; xlim([0 tf])
 
 % 3) Attitude
 figure('Name','Attitude')
