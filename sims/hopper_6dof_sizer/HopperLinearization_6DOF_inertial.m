@@ -1,9 +1,9 @@
-function [A,B,f0] = HopperLinearization_6DOF_inertial(x, u, params)
+function [A,B,f0] = HopperLinearization_6DOF_inertial(x, u, params, mass)
 % x = [X Y Z Vx Vy Vz P Q R q0 q1 q2 q3]'
 % u = [T delta_p delta_y F_rcs]'   (radians)
 % params.m, params.I (3x3), params.g, params.d, params.r_m
 
-f0 = hopper_f(x,u,params);
+f0 = hopper_f(x,u,params,mass);
 
 h = 1e-12;                     % complex-step size
 nx = numel(x); nu = numel(u);
@@ -12,18 +12,18 @@ B  = zeros(nx,nu);
 
 for i = 1:nx
     dx = zeros(nx,1); dx(i) = 1;
-    fi = hopper_f(x + 1i*h*dx, u, params);
+    fi = hopper_f(x + 1i*h*dx, u, params,mass);
     A(:,i) = imag(fi)/h;
 end
 
 for j = 1:nu
     du = zeros(nu,1); du(j) = 1;
-    fj = hopper_f(x, u + 1i*h*du, params);
+    fj = hopper_f(x, u + 1i*h*du, params,mass);
     B(:,j) = imag(fj)/h;
 end
 end
 
-function f = hopper_f(x,u,p)
+function f = hopper_f(x,u,p,mass)
 X=x(1); Y=x(2); Z=x(3);
 Vx=x(4); Vy=x(5); Vz=x(6);
 P=x(7); Q=x(8); R=x(9);
@@ -34,7 +34,7 @@ delta_p = u(2);
 delta_y = u(3);
 Tor_rcs   = u(4);
 
-m = p.m; g = p.g; I = p.I; d = p.d; 
+m = mass; g = p.g; I = p.I; d = p.d; 
 
 Rbn = Rbody2NED(q);
 

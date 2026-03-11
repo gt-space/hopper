@@ -13,7 +13,7 @@ Trajectory2
 % x y z vx vy vz P Q R q0 q1 q2 q3
 Sf = [1e6 0 0 0 0 0 0 0 0 0 0 0 0; % x
     0 1e6 0 0 0 0 0 0 0 0 0 0 0; % y
-    0 0 1e8 0 0 0 0 0 0 0 0 0 0; % z
+    0 0 1e10 0 0 0 0 0 0 0 0 0 0; % z
     0 0 0 1e3 0 0 0 0 0 0 0 0 0; % vx
     0 0 0 0 1e3 0 0 0 0 0 0 0 0; % vy
     0 0 0 0 0 1e11 0 0 0 0 0 0 0; % vz
@@ -23,27 +23,27 @@ Sf = [1e6 0 0 0 0 0 0 0 0 0 0 0 0; % x
     0 0 0 0 0 0 0 0 0 1e5 0 0 0; % q0
     0 0 0 0 0 0 0 0 0 0 1e5 0 0; % q1
     0 0 0 0 0 0 0 0 0 0 0 1e5 0; % q2
-    0 0 0 0 0 0 0 0 0 0 0 0 1e5]; % q3
+    0 0 0 0 0 0 0 0 0 0 0 0 1e5]./10000; % q3
 
 Q =  [1e3 0 0 0 0 0 0 0 0 0 0 0 0; % x
     0 1e3 0 0 0 0 0 0 0 0 0 0 0; % y
-    0 0 9e10 0 0 0 0 0 0 0 0 0 0; % z
+    0 0 9e12 0 0 0 0 0 0 0 0 0 0; % z
     0 0 0 1e3 0 0 0 0 0 0 0 0 0; % vx
     0 0 0 0 1e3 0 0 0 0 0 0 0 0; % vy
-    0 0 0 0 0 5e4 0 0 0 0 0 0 0; % vz
+    0 0 0 0 0 5e7 0 0 0 0 0 0 0; % vz
     0 0 0 0 0 0 1e5 0 0 0 0 0 0; % P
     0 0 0 0 0 0 0 1e5 0 0 0 0 0; % Q
     0 0 0 0 0 0 0 0 1e5 0 0 0 0; % R
     0 0 0 0 0 0 0 0 0 100 0 0 0; % q0
     0 0 0 0 0 0 0 0 0 0 100 0 0; % q1
     0 0 0 0 0 0 0 0 0 0 0 100 0; % q2
-    0 0 0 0 0 0 0 0 0 0 0 0 100]; % q3
+    0 0 0 0 0 0 0 0 0 0 0 0 100]./10000; % q3
 
 % T delta rcs
-R = [1e7 0 0 0;
-   0 400000 0 0;
-   0 0 400000 0
-   0 0 0 10000];
+R = [1e8 0 0 0;
+   0 8e5 0 0;
+   0 0 8e5 0
+   0 0 0 10000]./10000;
 
 
 %t = thrust_mat(:,1);
@@ -59,7 +59,7 @@ y_old = squeeze(AP.Data);
 [t_old_unique, idx] = unique(t_old, 'stable');
 y_old_unique = y_old(idx);
 
-T_profile = interp1(t_old_unique, y_old_unique, t, 'pchip');
+T_profile = T_ts.Data(:,1);
 
 delta_y_profile = zeros(length(t),1);        % Nx1
 delta_z_profile = zeros(length(t),1);        % Nx1
@@ -100,11 +100,12 @@ Target_Trajectory = [x_trajectory;y_trajectory;z_trajectory;...
 params = struct();
 % constants
 params.g = 9.80665;     % m/s^2  (Down is +Z in NED)
-params.m = 114;         % kg     (constant mass for now)
+% params.m = linspace(OUT.Vehicle.WetMass,100, length(t));         % kg     (constant mass for now)
 % geometry / actuator
-params.d   = 1.0;       % m   thrust application x-offset in BODY frame (r = [-d;0;0])
+params.d  = cg_init - engine_cg;       % m   thrust application x-offset in BODY frame (r = [-d;0;0])
 params.r_m = 0.125;     % m   moment arm for RCS term (your r_m)
 params.n_rcs = 1;       % unitless (if you keep it)
+m_profile = linspace(OUT.Vehicle.WetMass,100, length(t));
 
 % inertia (constant, BODY frame about CG)
 Ix = 1;   %[kg*m^2]
@@ -125,7 +126,7 @@ B  = zeros(nx,nu,N);
 for i = 1:N
    x_i = Target_Trajectory(i,:).';   % 13x1
    u_i = unom(i,:).';               % 4x1
-   [A(:,:,i), B(:,:,i),f_i] = HopperLinearization_6DOF_inertial(x_i, u_i, params);
+   [A(:,:,i), B(:,:,i),f_i] = HopperLinearization_6DOF_inertial(x_i, u_i, params, m_profile(i));
    Fref(i,:) = f_i.';
 
 end
