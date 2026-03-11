@@ -106,7 +106,7 @@ tvc_actuator_rate_limit = deg2rad(scenario.tvc_actuator_rate_limit);
 tvc_actuator_latency    = scenario.tvc_actuator_latency;
 engine_off_axis_y       = scenario.engine_off_axis_y;
 engine_off_axis_z       = scenario.engine_off_axis_z;
-azimuth                 = scenario.azimuth;
+%azimuth                 = scenario.azimuth;
 
 % ---- Push everything to base workspace (Simulink reads from here) ----
 vars = who();

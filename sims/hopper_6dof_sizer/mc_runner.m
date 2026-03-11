@@ -9,7 +9,7 @@ addpath('./inputs')
 addpath('./propulsion')
 addpath('./dynamics')
 
-load_system('hopper_6dof_NED_wind2');
+load_system('hopper_6dof_NED');
 
 scenarios    = generateScenarios(params_file, n_scenarios);
 results_cell = cell(n_scenarios, 1);
@@ -18,18 +18,20 @@ t_start      = tic;
 fprintf('Starting Monte Carlo: %d scenarios\n', n_scenarios);
 
 for i = 1:n_scenarios
+    fprintf('Running scenario %d / %d\n', i, n_scenarios);
     try
-        fprintf('Running scenario %d / %d\n', i, n_scenarios);
+        
         mc_sim_setup(scenarios(i));
-        sim_out = sim('hopper_6dof_NED_wind2');
+        sim_out = sim('hopper_6dof_NED');
         r = mc_main(scenarios(i), sim_out);
         r = check_constraints(r);
     catch err
-        r                 = struct();
-        r.scenario        = scenarios(i);
-        r.status.success  = false;
-        r.status.error    = err.message;
-        r.status.pass     = false;
+        r = make_empty_result(scenarios(i), err.message);
+        % r                 = struct();
+        % r.scenario        = scenarios(i);
+        % r.status.success  = false;
+        % r.status.error    = err.message;
+        % r.status.pass     = false;
     end
     results_cell{i} = r;
 end
@@ -71,6 +73,64 @@ fprintf('Results saved to %s\n', output_file);
 
 end
 
+function r = make_empty_result(scenario, error_msg)
+r.scenario         = scenario;
+r.vehicle.dry_mass    = NaN;
+r.vehicle.wet_mass    = NaN;
+r.vehicle.mass_ratio  = NaN;
+r.vehicle.twr_initial = NaN;
+r.vehicle.twr_final   = NaN;
+r.vehicle.thrust_min  = NaN;
+r.vehicle.thrust_max  = NaN;
+r.propellant.ox_mass      = NaN;
+r.propellant.fuel_mass    = NaN;
+r.propellant.ox_press_psi = NaN;
+r.propellant.fu_press_psi = NaN;
+r.tanks.ox_volume_L = NaN;
+r.tanks.fu_volume_L = NaN;
+r.tanks.ox_mass     = NaN;
+r.tanks.ox_height   = NaN;
+r.tanks.fu_mass     = NaN;
+r.tanks.fu_height   = NaN;
+r.tanks.total_mass  = NaN;
+r.tanks.radius      = NaN;
+r.copv.mass          = NaN;
+r.copv.gas_mass      = NaN;
+r.copv.amount        = NaN;
+r.copv.volume        = NaN;
+r.copv.max_press_psi = NaN;
+r.structures.mass    = NaN;
+r.avionics.battery_capacity = NaN;
+r.avionics.num_cells        = NaN;
+r.avionics.mass             = NaN;
+r.engine.eta_cstar   = NaN;
+r.engine.throat_area = NaN;
+r.engine.eps         = NaN;
+r.engine.inj_mass    = NaN;
+r.engine.TCA_mass    = NaN;
+r.engine.TVC_mass    = NaN;
+r.engine.total_mass  = NaN;
+r.flight.max_altitude    = NaN;
+r.flight.max_ascent_vel  = NaN;
+r.flight.max_descent_vel = NaN;
+r.flight.landing_vel     = NaN;
+r.flight.flight_time     = NaN;
+r.flight.final_ox_mass   = NaN;
+r.flight.final_fu_mass   = NaN;
+r.flight.cg_init         = NaN;
+r.flight.cg_final        = NaN;
+r.timeseries.t        = [];
+r.timeseries.x        = [];
+r.timeseries.y        = [];
+r.timeseries.z        = [];
+r.timeseries.ox_mass  = [];
+r.timeseries.fu_mass  = [];
+r.timeseries.tot_mass = [];
+r.timeseries.vz       = [];
+r.status.success = false;
+r.status.error   = error_msg;
+r.status.pass    = false;
+end
 
 function result = check_constraints(result)
 

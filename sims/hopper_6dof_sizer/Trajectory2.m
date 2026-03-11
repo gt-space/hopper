@@ -5,6 +5,8 @@ Thover = 2;      % s
 Tdown  = 13;     % s
 Tterm  = 4;      % terminal descent extension
 dt     = 0.01;   % 100 Hz
+Tmin = 890;
+Tmax = 2400;
 
 t_end = Tup + Thover + Tdown + Tterm;
 t = (0:dt:t_end)';
@@ -83,8 +85,8 @@ zddot = gradient(zdot,dt);
 T = m .* (zddot + g);
 
 %% Apply thrust limits
-Tmin = 890;
-Tmax = 2400;
+% Tmin = 890;
+% Tmax = 2400;
 
 T_cmd = min(max(T_cmd,Tmin),Tmax);
 
