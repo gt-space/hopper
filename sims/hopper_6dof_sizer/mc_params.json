@@ -47,10 +47,6 @@
         "lower": -0.1,
         "upper": 0.1
     },
-   "azimuth" : {
-        "lower": -90,
-        "upper": 90
-   }
 
 
 
