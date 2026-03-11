@@ -2,62 +2,60 @@
 close all; clc;
 
 load('thrust.mat');
-load('vz.mat');
-load('z.mat');
+APMAT=load("AP_T.mat");
 T_profileEXCEL = readtable("ThrustProfileAP.xlsx");
 T_profileEXCEL=table2array(T_profileEXCEL);
 
-Trajectory2();
+
+Trajectory2
+
 
 % x y z vx vy vz P Q R q0 q1 q2 q3
 Sf = [1e6 0 0 0 0 0 0 0 0 0 0 0 0; % x
-     0 1e6 0 0 0 0 0 0 0 0 0 0 0; % y
-     0 0 5e8 0 0 0 0 0 0 0 0 0 0; % z
-     0 0 0 1e3 0 0 0 0 0 0 0 0 0; % vx
-     0 0 0 0 1e3 0 0 0 0 0 0 0 0; % vy
-     0 0 0 0 0 1e4 0 0 0 0 0 0 0; % vz
-     0 0 0 0 0 0 1 0 0 0 0 0 0; % P
-     0 0 0 0 0 0 0 1e5 0 0 0 0 0; % Q
-     0 0 0 0 0 0 0 0 1e5 0 0 0 0; % R
-     0 0 0 0 0 0 0 0 0 1e5 0 0 0; % q0
-     0 0 0 0 0 0 0 0 0 0 1e5 0 0; % q1
-     0 0 0 0 0 0 0 0 0 0 0 1e5 0; % q2
-     0 0 0 0 0 0 0 0 0 0 0 0 1e5]; % q3
+    0 1e6 0 0 0 0 0 0 0 0 0 0 0; % y
+    0 0 1e8 0 0 0 0 0 0 0 0 0 0; % z
+    0 0 0 1e3 0 0 0 0 0 0 0 0 0; % vx
+    0 0 0 0 1e3 0 0 0 0 0 0 0 0; % vy
+    0 0 0 0 0 1e11 0 0 0 0 0 0 0; % vz
+    0 0 0 0 0 0 1e5 0 0 0 0 0 0; % P
+    0 0 0 0 0 0 0 1e5 0 0 0 0 0; % Q
+    0 0 0 0 0 0 0 0 1e5 0 0 0 0; % R
+    0 0 0 0 0 0 0 0 0 1e5 0 0 0; % q0
+    0 0 0 0 0 0 0 0 0 0 1e5 0 0; % q1
+    0 0 0 0 0 0 0 0 0 0 0 1e5 0; % q2
+    0 0 0 0 0 0 0 0 0 0 0 0 1e5]; % q3
 
 Q =  [1e3 0 0 0 0 0 0 0 0 0 0 0 0; % x
-     0 1e3 0 0 0 0 0 0 0 0 0 0 0; % y
-     0 0 8e7 0 0 0 0 0 0 0 0 0 0; % z
-     0 0 0 1e3 0 0 0 0 0 0 0 0 0; % vx
-     0 0 0 0 1e3 0 0 0 0 0 0 0 0; % vy
-     0 0 0 0 0 1e4 0 0 0 0 0 0 0; % vz
-     0 0 0 0 0 0 1e3 0 0 0 0 0 0; % P
-     0 0 0 0 0 0 0 1e5 0 0 0 0 0; % Q
-     0 0 0 0 0 0 0 0 1e5 0 0 0 0; % R
-     0 0 0 0 0 0 0 0 0 100 0 0 0; % q0
-     0 0 0 0 0 0 0 0 0 0 100 0 0; % q1
-     0 0 0 0 0 0 0 0 0 0 0 100 0; % q2
-     0 0 0 0 0 0 0 0 0 0 0 0 100]; % q3
+    0 1e3 0 0 0 0 0 0 0 0 0 0 0; % y
+    0 0 9e10 0 0 0 0 0 0 0 0 0 0; % z
+    0 0 0 1e3 0 0 0 0 0 0 0 0 0; % vx
+    0 0 0 0 1e3 0 0 0 0 0 0 0 0; % vy
+    0 0 0 0 0 5e4 0 0 0 0 0 0 0; % vz
+    0 0 0 0 0 0 1e5 0 0 0 0 0 0; % P
+    0 0 0 0 0 0 0 1e5 0 0 0 0 0; % Q
+    0 0 0 0 0 0 0 0 1e5 0 0 0 0; % R
+    0 0 0 0 0 0 0 0 0 100 0 0 0; % q0
+    0 0 0 0 0 0 0 0 0 0 100 0 0; % q1
+    0 0 0 0 0 0 0 0 0 0 0 100 0; % q2
+    0 0 0 0 0 0 0 0 0 0 0 0 100]; % q3
 
 % T delta rcs
-R = [10000 0 0 0;
-    0 200000 0 0;
-    0 0 200000 0
-    0 0 0 1];
+R = [1e7 0 0 0;
+   0 400000 0 0;
+   0 0 400000 0
+   0 0 0 10000];
+
 
 %t = thrust_mat(:,1);
-t = z_ts.Time;
-% T_profile = thrust_mat(:,2)';
-%
-% %delta_p and delta z mixup?
-% delta_y_profile = zeros(1,length(t));
-% delta_z_profile = zeros(1,length(t));
-% rcsp = zeros(1,length(t));
-%
-% unom = [T_profile,delta_y_profile,delta_z_profile,rcsp];
-%Test =trajectory2_mat
+%t = tgrid;
+t= z_ts.Time(:,1);
 
-t_old = double(T_profileEXCEL(:,1));
-y_old = double(T_profileEXCEL(:,2));
+%T_profile = unom(:,1);
+%z = Trajectory(:,3)';
+%vz = Trajectory(:,6)';
+AP = APMAT.ans;
+t_old = double(AP.Time);
+y_old = squeeze(AP.Data);
 [t_old_unique, idx] = unique(t_old, 'stable');
 y_old_unique = y_old(idx);
 
@@ -67,7 +65,7 @@ delta_y_profile = zeros(length(t),1);        % Nx1
 delta_z_profile = zeros(length(t),1);        % Nx1
 rcsp = zeros(length(t),1);                   % Nx1
 
-%Tprof2 = ones(length(t),1);
+Tprof2 = ones(length(t),1);
 unom = [T_profile, delta_y_profile, delta_z_profile, rcsp];  % Nx4
 
 tf = t(end);
@@ -75,11 +73,13 @@ t0=0;
 
 x_trajectory = zeros(1,length(t));
 y_trajectory = zeros(1,length(t));
-z_trajectory = -z';
+%z_trajectory = z;
+z_trajectory = -z_ts.Data(:,1)';
 
 vx_trajectory = zeros(1,length(t));
 vy_trajectory = zeros(1,length(t));
-vz_trajectory = diff(-z)'./diff(t)';
+%vz_trajectory = vz;
+vz_trajectory = diff(z_trajectory)./diff(t)';
 vz_trajectory(end+1)=vz_trajectory(end);
 
 P_trajectory = zeros(1,length(t));

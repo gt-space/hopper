@@ -14,7 +14,7 @@ Tmax = 2400;
 h_target = 50;
 
 t_ascend  = 10;
-t_hover   = 3;
+t_hover   = 2;
 t_descend = 10;
 
 dt = 0.02;
@@ -155,56 +155,56 @@ unom = [
 tf = tgrid(end);
 
 % 1) Altitude / Velocity / Thrust
-figure('Name','Vertical Motion')
-subplot(3,1,1)
-plot(tgrid,-Z,'LineWidth',2)
-ylabel('Altitude (m)'); title('Altitude'); grid on; xlim([0 tf])
-subplot(3,1,2)
-plot(tgrid,Vz,'LineWidth',2)
-ylabel('Vertical Velocity (m/s)'); grid on; xlim([0 tf])
-subplot(3,1,3)
-plot(tgrid,T,'LineWidth',2)
-ylabel('Thrust (N)'); xlabel('Time (s)'); grid on; xlim([0 tf])
-
-% 2) Control Inputs
-figure('Name','Control Inputs')
-subplot(3,1,1)
-plot(tgrid,rad2deg(delta_p),'LineWidth',2)
-ylabel('Pitch TVC (deg)'); grid on; xlim([0 tf])
-subplot(3,1,2)
-plot(tgrid,rad2deg(delta_y),'LineWidth',2)
-ylabel('Yaw TVC (deg)'); grid on; xlim([0 tf])
-subplot(3,1,3)
-plot(tgrid,rad2deg(F_rcs),'LineWidth',2)
-ylabel('RCS (N*m)'); xlabel('Time (s)'); grid on; xlim([0 tf])
-
-% 3) Attitude
-figure('Name','Attitude')
-subplot(3,1,1)
-plot(tgrid,rad2deg(roll),'LineWidth',2)
-ylabel('Roll (deg)'); grid on; xlim([0 tf])
-subplot(3,1,2)
-plot(tgrid,rad2deg(pitch),'LineWidth',2)
-ylabel('Pitch (deg)'); grid on; xlim([0 tf])
-subplot(3,1,3)
-plot(tgrid,rad2deg(yaw),'LineWidth',2)
-ylabel('Yaw (deg)'); xlabel('Time (s)'); grid on; xlim([0 tf])
-
-% 4) Body Rates
-figure('Name','Body Rates')
-plot(tgrid,[P Q R]*180/pi,'LineWidth',2)
-xlabel('Time (s)'); ylabel('Rate (deg/s)')
-legend('P','Q','R'); grid on; xlim([0 tf])
-
-% 5) Mass Profile
-figure('Name','Mass Profile')
-plot(tgrid,m_profile,'LineWidth',2)
-xlabel('Time (s)'); ylabel('Mass (kg)'); grid on; xlim([0 tf])
-
-% 6) 3D Trajectory
-figure('Name','3D Trajectory')
-plot3(X,Y,-Z,'LineWidth',2)
-xlabel('X (m)'); ylabel('Y (m)'); zlabel('Altitude (m)')
-title('Rocket Flight Path'); grid on; view(35,25)
+% figure('Name','Vertical Motion')
+% subplot(3,1,1)
+% plot(tgrid,-Z,'LineWidth',2)
+% ylabel('Altitude (m)'); title('Altitude'); grid on; xlim([0 tf])
+% subplot(3,1,2)
+% plot(tgrid,Vz,'LineWidth',2)
+% ylabel('Vertical Velocity (m/s)'); grid on; xlim([0 tf])
+% subplot(3,1,3)
+% plot(tgrid,T,'LineWidth',2)
+% ylabel('Thrust (N)'); xlabel('Time (s)'); grid on; xlim([0 tf])
+% 
+% % 2) Control Inputs
+% figure('Name','Control Inputs')
+% subplot(3,1,1)
+% plot(tgrid,rad2deg(delta_p),'LineWidth',2)
+% ylabel('Pitch TVC (deg)'); grid on; xlim([0 tf])
+% subplot(3,1,2)
+% plot(tgrid,rad2deg(delta_y),'LineWidth',2)
+% ylabel('Yaw TVC (deg)'); grid on; xlim([0 tf])
+% subplot(3,1,3)
+% plot(tgrid,rad2deg(F_rcs),'LineWidth',2)
+% ylabel('RCS (N*m)'); xlabel('Time (s)'); grid on; xlim([0 tf])
+% 
+% % 3) Attitude
+% figure('Name','Attitude')
+% subplot(3,1,1)
+% plot(tgrid,rad2deg(roll),'LineWidth',2)
+% ylabel('Roll (deg)'); grid on; xlim([0 tf])
+% subplot(3,1,2)
+% plot(tgrid,rad2deg(pitch),'LineWidth',2)
+% ylabel('Pitch (deg)'); grid on; xlim([0 tf])
+% subplot(3,1,3)
+% plot(tgrid,rad2deg(yaw),'LineWidth',2)
+% ylabel('Yaw (deg)'); xlabel('Time (s)'); grid on; xlim([0 tf])
+% 
+% % 4) Body Rates
+% figure('Name','Body Rates')
+% plot(tgrid,[P Q R]*180/pi,'LineWidth',2)
+% xlabel('Time (s)'); ylabel('Rate (deg/s)')
+% legend('P','Q','R'); grid on; xlim([0 tf])
+% 
+% % 5) Mass Profile
+% figure('Name','Mass Profile')
+% plot(tgrid,m_profile,'LineWidth',2)
+% xlabel('Time (s)'); ylabel('Mass (kg)'); grid on; xlim([0 tf])
+% 
+% % 6) 3D Trajectory
+% figure('Name','3D Trajectory')
+% plot3(X,Y,-Z,'LineWidth',2)
+% xlabel('X (m)'); ylabel('Y (m)'); zlabel('Altitude (m)')
+% title('Rocket Flight Path'); grid on; view(35,25)
 
 end

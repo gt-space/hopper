@@ -6,9 +6,9 @@
 
 % Trajectory settings
 zf     = 50;     % m
-Tup    = 11.5;      % s  aggressive ascent
+Tup    = 10;      % s  aggressive ascent
 Thover = 2;      % s
-Tdown  = 13.5;      % s  aggressive descent
+Tdown  = 12;      % s  aggressive descent
 dt     = 0.01;   % 100 Hz
 
 t_end = Tup + Thover + Tdown;
@@ -46,7 +46,7 @@ scenario = scenario.addElement(z_ts, "z_ref");   % element name inside dataset
 % Save MAT file exactly how Signal Editor expects
 %save("trajectory2.mat","scenario");
 
-% Plot: time vs position
+%Plot: time vs position
 % figure;
 % plot(t, z, "LineWidth", 1.5);
 % grid on;
