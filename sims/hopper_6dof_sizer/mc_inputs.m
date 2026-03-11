@@ -35,7 +35,7 @@ IN.avionics.boards.current = 0.5; % A
 IN.propulsion.oxidizer = 'O2';
 IN.propulsion.fuel = 'Dodecane';
 IN.propulsion.oxidizer_mass = 16; % kg -> internal
-IN.propulsion.fuel_mass = 9; % kg -> internal
+IN.propulsion.fuel_mass = 10; % kg -> internal
 IN.propulsion.ox_vol = 0.020; % m^3
 IN.propulsion.fu_vol = 0.0152; % m^3
 IN.propulsion.ox_press = 500 * 6894.76; % Pa
@@ -90,7 +90,6 @@ IN.tvc.max_gimbal_rate = deg2rad(30); % rad/s ?
 IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
 IN.tvc.actuator_latency = 0.01; % s
-
 % RCS
 IN.rcs.max_thrust = 3.53; % N
 IN.rcs.max_speed = 62500; % RPM
