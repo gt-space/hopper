@@ -1,5 +1,5 @@
 %% Trajectory settings
-zf     = 50;     % m
+zf     = 52;     % m
 Tup    = 12;     % s
 Thover = 2;      % s
 Tdown  = 13;     % s

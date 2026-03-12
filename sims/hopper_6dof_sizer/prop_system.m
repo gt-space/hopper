@@ -5,7 +5,7 @@ function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR, ox_valve_CdA, fu_valve_CdA
     % Verify that a Python version from 3.8 - 3.11 is installed
     % do "pip install CoolProp" in a terminal
     
-    pyenv % Python call
+    pyenv; % Python call
     
     % Hardcoded Pa - implement this as a function of altitude so it changes
     % with launch site as well

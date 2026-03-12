@@ -20,4 +20,4 @@ for i = 1:length(thrust_target)
     mdot_data{i,3} = fu_mdot;
 end
 
-writecell(mdot_data, 'mdot_lookup.xlsx')
+writecell(mdot_data, 'mdot_lookup.xlsx');

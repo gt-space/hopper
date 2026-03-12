@@ -35,8 +35,8 @@ m_fu_sing = tank_mass(V_fu, r);
 TANKS.singular.oxidizer.mass = m_ox_sing;
 TANKS.singular.fuel.mass     = m_fu_sing;
 TANKS.singular.total_mass    = m_ox_sing + m_fu_sing;
-TANKS.singular.oxidizer.h    = V_ox / (pi*r^2)
-TANKS.singular.fuel.h        = V_fu / (pi*r^2)
+TANKS.singular.oxidizer.h    = V_ox / (pi*r^2);
+TANKS.singular.fuel.h        = V_fu / (pi*r^2);
 
 %% ---------- 2. Clustered ----------
 N = 3; % TODO maybe make this an input or size it
