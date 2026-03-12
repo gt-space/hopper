@@ -59,11 +59,8 @@ IN.valves.current = 1; % A
 % ENGINE
 IN.inj_material = "SS316L";
 IN.TCA_material = "AlSi10Mg";
-%IN.off_axis_y = 0; % m^2  % Body Frame
-%IN.off_axis_x = 0; % m^2 
-IN.off_axis_y = scenario_params.engine_off_axis_y;
-IN.off_axis_x = scenario_params.engine_off_axis_z;
-
+IN.off_axis_y = 0; % m^2  % Body Frame
+IN.off_axis_x = 0; % m^2 
 
 %  PRESSURIZATION MODE
 IN.press.mode = 'copv';  % 'copv' or 'autogenous'
@@ -96,12 +93,13 @@ IN.tanks.axial_damping = scenario_params.slosh_axial_damping;
 %  TVC
 IN.tvc.max_gimbal_angle = deg2rad(15); % ?
 %IN.tvc.max_gimbal_rate = deg2rad(30); % rad/s ?
-IN.tvc.max_gimbal_rate = scenario_params.tvc_actuator_rate_limit;
+IN.tvc.max_gimbal_rate = 
 IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
 %IN.tvc.actuator_latency = 0.01; % s
-IN.tvc.actuator_latency = scenario_params.tvc_actuator_latency;
-
+IN.tvc.actuator_latency = tvc_actuator_latency
+results(1).scenario.tvc_actuator_rate_limit
+results(1).scenario.tvc_actuator_latency
 % RCS
 IN.rcs.max_thrust = 3.53; % N
 IN.rcs.max_speed = 62500; % RPM
