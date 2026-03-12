@@ -68,10 +68,10 @@ cg_marker = plot3(0,0,0,'ro','MarkerSize',10,'MarkerFaceColor','r');
 time_text = text(0.5,1,l*0.9, '', 'FontSize',14,'Color','w');
 
 
-v = VideoWriter('cg_visualization.mp4','MPEG-4');
+v = VideoWriter('cg__6dof_visualization.mp4','MPEG-4');
 v.FrameRate = 30;
 v.Quality = 100;
-% open(v);
+% open(v); 
 
 % Animation
 for i = 1:length(cg.Data)
