@@ -13,6 +13,10 @@ n_ok = length(results);
 
 fprintf('Plotting %d / %d successful runs\n', n_ok, n);
 
+c_mc  = [0.30 0.60 1.00];
+c_nom = [0.10 0.80 0.20];
+c_mean= [1.00 0.20 0.20];
+
 % =========================================================================
 % Interpolate all timeseries onto a common time grid for statistics
 % =========================================================================
@@ -214,8 +218,79 @@ fprintf('%s\n', repmat('=', 1, 61));
 
 % ============================
 % Figure 5 - Thrust plot
-% =======================
+% ============================
+
+figure('Name','Thrust vs Time','Position',[250 50 900 450]);
+hold on; grid on;
+ 
+thrust_mat = zeros(n_ok, 500);
+for i = 1:n_ok
+    ts = results(i).timeseries;
+    plot(ts.t, ts.thrust, 'Color', [c_mc 0.4], 'LineWidth', 0.8);
+    thrust_mat(i,:) = interp1(ts.t, ts.thrust, t_grid, 'linear', 'extrap');
+end
+plot(t_grid, mean(thrust_mat,1), 'Color', c_mean, 'LineWidth', 3.0);
+plot(results(nom_idx).timeseries.t, results(nom_idx).timeseries.thrust, ...
+    'Color', c_nom, 'LineWidth', 3.0);
+ 
+xlabel('Time (s)','FontSize',12); ylabel('Thrust (N)','FontSize',12);
+title(sprintf('Thrust vs Time — %d MC Runs', n_ok),'FontSize',14);
+legend({'MC Runs','Mean','Nominal'},'Location','best','FontSize',10);
 
 
+% ==================================
+% Figure 6 - Velocity plot vs. Time
+% ==================================
+figure('Name','Velocity vs Time','Position',[300 100 900 600]);
+vel_fields = {'vx','vy','vz_raw'};
+vel_labels = {'Vx — North (m/s)','Vy — East (m/s)','Vz — Down (m/s)'};
+ 
+for s = 1:3
+    subplot(3,1,s); hold on; grid on;
+    vel_mat = zeros(n_ok, 500);
+    for i = 1:n_ok
+        ts = results(i).timeseries;
+        plot(ts.t, ts.(vel_fields{s}), 'Color', [c_mc 0.4], 'LineWidth', 0.8);
+        vel_mat(i,:) = interp1(ts.t, ts.(vel_fields{s}), t_grid, 'linear', 'extrap');
+    end
+    plot(t_grid, mean(vel_mat,1), 'Color', c_mean, 'LineWidth', 3.0);
+    plot(results(nom_idx).timeseries.t, results(nom_idx).timeseries.(vel_fields{s}), ...
+        'Color', c_nom, 'LineWidth', 3.0);
+    ylabel(vel_labels{s},'FontSize',10);
+    if s == 1
+        legend({'MC','Mean','Nominal'},'Location','best','FontSize',9);
+        title('Velocity vs Time','FontSize',13);
+    end
+    if s == 3; xlabel('Time (s)','FontSize',12); end
+end
+
+% ==================================
+% Figure 6 - Attitude plot vs. Time
+% ==================================
+
+figure('Name','Attitude vs Time','Position',[350 150 900 600]);
+att_fields = {'roll','pitch','yaw'};
+att_labels = {'Roll (deg)','Pitch (deg)','Yaw (deg)'};
+ 
+for s = 1:3
+    subplot(3,1,s); hold on; grid on;
+    att_mat = zeros(n_ok, 500);
+    for i = 1:n_ok
+        ts = results(i).timeseries;
+        data_deg = rad2deg(ts.(att_fields{s}));
+        plot(ts.t, data_deg, 'Color', [c_mc 0.4], 'LineWidth', 0.8);
+        att_mat(i,:) = interp1(ts.t, data_deg, t_grid, 'linear', 'extrap');
+    end
+    plot(t_grid, mean(att_mat,1), 'Color', c_mean, 'LineWidth', 3.0);
+    plot(results(nom_idx).timeseries.t, ...
+        rad2deg(results(nom_idx).timeseries.(att_fields{s})), ...
+        'Color', c_nom, 'LineWidth', 3.0);
+    ylabel(att_labels{s},'FontSize',10);
+    if s == 1
+        legend({'MC','Mean','Nominal'},'Location','best','FontSize',9);
+        title('Attitude vs Time','FontSize',13);
+    end
+    if s == 3; xlabel('Time (s)','FontSize',12); end
+end
 
 end

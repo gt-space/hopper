@@ -149,14 +149,20 @@ result.engine.total_mass  = ENGINE.mass;
 
 x_pos = sim_out.x.Data;
 y_pos = sim_out.y.Data;
-z_pos = sim_out.z.Data;
-altitude   = -(sim_out.z.Data);
+z_pos = sim_out.z.Data; %add negative during plotting not now
+altitude   = -(sim_out.z.Data); %plot this directly
 ox_mass  = sim_out.ox_mass.Data;
 fu_mass  = sim_out.fuel_mass.Data;
 cg       = sim_out.cg.Data;
 t        = sim_out.x.Time;
 % Vertical velocity (derivative of z)
 vz       = gradient(altitude, t);
+thrust_data = sim_out.thrust.Data;
+vel_data = sim_out.velocity.Data;
+pitch_data = sim_out.pitch.Data;
+roll_data = sim_out.roll.Data;
+yaw_data = sim_out.yaw.Data;
+
 
 result.flight.max_altitude    = max(altitude);
 result.flight.max_ascent_vel  = max(vz);
@@ -178,6 +184,13 @@ result.timeseries.ox_mass  = ox_mass;
 result.timeseries.fu_mass  = fu_mass;
 result.timeseries.tot_mass = fu_mass + ox_mass;
 result.timeseries.vz       = vz;
+result.timeseries.thrust   = thrust_data;
+result.timeseries.vx       = vel_data(:,1);
+result.timeseries.vy       = vel_data(:,2);
+result.timeseries.vz_raw   = vel_data(:,3);
+result.timeseries.roll     = roll_data;
+result.timeseries.pitch    = pitch_data;
+result.timeseries.yaw      = yaw_data;
 
 
 
