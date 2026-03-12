@@ -92,21 +92,6 @@ legend({'MC Runs','1\sigma','2\sigma','3\sigma','Nominal','Mean'}, ...
 % =========================================================================
 % Figure 2 — 3D Trajectory
 % =========================================================================
-% figure('Name','3D Trajectory','Position',[150 150 800 600]);
-% hold on; grid on;
-% 
-% for i = 1:n_ok
-%     ts = results(i).timeseries;
-%     plot3(ts.y, ts.z, ts.x, 'Color', [c_spread 0.3], 'LineWidth', 0.5);
-% end
-% 
-% ts_nom = results(nom_idx).timeseries;
-% plot3(ts_nom.y, ts_nom.z, ts_nom.x, 'Color', c_nominal, 'LineWidth', 2.0);
-% 
-% xlabel('Y (m)'); ylabel('Z (m)'); zlabel('Altitude X (m)');
-% title(sprintf('3D Trajectory — %d MC Runs', n_ok));
-% legend({'MC Runs','Nominal'}, 'Location','best');
-% view(45, 25);
 
 figure('Name','3D Trajectory','Position',[150 150 800 600]);
 hold on; grid on;
@@ -114,11 +99,11 @@ hold on; grid on;
 for i = 1:n_ok
     ts = results(i).timeseries;
     % swap axes so that x->latitude, y->longitude, z->vertical (up)
-    plot3(ts.x, ts.y, ts.z, 'Color', [c_spread 0.3], 'LineWidth', 0.5);
+    plot3(ts.x, ts.y, -ts.z, 'Color', [c_spread 0.3], 'LineWidth', 0.5);
 end
 
 ts_nom = results(nom_idx).timeseries;
-plot3(ts_nom.x, ts_nom.y, ts_nom.z, 'Color', c_nominal, 'LineWidth', 2.0);
+plot3(ts_nom.x, ts_nom.y, -ts_nom.z, 'Color', c_nominal, 'LineWidth', 2.0);
 
 xlabel('Latitude (X)'); ylabel('Longitude (Y)'); zlabel('Altitude (Z)');
 title(sprintf('3D Trajectory — %d MC Runs', n_ok));
@@ -225,5 +210,12 @@ for k = 1:size(metrics,1)
     fprintf('%-25s %8.3f %8.3f %8.3f %8.3f\n', name, mu, sig, mu-3*sig, mu+3*sig);
 end
 fprintf('%s\n', repmat('=', 1, 61));
+
+
+% ============================
+% Figure 5 - Thrust plot
+% =======================
+
+
 
 end
