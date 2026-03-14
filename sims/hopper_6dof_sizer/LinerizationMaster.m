@@ -30,7 +30,7 @@ Q =  [1e3 0 0 0 0 0 0 0 0 0 0 0 0; % x
     0 0 1e13 0 0 0 0 0 0 0 0 0 0; % z
     0 0 0 1e3 0 0 0 0 0 0 0 0 0; % vx
     0 0 0 0 1e3 0 0 0 0 0 0 0 0; % vy
-    0 0 0 0 0 5e6 0 0 0 0 0 0 0; % vz
+    0 0 0 0 0 5e9 0 0 0 0 0 0 0; % vz
     0 0 0 0 0 0 1e6 0 0 0 0 0 0; % P
     0 0 0 0 0 0 0 1e6 0 0 0 0 0; % Q
     0 0 0 0 0 0 0 0 1e6 0 0 0 0; % R
@@ -140,11 +140,17 @@ GainTable = TrajectoryFollowingGains2(Sf,Q,R,Target_Trajectory,A,B,tgrid,unom,pa
 %%
 
 K1 = GainTable.K1;
-K2grid = GainTable.K2';   % keep your Simulink convention (N×2)
-%K2grid = zeros(length(t),4);
-%fix for 6dof
-% Flatten K1 for Simulink (N×12) 
-%4*13?
+K2grid = GainTable.K2';   
+
+alpha = 1.04;
+tau = 3;   % seconds
+
+bias = alpha * unom(:,1) .* exp(-tgrid/tau);
+
+K2grid_mod = K2grid;
+K2grid_mod(:,1) = K2grid(:,1) - bias;
+
+
 K1flat = zeros(length(tgrid),52);
 
 for i = 1:length(tgrid)
@@ -154,52 +160,52 @@ end
 z_ref_ts = timeseries(z_trajectory, t);
 T_ref_ts = timeseries(T_profile, t);
 vz_ref_ts = timeseries(vz_trajectory, t);
-
-control_labels = {'Throttle','Pitch TVC','Yaw TVC','RCS'};
-state_labels   = {'X','Y','Z','Vx','Vy','Vz','P','Q','R','q0','q1','q2','q3'};
-
-
-N  = length(tgrid);
-nu = size(K1,1);
-nx = size(K1,2);
-
-t_cut = 29;
-
-idx = tgrid <= t_cut;
-
-for u = 1:nu
-    figure('Name',['K1 Gains: ' control_labels{u}]);
-    hold on
-    for x = 1:nx
-        plot(tgrid(idx), squeeze(K1(u,x,idx)), 'LineWidth', 1.5)
-    end
-    grid on
-    xlabel('Time (s)')
-    ylabel([control_labels{u} ' Gains'])
-    xlim([tgrid(1) tgrid(end)])
-    title(['LQR Gains for ' control_labels{u}])
-    legend(state_labels, 'Location', 'eastoutside')
-   % Enable data cursor mode
-    dcm = datacursormode(gcf);
-    set(dcm, 'Enable', 'on', 'SnapToDataVertex', 'on', ...
-        'UpdateFcn', @(src,event) customCursor(event));
-end
-
-%% Custom cursor function using DisplayName
-function txt = customCursor(event)
-    pos = event.Position;        % [x y]
-    target = event.Target;
-
-    % Attempt to get DisplayName
-    if isprop(target,'DisplayName')
-        stateName = target.DisplayName;
-    else
-        stateName = 'Unknown';
-    end
-
-    % Build tooltip text
-    txt = {['State: ' stateName], ...
-           ['Time: ' num2str(pos(1),'%.3f') ' s'], ...
-           ['Gain: ' num2str(pos(2),'%.6f')]};
-end
-
+% 
+% control_labels = {'Throttle','Pitch TVC','Yaw TVC','RCS'};
+% state_labels   = {'X','Y','Z','Vx','Vy','Vz','P','Q','R','q0','q1','q2','q3'};
+% 
+% 
+% N  = length(tgrid);
+% nu = size(K1,1);
+% nx = size(K1,2);
+% 
+% t_cut = 29;
+% 
+% idx = tgrid <= t_cut;
+% 
+% for u = 1:nu
+%     figure('Name',['K1 Gains: ' control_labels{u}]);
+%     hold on
+%     for x = 1:nx
+%         plot(tgrid(idx), squeeze(K1(u,x,idx)), 'LineWidth', 1.5)
+%     end
+%     grid on
+%     xlabel('Time (s)')
+%     ylabel([control_labels{u} ' Gains'])
+%     xlim([tgrid(1) tgrid(end)])
+%     title(['LQR Gains for ' control_labels{u}])
+%     legend(state_labels, 'Location', 'eastoutside')
+%    % Enable data cursor mode
+%     dcm = datacursormode(gcf);
+%     set(dcm, 'Enable', 'on', 'SnapToDataVertex', 'on', ...
+%         'UpdateFcn', @(src,event) customCursor(event));
+% end
+% 
+% %% Custom cursor function using DisplayName
+% function txt = customCursor(event)
+%     pos = event.Position;        % [x y]
+%     target = event.Target;
+% 
+%     % Attempt to get DisplayName
+%     if isprop(target,'DisplayName')
+%         stateName = target.DisplayName;
+%     else
+%         stateName = 'Unknown';
+%     end
+% 
+%     % Build tooltip text
+%     txt = {['State: ' stateName], ...
+%            ['Time: ' num2str(pos(1),'%.3f') ' s'], ...
+%            ['Gain: ' num2str(pos(2),'%.6f')]};
+% end
+% 

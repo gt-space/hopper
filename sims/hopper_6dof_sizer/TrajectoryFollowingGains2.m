@@ -37,10 +37,11 @@ for k = 1:NtS
 end
 
 %% terminal condition for V
-Vf = zeros(nx,1);
+%Vf = zeros(nx,1);
+Vf = -Sf*(Trajectory(end,:)');
 
 %% solve defect-based V backwards
-[tV,Vvec] = ode45(@(t,V) Vdot_defect(t,V,tS,S_hist,A,B,Q,R,d,tgrid), ...
+[tV,Vvec] = ode45(@(t,V) Vdot(t,V,tS,S_hist,A,B,Q,R,d,tgrid), ...
                   [tf t0], Vf);
 
 tV   = flipud(tV);
