@@ -107,6 +107,7 @@ IN.throttle_valve.current = 1; % A
 IN.throttle_valve.mass = 2.3; % kg
 IN.throttle_valve.rate_limit = 90 * 4.44822; % N
 IN.throttle_valve_latency = 0.01; % s
+IN.throttle_valve.resolution = 5; % N
 
 %  LANDING LEGS
 IN.legs.material = 'Al6061';
