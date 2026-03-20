@@ -91,10 +91,9 @@ IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
 IN.tvc.actuator_latency = 0.01; % s
 IN.tvc.resolution = deg2rad(0.1);
-IN.tvc.damping_ratio = 0.5; 
 
 % RCS
-IN.rcs.max_thrust = 10; % N
+IN.rcs.max_thrust = ; % N
 IN.rcs.throttle_rate = 25; % N/s
 IN.rcs.max_speed = 62500; % RPM
 IN.rcs.min_speed = 0.05; % RPM
