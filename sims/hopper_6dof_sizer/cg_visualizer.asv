@@ -5,13 +5,14 @@ cg = out.cg;
 fu_mass = out.fuel_mass;
 ox_mass = out.ox_mass;
 r = TANKS.singular.radius;
-l = 2.5; % height of rocket
-dh = 0; % position of tanks relative to ground
+l = 1.62; % height of rocket
+dh = 0.39; % position of tanks relative to ground
 
-ox_start = 1.854 - TANKS.singular.oxidizer.h / 2;
+
+ox_start = 1.67 - TANKS.singular.oxidizer.h / 2;
 init_ox_height = (ox_mass.Data(1) / ox_density) / (pi * r^2);
 
-fu_start = 1.0668 - TANKS.singular.fuel.h / 2;
+fu_start = 0.88 - TANKS.singular.fuel.h / 2;
 init_fu_height = (fu_mass.Data(1) / fu_density) / (pi * r^2);
 
 figure
@@ -19,7 +20,7 @@ title("CG Visualization")
 hold on
 axis equal 
 grid on
-view(1,1)
+view(10,25)
 
 % Rocket Body
 [x,y,z] = cylinder(r,60);
@@ -31,21 +32,23 @@ body.EdgeColor = 'none';
 
 % Ox Tank shell
 [x_ox_t,y_ox_t,z_ox_t] = cylinder(r*0.98,40);
-z_ox_t = z_ox_t * TANKS.singular.oxidizer.h + ox_start + dh;
+z_ox_t = z_ox_t * TANKS.singular.oxidizer.h + ox_start;
 ox_tank = surf(x_ox_t,y_ox_t,z_ox_t);
+ox_tank.FaceColor = '';
 ox_tank.FaceAlpha = 0.1;
 ox_tank.EdgeColor = 'none';
 
 % Fuel Tank shell
 [x_fu_t,y_fu_t,z_fu_t] = cylinder(r*0.98,40);
-z_fu_t = z_fu_t * TANKS.singular.fuel.h + fu_start + dh;
+z_fu_t = z_fu_t * TANKS.singular.fuel.h + fu_start;
 fu_tank = surf(x_fu_t,y_fu_t,z_fu_t);
+fu_tank.FaceColor = 'yellow';
 fu_tank.FaceAlpha = 0.1;
 fu_tank.EdgeColor = 'none';
 
 % Ox Fluid
 [x_ox_f,y_ox_f,z_ox_f] = cylinder(r*0.95,40);
-z_ox_f = z_ox_f * TANKS.singular.oxidizer.h + ox_start + dh;
+z_ox_f = z_ox_f * TANKS.singular.oxidizer.h + ox_start;
 ox_fluid = surf(x_ox_f,y_ox_f,z_ox_f);
 ox_fluid.FaceAlpha = 0.5;
 ox_fluid.FaceColor = 'blue';
@@ -53,7 +56,7 @@ ox_fluid.EdgeColor = 'none';
 
 % Fuel Fluid
 [x_fu_f,y_fu_f,z_fu_f] = cylinder(r*0.95,40);
-z_fu_f = z_fu_f * TANKS.singular.fuel.h + fu_start + dh;
+z_fu_f = z_fu_f * TANKS.singular.fuel.h + fu_start;
 fu_fluid = surf(x_fu_f,y_fu_f,z_fu_f);
 fu_fluid.FaceAlpha = 0.5;
 fu_fluid.FaceColor = 'yellow';
@@ -62,10 +65,13 @@ fu_fluid.EdgeColor = 'none';
 % CG marker
 cg_marker = plot3(0,0,0,'ro','MarkerSize',10,'MarkerFaceColor','r');
 
-time_text = text(1,1,l*0.9, '', 'FontSize',14,'Color','w');
+time_text = text(0.5,1,l*0.9, '', 'FontSize',14,'Color','w');
 
 
-v = VideoWriter('cg_visualization')
+v = VideoWriter('cg__6dof_visualization.mp4','MPEG-4');
+v.FrameRate = 30;
+v.Quality = 100;
+open(v); 
 
 % Animation
 for i = 1:length(cg.Data)
@@ -79,16 +85,24 @@ for i = 1:length(cg.Data)
     z_ox_f_new = (z_ox_f - ox_start) / init_ox_height;
     z_fu_f_new = (z_fu_f - fu_start) / init_fu_height;
 
-    z_ox_f_new = z_ox_f_new * ox_h + ox_start + dh;
-    z_fu_f_new = z_fu_f_new * fu_h + fu_start + dh;
+    z_ox_f_new = z_ox_f_new * ox_h + ox_start;
+    z_fu_f_new = z_fu_f_new * fu_h + fu_start;
 
     set(ox_fluid, 'ZData', z_ox_f_new);
     set(fu_fluid, 'ZData', z_fu_f_new);
-    
+
+    cg_point = cg.Data(i,:);
+
     % Update the CG marker position
-    set(cg_marker, 'XData', 0, 'YData', 0, 'ZData', cg.Data(i));
+    set(cg_marker, 'XData', cg_point(3), 'YData', cg_point(2), 'ZData', cg_point(1));
     set(time_text,'String',sprintf('Time: %.2f s', cg.Time(i)))
 
     drawnow
-    pause(0.01); % Pause for animation effect
+    
+    frame = getframe(gcf);
+    writeVideo(v, frame);
+
+    pause(1e-6); % Pause for animation effect
 end
+
+close(v)

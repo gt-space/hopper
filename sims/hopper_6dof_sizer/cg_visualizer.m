@@ -20,7 +20,7 @@ title("CG Visualization")
 hold on
 axis equal 
 grid on
-view(1,1)
+view(10,25)
 
 % Rocket Body
 [x,y,z] = cylinder(r,60);
@@ -71,7 +71,7 @@ time_text = text(0.5,1,l*0.9, '', 'FontSize',14,'Color','w');
 v = VideoWriter('cg__6dof_visualization.mp4','MPEG-4');
 v.FrameRate = 30;
 v.Quality = 100;
-% open(v); 
+open(v); 
 
 % Animation
 for i = 1:length(cg.Data)
@@ -90,17 +90,19 @@ for i = 1:length(cg.Data)
 
     set(ox_fluid, 'ZData', z_ox_f_new);
     set(fu_fluid, 'ZData', z_fu_f_new);
-    
+
+    cg_point = cg.Data(i,:);
+
     % Update the CG marker position
-    set(cg_marker, 'XData', 0, 'YData', 0, 'ZData', cg.Data(i));
+    set(cg_marker, 'XData', cg_point(3), 'YData', cg_point(2), 'ZData', cg_point(1));
     set(time_text,'String',sprintf('Time: %.2f s', cg.Time(i)))
 
     drawnow
     
-    % frame = getframe(gcf);
-    % writeVideo(v, frame);
+    frame = getframe(gcf);
+    writeVideo(v, frame);
 
-    pause(0.1); % Pause for animation effect
+    pause(1e-6); % Pause for animation effect
 end
 
-% close(v)
+close(v)
