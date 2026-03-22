@@ -114,6 +114,11 @@ IN.legs.material = 'Al6061';
 IN.legs.tip_factor = 2; % accounts for non-symmetric landing (leg takes 50% extra load)
 IN.legs.feet_radial_dist = 0.5; % m
 
+% MODAL
+%  MODAL PARAMETERS
+IN.vehicle_damping_ratio = 0.05; 
+IN.vehicle_natural_frequency = 10; % Hz
+
 %  SIMULATION SETTINGS
 IN.sim.dt = 0.01;                  % s
 IN.sim.t_max = 60;                 % s

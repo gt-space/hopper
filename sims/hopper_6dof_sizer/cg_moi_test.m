@@ -4,6 +4,7 @@ fu_mass = IN.propulsion.fuel_mass;
 
 engine_mass = ENGINE.mass;
 engine_cg = 0.3556;
+mount_cg = 0.45;
 ox_tank_mass = TANKS.singular.oxidizer.mass;
 ox_tank_cg = 1.854;
 ox_tank_wall_thick = 0.003175;
