@@ -34,16 +34,16 @@ Q =  [1e3 0 0 0 0 0 0 0 0 0 0 0 0; % x
     0 0 0 0 0 0 1e6 0 0 0 0 0 0; % P
     0 0 0 0 0 0 0 1e6 0 0 0 0 0; % Q
     0 0 0 0 0 0 0 0 1e6 0 0 0 0; % R
-    0 0 0 0 0 0 0 0 0 100 0 0 0; % q0
-    0 0 0 0 0 0 0 0 0 0 100 0 0; % q1
-    0 0 0 0 0 0 0 0 0 0 0 100 0; % q2
-    0 0 0 0 0 0 0 0 0 0 0 0 100]./10000; % q3
+    0 0 0 0 0 0 0 0 0 1e5 0 0 0; % q0
+    0 0 0 0 0 0 0 0 0 0 1e5 0 0; % q1
+    0 0 0 0 0 0 0 0 0 0 0 1e5 0; % q2
+    0 0 0 0 0 0 0 0 0 0 0 0 1e5]./1000; % q3
 
 % T delta rcs
-R = [3e8 0 0 0;
+R = [3e9 0 0 0;
    0 8e5 0 0;
    0 0 8e5 0
-   0 0 0 10000]./10000;
+   0 0 0 1000]./10000;
 
 
 %t = thrust_mat(:,1);
@@ -160,52 +160,4 @@ end
 z_ref_ts = timeseries(z_trajectory, t);
 T_ref_ts = timeseries(T_profile, t);
 vz_ref_ts = timeseries(vz_trajectory, t);
-% 
-% control_labels = {'Throttle','Pitch TVC','Yaw TVC','RCS'};
-% state_labels   = {'X','Y','Z','Vx','Vy','Vz','P','Q','R','q0','q1','q2','q3'};
-% 
-% 
-% N  = length(tgrid);
-% nu = size(K1,1);
-% nx = size(K1,2);
-% 
-% t_cut = 29;
-% 
-% idx = tgrid <= t_cut;
-% 
-% for u = 1:nu
-%     figure('Name',['K1 Gains: ' control_labels{u}]);
-%     hold on
-%     for x = 1:nx
-%         plot(tgrid(idx), squeeze(K1(u,x,idx)), 'LineWidth', 1.5)
-%     end
-%     grid on
-%     xlabel('Time (s)')
-%     ylabel([control_labels{u} ' Gains'])
-%     xlim([tgrid(1) tgrid(end)])
-%     title(['LQR Gains for ' control_labels{u}])
-%     legend(state_labels, 'Location', 'eastoutside')
-%    % Enable data cursor mode
-%     dcm = datacursormode(gcf);
-%     set(dcm, 'Enable', 'on', 'SnapToDataVertex', 'on', ...
-%         'UpdateFcn', @(src,event) customCursor(event));
-% end
-% 
-% %% Custom cursor function using DisplayName
-% function txt = customCursor(event)
-%     pos = event.Position;        % [x y]
-%     target = event.Target;
-% 
-%     % Attempt to get DisplayName
-%     if isprop(target,'DisplayName')
-%         stateName = target.DisplayName;
-%     else
-%         stateName = 'Unknown';
-%     end
-% 
-%     % Build tooltip text
-%     txt = {['State: ' stateName], ...
-%            ['Time: ' num2str(pos(1),'%.3f') ' s'], ...
-%            ['Gain: ' num2str(pos(2),'%.6f')]};
-% end
-% 
+
