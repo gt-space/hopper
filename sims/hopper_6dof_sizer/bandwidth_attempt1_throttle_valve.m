@@ -6,9 +6,9 @@ t    = out.Pout_log.time;
 Pout = Pout(:);
 t    = t(:);
 
-info_outer = stepinfo(Pout, t, 100);
+info_outer = stepinfo(Pout, t);
 %                     ^signal       ^time     ^final expected value (your P_set = 100)
-info_inner = stepinfo(out.theta_log, out.tout, 49.6758967952748);
+info_inner = stepinfo(out.theta_log, out.tout);
 %                     ^signal        ^time     ^final expected value (max theta = 90°)
 
 BW_outer = 0.35 / info_outer.RiseTime;
