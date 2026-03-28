@@ -1,7 +1,7 @@
 function mc_sim_setup(scenario)
 
 % ---- Sizing (replaces main.m) ----
-IN = mc_inputs(scenario);
+IN = mission_inputs(scenario);
 
 TANKS  = size_tanks(IN);
 AVI    = size_avionics(IN);
@@ -106,6 +106,9 @@ tvc_actuator_rate_limit = deg2rad(scenario.tvc_actuator_rate_limit);
 tvc_actuator_latency    = scenario.tvc_actuator_latency;
 engine_off_axis_y       = scenario.engine_off_axis_y;
 engine_off_axis_z       = scenario.engine_off_axis_z;
+uwind = scenario.uwind;
+vwind = scenario.vwind;
+mode = 1
 %azimuth                 = scenario.azimuth;
 
 % ---- Push everything to base workspace (Simulink reads from here) ----

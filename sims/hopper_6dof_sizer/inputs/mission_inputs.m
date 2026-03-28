@@ -1,4 +1,6 @@
-function IN = mission_inputs()
+function IN = mission_inputs(scenario_params)
+if nargin < 1; scenario_params = []; end
+
 %  GLOBAL CONSTANTS
 IN.const.g0 = 9.80665;              % m/s^2
 IN.const.R_univ = 8.314462618;      % J/mol-K
@@ -33,7 +35,7 @@ IN.avionics.boards.current = 0.5; % A
 
 %  PROPULSION
 IN.propulsion.oxidizer = 'Oxygen';
-IN.propulsion.fuel = 'Kerosene';
+IN.propulsion.fuel = 'Dodecane'; %AKA KEROSENE
 IN.propulsion.oxidizer_mass = 16; % kg -> internal
 IN.propulsion.fuel_mass = 10; % kg -> internal
 IN.propulsion.ox_vol = 0.020; % m^3
@@ -42,7 +44,7 @@ IN.propulsion.ox_press = 500 * 6894.76; % Pa
 IN.propulsion.fu_press = 500 * 6894.76; % Pa
 IN.propulsion.fu_temp = 293; % K
 IN.propulsion.ox_temp = 93; % K
-IN.propulsion.ox_sys_CdA = 1.7827-5; % m^2
+IN.propulsion.ox_sys_CdA = 1.7827E-5; % m^2
 IN.propulsion.fu_sys_CdA = 1.1E-5; % m^2
 IN.propulsion.eta_cstar = 0.85;
 IN.propulsion.At = 1.138 * 0.00064516; % in^2 --> m^2
@@ -114,14 +116,59 @@ IN.legs.material = 'Al6061';
 IN.legs.tip_factor = 2; % accounts for non-symmetric landing (leg takes 50% extra load)
 IN.legs.feet_radial_dist = 0.5; % m
 
-% MODAL
+%cg values
+IN.engine_cg = 0.3556;
+IN.mount_cg = 0.45;
+IN.ox_tank_cg = 1.854;
+IN.ox_tank_wall_thick = 0.003175;
+IN.fu_tank_cg = 1.0668;
+IN.fu_tank_wall_thick = 0.003175;
+IN.structures_cg = 1.193;
+IN.avi_cg = 1.4224;
+IN.fluids_cg = 1.0668;
+IN.payload_cg = 2;
+IN.copv_r = 0.18;
+IN.copv_t = 13.21/1000;
+IN.copv_h = 0.56;
+IN.copv_zcg = 1.21;
+IN.copv_ycg = 0.23;
+
+
 %  MODAL PARAMETERS
 IN.vehicle_damping_ratio = 0.05; 
 IN.vehicle_natural_frequency = 10; % Hz
+%=======
+% Wind Defaults
+% 1 - Monte Carlo , 2 - constant , 3 - 4D Array Historical Wind
+IN.wind.mode = 2; %
+IN.wind.uwind = 2.5; %default values for uwnd/vwnd with NO Monte Carlo
+IN.wind.vwind = 2.5;
+%>>>>>>> Stashed changes
 
 %  SIMULATION SETTINGS
 IN.sim.dt = 0.01;                  % s
 IN.sim.t_max = 60;                 % s
 IN.sim.use_simulink = true;
 
+
+% Monte Carlo scenario struct creation
+if  ~isempty(scenario_params)
+    IN.propulsion.oxidizer_mass       = scenario_params.ox_mass;
+    IN.propulsion.fuel_mass           = scenario_params.fuel_mass;
+    IN.propulsion.eta_cstar           = scenario_params.cstar;
+    IN.mass_factor                    = scenario_params.mass_factor;
+    IN.tanks.lateral_damping          = scenario_params.slosh_lateral_damping;
+    IN.tanks.axial_damping            = scenario_params.slosh_axial_damping;
+    IN.throttle_valve.rate_limit      = scenario_params.throttle_rate_limit * 4.44822;
+    IN.throttle_valve_latency         = scenario_params.throttle_latency;
+    IN.tvc.max_gimbal_rate            = deg2rad(scenario_params.tvc_actuator_rate_limit);
+    IN.tvc.actuator_latency           = scenario_params.tvc_actuator_latency;
+    IN.off_axis_y                     = scenario_params.engine_off_axis_y;
+    IN.off_axis_x                     = scenario_params.engine_off_axis_z;
+    IN.wind.uwind                     = scenario_params.uwind;
+    IN.wind.vwind                     = scenario_params.vwind;
+    IN.wind.mode                      = 1; 
 end
+
+end
+
