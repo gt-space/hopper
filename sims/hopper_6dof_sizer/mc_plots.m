@@ -112,9 +112,9 @@ for i = 1:n_ok
     ts = results(i).timeseries;
 
     if i == 1
-        h_mc = plot3(ts.x, ts.y, -ts.z, 'Color', [c_spread 0.3], 'LineWidth', 0.5);
+        h_mc = plot3(ts.x, ts.y, -ts.z, 'Color', 'b', 'LineWidth', 0.5);
     else
-        plot3(ts.x, ts.y, -ts.z, 'Color', [c_spread 0.3], 'LineWidth', 0.5);
+        plot3(ts.x, ts.y, -ts.z, 'Color', 'b', 'LineWidth', 0.5);
     end
 end
 
@@ -363,5 +363,46 @@ for s = 1:3
         xlabel('Time (s)','FontSize',12);
     end
 end
+
+% ================================
+% Figure 8 - 2d trajectory with pad
+% =================================
+pad_radius = 0.5; % 0.5m diameter
+land_x = arrayfun(@(r) r.timeseries.x(end), results);  % North
+land_y = arrayfun(@(r) r.timeseries.y(end), results);  % East
+on_pad = sqrt(land_x.^2 + land_y.^2) <= pad_radius;
+figure('Name','Landing Scatter','Position',[400 100 650 650]);
+hold on; grid on; axis equal;
+% Pad circle
+theta = linspace(0, 2*pi, 300);
+fill(pad_radius*cos(theta), pad_radius*sin(theta), ...
+    [0.85 0.85 0.85], 'EdgeColor','k', 'LineWidth', 2.0, 'FaceAlpha', 0.4);
+% Landing points — color by on/off pad
+h_off = scatter(land_x(~on_pad), land_y(~on_pad), 60, c_mean, 'filled', ...
+    'MarkerEdgeColor','k');
+h_on  = scatter(land_x(on_pad),  land_y(on_pad),  60, c_nom,  'filled', ...
+    'MarkerEdgeColor','k');
+% CEP circle (50th percentile radial error)
+radial = sqrt(land_x.^2 + land_y.^2);
+cep    = median(radial);
+%plot(cep*cos(theta), cep*sin(theta), '--', 'Color', [0.3 0.6 1.0], 'LineWidth', 1.5);
+% Mean landing point
+plot(mean(land_x), mean(land_y), '+k', 'MarkerSize', 14, 'LineWidth', 2.5);
+xlabel('North (m)','FontSize',12);
+ylabel('East (m)','FontSize',12);
+title(sprintf('Landing Scatter — %d MC Runs', n_ok),'FontSize',14);
+legend([h_on h_off], ...
+    {sprintf('On pad (%d)', sum(on_pad)), sprintf('Off pad (%d)', sum(~on_pad))}, ...
+    'Location','best','FontSize',10);
+% Pad and CEP annotations
+text(0, pad_radius*1.1, sprintf('Pad \\phi=%.1fm', pad_radius*2), ...
+    'HorizontalAlignment','center','FontSize',9,'Color',[0.4 0.4 0.4]);
+%text(cep*0.7, cep*0.7, sprintf('CEP=%.2fm', cep), ...
+    %'FontSize',9,'Color',[0.3 0.6 1.0]);
+fprintf('\nLanding accuracy: %d / %d on pad (%.1f%%)\n', ...
+    sum(on_pad), n_ok, 100*sum(on_pad)/n_ok);
+%fprintf('CEP (median radial error): %.3f m\n', cep);
+fprintf('Max radial error:          %.3f m\n', max(radial));
+
 
 end
