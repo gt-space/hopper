@@ -36,7 +36,7 @@ IN.avionics.boards.current = 0.5; % A
 %  PROPULSION
 IN.propulsion.oxidizer = 'Oxygen';
 IN.propulsion.fuel = 'Dodecane'; %AKA KEROSENE
-IN.propulsion.oxidizer_mass = 16; % kg -> internal
+IN.propulsion.oxidizer_mass = 15; % kg -> internal
 IN.propulsion.fuel_mass = 10; % kg -> internal
 IN.propulsion.ox_vol = 0.020; % m^3
 IN.propulsion.fu_vol = 0.0152; % m^3

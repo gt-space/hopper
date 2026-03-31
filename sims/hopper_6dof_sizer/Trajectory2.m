@@ -3,7 +3,7 @@ zf     = 52;     % m
 Tup    = 12;     % s
 Thover = 2;      % s
 Tdown  = 13;     % s
-Tterm  = 0;      % terminal descent extension
+Tterm  = 5;      % terminal descent extension
 dt     = 0.01;   % 100 Hz
 Tmin = 890;
 Tmax = 2400;
@@ -81,14 +81,26 @@ end
 zdot  = gradient(z,dt);
 zddot = gradient(zdot,dt);
 
-%% Required thrust
-T = m .* (zddot + g);
 
 %% Apply thrust limits
 % Tmin = 890;
 % Tmax = 2400;
 
 T_cmd = min(max(T_cmd,Tmin),Tmax);
+
+%% LOW PASS FILTER 
+tau = 0.2; % seconds (tune 0.1–0.5)
+
+T_filt = zeros(size(T_cmd));
+T_filt(1) = T_cmd(1);
+
+for k = 2:length(t)
+    alpha = dt / (tau + dt);
+    T_filt(k) = T_filt(k-1) + alpha*(T_cmd(k) - T_filt(k-1));
+end
+
+% Replace thrust command with filtered version
+T_cmd = T_filt;
 
 %% Create Signal Editor dataset
 T_ts = timeseries(T_cmd,t);
