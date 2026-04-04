@@ -28,6 +28,8 @@ r_leg_2 = [0 -IN.legs.feet_radial_dist  0];
 r_leg_3 = [0  0  IN.legs.feet_radial_dist];
 r_leg_4 = [0  0 -IN.legs.feet_radial_dist];
 
+VEH.k_engine = (IN.engine_cg/1.62)^2;
+
 % ---- Propulsion ----
 thrust_target = IN.propulsion.nominal_thrust;
 ox_name       = IN.propulsion.oxidizer;
@@ -97,24 +99,63 @@ it_h           = TANKS.singular.radius;
     ox_tank_h, fu_tank_h, tank_r, it_h, ...
     copv_mass, copv_r, copv_t, copv_h, copv_zcg, copv_ycg);
 
+
 % ---- MC scenario params (flat, for Simulink blocks) ----
-slosh_lateral_damping   = scenario.slosh_lateral_damping;
-slosh_axial_damping     = scenario.slosh_axial_damping;
-throttle_rate_limit     = scenario.throttle_rate_limit * 4.44822;
-throttle_latency        = scenario.throttle_latency;
-tvc_actuator_rate_limit = deg2rad(scenario.tvc_actuator_rate_limit);
-tvc_actuator_latency    = scenario.tvc_actuator_latency;
-engine_off_axis_y       = scenario.engine_off_axis_y;
-engine_off_axis_z       = scenario.engine_off_axis_z;
-uwind = scenario.uwind;
-vwind = scenario.vwind;
-mode = 1
-%azimuth                 = scenario.azimuth;
+slosh_lateral_damping   = IN.tanks.lateral_damping;
+slosh_axial_damping     = IN.tanks.axial_damping;
+throttle_rate_limit     = IN.throttle_valve.rate_limit;
+throttle_latency        = IN.throttle_valve_latency;
+tvc_actuator_rate_limit = IN.tvc.max_gimbal_rate;
+tvc_actuator_latency    = IN.tvc.actuator_latency;
+engine_off_axis_y       = IN.off_axis_y;
+engine_off_axis_z       = IN.off_axis_x;
+uwind                   = IN.wind.uwind;
+vwind                   = IN.wind.vwind;
+wind_mode               = IN.wind.mode;
+ox_mass                 = IN.propulsion.oxidizer_mass;
+fu_mass                 = IN.propulsion.fuel_mass;
 
-% ---- Push everything to base workspace (Simulink reads from here) ----
-vars = who();
-for k = 1:length(vars)
-    assignin('base', vars{k}, eval(vars{k}));
+% ---- Push to base workspace ----
+assignin('base', 'IN',                    IN);
+assignin('base', 'VEH',                   VEH);
+assignin('base', 'TANKS',                 TANKS);
+assignin('base', 'STRUCT',                STRUCT);
+assignin('base', 'OUT',                   OUT);
+assignin('base', 'ENGINE',                ENGINE);
+assignin('base', 'AVI',                   AVI);
+assignin('base', 'r_leg_1',               r_leg_1);
+assignin('base', 'r_leg_2',               r_leg_2);
+assignin('base', 'r_leg_3',               r_leg_3);
+assignin('base', 'r_leg_4',               r_leg_4);
+assignin('base', 'ox_mdot',               ox_mdot);
+assignin('base', 'fu_mdot',               fu_mdot);
+assignin('base', 'tot_mdot',              tot_mdot);
+assignin('base', 'Pc',                    Pc);
+assignin('base', 'thrust',                thrust);
+assignin('base', 'MR',                    MR);
+assignin('base', 'ox_valve_CdA',          ox_valve_CdA);
+assignin('base', 'fu_valve_CdA',          fu_valve_CdA);
+assignin('base', 'Isp',                   Isp);
+assignin('base', 'bp',                    bp);
+assignin('base', 'tbl1',                  tbl1);
+assignin('base', 'tbl2',                  tbl2);
+assignin('base', 'engine_cg',             engine_cg);
+assignin('base', 'cg_init',               cg_init);
+assignin('base', 'MoI_init',              MoI_init);
+assignin('base', 'ox_mass',               ox_mass);
+assignin('base', 'fu_mass',               fu_mass);
+assignin('base', 'tank_r',                tank_r);
+assignin('base', 'slosh_lateral_damping', slosh_lateral_damping);
+assignin('base', 'slosh_axial_damping',   slosh_axial_damping);
+assignin('base', 'throttle_rate_limit',   throttle_rate_limit);
+assignin('base', 'throttle_latency',      throttle_latency);
+assignin('base', 'tvc_actuator_rate_limit', tvc_actuator_rate_limit);
+assignin('base', 'tvc_actuator_latency',  tvc_actuator_latency);
+assignin('base', 'engine_off_axis_y',     engine_off_axis_y);
+assignin('base', 'engine_off_axis_z',     engine_off_axis_z);
+assignin('base', 'uwind',                 uwind);
+assignin('base', 'vwind',                 vwind);
+assignin('base', 'wind_mode',             wind_mode);
+
 end
 
-end

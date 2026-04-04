@@ -1,0 +1,78 @@
+{
+    "version": 1.1,
+    "settings": {
+        "duration": "300",
+        "dt": "0.1"
+    },
+    "nodes": [
+        {
+            "id": 0,
+            "type": "Node",
+            "x": -479.0,
+            "y": -544.0,
+            "params": {
+                "fluid": "Oxygen",
+                "m": 0.1,
+                "V": 20.0,
+                "T": 293.15,
+                "name": "vehicle tank",
+                "type": "m"
+            }
+        },
+        {
+            "id": 1,
+            "type": "Ambient",
+            "x": -175.0,
+            "y": -555.0,
+            "params": {
+                "fluid": "Air",
+                "P": 101325.0,
+                "T": 293.15,
+                "name": "ambient"
+            }
+        },
+        {
+            "id": 2,
+            "type": "Node",
+            "x": -820.0,
+            "y": -547.0,
+            "params": {
+                "fluid": "Oxygen",
+                "m": 160.0,
+                "V": 165.0,
+                "T": 110.0,
+                "name": "dewar",
+                "type": "m"
+            }
+        }
+    ],
+    "connections": [
+        {
+            "type": "Connection",
+            "start_id": 0,
+            "end_id": 1,
+            "params": {
+                "CdA": 1e-05,
+                "qdot": 0.0,
+                "location": 1.0,
+                "normal_state": 1,
+                "checking": 1,
+                "name": "pipe"
+            }
+        },
+        {
+            "type": "Connection",
+            "start_id": 2,
+            "end_id": 0,
+            "params": {
+                "CdA": 1e-05,
+                "qdot": 100.0,
+                "location": 0.0,
+                "normal_state": 1,
+                "checking": 1,
+                "name": "pipe"
+            }
+        }
+    ],
+    "actions": []
+}

@@ -9,31 +9,42 @@ addpath('./inputs')
 addpath('./propulsion')
 addpath('./dynamics')
 
-load_system('hopper_6dof_NED');
+load_system('hopper_6dof_NED_v2');
+set_param('hopper_6dof_NED_v2', 'SolverType', 'Fixed-step')
+set_param('hopper_6dof_NED_v2', 'FixedStep', '0.0005')
 
 scenarios    = generateScenarios(params_file, n_scenarios);
+n_scenarios  = length(scenarios);
 results_cell = cell(n_scenarios, 1);
 t_start      = tic;
 
 fprintf('Starting Monte Carlo: %d scenarios\n', n_scenarios);
 
-for i = 1:n_scenarios
-    fprintf('Running scenario %d / %d\n', i, n_scenarios);
+fprintf('Running nominal scenario...\n');
+nominal = runNominal(params_file);
+
+
+for mc_iter = 1:n_scenarios
+    fprintf('Running scenario %d / %d\n', mc_iter, n_scenarios);
     try
-        
-        mc_sim_setup(scenarios(i));
-        sim_out = sim('hopper_6dof_NED');
-        r = mc_main(scenarios(i), sim_out);
+        mc_sim_setup(scenarios(mc_iter));
+        IN        = evalin('base', 'IN');
+        VEH       = evalin('base', 'VEH');
+        TANKS     = evalin('base', 'TANKS');
+        STRUCT    = evalin('base', 'STRUCT');
+        cg_init   = evalin('base', 'cg_init');
+        engine_cg = evalin('base', 'engine_cg');
+        OUT       = Outputs(IN, VEH, TANKS, STRUCT);
+        LinerizationMaster();
+        mc_sim_setup(scenarios(mc_iter));
+        sim_out = sim('hopper_6dof_NED_v2');
+        r = mc_main(scenarios(mc_iter), sim_out);
         r = check_constraints(r);
     catch err
-        r = make_empty_result(scenarios(i), err.message);
-        % r                 = struct();
-        % r.scenario        = scenarios(i);
-        % r.status.success  = false;
-        % r.status.error    = err.message;
-        % r.status.pass     = false;
+        fprintf('Run %d error: %s\n', mc_iter, err.message);
+        r = make_empty_result(scenarios(mc_iter), err.message);
     end
-    results_cell{i} = r;
+    results_cell{mc_iter} = r;
 end
 
 results = [results_cell{:}];
@@ -68,7 +79,7 @@ fprintf('Fail:      %d (%.1f%%)\n', n_fail,  100*n_fail/n_scenarios);
 fprintf('Errors:    %d (%.1f%%)\n', n_error, 100*n_error/n_scenarios);
 fprintf('%s\n', repmat('=', 1, 52));
 
-save(output_file, 'results', 'scenarios');
+save(output_file, 'results', 'scenarios', 'nominal');  % line ~65
 fprintf('Results saved to %s\n', output_file);
 
 end
@@ -149,4 +160,35 @@ if f.landing_vel        > 0.5; passes = false; end
 
 result.status.pass = passes;
 
+
+
+end
+
+function nominal = runNominal(params_file)
+    fid  = fopen(params_file);
+    raw  = fread(fid, inf, 'uint8=>char')';
+    fclose(fid);
+    params = jsondecode(raw);
+    fields = fieldnames(params);
+    
+    % Build nominal scenario from JSON nominal values
+    scenario = struct();
+    for k = 1:length(fields)
+        scenario.(fields{k}) = params.(fields{k}).nominal;
+    end
+    
+    mc_sim_setup(scenario);
+    IN        = evalin('base', 'IN');
+    VEH       = evalin('base', 'VEH');
+    TANKS     = evalin('base', 'TANKS');
+    STRUCT    = evalin('base', 'STRUCT');
+    cg_init   = evalin('base', 'cg_init');
+    engine_cg = evalin('base', 'engine_cg');
+    OUT       = Outputs(IN, VEH, TANKS, STRUCT);
+    saved_scenario = scenario;
+    LinerizationMaster();
+    scenario  = saved_scenario;
+    mc_sim_setup(scenario);
+    sim_out   = sim('hopper_6dof_NED_v2');
+    nominal   = mc_main(scenario, sim_out);
 end

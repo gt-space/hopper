@@ -1,0 +1,224 @@
+{
+    "version": 1.1,
+    "settings": {
+        "duration": "25",
+        "dt": "0.1"
+    },
+    "nodes": [
+        {
+            "id": 0,
+            "type": "Ambient",
+            "x": -527.0,
+            "y": -979.0,
+            "params": {
+                "fluid": "Air",
+                "P": 36477000.0,
+                "T": 293.15,
+                "name": "engine"
+            }
+        },
+        {
+            "id": 1,
+            "type": "Tank",
+            "x": -815.0,
+            "y": -797.0,
+            "params": {
+                "V_total_L": 16.0,
+                "fluid_liq": "n-Dodecane",
+                "m_liq": 9.7,
+                "T_liq": 293.15,
+                "fluid_ullage": "Nitrogen",
+                "P_ullage": 50662500.0,
+                "T_ullage": 293.15,
+                "radius": 0.2,
+                "htc": 0.0,
+                "name": "FuTank"
+            }
+        },
+        {
+            "id": 2,
+            "type": "Tank",
+            "x": -832.0,
+            "y": -1166.0,
+            "params": {
+                "V_total_L": 20.0,
+                "fluid_liq": "Oxygen",
+                "m_liq": 19.43,
+                "T_liq": 90.0,
+                "fluid_ullage": "Nitrogen",
+                "P_ullage": 50662500.0,
+                "T_ullage": 150.0,
+                "radius": 0.2,
+                "htc": 500.0,
+                "name": "OxTank"
+            }
+        },
+        {
+            "id": 3,
+            "type": "Node",
+            "x": -1239.0,
+            "y": -967.0,
+            "params": {
+                "fluid": "Nitrogen",
+                "m": 4.8,
+                "V": 15.47,
+                "T": 293.15,
+                "name": "copv",
+                "type": "m"
+            }
+        }
+    ],
+    "connections": [
+        {
+            "type": "Series",
+            "start_id": 0,
+            "end_id": 2,
+            "params": {
+                "connections": [
+                    {
+                        "type": "Line",
+                        "params": {
+                            "ID": 0.009,
+                            "length": 1.0,
+                            "roughness": 2e-05,
+                            "qdot": 0.0,
+                            "location": 0.0,
+                            "normal_state": 1,
+                            "checking": 1,
+                            "name": "line"
+                        }
+                    },
+                    {
+                        "type": "ThrottleValve",
+                        "params": {
+                            "CdA_max": 2e-05,
+                            "target_mdot": 0.1,
+                            "qdot": 0.0,
+                            "location": 0.0,
+                            "normal_state": 0.5,
+                            "checking": 1,
+                            "step": 0.02,
+                            "name": "otv"
+                        }
+                    }
+                ],
+                "name": "otv"
+            }
+        },
+        {
+            "type": "Series",
+            "start_id": 0,
+            "end_id": 1,
+            "params": {
+                "connections": [
+                    {
+                        "type": "Line",
+                        "params": {
+                            "ID": 0.009,
+                            "length": 0.1,
+                            "roughness": 2e-05,
+                            "qdot": 0.0,
+                            "location": 0.0,
+                            "normal_state": 1,
+                            "checking": 1,
+                            "name": "line"
+                        }
+                    },
+                    {
+                        "type": "ThrottleValve",
+                        "params": {
+                            "CdA_max": 1.2e-05,
+                            "target_mdot": 0.1,
+                            "qdot": 0.0,
+                            "location": 0.0,
+                            "normal_state": 0.5,
+                            "checking": 1,
+                            "step": 0.02,
+                            "name": "ftv"
+                        }
+                    }
+                ],
+                "name": "ftv"
+            }
+        },
+        {
+            "type": "Series",
+            "start_id": 1,
+            "end_id": 3,
+            "params": {
+                "connections": [
+                    {
+                        "type": "Line",
+                        "params": {
+                            "ID": 0.00492,
+                            "length": 1.0,
+                            "roughness": 1.5e-06,
+                            "qdot": 0.0,
+                            "location": 1.0,
+                            "normal_state": 1,
+                            "checking": 1,
+                            "name": "line"
+                        }
+                    },
+                    {
+                        "type": "BangBang",
+                        "params": {
+                            "CdA": 1.02e-06,
+                            "target_pressure": 50662500.0,
+                            "hysteresis": 5000.0,
+                            "qdot": 0.0,
+                            "location": 1.0,
+                            "normal_state": 1,
+                            "checking": 1,
+                            "name": "fbb"
+                        }
+                    }
+                ],
+                "name": "fbb"
+            }
+        },
+        {
+            "type": "Series",
+            "start_id": 2,
+            "end_id": 3,
+            "params": {
+                "connections": [
+                    {
+                        "type": "Line",
+                        "params": {
+                            "ID": 0.00492,
+                            "length": 1.0,
+                            "roughness": 1.5e-06,
+                            "qdot": 0.0,
+                            "location": 1.0,
+                            "normal_state": 1,
+                            "checking": 1,
+                            "name": "line"
+                        }
+                    },
+                    {
+                        "type": "BangBang",
+                        "params": {
+                            "CdA": 1.02e-06,
+                            "target_pressure": 50662500.0,
+                            "hysteresis": 5000.0,
+                            "qdot": 0.0,
+                            "location": 1.0,
+                            "normal_state": 1,
+                            "checking": 1,
+                            "name": "obb"
+                        }
+                    }
+                ],
+                "name": "obb"
+            }
+        }
+    ],
+    "actions": [
+        {
+            "time": "1.0",
+            "component": "series",
+            "state": "0"
+        }
+    ]
+}

@@ -132,7 +132,7 @@ class Node():
             P = PropsSI_auto('P', 'D', d, 'E', u, self.fluid)
             s = PropsSI_auto('S', 'D', d, 'E', u, self.fluid)
             h = PropsSI_auto('H', 'D', d, 'E', u, self.fluid)
-            phase = CP.PhaseSI('D', d, 'H', h, self.fluid) # use only CoolProp here, REFPROP phase lookup behaves weirdly
+            self.phase = CP.PhaseSI('D', d, 'H', h, self.fluid) # use only CoolProp here, REFPROP phase lookup behaves weirdly
         except Exception as e:
             # Fallback for extreme states or errors
             # Attempt to recover using P-H or T-Q if possible, otherwise raise
@@ -145,7 +145,7 @@ class Node():
         self.s = s
         self.h = h
 
-        if phase == "twophase":
+        if self.phase == "twophase":
             Q = PropsSI_auto('Q', 'D', d, 'E', u, self.fluid)  # 0-1
             # saturated liquid and vapor properties at P
             h_l = PropsSI_auto('H', 'P', P, 'Q', 0, self.fluid)
@@ -169,13 +169,13 @@ class Node():
         else:
             # single phase (liquid or gas)
             self.Q = None
-            self.m_v = self.m if phase in ("gas", "supercritical", "supercritical_gas") else 0.0
+            self.m_v = self.m if self.phase in ("gas", "supercritical", "supercritical_gas") else 0.0
             self.m_l = self.m - self.m_v
 
             # set phase-specific properties equal to bulk
             self.h_l = self.h_v = self.h
             self.d_l = self.d_v = self.d
-            self.fill_level = 1.0 if phase in ("liquid", "supercritical_liquid") else 0.0
+            self.fill_level = 1.0 if self.phase in ("liquid", "supercritical_liquid") else 0.0
 
         # safe Cp/Cv/gamma/R in single-phase gas
         try:
@@ -247,139 +247,113 @@ class Manifold(Node):
 
 class Engine:
     """
-    Engine combustion chamber + nozzle model.
-
-    Computes:
-        - MR
-        - mdot
-        - C* (ideal + actual)
-        - T0
-        - gamma
-        - MW
-        - Exit Mach
-        - Exit Pressure
-        - Exit Temperature
-        - Exit Velocity
-        - Thrust
+    Dynamic Engine Node-ish model.
+    Calculates Pc quasi-steadily based on incoming mdot from specified ox and fuel connections.
+    Outputs performance parameters like Thrust and Isp dynamically using RocketCEA.
     """
-
-    def __init__(self,
-                 fuel,
-                 oxidizer,
-                 mdot_ox,
-                 mdot_fuel,
-                 Pc,            # Pa
-                 eta_cstar,
-                 At,            # m^2
-                 Ae,            # m^2
-                 Pa,            # Pa
-                 name="engine"):
-
-        # -------------------------
-        # Basic Inputs
-        # -------------------------
+    def __init__(self, fuel, oxidizer, ox_conn, fuel_conn, At, Ae, Pa, eta_cstar=0.92, eta_cf=0.98, name="engine"):
+        self.name = name
         self.fuel = fuel
         self.oxidizer = oxidizer
-        self.mdot_ox = float(mdot_ox)
-        self.mdot_fuel = float(mdot_fuel)
-        self.P = float(Pc)
-        self.eta_cstar = float(eta_cstar)
-        self.At = float(At)
-        self.Ae = float(Ae)
-        self.Pa = float(Pa)
-        self.name = name
+        self.ox_conn = ox_conn
+        self.fuel_conn = fuel_conn
+        self.eta_cstar = eta_cstar # Can be float or callable: f(Pc_psia)
+        self.eta_cf = eta_cf       # Can be float or callable: f(Pc_psia)
+        self.At = At
+        self.Ae = Ae
+        self.Pa = Pa
+        
+        self.cea = CEA_Obj(oxName=self.oxidizer, fuelName=self.fuel)
+        
+        # State variables for network compatibility
+        self.P = Pa 
+        self.T = 293.15
+        self.m = 0.0
+        self.V = 0.001
+        self.d = 1.2
+        self.Q = None
+        self.fill_level = 0.0
+        self.fluid = "CombustionGas"
+        
+        # Engine performance states
+        self.mdot_ox = 0.0
+        self.mdot_fu = 0.0
+        self.MR = 0.0
+        self.cstar = 0.0
+        self.thrust = 0.0
+        self.Isp = 0.0
+        
+        # Expanded history dict
+        self.history = {k: [] for k in [
+            "time", "P", "T", "m", "d", "Q", "fill_level", 
+            "mdot_ox", "mdot_fu", "MR", "cstar", "thrust", "Isp"
+        ]}
 
-        # -------------------------
-        # Combustion Properties
-        # -------------------------
-        self.mdot = self.mdot_ox + self.mdot_fuel
-        self.MR = self.mdot_ox / self.mdot_fuel
+    def update(self, mdot_net, Hdot_net, dt):
+        self.mdot_ox = abs(self.ox_conn.mdot)
+        self.mdot_fu = abs(self.fuel_conn.mdot)
+        mdot_total = self.mdot_ox + self.mdot_fu
+        
+        if mdot_total < 0.01:
+            self.P, self.T, self.MR, self.thrust, self.Isp, self.cstar = self.Pa, 293.15, 0.0, 0.0, 0.0, 0.0
+            return
+            
+        self.P = self.P
+        
+        if self.mdot_fu < 1e-4: self.MR = 99.0 
+        elif self.mdot_ox < 1e-4: self.MR = 0.01
+        else: self.MR = self.mdot_ox / self.mdot_fu
+        
+        MR_cea = max(0.5, min(self.MR, 10.0))
+        Pc_psia = max(self.P / 6894.75729, 14.7)
+        
+        # Evaluate dynamic efficiencies
+        curr_eta_cstar = self.eta_cstar(Pc_psia) if callable(self.eta_cstar) else self.eta_cstar
+        curr_eta_cf = self.eta_cf(Pc_psia) if callable(self.eta_cf) else self.eta_cf
+        
+        try:
+            cstar_ft = self.cea.get_Cstar(Pc=Pc_psia, MR=MR_cea)
+            cstar_ideal = cstar_ft * 0.3048 
+            self.T = self.cea.get_Tcomb(Pc=Pc_psia, MR=MR_cea) * (5.0 / 9.0)
+        except Exception:
+            cstar_ideal, self.T = 1000.0, 1000.0
 
-        Pc_psi = self.P / 6894.75729
+        self.cstar = cstar_ideal * curr_eta_cstar
+        Pc_target = (mdot_total * self.cstar) / self.At
+        
+        relaxation = 0.3 
+        self.P = max((self.P * (1.0 - relaxation)) + (Pc_target * relaxation), self.Pa)
 
-        self.cea = CEA_Obj(oxName=self.oxidizer,
-                           fuelName=self.fuel)
+        if self.P > (self.Pa * 1.5):
+            eps = self.Ae / self.At
+            Pc_psia = self.P / 6894.75729
+            try:
+                isp_amb = self.cea.estimate_Ambient_Isp(Pc=Pc_psia, MR=MR_cea, eps=eps, Pamb=(self.Pa/6894.75729))[0]
+                # Total Isp efficiency is roughly eta_cstar * eta_cf
+                self.Isp = isp_amb * curr_eta_cstar * curr_eta_cf 
+                self.thrust = self.Isp * 9.81 * mdot_total
+            except Exception:
+                self.thrust, self.Isp = 0.0, 0.0
+        else:
+            self.thrust, self.Isp = 0.0, 0.0
 
-        # C*
-        Cstar_ft = self.cea.get_Cstar(Pc=Pc_psi, MR=self.MR)
-        self.Cstar_ideal = Cstar_ft * 0.3048
-        self.Cstar = self.eta_cstar * self.Cstar_ideal
+        self.P = self.P
 
-        # Chamber temperature
-        T0_R = self.cea.get_Tcomb(Pc=Pc_psi, MR=self.MR)
-        self.T = T0_R * 5.0 / 9.0
-
-        # Gamma and MW
-        mw, gamma = self.cea.get_Chamber_MolWt_gamma(Pc=Pc_psi, MR=self.MR)
-        self.MW = mw
-        self.gamma = gamma
-
-        # -------------------------
-        # Nozzle Performance
-        # -------------------------
-        self._compute_nozzle()
-
-    # ==========================================================
-    # NOZZLE MODEL
-    # ==========================================================
-    def _compute_nozzle(self):
-
-        gamma = self.gamma
-        Pc = self.P
-        T0 = self.T
-        mdot = self.mdot
-        At = self.At
-        Ae = self.Ae
-        Pa = self.Pa
-
-        Ru = 8314.0
-        R = Ru / self.MW
-
-        epsilon = Ae / At
-
-        # Area–Mach equation
-        def area_mach(M):
-            return (
-                (1/M)
-                * ((2/(gamma+1)
-                   * (1 + (gamma-1)/2 * M**2))
-                   ** ((gamma+1)/(2*(gamma-1))))
-                - epsilon
-            )
-
-        # Solve for supersonic exit Mach
-        self.Me = fsolve(area_mach, 2.5)[0]
-
-        # Exit pressure
-        self.Pe = Pc * (1 + (gamma-1)/2 * self.Me**2) ** (-gamma/(gamma-1))
-
-        # Exit temperature
-        self.Te = T0 / (1 + (gamma-1)/2 * self.Me**2)
-
-        # Exit velocity
-        self.ve = self.Me * np.sqrt(gamma * R * self.Te)
-
-        # Thrust
-        self.thrust = mdot * self.ve + (self.Pe - Pa) * Ae
-
-    # ==========================================================
-    # SUMMARY
-    # ==========================================================
-    def get_summary_text(self):
-        return (
-            f"Fuel: {self.fuel}\n"
-            f"Oxidizer: {self.oxidizer}\n"
-            f"Pc: {self.P/1e6:.3f} MPa\n"
-            f"MR: {self.MR:.4f}\n"
-            f"Total mdot: {self.mdot:.4f} kg/s\n"
-            f"C* ideal: {self.Cstar_ideal:.2f} m/s\n"
-            f"C* actual: {self.Cstar:.2f} m/s\n"
-            f"T0: {self.T:.2f} K\n"
-            f"Exit Mach: {self.Me:.3f}\n"
-            f"Exit Pressure: {self.Pe:.0f} Pa\n"
-            f"Exit Velocity: {self.ve:.2f} m/s\n"
-            f"Thrust: {self.thrust:.2f} N"
-        )
+    def log_state(self, t=0.0):
+        self.history["time"].append(t)
+        self.history["P"].append(self.P)
+        self.history["T"].append(self.T)
+        self.history["m"].append(self.m) # Dummy for plotter
+        self.history["d"].append(self.d) # Dummy for plotter
+        self.history["Q"].append(self.Q) # Dummy for plotter
+        self.history["fill_level"].append(self.fill_level) # Dummy for plotter
+        
+        self.history["mdot_ox"].append(self.mdot_ox)
+        self.history["mdot_fu"].append(self.mdot_fu)
+        self.history["MR"].append(self.MR)
+        self.history["cstar"].append(self.cstar)
+        self.history["thrust"].append(self.thrust)
+        self.history["Isp"].append(self.Isp)
 
 
 class Tank(Node):
@@ -574,6 +548,7 @@ class Tank(Node):
             # If PropsSI fails (e.g. out of bounds), return large error
             return 1.0
         
+
 # ==============================================================================
 # CONNECTION CLASS AND SUBCLASSES
 # ==============================================================================
@@ -582,11 +557,9 @@ TODO:
 REDEFINE CONNECTION CLASSES TO MODEL INERTANCE
 ADD INLET AND OUTLET LOCATIONS FOR CONNECTION (IDK IF THIS ACTUALLY MATTERS)
 REDEFINE QDOT IN WITH HEATTRANSFER OBJECT
-REDEFINE THROTTLE CONTROL
 REDEFINE ALL CONTROL USING CONTROL OBJECT/SUBCLASSES
-REWRITE CLASSES TO NOT OVERRIDE MDOT HDOT FUNCTION? SHOULD BE CLEAN LIKE 
-CREATE LINE AND SERIES CLASSES
 """
+
 class Connection():
     """
     Connection class. Defined by CdA (m^2), qdot (J/s), location on node (0-1), and state (open, closed).
@@ -705,7 +678,7 @@ class Connection():
             try:
                 h1 = h_stream
                 h2 = PropsSI_auto('H', 'P', receiver.P, 'S', source_node.s, source_node.fluid)
-                rho2p = 1.0 / PropsSI_auto('D', 'P', receiver.P, 'Q', 0.5, source_node.fluid)
+                rho2p = PropsSI_auto('D', 'P', receiver.P, 'S', source_node.s, source_node.fluid)
                 mdot_hem = self.CdA * rho2p * np.sqrt(2.0 * max(h1 - h2, 1e-9))
             except Exception:
                 mdot_hem = mdot_spi
@@ -734,6 +707,7 @@ class Connection():
             mdot = mdot_mag
         else:
             mdot = -mdot_mag
+            Hdot = - Hdot
 
         Hdot += self.qdot  # add any heat leak term
         self.mdot, self.Hdot = mdot, Hdot
@@ -754,31 +728,262 @@ class Connection():
 
 
 class Line(Connection):
-    def __init__(self, ID, length, roughness):
-        self.ID = ID # m
-        self.length = length #m 
-        self.voulume = length * ID * np.pi/4
+    """
+    Line class (subclass of Connection). Defined by physical pipe geometry.
+    Dynamically updates CdA based on Darcy-Weisbach (liquids) or True Fanno Flow (gases).
+    """
+    def __init__(self, ID, length, roughness, qdot=0.0, location=0.0, normal_state=True, checking=True, name="line"):
+        self.ID = ID
+        self.length = length
         self.roughness = roughness
-        # aelf.friction_factor = solve for friction factor choose darcy or fanno
-        # CdA = solve for cda based on friction
-        super.__init__()
+        self.Area = np.pi * (self.ID**2) / 4.0
+        
+        if self.roughness > 0:
+            f_init = (-2.0 * np.log10(self.roughness / (3.7 * self.ID)))**-2
+        else:
+            f_init = 0.015 
+            
+        initial_CdA = self.Area / np.sqrt(f_init * self.length / self.ID)
+        
+        super().__init__(initial_CdA, qdot, location, normal_state, checking, name)
 
+    def mdot_Hdot(self, node1, node2):
+        if not self.state:
+            return 0.0, 0.0
+
+        dP = node1.P - node2.P
+        if self.checking and dP < 0:
+            return 0.0, 0.0
+        if abs(dP) < 1e-12:
+            return 0.0, 0.0
+
+        donor = node1 if dP > 0 else node2
+        receiver = node2 if dP > 0 else node1
+        
+        if hasattr(donor, 'ullage') and self.location > donor.fill_level:
+            source_node = donor.ullage
+        else:
+            source_node = donor
+            
+        if source_node.fill_level > self.location:
+            h_stream = source_node.h_l if hasattr(source_node, 'h_l') else source_node.h
+            d_stream = source_node.d_l if hasattr(source_node, 'd_l') else source_node.d
+        else:
+            h_stream = source_node.h_v if hasattr(source_node, 'h_v') else source_node.h
+            d_stream = source_node.d_v if hasattr(source_node, 'd_v') else source_node.d
+
+        try:
+            mu = PropsSI_auto('V', 'D', d_stream, 'H', h_stream, source_node.fluid)
+        except Exception:
+            mu = 1e-4 
+
+        if abs(self.mdot) < 1e-12:
+            V_guess = np.sqrt(2.0 * abs(dP) / max(d_stream, 1e-6))
+            mdot_guess = d_stream * self.Area * V_guess
+        else:
+            mdot_guess = abs(self.mdot)
+
+        Re = (4.0 * mdot_guess) / (np.pi * self.ID * mu)
+
+
+        # Smooth Transitional Blending to prevent Numerical Chatter
+        if Re < 2000:
+            f = 64.0 / max(Re, 1e-6)
+        elif Re > 3000:
+            f = (-1.8 * np.log10((self.roughness / (3.7 * self.ID))**1.11 + 6.9 / Re))**-2
+        else:
+            # Cosine interpolation between Laminar and Turbulent
+            f_lam = 64.0 / 2000.0
+            f_turb = (-1.8 * np.log10((self.roughness / (3.7 * self.ID))**1.11 + 6.9 / 3000.0))**-2
+            weight = (1.0 - np.cos(np.pi * (Re - 2000.0) / 1000.0)) / 2.0
+            f = f_lam * (1.0 - weight) + f_turb * weight
+
+        donor_phase = CP.PhaseSI('D', d_stream, 'H', h_stream, source_node.fluid)
+        
+        # --- TRUE FANNO FLOW LOGIC ---
+        if donor_phase in ("gas", "supercritical", "supercritical_gas"):
+            gamma = source_node.gamma
+            R = source_node.R
+            fLD = f * self.length / self.ID
+            
+            # 1. Fanno Parameter Function F(M)
+            def F_param(M):
+                if M <= 1e-5: return 1e9
+                if M >= 1.0: return 0.0
+                term1 = (1.0 - M**2) / (gamma * M**2)
+                term2 = ((gamma + 1.0) / (2.0 * gamma)) * np.log(((gamma + 1.0) * M**2) / (2.0 + (gamma - 1.0) * M**2))
+                return term1 + term2
+                
+            # 2. Find Choked Inlet Mach Number (M1) using Bisection
+            low, high = 1e-5, 1.0
+            for _ in range(25): # 25 iterations is highly accurate and ultra-fast
+                mid = (low + high) / 2.0
+                if F_param(mid) > fLD:
+                    low = mid
+                else:
+                    high = mid
+            M1_choked = (low + high) / 2.0
+            
+            # 3. Calculate Static Inlet Properties (Assuming Node P, T are Stagnation)
+            T1_static = source_node.T / (1.0 + 0.5 * (gamma - 1.0) * M1_choked**2)
+            P1_static = source_node.P / (1.0 + 0.5 * (gamma - 1.0) * M1_choked**2)**(gamma / (gamma - 1.0))
+            
+            # 4. Calculate Exit Pressure if Choked (M2 = 1)
+            P2_choked = P1_static * M1_choked * np.sqrt((2.0 + (gamma - 1.0) * M1_choked**2) / (gamma + 1.0))
+            
+            # 5. Determine Choked vs Unchoked and Assign CdA
+            if receiver.P <= P2_choked:
+                # CHOKED: Calculate true Fanno mass flow
+                V1 = M1_choked * np.sqrt(gamma * R * T1_static)
+                rho1 = P1_static / (R * T1_static)
+                mdot_fanno = rho1 * self.Area * V1
+                
+                # Back-calculate CdA to force the base class to yield mdot_fanno
+                crit_factor = ((gamma + 1.0) / 2.0) ** (-(gamma + 1.0) / (2.0 * (gamma - 1.0)))
+                base_mdot_1CdA = (source_node.P / np.sqrt(max(source_node.T, 1e-8))) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor
+                self.CdA = mdot_fanno / base_mdot_1CdA
+            else:
+                # UNCHOKED: Use the compressible equivalent Area mapped from fLD
+                # (Iterative unchoked Fanno solving creates instability in transient networks, 
+                # this equivalent resistance method is standard for 1D unchoked solvers)
+                self.CdA = self.Area / np.sqrt(1.0 + fLD)
+                
+        # --- INCOMPRESSIBLE / TWO-PHASE LOGIC ---
+        else:
+            self.CdA = self.Area / np.sqrt(f * self.length / self.ID)
+
+        # Delegate the actual mass/enthalpy flow calculation to the parent class
+        return super().mdot_Hdot(node1, node2)
+    
 
 class Series(Connection):
     """
     Class to combine all the connections in series between nodes.
-    Takes in an ordered connection list.
+    Features an active flow solver for components in "mdot" mode.
     """
-    def __init__(self, connections, checking=True, name='series'):
+    def __init__(self, connections, name='series'):
         self.connections = connections
-        total_CdA = np.array([1/i.CdA for i in connections])
-        normal_state = True
-        for i in connections:
-            if i.normal_state == False:
-                normal_state = False
-                break
-        super().__init__(total_CdA, 0, connections[0].location, normal_state, checking, name)
+        normal_state = all(c.state for c in self.connections)
+        series_checking = any(getattr(c, 'checking', False) for c in self.connections)
+        super().__init__(0.0, 0.0, connections[0].location, normal_state, series_checking, name)
+        
+        # Trigger an initial calculation of CdA
+        self._recalc_cda()
 
+    def _recalc_cda(self):
+        sum_inverse_squares = 0.0
+        for c in self.connections:
+            eff_state = getattr(c, 'state', True)
+            eff_CdA = c.CdA if eff_state else 0.0
+            if eff_CdA > 0:
+                sum_inverse_squares += 1.0 / (eff_CdA**2)
+            else:
+                sum_inverse_squares = float('inf')
+                break
+                
+        if sum_inverse_squares == float('inf') or sum_inverse_squares == 0:
+            self.CdA = 0.0
+        else:
+            self.CdA = 1.0 / np.sqrt(sum_inverse_squares)
+
+    def mdot_Hdot(self, node1, node2):
+        total_dP = abs(node1.P - node2.P)
+        
+        if getattr(self, 'state', True) == False:
+            self.CdA, self.mdot, self.Hdot = 0.0, 0.0, 0.0
+            for c in self.connections:
+                c.mdot, c.Hdot = 0.0, 0.0
+                c.dP = total_dP if getattr(c, 'state', True) == False else 0.0
+            return 0.0, 0.0
+
+        # 1. Update passive components and identify Active Controllers
+        mfc_components = []
+        for c in self.connections:
+            if getattr(c, 'mode', '') == 'mdot':
+                c.state = max(0.0, min(1.0, float(c.state)))
+                c.target_mdot = c.CdA_max * c.state
+                mfc_components.append(c)
+            else:
+                c.mdot_Hdot(node1, node2) # Lines update f, Re here
+
+        # 2. Active Flow Solver
+        if mfc_components:
+            mfc = mfc_components[0] # Assuming one active valve per series
+            if mfc.target_mdot == 0.0:
+                mfc.CdA = 0.0
+            else:
+                # Calculate resistance of all OTHER components
+                sum_inv_sq_other = 0.0
+                for c in self.connections:
+                    if c is not mfc:
+                        eff_state = getattr(c, 'state', True)
+                        eff_CdA = c.CdA if eff_state else 0.0
+                        if eff_CdA > 0:
+                            sum_inv_sq_other += 1.0 / (eff_CdA**2)
+                        else:
+                            sum_inv_sq_other = float('inf')
+                            break
+                
+                if sum_inv_sq_other == float('inf'):
+                    mfc.CdA = 0.0
+                else:
+                    # Find required CdA for the WHOLE series
+                    temp_CdA = self.CdA
+                    self.CdA = 1.0
+                    flux_mdot, _ = super().mdot_Hdot(node1, node2)
+                    self.CdA = temp_CdA # restore
+                    
+                    if flux_mdot == 0:
+                        mfc.CdA = 0.0
+                    else:
+                        cda_req_series = mfc.target_mdot / abs(flux_mdot)
+                        inv_sq_req = 1.0 / (cda_req_series**2)
+                        
+                        # Apply Inverse Square Resistance Law
+                        inv_sq_valve = inv_sq_req - sum_inv_sq_other
+                        
+                        if inv_sq_valve <= 0:
+                            # Other components are too restrictive. Fully open valve.
+                            mfc.CdA = mfc.CdA_max
+                        else:
+                            mfc.CdA = 1.0 / np.sqrt(inv_sq_valve)
+                            if mfc.CdA > mfc.CdA_max:
+                                mfc.CdA = mfc.CdA_max
+
+        # 3. Calculate final equivalent CdA dynamically
+        self._recalc_cda()
+        
+        if self.CdA == 0.0:
+            self.mdot, self.Hdot = 0.0, 0.0
+            for c in self.connections:
+                c.mdot, c.Hdot = 0.0, 0.0
+                eff_state = getattr(c, 'state', True)
+                c.dP = total_dP if (c.CdA == 0 or not eff_state) else 0.0
+            return 0.0, 0.0
+
+        # 4. Total Flow
+        mdot, Hdot = super().mdot_Hdot(node1, node2)
+
+        # 5. Propagate back down
+        for c in self.connections:
+            c.mdot = mdot
+            c.Hdot = Hdot
+            eff_state = getattr(c, 'state', True)
+            eff_CdA = c.CdA if eff_state else 0.0
+            
+            if self.CdA > 0 and eff_CdA > 0:
+                c.dP = total_dP * ((self.CdA / eff_CdA)**2)
+            elif eff_CdA == 0.0:
+                c.dP = total_dP
+            else:
+                c.dP = 0.0
+
+        return mdot, Hdot
+
+    def log_state(self, t=0.0):
+        super().log_state(t)
+        for c in self.connections:
+            c.log_state(t)
 
 class Regulator(Connection):
     def __init__(self, CdA, set_pressure, droop_curve=None, qdot=0.0, location=0.0, normal_state=True):
@@ -906,114 +1111,52 @@ class SharpEdgedOrifice(Connection):
 
 class ThrottleValve(Connection):
     """
-    Subclass of Connection to represent a throttle valve.
+    Proportional throttle valve.
+    mode="cda":  'state' (0-1) linearly scales the flow area up to CdA_max (m^2).
+    mode="mdot": 'state' (0-1) linearly scales the mass flow up to CdA_max (which acts as Max Target mdot in kg/s).
     """
-    def __init__(self, CdA_max, qdot=0, location=0, normal_state=0, checking=True, target_mdot=0, step=0.02, name="throttle_valve"):
-        super().__init__(CdA_max*target_mdot*normal_state, qdot, location, normal_state, checking, name)
-        self.name = name
-        self.target_mdot = target_mdot # target mdot for throttle valve [kg/s]
+    def __init__(self, CdA_max, qdot=0.0, location=0.0, normal_state=0.0, checking=True, mode="cda", name="throttle_valve"):
         self.CdA_max = CdA_max
-    
+        self.mode = mode.lower()
+        self.target_mdot = 0.0
+        initial_state = max(0.0, min(1.0, float(normal_state)))
+        initial_CdA = self.CdA_max * initial_state if self.mode == "cda" else 0.0
+        
+        super().__init__(initial_CdA, qdot, location, initial_state, checking, name)
 
     def mdot_Hdot(self, node1, node2):
-        """
-        Return mdot (kg/s), Hdot (J/s) where positive means mass/enthalpy flows node1 -> node2.
-        Includes Dyer model for two-phase flow (flashing).
-        """
-        # Check if connection is open
-        if not self.state:
-            return 0.0, 0.0
-
-        dP = node1.P - node2.P
-        if self.checking and dP < 0:
-            return 0.0, 0.0
-        if abs(dP) < 1e-12:
-            return 0.0, 0.0
+        self.state = max(0.0, min(1.0, float(self.state)))
         
-        # Determine donor and receiver
-        if dP > 0:
-            donor, receiver = node1, node2
-        else:
-            donor, receiver = node2, node1
+        if self.state == 0.0:
+            self.mdot, self.Hdot, self.CdA = 0.0, 0.0, 0.0
+            return 0.0, 0.0
 
-        # Source Selection
-        if hasattr(donor, 'ullage') and self.location > donor.fill_level:
-            source = donor.ullage
-        else:
-            source = donor
-
-        # Use bulk properties of the selected source (Liquid or Gas Node)
-        h_stream = source.h
-        d_stream = source.d
-
-        abs_dP = abs(dP)
-        self.dP = abs_dP  # logging
-
-        donor_phase = CP.PhaseSI('D', source.d, 'H', source.h, source.fluid)
-
-        # --- GAS/CHOKED FLOW ---
-        if donor_phase in ("gas", "supercritical") and source.Cp and source.Cv and source.R:
-            gamma = source.gamma
-            R = source.R
-            Tdon = source.T
-            crit_factor = ((gamma + 1.0) / 2.0) ** (-(gamma + 1.0) / (2.0 * (gamma - 1.0)))
-            Pcrit = source.P * crit_factor
-
-            if receiver.P > Pcrit:
-                # Unchoked subsonic gas flow
-                self.CdA = min(self.CdA_max, self.state / (source.P * np.sqrt(2 * abs(1 - (receiver.P / source.P) ** ((gamma - 1) / gamma)) / (R * Tdon))))
-            else:
-                # Choked
-                self.CdA = min(self.CdA_max, self.state / (source.P / np.sqrt(max(Tdon, 1e-8)) * np.sqrt(gamma / max(R, 1e-12)) * crit_factor))
-
-            Hdot = self.state * h_stream
-        
-        # --- LIQUID / TWO-PHASE (Dyer model) ---
-        elif donor_phase == "twophase":
-            h_liq = PropsSI_auto('H', 'P', receiver.P, 'Q', 0, source.fluid)
-            h_vap = PropsSI_auto('H', 'P', receiver.P, 'Q', 1, source.fluid)
-            Pv = PropsSI_auto('P', 'T', source.T, 'Q', 1, source.fluid)
-
-            # Single-phase incompressible term (SPI) without CdA
-            mdot_spi = np.sqrt(2.0 * max(d_stream, 1e-6) * abs_dP)
-
-            # Homogeneous equilibrium model term (HEM) without CdA
-            try:
-                h1 = h_stream
-                h2 = PropsSI_auto('H', 'P', receiver.P, 'S', source.s, source.fluid)
-                rho2p = 1.0 / PropsSI_auto('D', 'P', receiver.P, 'Q', 0.5, source.fluid)
-                mdot_hem = rho2p * np.sqrt(2.0 * max(h1 - h2, 1e-9))
-            except Exception:
-                mdot_hem = mdot_spi
-            # Dyer blending factor
-            r = 1  # tunable, change based on test data
-            kappa = r * (source.P - receiver.P) / max(Pv - receiver.P, 1e-6) # can also manually set kappa (2 is a good conservative value)
-
-            # Dyer blended mass flow CdA calculation
-            self.CdA = self.state / ((kappa / (1 + kappa)) * mdot_spi + (1 / (1 + kappa)) * mdot_hem)
+        if self.mode == "cda":
+            self.CdA = self.CdA_max * self.state
+            return super().mdot_Hdot(node1, node2)
             
-            self.Q = PropsSI_auto('Q', 'P', receiver.P, 'H', h_stream, source.fluid)
-            if 0 <= self.Q <= 1:
-                Hdot = self.state * (self.Q * h_vap + (1 - self.Q) * h_liq)
-            else:
-                Hdot = self.state * h_stream
-
-        # --- LIQUID ---
-        else:
-            mdot = np.sqrt(2.0 * max(d_stream, 1e-6) * abs_dP)
-            self.CdA = self.state / mdot
-            Hdot = self.state * h_stream
-
-        # Sign convention
-        if donor is node1:
-            mdot = self.state
-        else:
-            mdot = -self.state
-
-        Hdot += self.qdot  # add any heat leak term
-        self.mdot, self.Hdot = mdot, Hdot
-        return mdot, Hdot
-
+        elif self.mode == "mdot":
+            self.target_mdot = self.CdA_max * self.state
+            self.CdA = 1.0
+            mdot_flux, Hdot_flux = super().mdot_Hdot(node1, node2)
+            
+            if mdot_flux == 0.0:
+                self.CdA, self.mdot, self.Hdot = 0.0, 0.0, 0.0
+                return 0.0, 0.0
+                
+            self.CdA = self.target_mdot / abs(mdot_flux)
+            
+            # Clamp to physical limits (Cannot open wider than 100%)
+            if self.CdA > self.CdA_max:
+                self.CdA = self.CdA_max
+                
+            self.mdot = mdot_flux * self.CdA
+            Hdot_fluid = Hdot_flux - self.qdot
+            self.Hdot = (Hdot_fluid * self.CdA) + self.qdot
+            
+            return self.mdot, self.Hdot
+                        
+    
 # ==============================================================================
 # NETWORK CLASS AND PLOTTING
 # ==============================================================================
@@ -1044,16 +1187,25 @@ class Network():
             time_now = round(i * dt, 1)
             
             # 1. Apply Scripted Actions
-            if time_now in actions.keys():
-                conn, state = actions[time_now]
-                conn.state = state
-                if verbose_steps > 0:
-                    print(f"--- Action at {time_now}s: {conn.name} set to {state} ---")
+            if time_now in actions:
+                # Iterate through all scheduled events for this specific timestep
+                for conn, state in actions[time_now]:
+                    conn.state = state
+                    if verbose_steps > 0:
+                        print(f"--- Action at {time_now}s: {conn.name} set to {state} ---")
 
             # 2. Update Active Components (BangBang, Regulators)
             for conn, (n1, n2) in self.graph.items():
+                # Check top-level connections
                 if hasattr(conn, 'update_control'):
                     conn.update_control(n1, n2)
+                
+                # Check encapsulated connections (like inside a Series object)
+                if hasattr(conn, 'connections'):
+                    for sub_conn in conn.connections:
+                        if hasattr(sub_conn, 'update_control'):
+                            # Pass the global nodes so the smart valve can read the global dP
+                            sub_conn.update_control(n1, n2)
 
             # 3. Initialize Flux Containers
             # Must include ALL base nodes AND their sub-nodes (ullage)
@@ -1128,7 +1280,7 @@ class Network():
             # 6. Log States
             for node in processed_nodes:
                 node.log_state(time_now)
-    
+
     # ... (Keep plotting methods the same) ...
     def plot_nodes_overlay(self, nodes, title="Node Comparison", units="SI"):
         fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
@@ -1169,37 +1321,57 @@ class Network():
         plt.show()
 
     def plot_connections_overlay(self, connections, title="Connection Comparison", units="SI"):
-        fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
+        fig, axs = plt.subplots(2, 3, figsize=(14, 8), sharex=True)
         axs = axs.flatten()
         fig.suptitle(title, fontsize=14)
 
+        # 1. Unpack Series objects to expose internal components
+        items_to_plot = []
         for conn in connections:
-            time = conn.history['time']
-            if units == "E":
-                axs[0].plot(time, conn.history['mdot'], label=conn.name)
-                axs[1].plot(time, np.array(conn.history['dP']) / 6894.75729, label=conn.name)
-            else:
-                axs[0].plot(time, conn.history['mdot'], label=conn.name)
-                axs[1].plot(time, conn.history['dP'], label=conn.name)
-            axs[2].plot(time, np.array(conn.history['CdA']) * 1000000, label=conn.name)
-            axs[3].plot(time, conn.history['Hdot'], label=conn.name)
-            axs[4].plot(time, conn.history['Q'], label=conn.name)
-            axs[5].plot(time, conn.history['state'], label=conn.name)
+            items_to_plot.append((conn, conn.name))
+            if hasattr(conn, 'connections'):
+                for sub in conn.connections:
+                    items_to_plot.append((sub, f"[{conn.name}] {sub.name}"))
 
+        # 2. Plot all items in the flattened list
+        for conn, label in items_to_plot:
+            time = conn.history['time']
+            if not time: continue # Skip if unlogged
+            
+            if units == "E":
+                axs[0].plot(time, conn.history['mdot'], label=label)
+                axs[1].plot(time, np.array(conn.history['dP']) / 6894.75729, label=label)
+            else:
+                axs[0].plot(time, conn.history['mdot'], label=label)
+                axs[1].plot(time, conn.history['dP'], label=label)
+                
+            axs[2].plot(time, np.array(conn.history['CdA']) * 1000000, label=label)
+            axs[3].plot(time, conn.history['Hdot'], label=label)
+            
+            # Filter None values from Quality safely
+            Q_clean = [q if q is not None else 0 for q in conn.history['Q']]
+            axs[4].plot(time, Q_clean, label=label)
+            
+            axs[5].plot(time, conn.history['state'], label=label)
+
+        # 3. Format the Graph
         if units == "E":
             axs[0].set_ylabel("mdot [kg/s]")
             axs[1].set_ylabel("dP [psi]")
         else:
             axs[0].set_ylabel("mdot [kg/s]")
             axs[1].set_ylabel("dP [Pa]")
+            
         axs[2].set_ylabel("CdA [mm^2]")
         axs[3].set_ylabel("Hdot [J/s]")
         axs[4].set_ylabel("Q [0-1]")
+        axs[4].set_ylim(0, 1.1)
         axs[5].set_ylabel("State [-]")
+        axs[5].set_xlabel("Time [s]")
 
         for ax in axs:
-            ax.legend()
-            ax.grid(True)
+            ax.legend(fontsize=8)
+            ax.grid(True, alpha=0.5)
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
         plt.show()

@@ -1,61 +1,72 @@
 {
-    "ox_mass": {
-        "lower": 10,
-        "upper": 20
-    },
-    "fuel_mass":{
-        "lower": 5,
-        "upper": 15
-    },
-    "cstar": {
-        "lower": 0.75,
-        "upper": 0.92
-    },
-    "mass_factor": {
-        "lower": 0.75,
-        "upper": 1.5
-    },
-    "slosh_lateral_damping": {
-        "lower": 0.01,
-        "upper": 0.05
-    },
-    "slosh_axial_damping": {
-        "lower": 0.05,
-        "upper": 0.2
-    },
-    "throttle_rate_limit": {
-        "lower": 50,
-        "upper": 150
-    },
-    "throttle_latency": {
-        "lower": 0.005,
-        "upper": 0.1
-    },
-    "tvc_actuator_rate_limit": {
-        "lower": 10,
-        "upper": 40
-    },
-    "tvc_actuator_latency": {
-        "lower": 0.005,
-        "upper": 0.1
-    },
-    "engine_off_axis_y": {
-        "lower": -0.1,
-        "upper": 0.1
-    },
-    "engine_off_axis_z": {
-        "lower": -0.1,
-        "upper": 0.1
-    },
-    "uwind": {
-        "lower": -10,
-        "upper": 10
-    },
-    "vwind": {
-        "lower": -10,
-        "upper": 10
-    },
-
-
-
+  "ox_mass": {
+    "lower": 10,
+    "upper": 20,
+    "nominal": 15
+  },
+  "fuel_mass": {
+    "lower": 5,
+    "upper": 15,
+    "nominal": 10
+  },
+  "cstar": {
+    "lower": 0.75,
+    "upper": 0.92,
+    "nominal": 0.85
+  },
+  "mass_factor": {
+    "lower": 0.75,
+    "upper": 1.5,
+    "nominal": 1.0
+  },
+  "slosh_lateral_damping": {
+    "lower": 0.01,
+    "upper": 0.05,
+    "nominal": 0.02
+  },
+  "slosh_axial_damping": {
+    "lower": 0.05,
+    "upper": 0.2,
+    "nominal": 0.1
+  },
+  "throttle_rate_limit": {
+    "lower": 50,
+    "upper": 150,
+    "nominal": 90
+  },
+  "throttle_latency": {
+    "lower": 0.005,
+    "upper": 0.1,
+    "nominal": 0.01
+  },
+  "tvc_actuator_rate_limit": {
+    "lower": 10,
+    "upper": 40,
+    "nominal": 30
+  },
+  "tvc_actuator_latency": {
+    "lower": 0.005,
+    "upper": 0.1,
+    "nominal": 0.01
+  },
+  "engine_off_axis_y": {
+    "lower": -0.1,
+    "upper": 0.1,
+    "nominal": 0
+  },
+  "engine_off_axis_z": {
+    "lower": -0.1,
+    "upper": 0.1,
+    "nominal": 0
+  },
+  "uwind": {
+    "lower": -10,
+    "upper": 10,
+    "nominal": 2.5
+  },
+  "vwind": {
+    "lower": -10,
+    "upper": 10,
+    "nominal": 2.5
+  }
 }

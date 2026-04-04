@@ -3,7 +3,13 @@ function mc_plots(results_file)
 if nargin < 1; results_file = 'mc_results.mat'; end
 
 load(results_file, 'results');
+load(results_file, 'results', 'nominal');
 
+% Replace nom_idx references with nominal.timeseries directly
+% e.g. instead of:
+%   nominal.timeseries.altitude
+% use:
+%   nominal.timeseries.altitude
 n = length(results);
 
 % Filter to successful runs only
@@ -45,8 +51,8 @@ ox_mean   = mean(ox_mat,   1);
 fu_mean   = mean(fu_mat,   1);
 
 % Nominal (scenario closest to mean of all inputs)
-max_alts = arrayfun(@(r) r.flight.max_altitude, results);
-[~, nom_idx] = min(abs(max_alts - median(max_alts)));
+%max_alts = arrayfun(@(r) r.flight.max_altitude, results);
+%[~, nom_idx] = min(abs(max_alts - median(max_alts)));
 
 % Colors
 c_spread  = [0.6 0.8 1.0];   % light blue for spread
@@ -86,7 +92,7 @@ h_sigma3 = fill([t_grid; flipud(t_grid)], ...
      c_sigma, 'FaceAlpha', 0.05, 'EdgeColor', 'none');
 
 % Nominal and mean
-ts_nom = results(nom_idx).timeseries;
+ts_nom = nominal.timeseries;
 h_nom = plot(ts_nom.t, ts_nom.altitude, 'Color', c_nominal, 'LineWidth', 2.0);
 
 h_mean = plot(t_grid, alt_mean, 'Color', c_mean, 'LineWidth', 2.5);
@@ -118,7 +124,7 @@ for i = 1:n_ok
     end
 end
 
-ts_nom = results(nom_idx).timeseries;
+ts_nom = nominal.timeseries;
 h_nom = plot3(ts_nom.x, ts_nom.y, -ts_nom.z, 'Color', c_nominal, 'LineWidth', 2.0);
 
 xlabel('Latitude (X)');
@@ -152,8 +158,8 @@ h_sigma = fill([t_grid; flipud(t_grid)], ...
 
 h_mean = plot(t_grid, mass_mean, 'Color', c_mean, 'LineWidth', 2.5);
 
-h_nom = plot(results(nom_idx).timeseries.t, ...
-             results(nom_idx).timeseries.tot_mass, ...
+h_nom = plot(nominal.timeseries.t, ...
+             nominal.timeseries.tot_mass, ...
              'Color', c_nominal, 'LineWidth', 2.0);
 
 ylabel('Total Prop (kg)');
@@ -170,7 +176,7 @@ for i = 1:n_ok
     plot(ts.t, ts.ox_mass, 'Color', [c_spread 0.3], 'LineWidth', 0.5);
 end
 plot(t_grid, ox_mean, 'Color', c_mean, 'LineWidth', 2.5);
-plot(results(nom_idx).timeseries.t, results(nom_idx).timeseries.ox_mass, ...
+plot(nominal.timeseries.t, nominal.timeseries.ox_mass, ...
     'Color', c_nominal, 'LineWidth', 2.0);
 ylabel('Ox Mass (kg)');
 
@@ -181,7 +187,7 @@ for i = 1:n_ok
     plot(ts.t, ts.fu_mass, 'Color', [c_spread 0.3], 'LineWidth', 0.5);
 end
 plot(t_grid, fu_mean, 'Color', c_mean, 'LineWidth', 2.5);
-plot(results(nom_idx).timeseries.t, results(nom_idx).timeseries.fu_mass, ...
+plot(nominal.timeseries.t, nominal.timeseries.fu_mass, ...
     'Color', c_nominal, 'LineWidth', 2.0);
 ylabel('Fuel Mass (kg)');
 xlabel('Time (s)');
@@ -263,7 +269,7 @@ for i = 1:n_ok
     thrust_mat(i,:) = interp1(ts.t, ts.thrust, t_grid, 'linear', 'extrap');
 end
 h_mean = plot(t_grid, mean(thrust_mat,1), 'Color', c_mean, 'LineWidth', 3.0);
-h_nom = plot(results(nom_idx).timeseries.t, results(nom_idx).timeseries.thrust, ...
+h_nom = plot(nominal.timeseries.t, nominal.timeseries.thrust, ...
     'Color', c_nom, 'LineWidth', 3.0);
  
 xlabel('Time (s)','FontSize',12); 
@@ -302,8 +308,8 @@ for s = 1:3
 
     h_mean = plot(t_grid, mean(vel_mat,1), 'Color', c_mean, 'LineWidth', 3.0);
 
-    h_nom = plot(results(nom_idx).timeseries.t, ...
-                 results(nom_idx).timeseries.(vel_fields{s}), ...
+    h_nom = plot(nominal.timeseries.t, ...
+                 nominal.timeseries.(vel_fields{s}), ...
                  'Color', c_nom, 'LineWidth', 3.0);
 
     ylabel(vel_labels{s},'FontSize',10);
@@ -347,8 +353,8 @@ for s = 1:3
 
     h_mean = plot(t_grid, mean(att_mat,1), 'Color', c_mean, 'LineWidth', 3.0);
 
-    h_nom = plot(results(nom_idx).timeseries.t, ...
-        rad2deg(results(nom_idx).timeseries.(att_fields{s})), ...
+    h_nom = plot(nominal.timeseries.t, ...
+        rad2deg(nominal.timeseries.(att_fields{s})), ...
         'Color', c_nom, 'LineWidth', 3.0);
 
     ylabel(att_labels{s},'FontSize',10);
@@ -403,6 +409,77 @@ fprintf('\nLanding accuracy: %d / %d on pad (%.1f%%)\n', ...
     sum(on_pad), n_ok, 100*sum(on_pad)/n_ok);
 %fprintf('CEP (median radial error): %.3f m\n', cep);
 fprintf('Max radial error:          %.3f m\n', max(radial));
+
+% new plots for OX MASS AND WIND
+
+% =========================================================================
+% Figure 9 — Oxidizer Mass vs Time
+% =========================================================================
+figure('Name','Oxidizer Mass vs Time','Position',[450 100 900 450]);
+hold on; grid on;
+
+ox_mat2 = zeros(n_ok, 500);
+for i = 1:n_ok
+    ts = results(i).timeseries;
+    h_mc = plot(ts.t, ts.ox_mass, 'Color', [c_mc 0.4], 'LineWidth', 0.8);
+    ox_mat2(i,:) = interp1(ts.t, ts.ox_mass, t_grid, 'linear', 'extrap');
+end
+h_mean = plot(t_grid, mean(ox_mat2,1), 'Color', c_mean, 'LineWidth', 3.0);
+h_nom  = plot(nominal.timeseries.t, nominal.timeseries.ox_mass, ...
+    'Color', c_nom, 'LineWidth', 3.0);
+
+xlabel('Time (s)','FontSize',12); ylabel('Ox Mass (kg)','FontSize',12);
+title(sprintf('Oxidizer Mass vs Time — %d MC Runs', n_ok),'FontSize',14);
+legend([h_mc h_mean h_nom], {'MC Runs','Mean','Nominal'},'Location','best','FontSize',10);
+
+% =========================================================================
+% Figure 10 — Wind per MC Run (constant values as horizontal lines)
+% =========================================================================
+figure('Name','Wind MC Values','Position',[500 150 900 500]);
+
+subplot(2,1,1); hold on; grid on;
+for i = 1:n_ok
+    uw = results(i).scenario.uwind;
+    h_mc = plot([results(i).timeseries.t(1) results(i).timeseries.t(end)], ...
+        [uw uw], 'Color', [c_mc 0.4], 'LineWidth', 1.5);
+end
+h_nom = plot([nominal.timeseries.t(1) nominal.timeseries.t(end)], ...
+    [nominal.scenario.uwind nominal.scenario.uwind], 'Color', c_nom, 'LineWidth', 3.0);
+ylabel('uwind (m/s)','FontSize',10);
+title('Wind Values per MC Run','FontSize',13);
+legend([h_mc h_nom], {'MC Runs','Nominal'},'Location','best','FontSize',9);
+
+subplot(2,1,2); hold on; grid on;
+for i = 1:n_ok
+    vw = results(i).scenario.vwind;
+    h_mc = plot([results(i).timeseries.t(1) results(i).timeseries.t(end)], ...
+        [vw vw], 'Color', [c_mc 0.4], 'LineWidth', 1.5);
+end
+h_nom = plot([nominal.timeseries.t(1) nominal.timeseries.t(end)], ...
+    [nominal.scenario.vwind nominal.scenario.vwind], 'Color', c_nom, 'LineWidth', 3.0);
+ylabel('vwind (m/s)','FontSize',10);
+xlabel('Time (s)','FontSize',12);
+legend([h_mc h_nom], {'MC Runs','Nominal'},'Location','best','FontSize',9);
+
+% new ox mass plot :)
+% =========================================================================
+% Figure 11 — Ox Mass Histogram (sampled input values)
+% =========================================================================
+figure('Name','Ox Mass Distribution','Position',[550 200 700 450]);
+hold on; grid on;
+
+ox_sampled = arrayfun(@(r) r.scenario.ox_mass, results);
+
+histogram(ox_sampled, 15, 'FaceColor', c_mc, 'EdgeColor', 'w');
+%xline(mean(ox_sampled),   'r-', 'LineWidth', 2.5, 'Label', 'Mean');
+%xline(median(ox_sampled), 'g-', 'LineWidth', 2.5, 'Label', 'Median');
+xline(nominal.scenario.ox_mass, 'k--', 'LineWidth', 2.0, 'Label', 'Nominal');
+
+xlabel('Oxidizer Mass (kg)', 'FontSize', 12);
+ylabel('Count', 'FontSize', 12);
+title(sprintf('Ox Mass Distribution — %d MC Runs   \\mu=%.2f   \\sigma=%.2f', ...
+    n_ok, mean(ox_sampled), std(ox_sampled)), 'FontSize', 14);
+legend('Location', 'best', 'FontSize', 10);
 
 
 end
