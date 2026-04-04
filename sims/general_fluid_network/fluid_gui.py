@@ -67,14 +67,31 @@ COMPONENT_DEFS = {
             "location": 0.0, "normal_state": 1, "name": "regulator"
         },
         "ThrottleValve": {
-            "CdA_max": 0.0001, "target_mdot": 0.1, "qdot": 0.0, 
+            "CdA_max": 0.0001, "qdot": 0.0, 
             "location": 0.0, "normal_state": 0, "checking": 1, 
-            "step": 0.02, "name": "throttle"
+            "name": "throttle"
         },
+    
         "BangBang": {
             "CdA": 0.0001, "target_pressure": 150000.0, "hysteresis": 5000.0,
             "qdot": 0.0, "location": 0.0, "normal_state": 1, 
             "checking": 1, "name": "bang_bang"
+        },
+        "Line": {
+            "ID": 0.001, "length": 0.1, "roughness": 0.0002, "qdot": 0.0,
+            "location": 0.0, "normal_state": 1, "checking": 1, "name": "line"
+        },
+        "Series": {
+            "connections": [], "name": "series"
+        },
+        "Engine": {
+            "fuel": "n-Dodecane",
+            "oxidizer": "Oxygen",
+            "eta_cstar": 0.92,
+            "At": 0.002,
+            "Ae": 0.01,
+            "Pa": 101325.0,
+            "name": "engine"
         }
     }
 }
@@ -140,8 +157,6 @@ UNITS_MAP = {
     "qdot": "W",
     "location": "m",
     "set_pressure": "Pa",
-    "target_mdot": "kg/s",
-    "step": "-",
     "hysteresis": "Pa",
     #Engine units
     "Pc": "Pa",
@@ -671,9 +686,7 @@ class MainApp(FluidEditor):
         file_menu.addAction('&Load Network', self.load_network, 'Ctrl+O')
 
         # --- 2. INITIALIZE DOCKS ---
-        # Note: Library and Property docks are created by parent FluidEditor.__init__
-        # We just need to add the specific ones for this App
-        self.create_actions_dock() # The Table
+        self.create_actions_dock()
 
     def create_sim_dock(self):
         # Overriding parent to include Save/Load buttons
@@ -689,6 +702,7 @@ class MainApp(FluidEditor):
         btn_run = QPushButton("RUN SIMULATION")
         btn_run.setStyleSheet("background-color: #2ecc71; color: white; font-weight: bold; padding: 10px;")
         btn_run.clicked.connect(self.run_simulation)
+        self.btn_run = btn_run
         
         # File Operations
         btn_save = QPushButton("Save Network")
@@ -745,12 +759,18 @@ class MainApp(FluidEditor):
         
         # Component Dropdown
         combo = QComboBox()
-        # Find all connections
         conn_items = [i for i in self.scene.items() if isinstance(i, ConnectionLine)]
         for item in conn_items:
-            # We use the 'name' parameter as the identifier
             name = item.params.get("name", "Unnamed")
             combo.addItem(name, userData=item) 
+            
+            # NEW: Add sub-connections to the dropdown if it's a Series!
+            if item.conn_type == "Series":
+                for idx, sub_conn in enumerate(item.params.get("connections", [])):
+                    sub_name = sub_conn["params"].get("name", f"Sub {idx+1}")
+                    # userData stores a tuple: (Parent Series Item, Index of Sub-Component)
+                    combo.addItem(f"  ↳ {sub_name}", userData=(item, idx))
+                    
         self.action_table.setCellWidget(row, 1, combo)
         
         # State
@@ -774,7 +794,7 @@ class MainApp(FluidEditor):
             },
             "nodes": [],
             "connections": [],
-            "actions": [] # Saving the script too!
+            "actions": [] 
         }
 
         # 1. Save Nodes
@@ -808,8 +828,6 @@ class MainApp(FluidEditor):
             combo = self.action_table.cellWidget(row, 1)
             
             if t_item and state_item and combo:
-                # We save the NAME of the component to link it back later
-                # (Assuming names are unique or sufficient for now)
                 comp_name = combo.currentText()
                 data["actions"].append({
                     "time": t_item.text(),
@@ -833,7 +851,7 @@ class MainApp(FluidEditor):
                 data = json.load(f)
             
             self.scene.clear()
-            self.action_table.setRowCount(0) # Clear actions
+            self.action_table.setRowCount(0) 
             
             # 1. Settings
             if "settings" in data:
@@ -849,7 +867,6 @@ class MainApp(FluidEditor):
                 id_to_item[n_data["id"]] = item
 
             # 3. Connections
-            # Keep track of created connections to link actions later
             loaded_connections = [] 
             for c_data in data["connections"]:
                 start = id_to_item.get(c_data["start_id"])
@@ -865,11 +882,9 @@ class MainApp(FluidEditor):
                     self.add_action_row()
                     row = self.action_table.rowCount() - 1
                     
-                    # Set Time & State
                     self.action_table.setItem(row, 0, QTableWidgetItem(act["time"]))
                     self.action_table.setItem(row, 2, QTableWidgetItem(act["state"]))
                     
-                    # Set Combo Box
                     combo = self.action_table.cellWidget(row, 1)
                     target_name = act["component"]
                     index = combo.findText(target_name)
@@ -881,7 +896,7 @@ class MainApp(FluidEditor):
             import traceback
             traceback.print_exc()
 
-    # --- RUN LOGIC ---
+    # --- SIMULATION & CONNECTIONS ---
     def run_simulation(self):
         sim_dialog = None
         if hasattr(self, "btn_run") and self.btn_run:
@@ -895,27 +910,81 @@ class MainApp(FluidEditor):
                 return
 
             item_map = {} 
-            # Instantiate Nodes
-            for n_item in node_items:
+            conn_map = {}
+            graph = {}
+            
+            # --- 1. INSTANTIATE REGULAR NODES (Skip Engine for now) ---
+            regular_nodes = [i for i in node_items if i.node_type != "Engine"]
+            engine_nodes = [i for i in node_items if i.node_type == "Engine"]
+            
+            for n_item in regular_nodes:
                 cls = getattr(gfn, n_item.node_type)
                 instance = cls(**n_item.params)
                 item_map[n_item] = instance
                 n_item.sim_instance = instance
 
-            # Instantiate Connections & Build Graph
-            graph = {}
-            conn_map = {} # GUI Item -> Sim Instance
-            
+            # --- 2. INSTANTIATE CONNECTIONS & BUILD GRAPH ---
             for c_item in conn_items:
-                cls = getattr(gfn, c_item.conn_type)
-                instance = cls(**c_item.params)
-                n1 = item_map[c_item.start_item]
-                n2 = item_map[c_item.end_item]
-                graph[instance] = (n1, n2)
+                if c_item.conn_type == "Series":
+                    sub_instances = []
+                    for sub in c_item.params.get("connections", []):
+                        sub_cls = getattr(gfn, sub["type"])
+                        sub_instances.append(sub_cls(**sub["params"]))
+                    
+                    cls = getattr(gfn, "Series")
+                    instance = cls(
+                        connections=sub_instances, 
+                        name=c_item.params.get("name", "series")
+                    )
+                else:
+                    cls = getattr(gfn, c_item.conn_type)
+                    instance = cls(**c_item.params)
+                    
                 c_item.sim_instance = instance
                 conn_map[c_item] = instance
+
+                # Map the graph ONLY if the ends are regular nodes. (Engines handle themselves)
+                if c_item.start_item in item_map and c_item.end_item in item_map:
+                    n1 = item_map[c_item.start_item]
+                    n2 = item_map[c_item.end_item]
+                    graph[instance] = (n1, n2)
+
+            # --- 3. INSTANTIATE ENGINES (Injects Feed Lines dynamically) ---
+            for eng_item in engine_nodes:
+                # Find the connection lines drawn into the engine
+                inbound_conns = [c for c in conn_items if c.end_item == eng_item]
+                ox_conn_inst, fuel_conn_inst = None, None
                 
-            # Parse Actions
+                for c in inbound_conns:
+                    source_item = c.start_item
+                    # Try to guess which line is Ox and Fuel based on the source tank's fluid
+                    fluid = source_item.params.get("fluid", "") or source_item.params.get("fluid_liq", "")
+                    if fluid.lower() in ["oxygen", "lox", "n2o"]:
+                        ox_conn_inst = conn_map[c]
+                    else:
+                        fuel_conn_inst = conn_map[c]
+                
+                # Instantiate Engine with injected connections
+                instance = gfn.Engine(
+                    fuel=eng_item.params.get("fuel", "n-Dodecane"),
+                    oxidizer=eng_item.params.get("oxidizer", "Oxygen"),
+                    ox_conn=ox_conn_inst,
+                    fuel_conn=fuel_conn_inst,
+                    eta_cstar=eng_item.params.get("eta_cstar", 0.92),
+                    At=eng_item.params.get("At", 0.002),
+                    Ae=eng_item.params.get("Ae", 0.01),
+                    Pa=eng_item.params.get("Pa", 101325.0),
+                    name=eng_item.params.get("name", "engine")
+                )
+                item_map[eng_item] = instance
+                eng_item.sim_instance = instance
+                
+                # Route the inbound lines from the upstream tanks into the Engine node
+                for c in inbound_conns:
+                    n1 = item_map[c.start_item]
+                    graph[conn_map[c]] = (n1, instance)
+
+            # --- 4. PARSE ACTIONS (Builds the proper List of Tuples) ---
             actions = {}
             for row in range(self.action_table.rowCount()):
                 t_str = self.action_table.item(row, 0).text()
@@ -925,12 +994,26 @@ class MainApp(FluidEditor):
                 combo = self.action_table.cellWidget(row, 1)
                 gui_item = combo.currentData()
                 
-                if gui_item in conn_map:
+                # Parse target state
+                state_str = self.action_table.item(row, 2).text()
+                try: state_val = float(state_str)
+                except: state_val = 1.0 if state_str.lower() == "true" else 0.0
+                
+                sim_obj = None
+                if isinstance(gui_item, tuple):
+                    # It's a sub-component! Extract it from the parent Series
+                    series_item, sub_idx = gui_item
+                    if series_item in conn_map:
+                        sim_obj = conn_map[series_item].connections[sub_idx]
+                elif gui_item in conn_map:
+                    # It's a top-level component
                     sim_obj = conn_map[gui_item]
-                    state_str = self.action_table.item(row, 2).text()
-                    try: state_val = float(state_str)
-                    except: state_val = 1.0 if state_str.lower() == "true" else 0.0
-                    actions[t_val] = (sim_obj, state_val)
+                
+                if sim_obj:
+                    # THE FIX: Append to a LIST of tuples for the timestep!
+                    if t_val not in actions:
+                        actions[t_val] = []
+                    actions[t_val].append((sim_obj, state_val))
 
             # Run
             net = gfn.Network(graph)
@@ -950,15 +1033,68 @@ class MainApp(FluidEditor):
             if hasattr(self, "btn_run") and self.btn_run:
                 self.btn_run.setEnabled(True)
 
-    # --- HELPERS (Copied to ensure completeness) ---
     def create_connection(self, node1, node2):
         types = list(COMPONENT_DEFS["Connections"].keys())
         item, ok = QInputDialog.getItem(self, "Select Connection", "Type:", types, 0, False)
         if ok and item:
-            defaults = COMPONENT_DEFS["Connections"][item]
+            defaults = COMPONENT_DEFS["Connections"][item].copy()
             conn_line = ConnectionLine(node1, node2, item, defaults)
             self.scene.addItem(conn_line)
+            
+            # Trigger Auto-Series Check
+            self.check_and_form_series(node1)
+            self.check_and_form_series(node2)
 
+    def check_and_form_series(self, node):
+        """Checks if a node is an intermediate pass-through and prompts to encapsulate into a Series."""
+        if node.node_type != "Node":
+            return
+            
+        attached = [item for item in self.scene.items() 
+                    if isinstance(item, ConnectionLine) and (item.start_item == node or item.end_item == node)]
+        
+        if len(attached) == 2:
+            c1, c2 = attached
+            n_far_1 = c1.start_item if c1.end_item == node else c1.end_item
+            n_far_2 = c2.start_item if c2.end_item == node else c2.end_item
+            
+            if n_far_1 == n_far_2: 
+                return
+
+            msg = QMessageBox.question(
+                self, "Series Detected", 
+                f"Node '{node.params.get('name', 'node')}' connects exactly two lines.\nWould you like to encapsulate them into a Series object?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            
+            if msg == QMessageBox.Yes:
+                if c1.end_item == node:
+                    first_c, second_c = c1, c2
+                else:
+                    first_c, second_c = c2, c1
+                    
+                series_conns = []
+                for c in [first_c, second_c]:
+                    if c.conn_type == "Series":
+                        series_conns.extend(c.params.get("connections", []))
+                    else:
+                        series_conns.append({"type": c.conn_type, "params": c.params.copy()})
+                        
+                self.scene.removeItem(c1)
+                self.scene.removeItem(c2)
+                self.scene.removeItem(node)
+                
+                defaults = COMPONENT_DEFS["Connections"]["Series"].copy()
+                defaults["connections"] = series_conns
+                series_line = ConnectionLine(n_far_1, n_far_2, "Series", defaults)
+                self.scene.addItem(series_line)
+                
+                if self.current_editing_item in (c1, c2, node):
+                    self.current_editing_item = None
+                    for i in reversed(range(self.prop_layout.count())): 
+                        self.prop_layout.itemAt(i).widget().setParent(None)
+
+    # --- PROPERTY EDITOR LOGIC ---
     def on_selection_changed(self):
         for i in reversed(range(self.prop_layout.count())): 
             self.prop_layout.itemAt(i).widget().setParent(None)
@@ -975,18 +1111,36 @@ class MainApp(FluidEditor):
         self.prop_layout.addRow(QLabel(lbl))
 
         self.param_inputs = {}
-        for key, val in item.params.items():
-            if key in ("fluid", "fluid_ullage"):
-                inp = QComboBox()
-                inp.setEditable(True)
-                inp.addItems(COMMON_FLUIDS)
-                inp.setCurrentText(str(val))
-                inp.currentTextChanged.connect(lambda text, k=key: self.update_param(k, text))
-            else:
-                inp = QLineEdit(str(val))
-                inp.textChanged.connect(lambda text, k=key: self.update_param(k, text))
-            self.prop_layout.addRow(_label_with_units(key), inp)
-            self.param_inputs[key] = inp
+
+        def render_params(params_dict, prefix=""):
+            for key, val in params_dict.items():
+                if key == "connections": continue 
+                
+                if key in ("fluid", "fluid_ullage"):
+                    inp = QComboBox()
+                    inp.setEditable(True)
+                    inp.addItems(COMMON_FLUIDS)
+                    inp.setCurrentText(str(val))
+                    inp.currentTextChanged.connect(lambda text, k=key, d=params_dict: self.update_param(k, text, d))
+                else:
+                    inp = QLineEdit(str(val))
+                    inp.textChanged.connect(lambda text, k=key, d=params_dict: self.update_param(k, text, d))
+                
+                label_text = _label_with_units(key)
+                if prefix: label_text = f"{prefix} {label_text}"
+                self.prop_layout.addRow(label_text, inp)
+                
+                input_key = f"{prefix}_{key}" if prefix else key
+                self.param_inputs[input_key] = inp
+
+        render_params(item.params)
+
+        if isinstance(item, ConnectionLine) and item.conn_type == "Series":
+            for idx, sub_conn in enumerate(item.params.get("connections", [])):
+                lbl = QLabel(f"<b>--- Sub {idx+1}: {sub_conn['type']} ---</b>")
+                lbl.setStyleSheet("color: #2980b9; margin-top: 10px;")
+                self.prop_layout.addRow(lbl)
+                render_params(sub_conn['params'], prefix=f"[{idx+1}]")
 
         if isinstance(item, NodeItem):
             self._prop_calc_item = item
@@ -1024,10 +1178,8 @@ class MainApp(FluidEditor):
             val = _try_props_refprop_then_coolprop(fluid, out, p1, v1, p2, v2)
             w["out_val"].setText(f"{val:.6g}")
 
-            # Remember last choices
             self._prop_calc_last.update({"p1": p1, "p2": p2, "out": out})
 
-            # Optionally write back to params if key exists
             if self._prop_calc_item and out in self._prop_calc_item.params:
                 self._prop_calc_item.params[out] = val
                 if out in self.param_inputs:
@@ -1035,16 +1187,23 @@ class MainApp(FluidEditor):
         except Exception as e:
             QMessageBox.warning(self, "Property Calc Error", str(e))
 
-    def update_param(self, key, text):
-        if self.current_editing_item:
-            try: val = float(text)
-            except ValueError: val = text
-            self.current_editing_item.params[key] = val
-            if key == "name" and isinstance(self.current_editing_item, NodeItem):
-                self.current_editing_item.update()
+    def update_param(self, key, text, target_dict=None):
+        if not self.current_editing_item:
+            return
+            
+        if target_dict is None:
+            target_dict = self.current_editing_item.params
+            
+        try: val = float(text)
+        except ValueError: val = text
+        
+        target_dict[key] = val
+        
+        if key == "name" and isinstance(self.current_editing_item, NodeItem):
+            self.current_editing_item.update()
 
+    # --- UI KEY BINDS ---
     def keyPressEvent(self, event):
-        # Bind Delete and Backspace keys
         if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
             self.delete_selected()
         else:
@@ -1055,7 +1214,6 @@ class MainApp(FluidEditor):
         if not selected_items:
             return
 
-        # 1. Identify what to delete
         nodes_to_delete = set()
         conns_to_delete = set()
 
@@ -1065,32 +1223,26 @@ class MainApp(FluidEditor):
             elif isinstance(item, ConnectionLine):
                 conns_to_delete.add(item)
 
-        # 2. CASCADING DELETE: Find connections attached to these nodes
-        # Even if the user didn't select the line, if the node goes, the line must go.
         all_conns = [i for i in self.scene.items() if isinstance(i, ConnectionLine)]
         
         for conn in all_conns:
             if conn in conns_to_delete: 
-                continue # Already marked
+                continue 
             
-            # Check if this connection touches a dead node
             if conn.start_item in nodes_to_delete or conn.end_item in nodes_to_delete:
                 conns_to_delete.add(conn)
 
-        # 3. Remove items from Scene
         for conn in conns_to_delete:
             self.scene.removeItem(conn)
             
         for node in nodes_to_delete:
             self.scene.removeItem(node)
             
-        # 4. Cleanup UI
-        # Check if we deleted the item currently being edited in the sidebar
         if self.current_editing_item in nodes_to_delete or self.current_editing_item in conns_to_delete:
             self.current_editing_item = None
-            # Clear properties dock
             for i in reversed(range(self.prop_layout.count())): 
                 self.prop_layout.itemAt(i).widget().setParent(None)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

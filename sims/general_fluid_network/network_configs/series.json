@@ -1,0 +1,73 @@
+{
+    "version": 1.1,
+    "settings": {
+        "duration": "60.0",
+        "dt": "0.1"
+    },
+    "nodes": [
+        {
+            "id": 0,
+            "type": "Node",
+            "x": -782.0,
+            "y": -443.0,
+            "params": {
+                "fluid": "Nitrogen",
+                "m": 8.0,
+                "V": 27.0,
+                "T": 293.15,
+                "name": "copv",
+                "type": "m"
+            }
+        },
+        {
+            "id": 1,
+            "type": "Ambient",
+            "x": -284.0,
+            "y": -449.0,
+            "params": {
+                "fluid": "Air",
+                "P": 101325.0,
+                "T": 293.15,
+                "name": "ambient"
+            }
+        }
+    ],
+    "connections": [
+        {
+            "type": "Series",
+            "start_id": 1,
+            "end_id": 0,
+            "params": {
+                "connections": [
+                    {
+                        "type": "Connection",
+                        "params": {
+                            "CdA": 0.0001,
+                            "qdot": 0.0,
+                            "location": 0.0,
+                            "normal_state": 1,
+                            "checking": 1,
+                            "name": "pipe"
+                        }
+                    },
+                    {
+                        "type": "Line",
+                        "params": {
+                            "ID": 0.001,
+                            "length": 0.1,
+                            "roughness": 0.0002,
+                            "qdot": 0.0,
+                            "location": 0.0,
+                            "normal_state": 1,
+                            "checking": 1,
+                            "name": "line"
+                        }
+                    }
+                ],
+                "checking": true,
+                "name": "series"
+            }
+        }
+    ],
+    "actions": []
+}
