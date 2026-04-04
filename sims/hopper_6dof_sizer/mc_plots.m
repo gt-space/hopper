@@ -461,5 +461,25 @@ ylabel('vwind (m/s)','FontSize',10);
 xlabel('Time (s)','FontSize',12);
 legend([h_mc h_nom], {'MC Runs','Nominal'},'Location','best','FontSize',9);
 
+% new ox mass plot :)
+% =========================================================================
+% Figure 11 — Ox Mass Histogram (sampled input values)
+% =========================================================================
+figure('Name','Ox Mass Distribution','Position',[550 200 700 450]);
+hold on; grid on;
+
+ox_sampled = arrayfun(@(r) r.scenario.ox_mass, results);
+
+histogram(ox_sampled, 15, 'FaceColor', c_mc, 'EdgeColor', 'w');
+%xline(mean(ox_sampled),   'r-', 'LineWidth', 2.5, 'Label', 'Mean');
+%xline(median(ox_sampled), 'g-', 'LineWidth', 2.5, 'Label', 'Median');
+xline(nominal.scenario.ox_mass, 'k--', 'LineWidth', 2.0, 'Label', 'Nominal');
+
+xlabel('Oxidizer Mass (kg)', 'FontSize', 12);
+ylabel('Count', 'FontSize', 12);
+title(sprintf('Ox Mass Distribution — %d MC Runs   \\mu=%.2f   \\sigma=%.2f', ...
+    n_ok, mean(ox_sampled), std(ox_sampled)), 'FontSize', 14);
+legend('Location', 'best', 'FontSize', 10);
+
 
 end

@@ -34,8 +34,8 @@ IN.avionics.boards.voltage = 12; % V
 IN.avionics.boards.current = 0.5; % A
 
 %  PROPULSION
-IN.propulsion.oxidizer = 'Oxygen';
-IN.propulsion.fuel = 'Dodecane'; %AKA KEROSENE
+IN.propulsion.oxidizer = 'O2'; %Oxygen - coolprop
+IN.propulsion.fuel = 'Dodecane'; %AKA KEROSENE - coolprop
 IN.propulsion.oxidizer_mass = 15; % kg -> internal
 IN.propulsion.fuel_mass = 10; % kg -> internal
 IN.propulsion.ox_vol = 0.020; % m^3
@@ -137,23 +137,25 @@ IN.copv_ycg = 0.23;
 %  MODAL PARAMETERS
 IN.vehicle_damping_ratio = 0.05; 
 IN.vehicle_natural_frequency = 10; % Hz
-%=======
+
 % Wind Defaults
 % 1 - Monte Carlo , 2 - constant , 3 - 4D Array Historical Wind
 IN.wind.mode = 2; %
 IN.wind.uwind = 2.5; %default values for uwnd/vwnd with NO Monte Carlo
 IN.wind.vwind = 2.5;
-%>>>>>>> Stashed changes
+
 
 %  SIMULATION SETTINGS
 IN.sim.dt = 0.01;                  % s
 IN.sim.t_max = 60;                 % s
 IN.sim.use_simulink = true;
 
+%Mass factor
+IN.mass_factor = 1.0; %default / nominal case
 
 % Monte Carlo scenario struct creation
 if  ~isempty(scenario_params)
-    %IN.propulsion.oxidizer_mass       = scenario_params.ox_mass;
+    IN.propulsion.oxidizer_mass       = scenario_params.ox_mass;
     IN.propulsion.fuel_mass           = scenario_params.fuel_mass;
     IN.propulsion.eta_cstar           = scenario_params.cstar;
     IN.mass_factor                    = scenario_params.mass_factor;
