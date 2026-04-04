@@ -153,7 +153,7 @@ IN.sim.use_simulink = true;
 
 % Monte Carlo scenario struct creation
 if  ~isempty(scenario_params)
-    IN.propulsion.oxidizer_mass       = scenario_params.ox_mass;
+    %IN.propulsion.oxidizer_mass       = scenario_params.ox_mass;
     IN.propulsion.fuel_mass           = scenario_params.fuel_mass;
     IN.propulsion.eta_cstar           = scenario_params.cstar;
     IN.mass_factor                    = scenario_params.mass_factor;

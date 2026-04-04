@@ -8,7 +8,7 @@ addpath('./dynamics')
 
 % Main Vehicle Sizing Section
 % --- Tank, AVI, and Engine Sized prior to primary structure calculations
-IN = mc_inputs(scenario);
+IN = mission_inputs(scenario);
 
 TANKS = size_tanks(IN);
 AVI = size_avionics(IN);
@@ -34,6 +34,8 @@ r_leg_1 = [0 IN.legs.feet_radial_dist 0];
 r_leg_2 = [0 -IN.legs.feet_radial_dist 0];
 r_leg_3 = [0 0 IN.legs.feet_radial_dist];
 r_leg_4 = [0 0 -IN.legs.feet_radial_dist];
+
+VEH.k_engine = (IN.engine_cg/1.62)^2;
 
 % VEHICLE SIZING OUTPUTS
 OUT = Outputs(IN, VEH, TANKS, STRUCT);
@@ -197,5 +199,12 @@ result.timeseries.yaw      = yaw_data;
 result.status.success = true;
 result.status.error   = '';
 
+
+% Sanity check — flag diverged runs
+if any(isinf(altitude)) || any(isnan(altitude)) || max(altitude) > 500
+    result.status.success = false;
+    result.status.error   = 'Simulation diverged - states went to Inf/NaN';
+    return
+end
 
 end
