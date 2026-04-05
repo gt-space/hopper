@@ -742,7 +742,9 @@ class Line(Connection):
             f_init = (-2.0 * np.log10(self.roughness / (3.7 * self.ID)))**-2
         else:
             f_init = 0.015 
-            
+        
+        #dp = 0.5 * (self.length / self.ID) * 
+        
         initial_CdA = self.Area / np.sqrt(f_init * self.length / self.ID)
         
         super().__init__(initial_CdA, qdot, location, normal_state, checking, name)
@@ -1374,4 +1376,3 @@ class Network():
             ax.grid(True, alpha=0.5)
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
-        plt.show()

@@ -10,19 +10,18 @@ from general_fluid_network import Node, Ambient, Connection, ThrottleValve, Netw
 PSI_TO_PA = 6894.75729
 L_TO_M3 = 0.001
 MM2_TO_M2 = 1e-6
+IN_TO_M = 0.0254
 
 # =============================================================================
 # ENGINE EFFICIENCY CURVES AS A FUNCTION OF PC
 # =============================================================================
 def dynamic_eta_cstar(Pc_psi):
     """Cstar efficiency based on chamber pressure."""
-    if Pc_psi >= 250: return 0.85
-    return 0.75 + (0.85 - 0.75) * max(0, (Pc_psi - 100) / 150)
+    return 0.8 + (0.85 - 0.8) * max(1, (Pc_psi - 100) / 200)
 
 def dynamic_eta_cf(Pc_psi):
     """Cf efficiency based on chamber pressure."""
-    if Pc_psi >= 250: return 0.9
-    return 0.80 + (0.96 - 0.80) * max(0, (Pc_psi - 100) / 150)
+    return 0.94 + (0.97 - 0.94) * max(1, (Pc_psi - 100) / 150)
 
 # =============================================================================
 # TARGETER CLASS
@@ -118,7 +117,7 @@ targeter = ThrustProfileTargeter(
 )
 
 # from 1dof thrust profile
-thrust_curve = {
+thrust_curve_1dof = {
     0.0: 1115.9, 0.1: 1176.9, 0.3: 1238.0, 0.6: 1309.1, 1.0: 1365.7, 
     1.6: 1382.5, 2.5: 1347.9, 3.5: 1276.7, 4.5: 1209.9, 5.5: 1007.4, 
     6.5: 890.0,  7.5: 890.0,  8.5: 890.0,  9.5: 890.0,  10.5: 970.4, 
@@ -128,41 +127,75 @@ thrust_curve = {
     25.1: 1115.0, 26.1: 1066.2, 27.1: 1030.0, 28.1: 1004.8, 29.1: 987.6, 29.7: 979.9
 }
 
+thrust_curve_throttle_test = {
+    0.0: 889.64,
+    0.1: 898.53,
+    0.3: 916.33,
+    0.6: 943.02,
+    1.0: 978.61,
+    1.6: 1031.99,
+    2.5: 1112.06,
+    3.5: 1201.02,
+    4.5: 1289.98,
+    5.5: 1378.95,
+    6.5: 1467.91,
+    7.5: 1556.88,
+    8.5: 1645.84,
+    9.5: 1734.81,
+    10.5: 1823.77,
+    11.5: 1912.73,
+    12.5: 2001.70,
+    13.5: 2090.66,
+    14.5: 2179.63,
+    15.5: 2224.11
+}
+
+thrust_curve = thrust_curve_throttle_test
+end_time = next(reversed(thrust_curve))
+
 # --- 3. Connections ---
 # bang bang orifice
 cda_orifice = 1.02 * MM2_TO_M2
 
 # Pressurization
-obb_line = Line(0.00492, 1, 1.5e-5, location=1)
+obb_line = Line(0.00492, 1, 1.5E-5, location=1)
 obb = BangBang(CdA=2*cda_orifice, target_pressure=(500*PSI_TO_PA), hysteresis=(5*PSI_TO_PA), location=1.0, name="Ox Bang-Bang")
 obb_series = Series([obb_line, obb], "obb_series")
 
-fbb_line = Line(0.00492, 1, 1.5e-5, location=1)
+fbb_line = Line(0.00492, 1, 1.5E-5, location=1)
 fbb = BangBang(CdA=cda_orifice, target_pressure=(500*PSI_TO_PA), hysteresis=(5*PSI_TO_PA), location=1.0, name="Fu Bang-Bang")
 fbb_series = Series([fbb_line, fbb], "fbb_series")
 
 # Engine Feed (Lines + Valves + Injectors in Series)
 otv_max, ftv_max = 0.777, 0.388
 
-# 1. Lines
-otv_line = Line(0.009, 1, 2e-4, location=0, name="OxLine")
-ftv_line = Line(0.009, 0.1, 2e-4, location=0, name="FuLine")
+# Tubes
+ID_3_8_028 = ((3/8) - 2*0.028) * IN_TO_M # ID of 3/8" Tube, WT = 0.028", [in] --> [m]
+ID_1_4_028 = ((1/4) - 2*0.028) * IN_TO_M # ID of 1/4" Tube, WT = 0.028" [in] --> [m]
 
-# 2. Valves
-otv = ThrottleValve(otv_max, location=0.0, normal_state=1.0, mode="mdot", name="OxThrottle")
-ftv = ThrottleValve(ftv_max, location=0.0, normal_state=1.0, mode="mdot", name="FuThrottle")
 
-# 3. Injectors 
-# CdA's are guesses to achieve 20% stiffness at max throttle in the profile
-ox_inj = Connection(18.3e-6, name="OxInjector")
-fu_inj = Connection(12.5e-6, name="FuInjector")
+# 1. Tank --> Throttle Valves
+otv_line = Line(ID_3_8_028, 1, 1.5E-5, location=0, name="OX Tank to OTV")
+ftv_line = Line(ID_1_4_028, 0.3048, 1.5E-5, location=0, name="FU Tank to FTV")
 
-# 4. Regen
-fu_regen = Connection(25e-6, name="FuRegenCircuit")
+# 2. Throttle Valves
+otv = ThrottleValve(otv_max, location=0.0, normal_state=1.0, mode="mdot", name="OTV")
+ftv = ThrottleValve(ftv_max, location=0.0, normal_state=1.0, mode="mdot", name="FTV")
 
-# 5. Combine
-otv_series = Series([otv_line, otv, ox_inj], "otv_series")
-ftv_series = Series([ftv_line, ftv, fu_inj, fu_regen], "ftv_series")
+# 3. Throttle Valves --> Injectors
+otv_to_inj =  Line(ID_3_8_028, 0.2032, 1.5E-5, location=0, name="OX Tank to OINJ")
+ftv_to_inj = Line(ID_1_4_028, 0.2032, 1.5E-5, location=0, name="FU Tank to FINJ")
+
+# 4. Injectors 
+ox_inj = Connection(15.3E-6, name="OINJ")
+fu_inj = Connection(10.6E-6, name="FINJ")
+
+# 5. Regen
+fu_regen = Connection(25e-6, name="FREGEN")
+
+# 6. Combine
+otv_series = Series([otv_line, otv, otv_to_inj, ox_inj], "otv_series")
+ftv_series = Series([ftv_line, ftv, fu_inj, ftv_to_inj, fu_regen], "ftv_series")
 
 # Generate Action Dict
 actions = targeter.build_action_dict(thrust_curve, otv, ftv, otv_max, ftv_max)
@@ -186,7 +219,7 @@ network = Network(graph)
 # --- 5. Run Sim ---
 print("Starting Simulation...")
 dt = 0.1 
-runtime = 30  
+runtime = end_time  
 t0 = time.time()
 network.sim(runtime, dt, actions, verbose_steps=0)
 print(f"Simulation complete in {time.time()-t0:.2f} seconds.")
@@ -237,6 +270,9 @@ with open(export_filename, mode='w', newline='') as file:
         
 print("Export complete.")
 
+# Post-Processing
+ox_stiffness = (np.array(ox_inj.history['dP']) / np.array(engine.history['P'])) * 100
+fu_stiffness = (np.array(fu_inj.history['dP']) / np.array(engine.history['P'])) * 100
 
 # =============================================================================
 # PLOTTING
@@ -274,4 +310,14 @@ axs[2].grid(True)
 
 plt.suptitle("Engine Transient Performance")
 plt.tight_layout()
+
+# Stifness Plots
+plt.figure()
+plt.plot(time_arr, ox_stiffness, color='g', label='OINJ Stiffness')
+plt.plot(time_arr, fu_stiffness, color='r', label='FINJ Stiffness')
+plt.legend()
+plt.xlabel("Time (sec)")
+plt.ylabel("Stiffness (%)")
+plt.title("Injector Stiffness")
+
 plt.show() # Display engine performance plot
