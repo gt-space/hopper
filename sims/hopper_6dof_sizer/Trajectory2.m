@@ -5,7 +5,7 @@ Thover = 2;      % s
 Tdown  = 13;     % s
 Tterm  = 5;      % terminal descent extension
 dt     = 0.01;   % 100 Hz
-Tmin = 890;
+Tmin = 848;
 Tmax = 2400;
 
 t_end = Tup + Thover + Tdown + Tterm;
