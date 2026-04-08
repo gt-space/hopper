@@ -1,5 +1,5 @@
 %clear all;
-close all; clc;
+close all;
 
 load('thrust.mat');
 APMAT=load("AP_T.mat");

@@ -5,7 +5,7 @@ Thover = 2;      % s
 Tdown  = 13;     % s
 Tterm  = 5;      % terminal descent extension
 dt     = 0.01;   % 100 Hz
-Tmin = 848;
+Tmin = 2224 * IN.propulsion.throttle_range(1);
 Tmax = 2400;
 
 t_end = Tup + Thover + Tdown + Tterm;
@@ -121,25 +121,25 @@ scenario = scenario.addElement(z_ts, "z_ref");
 
 
 %% Plots
-figure
-plot(t,z,"LineWidth",1.5)
-grid on
-xlabel("Time (s)")
-ylabel("z (m)")
-title("Reference Position")
-
-figure
-plot(t,zddot,"LineWidth",1.5)
-grid on
-xlabel("Time (s)")
-ylabel("Acceleration (m/s^2)")
-title("Vertical Acceleration")
-
-figure
-plot(t,T_cmd,"LineWidth",1.5)
-grid on
-xlabel("Time (s)")
-ylabel("Thrust (N)")
-title("Thrust Profile (limited)")
-yline(Tmin,'--r')
-yline(Tmax,'--r')
+% figure
+% plot(t,z,"LineWidth",1.5)
+% grid on
+% xlabel("Time (s)")
+% ylabel("z (m)")
+% title("Reference Position")
+% 
+% figure
+% plot(t,zddot,"LineWidth",1.5)
+% grid on
+% xlabel("Time (s)")
+% ylabel("Acceleration (m/s^2)")
+% title("Vertical Acceleration")
+% 
+% figure
+% plot(t,T_cmd,"LineWidth",1.5)
+% grid on
+% xlabel("Time (s)")
+% ylabel("Thrust (N)")
+% title("Thrust Profile (limited)")
+% yline(Tmin,'--r')
+% yline(Tmax,'--r')

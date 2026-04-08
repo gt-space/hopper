@@ -10,10 +10,11 @@ addpath('./propulsion')
 addpath('./dynamics')
 
 load_system('hopper_6dof_NED_v2');
-set_param('hopper_6dof_NED_v2', 'SolverType', 'Fixed-step')
-set_param('hopper_6dof_NED_v2', 'FixedStep', '0.0005')
+% set_param('hopper_6dof_NED_v2', 'SolverType', 'Fixed-step')
+% set_param('hopper_6dof_NED_v2', 'FixedStep', '0.0005')
 
 scenarios    = generateScenarios(params_file, n_scenarios);
+assignin('base', 'scenarios',             scenarios);
 n_scenarios  = length(scenarios);
 results_cell = cell(n_scenarios, 1);
 t_start      = tic;
