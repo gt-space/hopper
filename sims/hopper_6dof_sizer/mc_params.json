@@ -1,12 +1,12 @@
 {
   "ox_mass": {
-    "lower": 10,
-    "upper": 20,
+    "lower": 11,
+    "upper": 17,
     "nominal": 15
   },
   "fuel_mass": {
-    "lower": 5,
-    "upper": 15,
+    "lower": 10,
+    "upper": 12,
     "nominal": 10
   },
   "cstar": {
@@ -30,13 +30,13 @@
     "nominal": 0.1
   },
   "throttle_rate_limit": {
-    "lower": 50,
+    "lower": 75,
     "upper": 150,
     "nominal": 90
   },
   "throttle_latency": {
     "lower": 0.005,
-    "upper": 0.1,
+    "upper": 0.02,
     "nominal": 0.01
   },
   "tvc_actuator_rate_limit": {
@@ -46,18 +46,18 @@
   },
   "tvc_actuator_latency": {
     "lower": 0.005,
-    "upper": 0.1,
+    "upper": 0.02,
     "nominal": 0.01
   },
   "engine_off_axis_y": {
-    "lower": -0.1,
-    "upper": 0.1,
+    "lower": -0.05,
+    "upper": 0.05,
     "nominal": 0
   },
   "engine_off_axis_z": {
-    "lower": -0.1,
-    "upper": 0.1,
-    "nominal": 0
+    "lower": -0.05,
+    "upper": 0.05,
+    "nominal": 0.0
   },
   "uwind": {
     "lower": -10,
