@@ -1,6 +1,7 @@
 %clear all;
 close all; clc;
 
+clear A; clear B;
 
 
 % x y z vx vy vz P Q R q0 q1 q2 q3
@@ -32,7 +33,7 @@ params.g = 9.80665;     % m/s^2  (Down is +Z in NED)
 params.d  = cg_init - engine_cg;       % m   thrust application x-offset in BODY frame (r = [-d;0;0])
 params.r_m = 0.125;     % m   moment arm for RCS term (your r_m)
 params.n_rcs = 1;       % unitless (if you keep it)
-m_profile = linspace(OUT.Vehicle.WetMass,100, length(t));
+
 
 % inertia (constant, BODY frame about CG)
 Ix = 1;   %[kg*m^2]
@@ -45,9 +46,7 @@ params.I = [ Ix  -Ixy -Ixz;
 % Preallocate (optional but nice)
 nx = 13;
 nu = 4;
-N  = length(t);
-A  = zeros(nx,nx,N);
-B  = zeros(nx,nu,N);
+
 
 
 Target_Trajectory = [0 0 0 0 0 0 0 0 0 sqrt(2)/2 0 sqrt(2)/2 0]';
@@ -57,8 +56,8 @@ Target_Trajectory = [0 0 0 0 0 0 0 0 0 sqrt(2)/2 0 sqrt(2)/2 0]';
 % Linearize along the full target trajectory
 
    x = Target_Trajectory;   % 13x1
-   u = [114*9.81; 0; 0; 0 ];             % 4x1
-   [A,B,f0] = HopperLinearization_6DOF_LQR(x, u, params);
+   u = [114*9.81; .5; .5; .5 ];             % 4x1
+   [A,B] = HopperLinearization_6DOF_LQR(x, u, params);
  %  Fref(i,:) = f_i.';
 
 Co = ctrb(A,B)

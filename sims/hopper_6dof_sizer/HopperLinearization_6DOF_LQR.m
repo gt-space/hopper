@@ -1,9 +1,9 @@
-function [A,B,f0] = HopperLinearization_6DOF_LQR(x, u, params)
+function [A,B] = HopperLinearization_6DOF_LQR(x, u, params)
 % x = [X Y Z Vx Vy Vz P Q R q0 q1 q2 q3]'
 % u = [T delta_p delta_y F_rcs]'   (radians)
 % params.m, params.I (3x3), params.g, params.d, params.r_m
 mass =  114;
-f0 = hopper_f(x,u,params,mass);
+
 
 h = 1e-12;                     % complex-step size
 nx = numel(x); nu = numel(u);
@@ -24,10 +24,9 @@ end
 end
 
 function f = hopper_f(x,u,p,mass)
-X=x(1); Y=x(2); Z=x(3);
-Vx=x(4); Vy=x(5); Vz=x(6);
-P=x(7); Q=x(8); R=x(9);
-q = x(10:13);   % [q0 q1 q2 q3]'
+
+P=x(1); Q=x(2); R=x(3);
+q = x(4:7);   % [q0 q1 q2 q3]'
 
 T       = u(1);
 delta_p = u(2);
@@ -48,8 +47,7 @@ F_Tb = [Fx_T; Fy_T; Fz_T];
 
 % Inertial translational dynamics (NED gravity)
 F_n  = Rbn * (F_Tb + [0;0;m*g]);
-Vdot = (1/m) * F_n;
-posdot = [Vx;Vy;Vz];
+
 
 % Moments in body
 r_tvc = [-d;0;0];
@@ -64,9 +62,9 @@ omegadot = I \ (M_body - cross(omega, I*omega));
 % Quaternion kinematics
 qdot = 0.5 * Omega(omega) * q;
 
-f = [posdot;
-     Vdot;
-     omegadot;
+
+
+f = [omegadot;
      qdot];
 end
 
