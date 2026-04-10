@@ -20,15 +20,18 @@ VEH.h.fu_tank = TANKS.singular.fuel.h;
 VEH.mass.engine = ENGINE.mass;
 VEH.mass.avi = AVI.mass;
 VEH.mass.press = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
-% VEH.mass.dry = VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
+%VEH.mass.dry = VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
+VEH.mass.dry = 112.36;
 % PROP = size_propellant(IN, VEH, ENGINE); need engine code to rum this
 
 VEH.mass.wet = VEH.mass.dry + ...
-    IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass ;
+    IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass;
 
 [STRUCT, VEH] = size_structures(IN, VEH);
 
-VEH.mass.dry = 112.36;
+
+
+
 
 r_leg_1 = [0 IN.legs.feet_radial_dist 0];
 r_leg_2 = [0 -IN.legs.feet_radial_dist 0];

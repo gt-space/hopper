@@ -15,13 +15,24 @@ VEH.h.fu_tank    = TANKS.singular.fuel.h;
 VEH.mass.engine  = ENGINE.mass;
 VEH.mass.avi     = AVI.mass;
 VEH.mass.press   = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
-VEH.mass.dry     = IN.mass_factor * VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + ...
-                   IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
+% VEH.mass.dry     = IN.mass_factor * VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + ...
+%                    IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
+
+VEH.mass.dry = IN.mass_factor * 112.36;
 VEH.mass.wet     = VEH.mass.dry + IN.propulsion.oxidizer_mass + IN.propulsion.fuel_mass;
 
 [STRUCT, VEH] = size_structures(IN, VEH);
 
+VEH.mass.dry = IN.mass_factor * 112.36;
+
+VEH.mass.wet = VEH.mass.dry + ...
+    IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass;
+
 OUT = Outputs(IN, VEH, TANKS, STRUCT);
+
+OUT.Vehicle.WetMass
+
+VEH.mass.wet
 
 r_leg_1 = [0  IN.legs.feet_radial_dist  0];
 r_leg_2 = [0 -IN.legs.feet_radial_dist  0];
@@ -77,15 +88,15 @@ copv_ycg           = 0.23;
 % Scenario/sized values
 ox_mass        = IN.propulsion.oxidizer_mass;
 fu_mass        = IN.propulsion.fuel_mass;
-engine_mass    = ENGINE.mass;
+engine_mass    = 37.83;
 ox_tank_mass   = TANKS.singular.oxidizer.mass;
 ox_tank_h      = TANKS.singular.oxidizer.h;
 fu_tank_mass   = TANKS.singular.fuel.mass;
 fu_tank_h      = TANKS.singular.fuel.h;
-structures_mass = OUT.Vehicle.MassDistribution.Structures;
-avi_mass       = AVI.mass;
-fluids_mass    = OUT.VehicleFluids.FinalMass;
-payload_mass   = IN.structures.payload_mass + IN.structures.extra_payload_mass;
+structures_mass = 34.26;
+avi_mass       = 11.52;
+fluids_mass    = 28.41;
+payload_mass   = IN.structures.payload_mass;
 tank_r         = TANKS.singular.radius;
 copv_mass      = IN.press.copv.mass + 6;
 it_h           = TANKS.singular.radius;

@@ -12,8 +12,8 @@ t_end = Tup + Thover + Tdown + Tterm;
 t = (0:dt:t_end)';
 
 %% Mass profile
-m0 = OUT.Vehicle.WetMass;        % initial mass
-mf = m0-14;        % final mass
+m0 = OUT.Vehicle.WetMass        % initial mass
+mf = m0-16.36;        % final mass
 
 m = m0 + (mf-m0)*(t/t_end);   % linear burn
 
@@ -120,7 +120,7 @@ scenario = scenario.addElement(z_ts, "z_ref");
 
 
 
-%% Plots
+% % Plots
 % figure
 % plot(t,z,"LineWidth",1.5)
 % grid on

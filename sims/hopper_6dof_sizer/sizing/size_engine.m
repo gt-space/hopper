@@ -76,7 +76,7 @@ inj_mass = inj_volume * material_dict(inj_material);
 
 % Actuators Mass
 actuators_mass = 10; % kg
-tvc_natural_freq = 1.8 / IN.tvc.actuator_latency;
+tvc_natural_freq = 1.8 / 0.01;
 
 % Total Mass
 engine_mass = inj_mass + TCA_mass + actuators_mass + misc_mass; % kg
