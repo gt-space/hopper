@@ -8,7 +8,7 @@ ox = 'LOX'
 fuel = 'RP1'
 
 MR = 1.25
-eps = 3.655          # nozzle expansion ratio Ae/At
+eps = 2.931          # nozzle expansion ratio Ae/At
 Pamb = 14.7        # psia
 
 Pc_min = 100       # psia
