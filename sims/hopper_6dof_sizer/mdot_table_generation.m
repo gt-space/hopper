@@ -8,8 +8,8 @@ fu_tank_P = 500 * 6894.76; % psia --> Pa
 ox_sys_CdA = 1.7827-5; % m^2
 fu_sys_CdA = 1.1E-5; % m^2
 eta_cstar = 0.85;
-At = 1.138 * 0.00064516; % in^2 --> m^2
-eps = 3.655;
+At = 1.056 * 0.00064516; % in^2 --> m^2
+eps = 2.93;
 
 mdot_data = cell(length(thrust_target),3);
 

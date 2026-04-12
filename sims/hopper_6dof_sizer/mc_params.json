@@ -1,52 +1,52 @@
 {
   "ox_mass": {
-    "lower": 11,
-    "upper": 17,
-    "nominal": 15
+    "lower": 12,
+    "upper": 12,
+    "nominal": 12
   },
   "fuel_mass": {
-    "lower": 10,
+    "lower": 12,
     "upper": 12,
-    "nominal": 10
+    "nominal": 12
   },
   "cstar": {
-    "lower": 0.75,
-    "upper": 0.92,
+    "lower": 0.85,
+    "upper": 0.85,
     "nominal": 0.85
   },
   "mass_factor": {
-    "lower": 0.9,
-    "upper": 1.1,
+    "lower": 1.0,
+    "upper": 1.0,
     "nominal": 1.0
   },
   "slosh_lateral_damping": {
     "lower": 0.04,
-    "upper": 0.1,
+    "upper": 0.04,
     "nominal": 0.04
   },
   "slosh_axial_damping": {
-    "lower": 0.1,
-    "upper": 0.5,
+    "lower": 0.3,
+    "upper": 0.3,
     "nominal": 0.3
   },
   "throttle_rate_limit": {
     "lower": 90,
-    "upper": 120,
+    "upper": 90,
     "nominal": 90
   },
   "throttle_latency": {
-    "lower": 0.005,
-    "upper": 0.02,
+    "lower": 0.01,
+    "upper": 0.01,
     "nominal": 0.01
   },
   "tvc_actuator_rate_limit": {
-    "lower": 10,
-    "upper": 40,
+    "lower": 30,
+    "upper": 30,
     "nominal": 30
   },
   "tvc_actuator_latency": {
-    "lower": 0.005,
-    "upper": 0.02,
+    "lower": 0.01,
+    "upper": 0.01,
     "nominal": 0.01
   },
   "engine_off_axis_y": {

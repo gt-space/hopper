@@ -38,7 +38,7 @@ r_leg_2 = [0 -IN.legs.feet_radial_dist 0];
 r_leg_3 = [0 0 IN.legs.feet_radial_dist ];
 r_leg_4 = [0 0 -IN.legs.feet_radial_dist];
 
-VEH.k_engine = (IN.engine_cg/1.62)^2;
+VEH.k_engine = (IN.engine_cg/2.44)^2;
 
 
 % VEHICLE SIZING OUTPUTS

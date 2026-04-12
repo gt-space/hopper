@@ -16,13 +16,13 @@ function [ox_mdot, fu_mdot, tot_mdot, Pc, thrust, MR, ox_valve_CdA, fu_valve_CdA
     MW = 20.660 / 1000; % g/mol --> kg/mol
     R = R_bar / MW; % J/kg-K
     
-    MR_target = 1.3;
+    MR_target = 1.25;
 
     % Gamma set - implement CEA to calculate gamma!
     gamma = 1.1626;
 
     % Cstar Theoretical
-    cstar_theo = 1516.4; % m/s
+    cstar_theo = 1254.7; % m/s
     cstar_act = eta_cstar * cstar_theo; % m/s
     
     % Density Call

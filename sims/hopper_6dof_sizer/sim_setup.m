@@ -1,4 +1,6 @@
 
+clearvars;
+
 main();
 
 load_lookup();

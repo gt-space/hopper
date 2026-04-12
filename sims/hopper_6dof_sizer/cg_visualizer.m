@@ -69,9 +69,9 @@ time_text = text(0.5,1,l*0.9, '', 'FontSize',14,'Color','w');
 
 
 v = VideoWriter('cg__6dof_visualization.mp4','MPEG-4');
-% v.FrameRate = 30;
-% v.Quality = 100;
-% open(v); 
+v.FrameRate = 30;
+v.Quality = 100;
+open(v); 
 
 % Animation
 for i = 1:length(cg.Data)
@@ -99,10 +99,10 @@ for i = 1:length(cg.Data)
 
     drawnow
     
-    % frame = getframe(gcf);
-    % writeVideo(v, frame);
+    frame = getframe(gcf);
+    writeVideo(v, frame);
 
     pause(1e-6); % Pause for animation effect
 end
 % 
-% close(v)
+close(v)
