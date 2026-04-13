@@ -21,16 +21,13 @@ VEH.mass.engine = ENGINE.mass;
 VEH.mass.avi = AVI.mass;
 VEH.mass.press = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
 %VEH.mass.dry = VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
-VEH.mass.dry = 112.36;
+VEH.mass.dry = 116.86;
 % PROP = size_propellant(IN, VEH, ENGINE); need engine code to rum this
 
 VEH.mass.wet = VEH.mass.dry + ...
     IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass;
 
 [STRUCT, VEH] = size_structures(IN, VEH);
-
-
-
 
 
 r_leg_1 = [0 IN.legs.feet_radial_dist 0];
@@ -95,4 +92,4 @@ fprintf('Engine Mass: %.2f kg\n', ENGINE.mass);
 
 fprintf('\n=== Payload ===\n');
 fprintf('CPLC Payload Mass: %.2f kg\n', IN.structures.payload_mass);
-fprintf('Remaining Payload Mass: %.2f kg\n', IN.structures.extra_payload_mass);
+% fprintf('Remaining Payload Mass: %.2f kg\n', IN.structures.extra_payload_mass);

@@ -19,11 +19,6 @@
     "upper": 1.02,
     "nominal": 1.0
   },
-   "cg_factor": {
-    "lower": 0.99,
-    "upper": 1.01,
-    "nominal": 1.0
-  },
   "slosh_lateral_damping": {
     "lower": 0.02,
     "upper": 0.06,
@@ -45,8 +40,8 @@
     "nominal": 0.01
   },
   "tvc_actuator_rate_limit": {
-    "lower": 14,
-    "upper": 16,
+    "lower": 15,
+    "upper": 15,
     "nominal": 15
   },
   "tvc_actuator_latency": {
