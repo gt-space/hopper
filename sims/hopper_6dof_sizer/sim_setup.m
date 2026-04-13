@@ -1,4 +1,6 @@
 
+clearvars;
+
 main();
 
 load_lookup();
@@ -9,3 +11,4 @@ LinerizationMaster();
 
 %prop_system_testing();
 
+    

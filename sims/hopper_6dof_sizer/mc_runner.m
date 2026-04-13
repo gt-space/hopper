@@ -1,6 +1,6 @@
 function results = mc_runner(n_scenarios, params_file, output_file)
 
-if nargin < 1; n_scenarios = 100;              end
+if nargin < 1; n_scenarios = 10;              end
 if nargin < 2; params_file = 'mc_params.json'; end
 if nargin < 3; output_file = 'mc_results.mat'; end
 

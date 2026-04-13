@@ -18,11 +18,11 @@ IN.mission.TWR_hover_landing = 1;
 IN.mission.max_vehicle_height = 2.5; % m
 
 %  MASS GROWTH MARGIN
-IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
+% IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
 
 %  STRUCTURES
 IN.structures.payload_mass = 15; % kg, CPLC Requirement
-IN.structures.extra_payload_mass = 16.13; % kg
+% IN.structures.extra_payload_mass = 16.13; % kg
 IN.structures.payload_cg_z = [];            % m (from cad/aidan)
 
 %  AVIONICS
@@ -36,8 +36,8 @@ IN.avionics.boards.current = 0.5; % A
 %  PROPULSION
 IN.propulsion.oxidizer = 'O2'; %Oxygen - coolprop
 IN.propulsion.fuel = 'Dodecane'; %AKA KEROSENE - coolprop
-IN.propulsion.oxidizer_mass = 15; % kg -> internal
-IN.propulsion.fuel_mass = 9; % kg -> internal
+IN.propulsion.oxidizer_mass = 16; % kg -> internal
+IN.propulsion.fuel_mass = 13; % kg -> internal
 IN.propulsion.ox_vol = 0.020; % m^3
 IN.propulsion.fu_vol = 0.0152; % m^3
 IN.propulsion.ox_press = 500 * 6894.76; % Pa
@@ -47,10 +47,10 @@ IN.propulsion.ox_temp = 93; % K
 IN.propulsion.ox_sys_CdA = 1.7827E-5; % m^2
 IN.propulsion.fu_sys_CdA = 1.1E-5; % m^2
 IN.propulsion.eta_cstar = 0.85;
-IN.propulsion.At = 1.138 * 0.00064516; % in^2 --> m^2
-IN.propulsion.eps = 3.655;
+IN.propulsion.At = 1.056 * 0.00064516; % in^2 --> m^2
+IN.propulsion.eps = 2.93;
 IN.propulsion.nominal_thrust = 500 * 4.44822; % N
-IN.propulsion.throttle_range = [0.3 1.1];
+IN.propulsion.throttle_range = [0.4 1.1];
 IN.solenoid_valve_quantity = 5;
 IN.valves.voltage = 12; % V
 IN.valves.current = 1; % A
@@ -83,25 +83,26 @@ IN.press.autogenous.piston_friction = 0;      % Pa
 IN.tanks.geometry = 'stacked'; % stacked, concentric, clustered
 IN.tanks.material = 'Al6061';
 IN.tanks.max_radius = 4*0.0254; % in -> m
-IN.tanks.lateral_damping = 0.02;
-IN.tanks.axial_damping = 0.1;
+IN.tanks.lateral_damping = 0.04;
+IN.tanks.axial_damping = 0.3;
 
 %  TVC
 IN.tvc.max_gimbal_angle = deg2rad(15); % ?
-IN.tvc.max_gimbal_rate = deg2rad(30); % rad/s ?
+IN.tvc.max_gimbal_rate = deg2rad(15); % ]
 IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
 IN.tvc.actuator_latency = 0.01; % s
+IN.tvc.rise_time = 0.05; % s
 IN.tvc.resolution = deg2rad(0.1);
 IN.tvc.damping_ratio = 0.5; 
 
 % RCS
-IN.rcs.max_thrust = 10; % N
-IN.rcs.throttle_rate = 25; % N/s
-IN.rcs.max_speed = 62500; % RPM
-IN.rcs.min_speed = 0.05; % RPM
+IN.rcs.max_thrust = 16; % N
+IN.rcs.throttle_rate = 50; % N/s
+% IN.rcs.max_speed = 62500; % RPM
+% IN.rcs.min_speed = 0.05; % RPM
 IN.rcs_time_constant = 0.1;
-IN.rcs.resolution = 2.5;
+IN.rcs.resolution = 0.1;
 
 % THROTTLE VALVE
 IN.throttle_valve.voltage = 24; % V
@@ -133,22 +134,21 @@ IN.copv_h = 0.56;
 IN.copv_zcg = 1.21;
 IN.copv_ycg = 0.23;
 
-
 %  MODAL PARAMETERS
-IN.vehicle_damping_ratio = 0.05; 
+IN.vehicle_damping_ratio = 0.01; 
 IN.vehicle_natural_frequency = 10; % Hz
 
 % Wind Defaults
 % 1 - Monte Carlo , 2 - constant , 3 - 4D Array Historical Wind
 IN.wind.mode = 2; %
-IN.wind.uwind = 2.5; %default values for uwnd/vwnd with NO Monte Carlo
-IN.wind.vwind = 2.5;
+IN.wind.uwind = 5; %default values for uwnd/vwnd with NO Monte Carlo
+IN.wind.vwind = 5;
 
 
-%  SIMULATION SETTINGS
-IN.sim.dt = 0.01;                  % s
-IN.sim.t_max = 60;                 % s
-IN.sim.use_simulink = true;
+% %  SIMULATION SETTINGS
+% IN.sim.dt = 0.01;                  % s
+% IN.sim.t_max = 60;                 % s
+% IN.sim.use_simulink = true;
 
 %Mass factor
 IN.mass_factor = 1.0; %default / nominal case
