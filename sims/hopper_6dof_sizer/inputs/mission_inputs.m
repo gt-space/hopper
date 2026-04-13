@@ -102,7 +102,7 @@ IN.rcs.throttle_rate = 50; % N/s
 % IN.rcs.max_speed = 62500; % RPM
 % IN.rcs.min_speed = 0.05; % RPM
 IN.rcs_time_constant = 0.1;
-IN.rcs.resolution = 0.25;
+IN.rcs.resolution = 0.01;
 
 % THROTTLE VALVE
 IN.throttle_valve.voltage = 24; % V
