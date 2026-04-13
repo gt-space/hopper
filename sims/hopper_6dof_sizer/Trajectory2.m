@@ -81,18 +81,22 @@ for k = 1:length(t)
         % Solve 5th-order polynomial:
         % z(t) = a0 + a1*t + a2*t^2 + a3*t^3 + a4*t^4 + a5*t^5
 
-        a0 = z0_term;
-        a1 = v0_term;
-        a2 = a0_term/2;
+        zf_term = 0;     % final position (m)
+        vf_term = -0.01;   % final velocity (m/s)
+        af_term = 0;      % final acceleration (smooth thrust)
+
+        a0 = zf_term;
+        a1 = vf_term;
+        a2 = af_term/2;
 
         % Solve for a3, a4, a5
-        A = [ T^3   T^4    T^5;
-            3*T^2 4*T^3  5*T^4;
-            6*T   12*T^2 20*T^3 ];
+         A = [ T^3   T^4    T^5;
+          3*T^2 4*T^3  5*T^4;
+          6*T   12*T^2 20*T^3 ];
 
-        b = [ -a0 - a1*T - a2*T^2;   % z(T)=0
-            -a1 - 2*a2*T;          % v(T)=0
-            -2*a2 ];               % a(T)=0
+         b = [ z0_term - a0 - a1*T - a2*T^2;
+          v0_term - a1 - 2*a2*T;
+          a0_term - 2*a2 ];             
 
         x = A\b;
 
@@ -107,6 +111,7 @@ for k = 1:length(t)
         zddot_term = 2*a2 + 6*a3*tau + 12*a4*tau^2 + 20*a5*tau^3;
 
         T_cmd(k) = m(k)*(g + zddot_term);
+
     end
     zdot  = gradient(z,dt);
     zddot = gradient(zdot,dt);
@@ -125,7 +130,7 @@ zddot = gradient(zdot,dt);
 
 T_cmd = min(max(T_cmd,Tmin),Tmax);
 
-%% LOW PASS FILTER 
+% LOW PASS FILTER 
 tau = 0.2; % seconds (tune 0.1–0.5)
 
 T_filt = zeros(size(T_cmd));
