@@ -1,0 +1,113 @@
+close all;
+clear tresp;
+clear x_x; clear x_x_ts;
+
+for i = 1:length(t)-1
+
+  CL(:,:,i) = A(:,:,i) - B(:,:,i)*K1(:,:,i);
+
+  poles(:,i)    = eig(CL(:,:,i));
+  [V,D]    = eig(CL(:,:,i));
+  %x0 = real(V(:,i));
+end
+
+kplot = 1;
+
+%% Initial Disturbance Response Code
+
+ACL = CL(:,:,kplot);
+
+
+sys_IC = ss(ACL,zeros(13,1),eye(13),zeros(13,1));
+
+tresp = linspace(0,15,2000);
+
+%initial Q disturbance
+[x_Q,phi_Q,theta_Q,psi_Q,t_Q,x_Q_ts_Q,phi_ts_Q,theta_ts_Q,psi_ts_Q] = State_Response(sys_IC,tresp,8,1);
+
+%initial x disturbance
+[x_x,phi,theta,psi,t_x,x_x_ts,phi_ts,theta_ts,psi_ts] = State_Response(sys_IC,tresp,1,1);
+
+%initial attitude disturbance
+[x_at,phi_at,theta_at,psi_at,t_at,x_ts_at,phi_ts_at,theta_ts_at,psi_ts_at] = State_Response(sys_IC,tresp,[11,12],[.13,.695-.707]);
+
+
+%%
+
+figure
+plot(t_Q, x_Q(:,8), 'LineWidth', 1.5)
+hold on
+plot(t_Q, x_Q(:,1), 'LineWidth', 1.5)
+plot(t_Q, x_Q(:,10), 'LineWidth', 1.5)
+plot(t_Q, x_Q(:,11), 'LineWidth', 1.5)
+plot(t_Q, x_Q(:,12), 'LineWidth', 1.5)
+plot(t_Q, x_Q(:,13), 'LineWidth', 1.5)
+hold off
+grid on
+xlabel('Time [s]')
+title('State Response to Q Disturbance')
+legend('Q','x','q0','q1','q2','q3')
+
+
+
+figure
+plot(t_x, x_x(:,1), 'LineWidth', 1.5)
+hold on
+plot(t_x, x_x(:,8), 'LineWidth', 1.5)
+hold off
+grid on
+xlabel('Time [s]')
+title('State Responses to x Distrubance')
+legend('x','Q')
+
+figure
+%plot(t_x,phi);
+%hold on
+plot(t_x,theta,'LineWidth', 1.5);
+%plot(t_x,psi);
+hold off;
+grid on;
+legend('\phi','\theta','\psi');
+xlabel('t [s]');
+ylabel('\theta [deg]');
+title('\theta Response To x Distrubance');
+
+
+figure
+plot(t_at, x_at(:,1), 'LineWidth', 1.5)
+hold on
+plot(t_at, x_at(:,2), 'LineWidth', 1.5)
+plot(t_at, x_at(:,3), 'LineWidth', 1.5)
+plot(t_at, x_at(:,7), 'LineWidth', 1.5)
+plot(t_at, x_at(:,8), 'LineWidth', 1.5)
+plot(t_at, x_at(:,9), 'LineWidth', 1.5)
+plot(t_at, x_at(:,10), 'LineWidth', 1.5)
+plot(t_at, x_at(:,11), 'LineWidth', 1.5)
+plot(t_at, x_at(:,12), 'LineWidth', 1.5)
+plot(t_at, x_at(:,13), 'LineWidth', 1.5)
+hold off
+grid on
+xlabel('Time [s]')
+title('State Response to Attitude Disturbance')
+legend('x','y','z','P','Q','R','q0','q1','q2','q3')
+% 
+figure
+plot(t_at,phi_at);
+hold on
+plot(t_at,theta_at,'LineWidth', 1.5);
+plot(t_at,psi_at);
+hold off;
+grid on;
+legend('\phi','\theta','\psi');
+xlabel('t [s]');
+ylabel('\theta [deg]');
+title('\theta Response To Attitude Distrubance');
+
+
+%% Modal
+
+[V,D] = eig(ACL);
+mode_idx = 1;
+x0 = real(V(:,mode_idx));
+x0 = x0 / max(abs(x0));
+

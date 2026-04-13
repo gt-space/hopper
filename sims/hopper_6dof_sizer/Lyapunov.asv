@@ -2,10 +2,8 @@ close all; clc;
 clear CL; clear X; clear lyapEigs; clear poles;
 clear CL_noquat;clear poles_noquat;
 
-clear tf
-which tf -all
-
 Q = ones(13,13);
+Q_noquat = ones(9,9);
 
 for i = 1:length(t)-1
 
@@ -138,7 +136,7 @@ for i = 1:length(p)
         % G(s) = wn^2 / (s^2 + 2*zeta*wn*s + wn^2)
         num2 = wn^2;
         den2 = [1 2*zeta*wn wn^2];
-        G2 = tf(num2,den2);
+        G2 = tf(wn,[1 2*zeta*wn wn^2]);
 
         % time vector scaled to mode speed
         if wn > 0
@@ -259,71 +257,3 @@ grid on
 xlabel('Real')
 ylabel('Imag')
 
-%% =========================
-% SAVE FIGURES WITH POLE-BASED NAMES
-% =========================
-
-folderName = 'PolePlots';
-
-if ~exist(folderName, 'dir')
-    mkdir(folderName);
-end
-
-figHandles = findall(0, 'Type', 'figure');
-
-for k = 1:length(figHandles)
-
-    fig = figHandles(k);
-    figure(fig);
-
-    ax = get(fig, 'CurrentAxes');
-    titleStr = '';
-
-    if ~isempty(ax)
-        titleObj = get(ax, 'Title');
-        titleStr = get(titleObj, 'String');
-    end
-
-    fileName = sprintf('Figure_%02d', k);
-
-    if ~isempty(titleStr)
-
-        if iscell(titleStr)
-            titleStr = titleStr{1};
-        end
-
-        name = char(titleStr);
-
-        name = strrep(name, ' ', '_');
-        name = strrep(name, '.', 'p');
-        name = strrep(name, '-', 'm');
-        name = strrep(name, '+', 'p');
-        name = strrep(name, '\pm', 'pm');
-        name = strrep(name, '\', '');
-        name = strrep(name, '^', '');
-        name = strrep(name, '{', '');
-        name = strrep(name, '}', '');
-        name = strrep(name, '(', '');
-        name = strrep(name, ')', '');
-        name = strrep(name, ',', '');
-        name = strrep(name, ':', '');
-        name = strrep(name, '/', '_');
-        name = strrep(name, '*', '');
-        name = strrep(name, '?', '');
-        name = strrep(name, '"', '');
-        name = strrep(name, '<', '');
-        name = strrep(name, '>', '');
-        name = strrep(name, '|', '');
-
-        if length(name) > 100
-            name = name(1:100);
-        end
-
-        fileName = name;
-    end
-
-    fullFileName = fullfile(folderName, [fileName '.png']);
-    saveas(fig, fullFileName);
-end
-
-disp('All figures saved with pole-based names.')
