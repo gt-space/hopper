@@ -8,14 +8,13 @@ ox_nu = 0.17e-6; % m^2/s OX
 tank_r = TANKS.singular.radius;
 ox_baffle_width = TANKS.singular.radius * 0.3;
 fu_baffle_width = TANKS.singular.radius * 0.3;
-ox_baffle_number = 10;
-fu_baffle_number = 10;
-
+ox_baffle_number = 12;
+fu_baffle_number = 12;
 ox_tank_h = TANKS.singular.oxidizer.h;
 fu_tank_h = TANKS.singular.fuel.h;
 
-ox_mass_profile = linspace(1, IN.propulsion.oxidizer_mass, 200);
-fu_mass_profile = linspace(1, IN.propulsion.fuel_mass, 200);
+ox_mass_profile = linspace(0.1, IN.propulsion.oxidizer_mass, 200);
+fu_mass_profile = linspace(0.1, IN.propulsion.fuel_mass, 200);
 
 [ox_damping_ratios] = lateralDampingCalc(ox_mass_profile, ox_density, ox_nu, tank_r, ox_baffle_width, ox_baffle_number, ox_tank_h);
 

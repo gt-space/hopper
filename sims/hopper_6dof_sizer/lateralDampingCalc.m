@@ -22,6 +22,8 @@ sigma = 1 - (A_gap / A_tank);
 
 k = eig_1 / tank_r;
 
+Cd = 1.7;
+
 for i = 1:length(prop_heights)
 
     h = prop_heights(i);
@@ -56,13 +58,15 @@ for i = 1:length(prop_heights)
 
     for j = 1:Nb
 
-        % local velocity scale 
-        v_i = phi(j) * omega;
+        % mode participation (NO normalization)
+        phi_sq = phi(j)^2;
 
-        local_mass = m_modal * (phi(j)^2 / sum(phi.^2));
+        % local participation weight (relative, not normalized)
+        weight = phi_sq / (1 + phi_sq);  
 
-        dE_i = w(j) * sigma^1.2 * local_mass * (v_i^2);
-        
+        % dissipation as FRACTION of modal energy
+        dE_i = w(j) * Cd * sigma^1.2 * weight * E_modal;
+
         zeta_energy = zeta_energy + dE_i;
 
     end
@@ -73,6 +77,8 @@ for i = 1:length(prop_heights)
     % total damping
     
     damping_ratios(i) = zeta_smooth + zeta_baffle;
+
+    % disp(zeta_baffle)
 
 end
 

@@ -61,8 +61,8 @@ for i = 1:length(prop_heights)
 
         local_mass = m_modal * (phi(j)^2 / sum(phi.^2));
 
-        dE_i = w * sigma^1.2 * local_mass * (v_i^2);
-
+        dE_i = w(j) * sigma^1.2 * local_mass * (v_i^2);
+        
         zeta_energy = zeta_energy + dE_i;
 
     end
@@ -73,6 +73,8 @@ for i = 1:length(prop_heights)
     % total damping
     
     damping_ratios(i) = zeta_smooth + zeta_baffle;
+
+    disp()
 
 end
 
