@@ -6,8 +6,8 @@ fu_nu = 1.3e-6;  % m^2/s FU
 ox_nu = 0.17e-6; % m^2/s OX
 
 tank_r = TANKS.singular.radius;
-ox_baffle_width = TANKS.singular.radius * 0.35;
-fu_baffle_width = TANKS.singular.radius * 0.35;
+ox_baffle_width = TANKS.singular.radius * 0.3;
+fu_baffle_width = TANKS.singular.radius * 0.3;
 ox_baffle_number = 10;
 fu_baffle_number = 10;
 
