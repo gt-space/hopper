@@ -82,8 +82,8 @@ IN.press.autogenous.piston_friction = 0;      % Pa
 %  TANK OPTIONS
 IN.tanks.geometry = 'stacked'; % stacked, concentric, clustered
 IN.tanks.material = 'Al6061';
-IN.tanks.max_radius = 4*0.0254; % in -> m
-IN.tanks.lateral_damping = 0.04;
+IN.tanks.max_radius = 4.25*0.0254; % in -> m
+IN.tanks.lateral_damping = 0.08;
 IN.tanks.axial_damping = 0.3;
 
 %  TVC

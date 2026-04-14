@@ -82,7 +82,7 @@ for k = 1:length(t)
         % z(t) = a0 + a1*t + a2*t^2 + a3*t^3 + a4*t^4 + a5*t^5
 
         zf_term = 0;     % final position (m)
-        vf_term = -0.01;   % final velocity (m/s)
+        vf_term = -0.1;   % final velocity (m/s)
         af_term = 0;      % final acceleration (smooth thrust)
 
         a0 = zf_term;
@@ -163,32 +163,32 @@ scenario = scenario.addElement(z_ts, "z_ref");
 
 
 % Plots
-figure
-plot(t,z,"LineWidth",1.5)
-grid on
-xlabel("Time (s)")
-ylabel("z (m)")
-title("Reference Position")
-
-figure
-plot(t,zddot,"LineWidth",1.5)
-grid on
-xlabel("Time (s)")
-ylabel("Acceleration (m/s^2)")
-title("Vertical Acceleration")
-
-figure
-plot(t,zdot,"LineWidth",1.5)
-grid on
-xlabel("Time (s)")
-ylabel("Velocity (m/s)")
-title("Vertical Velocity")
-
-figure
-plot(t,T_cmd,"LineWidth",1.5)
-grid on
-xlabel("Time (s)")
-ylabel("Thrust (N)")
-title("Thrust Profile (limited)")
-yline(Tmin,'--r')
-yline(Tmax,'--r')
+% figure
+% plot(t,z,"LineWidth",1.5)
+% grid on
+% xlabel("Time (s)")
+% ylabel("z (m)")
+% title("Reference Position")
+% 
+% figure
+% plot(t,zddot,"LineWidth",1.5)
+% grid on
+% xlabel("Time (s)")
+% ylabel("Acceleration (m/s^2)")
+% title("Vertical Acceleration")
+% 
+% figure
+% plot(t,zdot,"LineWidth",1.5)
+% grid on
+% xlabel("Time (s)")
+% ylabel("Velocity (m/s)")
+% title("Vertical Velocity")
+% 
+% figure
+% plot(t,T_cmd,"LineWidth",1.5)
+% grid on
+% xlabel("Time (s)")
+% ylabel("Thrust (N)")
+% title("Thrust Profile (limited)")
+% yline(Tmin,'--r')
+% yline(Tmax,'--r')
