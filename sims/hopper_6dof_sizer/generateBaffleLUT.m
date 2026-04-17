@@ -8,26 +8,42 @@ ox_nu = 0.17e-6; % m^2/s OX
 tank_r = TANKS.singular.radius;
 ox_baffle_width = TANKS.singular.radius * 0.3;
 fu_baffle_width = TANKS.singular.radius * 0.3;
-ox_baffle_number = 12;
-fu_baffle_number = 12;
+ox_baffle_number = 7;
+fu_baffle_number = 7;
 ox_tank_h = TANKS.singular.oxidizer.h;
 fu_tank_h = TANKS.singular.fuel.h;
 
 ox_mass_profile = linspace(0.1, IN.propulsion.oxidizer_mass, 200);
 fu_mass_profile = linspace(0.1, IN.propulsion.fuel_mass, 200);
 
-[ox_damping_ratios] = lateralDampingCalc(ox_mass_profile, ox_density, ox_nu, tank_r, ox_baffle_width, ox_baffle_number, ox_tank_h);
+[ox_lateral_damping_ratios] = lateralDampingCalc(ox_mass_profile, ox_density, ox_nu, tank_r, ox_baffle_width, ox_baffle_number, ox_tank_h);
 
-[fu_damping_ratios] = lateralDampingCalc(fu_mass_profile, fu_density, fu_nu, tank_r, fu_baffle_width, fu_baffle_number, fu_tank_h);
+[fu_lateral_damping_ratios] = lateralDampingCalc(fu_mass_profile, fu_density, fu_nu, tank_r, fu_baffle_width, fu_baffle_number, fu_tank_h);
+
+[ox_axial_damping_ratios] = axialDampingCalc(ox_mass_profile, ox_density, ox_nu, tank_r, ox_baffle_width, ox_baffle_number, ox_tank_h);
+
+[fu_axial_damping_ratios] = axialDampingCalc(fu_mass_profile, fu_density, fu_nu, tank_r, fu_baffle_width, fu_baffle_number, fu_tank_h);
 
 figure
-plot(ox_mass_profile, ox_damping_ratios)
+plot(ox_mass_profile, ox_lateral_damping_ratios)
 xlabel("Ox mass")
 ylabel("Lateral Damping Ratio")
 title("Lateral Damping Ratio over Ox mass, Number of Baffles: " + ox_baffle_number + " , Baffle width (m): " + ox_baffle_width)
 
 figure
-plot(fu_mass_profile, fu_damping_ratios)
+plot(fu_mass_profile, fu_lateral_damping_ratios)
 xlabel("Fuel mass")
 ylabel("Lateral Damping Ratio")
 title("Lateral Damping Ratio over Fuel mass, Number of Baffles: " + fu_baffle_number + " , Baffle width(m): " + fu_baffle_width)
+
+figure
+plot(ox_mass_profile, ox_axial_damping_ratios)
+xlabel("Ox mass")
+ylabel("Axial Damping Ratio")
+title("Axial Damping Ratio over Ox mass, Number of Baffles: " + ox_baffle_number + " , Baffle width (m): " + ox_baffle_width)
+
+figure
+plot(fu_mass_profile, fu_axial_damping_ratios)
+xlabel("Fuel mass")
+ylabel("Axial Damping Ratio")
+title("Axial Damping Ratio over Fuel mass, Number of Baffles: " + fu_baffle_number + " , Baffle width(m): " + fu_baffle_width)
