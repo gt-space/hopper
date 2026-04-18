@@ -1,0 +1,141 @@
+function [A,B,f0] = HopperLinearization_6DOF_inertial(x, u, params, mass)
+% x = [X Y Z Vx Vy Vz P Q R q0 q1 q2 q3]'
+% u = [T delta_p delta_y F_rcs]'   (radians)
+
+% ----- full-state nonlinear dynamics (13x1)
+f_full = hopper_f(x,u,params,mass);
+
+h = 1e-12;                     
+nx = numel(x); 
+nu = numel(u);
+
+A_full  = zeros(nx,nx);
+B_full  = zeros(nx,nu);  
+
+q0 = x(10:13);
+
+% ----- full 13x13 A matrix
+for i = 1:nx
+    dx = zeros(nx,1); 
+    dx(i) = 1;
+    fi = hopper_f(x + 1i*h*dx, u, params, mass);
+    A_full(:,i) = imag(fi)/h;
+end
+
+% ----- full 13x4 B matrix
+for j = 1:nu
+    du = zeros(nu,1); 
+    du(j) = 1;
+    fj = hopper_f(x, u + 1i*h*du, params, mass);
+    B_full(:,j) = imag(fj)/h;
+end
+
+% ----- reduced mapping: delta x_full = E * delta x_red
+E = Efunc(q0);        % 13x12
+Einv = pinv(E);       % 12x13
+
+% ----- reduced outputs
+A  = Einv * A_full * E;   % 12x12
+B  = Einv * B_full;       % 12x4
+f0 = Einv * f_full;       % 12x1
+
+end
+
+function f = hopper_f(x,u,p,mass)
+    X=x(1); Y=x(2); Z=x(3);
+    Vx=x(4); Vy=x(5); Vz=x(6);
+    P=x(7); Q=x(8); R=x(9);
+    q = x(10:13);   % [q0 q1 q2 q3]'
+
+    T       = u(1);
+    delta_p = u(2);
+    delta_y = u(3);
+    Tor_rcs = u(4);
+    
+    m = mass; 
+    g = p.g; 
+    I = p.I; 
+    d = p.d; 
+
+    H = [zeros(1,3); eye(3)];
+
+    % thrust in body
+    Fx_T =  T * cos(delta_p) * cos(delta_y);
+    Fy_T = -T * cos(delta_p) * sin(delta_y);
+    Fz_T = -T * sin(delta_p);
+    F_Tb = [Fx_T; Fy_T; Fz_T];
+
+    % inertial translational dynamics
+    Rbn = Rbody2NED(q);
+    F_n  = Rbn * F_Tb + [0;0;m*g];
+    Vdot = (1/m) * F_n;
+    posdot = [Vx;Vy;Vz];
+    
+    % rotational dynamics
+    r_tvc = [-d;0;0];
+    M_tvc = cross(r_tvc, F_Tb);
+    M_body = [M_tvc(1) + Tor_rcs;
+              M_tvc(2);
+              M_tvc(3)];
+    
+    omega = [P;Q;R];
+    omegadot = I \ (M_body - cross(omega, I*omega));
+    
+    % quaternion kinematics
+    qdot = 0.5 * Lfunc(q) * H * omega; 
+
+    f = [posdot;
+         Vdot;
+         omegadot;
+         qdot];
+end
+
+function R = Rbody2NED(q)
+    q0=q(1); q1=q(2); q2=q(3); q3=q(4);
+    R = [ ...
+     q0^2+q1^2-q2^2-q3^2, 2*(q1*q2-q0*q3),   2*(q1*q3+q0*q2);
+     2*(q1*q2+q0*q3),   q0^2-q1^2+q2^2-q3^2, 2*(q2*q3-q0*q1);
+     2*(q1*q3-q0*q2),   2*(q2*q3+q0*q1),   q0^2-q1^2-q2^2+q3^2 ];
+end
+
+function Om = Omega(w)
+    P=w(1); Q=w(2); R=w(3);
+    Om = [ 0  -P  -Q  -R;
+           P   0   R  -Q;
+           Q  -R   0   P;
+           R   Q  -P   0 ];
+end
+
+function V = hat(v)
+    V = [0 -v(3) v(2);
+         v(3) 0 -v(1);
+         -v(2) v(1) 0];
+end
+
+function L = Lfunc(q)
+    s = q(1);
+    v = q(2:4);
+    
+    L = [s -v';
+         v s*eye(3)+hat(v)];
+end
+
+function q = phi_to_q(phi)
+    q = (1/sqrt(1+phi'*phi))*[1;phi];
+end
+
+function phi = q_to_phi(q)
+    phi = q(2:4)/q(1);
+end
+
+function G = Gfunc(q)
+    % 4x3 matrix mapping small attitude error to quaternion perturbation
+    H = [zeros(1,3); eye(3)];
+    G = 0.5 * Lfunc(q) * H;
+end
+
+function E = Efunc(q)
+    % delta x_full = E * delta x_red
+    % full state = 13, reduced state = 12
+    E = blkdiag(eye(9), Gfunc(q));   % 13x12
+end

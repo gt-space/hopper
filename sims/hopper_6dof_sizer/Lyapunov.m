@@ -5,7 +5,7 @@ clear CL_noquat;clear poles_noquat;
 clear tf
 which tf -all
 
-Q = ones(13,13);
+Q = ones(12,12);
 
 for i = 1:length(t)-1
 
@@ -38,7 +38,7 @@ Aeigs = eig(A(:,:,1));
 
 
 
-for i = 1:13
+for i = 1:12
     disp(['Pole ', num2str(i), ' = ', num2str(poles(i))])
     contribution(:,i) = (abs(V(:,i))/max(abs(V(:,i))));   % normalized participation by state
     disp(contribution(:,i)) 
@@ -79,251 +79,258 @@ tol_pair = 1e-6;
 % store summaries
 fprintf('\n==== Modal summary at time index %d ====\n', kplot);
 
-for i = 1:length(p)
+% for i = 1:length(p)
+% 
+%     if used(i)
+%         continue
+%     end
+% 
+%     pi_i = p(i);
+% 
+%     % ignore exact origin separately
+%     if abs(pi_i) < 1e-10
+%         fprintf('\nPole %.6g is approximately at the origin.\n', pi_i);
+%         fprintf('Interpretation: integrator / neutral mode.\n');
+%         used(i) = true;
+%         continue
+%     end
+% 
+%     % look for conjugate partner
+%     jpair = [];
+%     if abs(imag(pi_i)) > tol_pair
+%         for j = i+1:length(p)
+%             if ~used(j) && abs(p(j) - conj(pi_i)) < 1e-5
+%                 jpair = j;
+%                 break
+%             end
+%         end
+%     end
 
-    if used(i)
-        continue
-    end
+%     %% -------- SECOND-ORDER MODE --------
+%     if ~isempty(jpair)
+%         used(i) = true;
+%         used(jpair) = true;
+% 
+%         sigma = real(pi_i);
+%         wd    = abs(imag(pi_i));
+%         wn    = sqrt(sigma^2 + wd^2);
+%         zeta  = -sigma/wn;
+% 
+%         fprintf('\nComplex pair: % .6f +/- % .6fi\n', real(pi_i), wd);
+%         fprintf('wn   = %.6f rad/s\n', wn);
+%         fprintf('zeta = %.6f\n', zeta);
+%         fprintf('wd   = %.6f rad/s\n', wd);
+% 
+%         if zeta > 0
+%             thalf = log(2)/(zeta*wn);
+%             fprintf('t_half amplitude = %.6f s\n', thalf);
+%         elseif zeta < 0
+%             tdouble = log(2)/abs(zeta*wn);
+%             fprintf('t_double amplitude = %.6f s\n', tdouble);
+%         end
+% 
+%         if zeta < 1
+%             Tperiod = 2*pi/wd;
+%             fprintf('oscillation period = %.6f s\n', Tperiod);
+%         end
+% 
+%         % Canonical second-order TF:
+%         % G(s) = wn^2 / (s^2 + 2*zeta*wn*s + wn^2)
+%         num2 = wn^2;
+%         den2 = [1 2*zeta*wn wn^2];
+%         G2 = tf(num2,den2);
+% 
+%         % time vector scaled to mode speed
+%         if wn > 0
+%             tfinal = max(10/abs(real(pi_i)), 3*(2*pi/max(wd,1e-6)));
+%         else
+%             tfinal = 20;
+%         end
+%         tmode = linspace(0,tfinal,1500);
+% 
+%         % Step response
+%         figure
+%         step(G2,tmode)
+%         grid on
+%         title(sprintf('Step Response: pole pair %.3f \\pm %.3fi', real(pi_i), wd))
+% 
+%         % Impulse response
+%         figure
+%         impulse(G2,tmode)
+%         grid on
+%         title(sprintf('Impulse Response: pole pair %.3f \\pm %.3fi', real(pi_i), wd))
+% 
+%         % Initial-condition style response from notes:
+%         % y(t)=exp(-zeta*wn*t)*cos(wd*t), with y(0)=1
+%         y_ic = exp(-zeta*wn*tmode).*cos(wd*tmode);
+% 
+%         figure
+%         plot(tmode,y_ic,'LineWidth',1.5)
+%         grid on
+%         xlabel('Time (s)')
+%         ylabel('y(t)')
+%         title(sprintf('Initial Disturbance-Type Response: pole pair %.3f \\pm %.3fi', real(pi_i), wd))
+% 
+%         % Bode
+%         figure
+%         bode(G2)
+%         grid on
+%         title(sprintf('Bode Plot: canonical 2nd-order mode, wn=%.3f, zeta=%.3f', wn, zeta))
+% 
+%     %% -------- FIRST-ORDER MODE --------
+%     else
+%         used(i) = true;
+% 
+%         lambda = real(pi_i);
+% 
+%         fprintf('\nReal pole: %.6f\n', lambda);
+% 
+%         if lambda < 0
+%             tau = -1/lambda;
+%             thalf = log(2)/abs(lambda);
+%             fprintf('tau   = %.6f s\n', tau);
+%             fprintf('t_half amplitude = %.6f s\n', thalf);
+%         elseif lambda > 0
+%             tau = 1/lambda;
+%             tdouble = log(2)/lambda;
+%             fprintf('unstable first-order mode\n');
+%             fprintf('equivalent growth constant = %.6f s\n', tau);
+%             fprintf('t_double amplitude = %.6f s\n', tdouble);
+%         end
+% 
+%         % Canonical first-order TF:
+%         % stable pole lambda<0 -> G(s)=1/(s-lambda)
+%         % for lambda = -1/tau, denominator is s + 1/tau
+%         G1 = tf(1,[1 -lambda]);
+% 
+%         if abs(lambda) > 1e-8
+%             tfinal = 8/abs(lambda);
+%         else
+%             tfinal = 20;
+%         end
+%         tmode = linspace(0,tfinal,1000);
+% 
+%         % Step response
+%         figure
+%         step(G1,tmode)
+%         grid on
+%         title(sprintf('Step Response: real pole %.3f', lambda))
+% 
+%         % Impulse response
+%         figure
+%         impulse(G1,tmode)
+%         grid on
+%         title(sprintf('Impulse Response: real pole %.3f', lambda))
+% 
+%         % Initial-condition style response from notes
+%         y_ic = exp(lambda*tmode);
+% 
+%         figure
+%         plot(tmode,y_ic,'LineWidth',1.5)
+%         grid on
+%         xlabel('Time (s)')
+%         ylabel('y(t)')
+%         title(sprintf('Initial Disturbance-Type Response: real pole %.3f', lambda))
+% 
+%         % Bode
+%         figure
+%         bode(G1)
+%         grid on
+%         title(sprintf('Bode Plot: canonical 1st-order mode, pole %.3f', lambda))
+%     end
+% end
 
-    pi_i = p(i);
-
-    % ignore exact origin separately
-    if abs(pi_i) < 1e-10
-        fprintf('\nPole %.6g is approximately at the origin.\n', pi_i);
-        fprintf('Interpretation: integrator / neutral mode.\n');
-        used(i) = true;
-        continue
-    end
-
-    % look for conjugate partner
-    jpair = [];
-    if abs(imag(pi_i)) > tol_pair
-        for j = i+1:length(p)
-            if ~used(j) && abs(p(j) - conj(pi_i)) < 1e-5
-                jpair = j;
-                break
-            end
-        end
-    end
-
-    %% -------- SECOND-ORDER MODE --------
-    if ~isempty(jpair)
-        used(i) = true;
-        used(jpair) = true;
-
-        sigma = real(pi_i);
-        wd    = abs(imag(pi_i));
-        wn    = sqrt(sigma^2 + wd^2);
-        zeta  = -sigma/wn;
-
-        fprintf('\nComplex pair: % .6f +/- % .6fi\n', real(pi_i), wd);
-        fprintf('wn   = %.6f rad/s\n', wn);
-        fprintf('zeta = %.6f\n', zeta);
-        fprintf('wd   = %.6f rad/s\n', wd);
-
-        if zeta > 0
-            thalf = log(2)/(zeta*wn);
-            fprintf('t_half amplitude = %.6f s\n', thalf);
-        elseif zeta < 0
-            tdouble = log(2)/abs(zeta*wn);
-            fprintf('t_double amplitude = %.6f s\n', tdouble);
-        end
-
-        if zeta < 1
-            Tperiod = 2*pi/wd;
-            fprintf('oscillation period = %.6f s\n', Tperiod);
-        end
-
-        % Canonical second-order TF:
-        % G(s) = wn^2 / (s^2 + 2*zeta*wn*s + wn^2)
-        num2 = wn^2;
-        den2 = [1 2*zeta*wn wn^2];
-        G2 = tf(num2,den2);
-
-        % time vector scaled to mode speed
-        if wn > 0
-            tfinal = max(10/abs(real(pi_i)), 3*(2*pi/max(wd,1e-6)));
-        else
-            tfinal = 20;
-        end
-        tmode = linspace(0,tfinal,1500);
-
-        % Step response
-        figure
-        step(G2,tmode)
-        grid on
-        title(sprintf('Step Response: pole pair %.3f \\pm %.3fi', real(pi_i), wd))
-
-        % Impulse response
-        figure
-        impulse(G2,tmode)
-        grid on
-        title(sprintf('Impulse Response: pole pair %.3f \\pm %.3fi', real(pi_i), wd))
-
-        % Initial-condition style response from notes:
-        % y(t)=exp(-zeta*wn*t)*cos(wd*t), with y(0)=1
-        y_ic = exp(-zeta*wn*tmode).*cos(wd*tmode);
-
-        figure
-        plot(tmode,y_ic,'LineWidth',1.5)
-        grid on
-        xlabel('Time (s)')
-        ylabel('y(t)')
-        title(sprintf('Initial Disturbance-Type Response: pole pair %.3f \\pm %.3fi', real(pi_i), wd))
-
-        % Bode
-        figure
-        bode(G2)
-        grid on
-        title(sprintf('Bode Plot: canonical 2nd-order mode, wn=%.3f, zeta=%.3f', wn, zeta))
-
-    %% -------- FIRST-ORDER MODE --------
-    else
-        used(i) = true;
-
-        lambda = real(pi_i);
-
-        fprintf('\nReal pole: %.6f\n', lambda);
-
-        if lambda < 0
-            tau = -1/lambda;
-            thalf = log(2)/abs(lambda);
-            fprintf('tau   = %.6f s\n', tau);
-            fprintf('t_half amplitude = %.6f s\n', thalf);
-        elseif lambda > 0
-            tau = 1/lambda;
-            tdouble = log(2)/lambda;
-            fprintf('unstable first-order mode\n');
-            fprintf('equivalent growth constant = %.6f s\n', tau);
-            fprintf('t_double amplitude = %.6f s\n', tdouble);
-        end
-
-        % Canonical first-order TF:
-        % stable pole lambda<0 -> G(s)=1/(s-lambda)
-        % for lambda = -1/tau, denominator is s + 1/tau
-        G1 = tf(1,[1 -lambda]);
-
-        if abs(lambda) > 1e-8
-            tfinal = 8/abs(lambda);
-        else
-            tfinal = 20;
-        end
-        tmode = linspace(0,tfinal,1000);
-
-        % Step response
-        figure
-        step(G1,tmode)
-        grid on
-        title(sprintf('Step Response: real pole %.3f', lambda))
-
-        % Impulse response
-        figure
-        impulse(G1,tmode)
-        grid on
-        title(sprintf('Impulse Response: real pole %.3f', lambda))
-
-        % Initial-condition style response from notes
-        y_ic = exp(lambda*tmode);
-
-        figure
-        plot(tmode,y_ic,'LineWidth',1.5)
-        grid on
-        xlabel('Time (s)')
-        ylabel('y(t)')
-        title(sprintf('Initial Disturbance-Type Response: real pole %.3f', lambda))
-
-        % Bode
-        figure
-        bode(G1)
-        grid on
-        title(sprintf('Bode Plot: canonical 1st-order mode, pole %.3f', lambda))
+for i = 1:length(t)
+    controlability(i) = rank(ctrb(A(:,:,i),B(:,:,i)));
+    if controlability(i) ~= 12
+        disp('AGHHH')
     end
 end
 
 
 time = 1:size(poles,2);
 
-figure
-plot3(real(poles(:)), imag(poles(:)), repelem(time, size(poles,1))', 'rx')
-xlabel('Real')
-ylabel('Imag')
-zlabel('Time index')
-grid on
-
-figure
-plot(real(poles(:,1)), imag(poles(:,1)), 'rx', 'MarkerSize', 10)
-hold on
-xline(0)
-yline(0)
-grid on
-xlabel('Real')
-ylabel('Imag')
-
-%% =========================
-% SAVE FIGURES WITH POLE-BASED NAMES
-% =========================
-
-folderName = 'PolePlots';
-
-if ~exist(folderName, 'dir')
-    mkdir(folderName);
-end
-
-figHandles = findall(0, 'Type', 'figure');
-
-for k = 1:length(figHandles)
-
-    fig = figHandles(k);
-    figure(fig);
-
-    ax = get(fig, 'CurrentAxes');
-    titleStr = '';
-
-    if ~isempty(ax)
-        titleObj = get(ax, 'Title');
-        titleStr = get(titleObj, 'String');
-    end
-
-    fileName = sprintf('Figure_%02d', k);
-
-    if ~isempty(titleStr)
-
-        if iscell(titleStr)
-            titleStr = titleStr{1};
-        end
-
-        name = char(titleStr);
-
-        name = strrep(name, ' ', '_');
-        name = strrep(name, '.', 'p');
-        name = strrep(name, '-', 'm');
-        name = strrep(name, '+', 'p');
-        name = strrep(name, '\pm', 'pm');
-        name = strrep(name, '\', '');
-        name = strrep(name, '^', '');
-        name = strrep(name, '{', '');
-        name = strrep(name, '}', '');
-        name = strrep(name, '(', '');
-        name = strrep(name, ')', '');
-        name = strrep(name, ',', '');
-        name = strrep(name, ':', '');
-        name = strrep(name, '/', '_');
-        name = strrep(name, '*', '');
-        name = strrep(name, '?', '');
-        name = strrep(name, '"', '');
-        name = strrep(name, '<', '');
-        name = strrep(name, '>', '');
-        name = strrep(name, '|', '');
-
-        if length(name) > 100
-            name = name(1:100);
-        end
-
-        fileName = name;
-    end
-
-    fullFileName = fullfile(folderName, [fileName '.png']);
-    saveas(fig, fullFileName);
-end
-
-disp('All figures saved with pole-based names.')
+% figure
+% plot3(real(poles(:)), imag(poles(:)), repelem(time, size(poles,1))', 'rx')
+% xlabel('Real')
+% ylabel('Imag')
+% zlabel('Time index')
+% grid on
+% 
+% figure
+% plot(real(poles(:,1)), imag(poles(:,1)), 'rx', 'MarkerSize', 10)
+% hold on
+% xline(0)
+% yline(0)
+% grid on
+% xlabel('Real')
+% ylabel('Imag')
+% 
+% %% =========================
+% % SAVE FIGURES WITH POLE-BASED NAMES
+% % =========================
+% 
+% folderName = 'PolePlots';
+% 
+% if ~exist(folderName, 'dir')
+%     mkdir(folderName);
+% end
+% 
+% figHandles = findall(0, 'Type', 'figure');
+% 
+% for k = 1:length(figHandles)
+% 
+%     fig = figHandles(k);
+%     figure(fig);
+% 
+%     ax = get(fig, 'CurrentAxes');
+%     titleStr = '';
+% 
+%     if ~isempty(ax)
+%         titleObj = get(ax, 'Title');
+%         titleStr = get(titleObj, 'String');
+%     end
+% 
+%     fileName = sprintf('Figure_%02d', k);
+% 
+%     if ~isempty(titleStr)
+% 
+%         if iscell(titleStr)
+%             titleStr = titleStr{1};
+%         end
+% 
+%         name = char(titleStr);
+% 
+%         name = strrep(name, ' ', '_');
+%         name = strrep(name, '.', 'p');
+%         name = strrep(name, '-', 'm');
+%         name = strrep(name, '+', 'p');
+%         name = strrep(name, '\pm', 'pm');
+%         name = strrep(name, '\', '');
+%         name = strrep(name, '^', '');
+%         name = strrep(name, '{', '');
+%         name = strrep(name, '}', '');
+%         name = strrep(name, '(', '');
+%         name = strrep(name, ')', '');
+%         name = strrep(name, ',', '');
+%         name = strrep(name, ':', '');
+%         name = strrep(name, '/', '_');
+%         name = strrep(name, '*', '');
+%         name = strrep(name, '?', '');
+%         name = strrep(name, '"', '');
+%         name = strrep(name, '<', '');
+%         name = strrep(name, '>', '');
+%         name = strrep(name, '|', '');
+% 
+%         if length(name) > 100
+%             name = name(1:100);
+%         end
+% 
+%         fileName = name;
+%     end
+% 
+%     fullFileName = fullfile(folderName, [fileName '.png']);
+%     saveas(fig, fullFileName);
+% end
+% 
+% disp('All figures saved with pole-based names.')

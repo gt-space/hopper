@@ -7,7 +7,7 @@ load_lookup();
 
 cg_moi_test();
 
-LinerizationMaster();
+LQTrack_Master();
 
 %prop_system_testing();
 

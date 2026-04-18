@@ -3,7 +3,7 @@ zf     = 52;     % m
 Tup    = 12;     % s
 Thover = 2;      % s
 Tdown  = 13;     % s
-Tterm  = 5;      % terminal descent extension
+Tterm  = 0;      % terminal descent extension
 dt     = 0.01;   % 100 Hz
 Tmin = IN.propulsion.nominal_thrust * IN.propulsion.throttle_range(1);
 Tmax = 2313;
@@ -82,7 +82,7 @@ for k = 1:length(t)
         % z(t) = a0 + a1*t + a2*t^2 + a3*t^3 + a4*t^4 + a5*t^5
 
         zf_term = 0;     % final position (m)
-        vf_term = -0.01;   % final velocity (m/s)
+        vf_term = -0.1;   % final velocity (m/s)
         af_term = 0;      % final acceleration (smooth thrust)
 
         a0 = zf_term;
@@ -153,7 +153,7 @@ scenario = scenario.addElement(T_ts,"thrust_ref");
 
 z_ts = timeseries(z, t); 
 z_ts.Name = "z_ref";
-
+vz_ts = timeseries(zdot,t);
 scenario = scenario.addElement(z_ts, "z_ref");
 
 

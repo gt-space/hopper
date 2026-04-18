@@ -18,7 +18,7 @@ kplot = 1;
 ACL = CL(:,:,kplot);
 
 
-sys_IC = ss(ACL,zeros(13,1),eye(13),zeros(13,1));
+sys_IC = ss(ACL,zeros(12,1),eye(12),zeros(12,1));
 
 tresp = linspace(0,15,2000);
 
