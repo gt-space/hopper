@@ -1,5 +1,5 @@
 
-liq_depths = linspace(0.01,0.4687,200); % m
+liq_depths = linspace(0.01,0.5463,200); % m
 g = 9.81; % m/s^2
 eig_1 = 1.841;
 nu = 1.3e-6;% m^2/s FU
