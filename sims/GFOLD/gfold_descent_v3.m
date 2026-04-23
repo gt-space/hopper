@@ -31,7 +31,7 @@ m_prop_remain = m0 - m_dry;                      % 7.24 kg for descent
 
 % Propulsion (mission_inputs)
 T_nominal = 500 * 4.44822;           % N
-Tmin      = 0.35 * T_nominal;        % N = 778.4 N — 35% throttle floor
+Tmin      = 0.40 * T_nominal;        % N = 778.4 N — 35% throttle floor
                                      % Note: 40% (890N) hits prop budget limit for this descent
                                      % 35% gives optimizer margin; engine stays well above idle
 Tmax      = 1.10 * T_nominal;        % N = 2446.5 N
