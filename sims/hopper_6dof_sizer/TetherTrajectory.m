@@ -1,8 +1,8 @@
 %% Trajectory settings
-zf     = 10;     % m
-Tup    = 6;     % s
+zf     = 5.5;     % m
+Tup    = 5;     % s
 Thover = 2;      % s
-Tdown  = 6;     % s
+Tdown  = 5;     % s
 Tterm  = 0;      % terminal descent extension
 dt     = 0.01;   % 100 Hz
 Tmin = 2224 * IN.propulsion.throttle_range(1);

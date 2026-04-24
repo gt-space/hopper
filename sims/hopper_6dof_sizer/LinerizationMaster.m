@@ -157,7 +157,7 @@ for i = 1:length(tgrid)
    K1flat(i,:) = reshape(K1(:,:,i).',1,52);
 end
 
-z_ref_ts = timeseries(z_trajectory, t);
+z_ref_ts = timeseries(z_trajectory', t);
 T_ref_ts = timeseries(T_profile, t);
-vz_ref_ts = timeseries(vz_trajectory, t);
+vz_ref_ts = timeseries(vz_trajectory', t);
 
