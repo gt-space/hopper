@@ -2,7 +2,7 @@
 ox_density = 1141;   % kg/m^3
 fu_density = 800;    % kg/m^3
 
-fu_nu = 1.3e-6;  % m^2/s FU
+fu_nu = 1.3e-6;  % m^2/s Fu
 ox_nu = 0.17e-6; % m^2/s OX
 
 tank_r = TANKS.singular.radius;

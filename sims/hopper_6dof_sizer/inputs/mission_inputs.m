@@ -6,6 +6,7 @@ IN.const.g0 = 9.80665;              % m/s^2
 IN.const.R_univ = 8.314462618;      % J/mol-K
 IN.const.FS_struct = 2;           % structural factor of safety
 
+
 %  MISSION CONSTRAINTS (checked after flight simulation)
 IN.mission.target_altitude = 51;    % m
 IN.mission.hover_time_55m = 2;      % s
@@ -15,15 +16,14 @@ IN.mission.hover_time_1m = 1;       %s
 IN.mission.landing_vel = 0;         % m/s at 1 m
 IN.mission.landing_alt = 1;         % m
 IN.mission.TWR_hover_landing = 1;
-IN.mission.max_vehicle_height = 2.5; % m
+IN.mission.max_vehicle_height = 2.44; % m
 
 %  MASS GROWTH MARGIN
 % IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
 
 %  STRUCTURES
 IN.structures.payload_mass = 15; % kg, CPLC Requirement
-% IN.structures.extra_payload_mass = 16.13; % kg
-IN.structures.payload_cg_z = [];            % m (from cad/aidan)
+IN.structures.structures_mass = 34.26; % kg from CAD
 
 %  AVIONICS
 IN.avionics.standby_hours = 2.0; % hr
@@ -32,6 +32,7 @@ IN.avionics.lcoms_time = 10 * 60; % min --> sec
 IN.avionics.battery_voltage = 48; % V
 IN.avionics.boards.voltage = 12; % V
 IN.avionics.boards.current = 0.5; % A
+IN.avionics.avi_mass = 11.52; % kg from CAD
 
 %  PROPULSION
 IN.propulsion.oxidizer = 'O2'; %Oxygen - coolprop
@@ -54,12 +55,14 @@ IN.propulsion.throttle_range = [0.4 1.1];
 IN.solenoid_valve_quantity = 5;
 IN.valves.voltage = 12; % V
 IN.valves.current = 1; % A
+IN.fluids_mass = 28.41; % kg from CAD
 
 % ENGINE
 IN.inj_material = "SS316L";
 IN.TCA_material = "AlSi10Mg";
 IN.off_axis_y = 0; % m^2  % Body Frame
 IN.off_axis_x = 0; % m^2 
+IN.engine_mass = 37.83; % kg from CAD
 
 %  PRESSURIZATION MODE
 IN.press.mode = 'copv';  % 'copv' or 'autogenous'
@@ -72,7 +75,11 @@ IN.press.copv.gas = 'GN2';
 IN.press.copv.initial_temperature = 293;             % K
 IN.press.copv.mass = 11; % kg
 IN.press.copv.amount = 3;
-IN.press.copv.gas_mass = 6;
+IN.press.copv.gas_mass = 6; % kg
+IN.press.copv.r = 0.18; % m
+IN.press.copv.t = 13.21/1000; % m
+IN.press.copv.h = 0.56; % m
+
 
 % --- Autogenous Parameters ---
 IN.press.autogenous.gas = 'N2O';
@@ -83,26 +90,24 @@ IN.press.autogenous.piston_friction = 0;      % Pa
 IN.tanks.geometry = 'stacked'; % stacked, concentric, clustered
 IN.tanks.material = 'Al6061';
 IN.tanks.max_radius = 4.25*0.0254; % in -> m
-IN.tanks.lateral_damping = 0.08;
-IN.tanks.axial_damping = 0.3;
+% IN.tanks.lateral_damping = 0.08;
+% IN.tanks.axial_damping = 0.3;
 
 %  TVC
-IN.tvc.max_gimbal_angle = deg2rad(15); % ?
-IN.tvc.max_gimbal_rate = deg2rad(15); % ]
+IN.tvc.max_gimbal_angle = deg2rad(15); % deg
+IN.tvc.max_gimbal_rate = deg2rad(15); % deg
 IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
 IN.tvc.actuator_latency = 0.01; % s
 IN.tvc.rise_time = 0.05; % s
-IN.tvc.resolution = deg2rad(0.1);
+IN.tvc.resolution = deg2rad(0.1); % deg
 IN.tvc.damping_ratio = 0.5; 
 
 % RCS
 IN.rcs.max_thrust = 16; % N
 IN.rcs.throttle_rate = 50; % N/s
-% IN.rcs.max_speed = 62500; % RPM
-% IN.rcs.min_speed = 0.05; % RPM
 IN.rcs_time_constant = 0.1;
-IN.rcs.resolution = 0.1;
+IN.rcs.resolution = 0.1; % N
 
 % THROTTLE VALVE
 IN.throttle_valve.voltage = 24; % V
@@ -117,7 +122,7 @@ IN.legs.material = 'Al6061';
 IN.legs.tip_factor = 2; % accounts for non-symmetric landing (leg takes 50% extra load)
 IN.legs.feet_radial_dist = 0.5; % m
 
-%cg values
+% CG VALUES
 IN.engine_cg = 0.3556;
 IN.mount_cg = 0.45;
 IN.ox_tank_cg = 1.854;
@@ -134,26 +139,21 @@ IN.copv_h = 0.56;
 IN.copv_zcg = 1.21;
 IN.copv_ycg = 0.23;
 
-%  MODAL PARAMETERS
+% MODAL PARAMETERS
 IN.vehicle_damping_ratio = 0.01; 
 IN.vehicle_natural_frequency = 10; % Hz
 
-% Wind Defaults
+% WIND DEFAULTS
 % 1 - Monte Carlo , 2 - constant , 3 - 4D Array Historical Wind
 IN.wind.mode = 2; %
 IN.wind.uwind = 5; %default values for uwnd/vwnd with NO Monte Carlo
 IN.wind.vwind = 5;
 
 
-% %  SIMULATION SETTINGS
-% IN.sim.dt = 0.01;                  % s
-% IN.sim.t_max = 60;                 % s
-% IN.sim.use_simulink = true;
-
-%Mass factor
+% MASS FACTOR
 IN.mass_factor = 1.0; %default / nominal case
 
-% Monte Carlo scenario struct creation
+% MONTE CARLO SCENARIO STRUCT CREATION
 if  ~isempty(scenario_params)
     IN.propulsion.oxidizer_mass       = scenario_params.ox_mass;
     IN.propulsion.fuel_mass           = scenario_params.fuel_mass;

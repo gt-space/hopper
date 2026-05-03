@@ -13,12 +13,12 @@ OUT.VehicleFluids.MassRatio = ...
     (OUT.VehicleFluids.FinalMass + VEH.mass.dry);
 
 %% Engines
-OUT.Engines.Mass = VEH.mass.engine;
+% OUT.Engines.Mass = VEH.mass.engine;
 
 %% Vehicle Mass Breakdown
 OUT.Vehicle.MassDistribution.Structures = STRUCT.total;
-OUT.Vehicle.MassDistribution.Tanks = VEH.mass.tanks;
-OUT.Vehicle.MassDistribution.Engine = VEH.mass.engine;
+% OUT.Vehicle.MassDistribution.Tanks = VEH.mass.tanks;
+% OUT.Vehicle.MassDistribution.Engine = VEH.mass.engine;
 OUT.Vehicle.MassDistribution.Payload = IN.structures.payload_mass;
 
 OUT.Vehicle.DryMass = VEH.mass.dry;

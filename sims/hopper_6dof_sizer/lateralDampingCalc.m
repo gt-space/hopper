@@ -2,7 +2,7 @@ function [damping_ratios] = lateralDampingCalc( ...
     prop_mass_profile, prop_density, nu, tank_r, baffle_w, Nb, tank_h)
 
 g = 9.81;
-eig_1 = 1.841;
+eig_1 = 1.841; % 1st mode of oscillation for cylindrical tanks
 
 prop_heights = (prop_mass_profile / prop_density) / (pi * tank_r^2);
 

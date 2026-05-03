@@ -12,7 +12,7 @@ function [cg, MoI, dcg_dMfu, dcg_dMox, dI_dMox, dI_dMfu] = cg_moi_init(ox_mass, 
     eng_r = 4 * 0.0254;  % inches to meters
     eng_h = 1 * 0.3048;  % ft to meters
 
-    %% 2. End Cap Geometry & Mass (NEW)
+    %% 2. End Cap Geometry & Mass 
     % Modeled as solid cylinders attached to the ends of the tank shells.
     % Height of cap = wall thickness of the respective tank.
     
@@ -187,7 +187,7 @@ function [cg, MoI, dcg_dMfu, dcg_dMox, dI_dMox, dI_dMfu] = cg_moi_init(ox_mass, 
 
     MoI = [Izz_total, 0, 0; 
            0, Iyy_total, 0; 
-           0, 0, Ixx_total]; % return 2
+           0, 0, Ixx_total]; 
 
     %% Calculate dI/dMox & dI/dMfu
 

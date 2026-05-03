@@ -12,17 +12,7 @@ TANKS = size_tanks(IN);
 AVI = size_avionics(IN);
 ENGINE = size_engine(IN);
 
-VEH.mass.tanks = TANKS.singular.total_mass;
-VEH.mass.ox_tank = TANKS.singular.oxidizer.mass;
-VEH.mass.fu_tank = TANKS.singular.fuel.mass;
-VEH.h.ox_tank = TANKS.singular.oxidizer.h;
-VEH.h.fu_tank = TANKS.singular.fuel.h;
-VEH.mass.engine = ENGINE.mass;
-VEH.mass.avi = AVI.mass;
-VEH.mass.press = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
-%VEH.mass.dry = VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
 VEH.mass.dry = 116.86;
-% PROP = size_propellant(IN, VEH, ENGINE); need engine code to rum this
 
 VEH.mass.wet = VEH.mass.dry + ...
     IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass;
@@ -35,7 +25,7 @@ r_leg_2 = [0 -IN.legs.feet_radial_dist 0];
 r_leg_3 = [0 0 IN.legs.feet_radial_dist ];
 r_leg_4 = [0 0 -IN.legs.feet_radial_dist];
 
-VEH.k_engine = (IN.engine_cg/2.44)^2;
+VEH.k_engine = (IN.engine_cg/IN.mission.max_vehicle_height)^2;
 
 
 % VEHICLE SIZING OUTPUTS

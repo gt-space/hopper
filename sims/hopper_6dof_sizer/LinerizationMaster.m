@@ -1,11 +1,6 @@
 %clear all;
 close all;
 
-load('thrust.mat');
-APMAT=load("AP_T.mat");
-T_profileEXCEL = readtable("ThrustProfileAP.xlsx");
-T_profileEXCEL=table2array(T_profileEXCEL);
-
 
 Trajectory2
 
@@ -46,18 +41,8 @@ R = [3e7 0 0 0;
    0 0 0 10000]./10000;
 
 
-%t = thrust_mat(:,1);
-%t = tgrid;
-t= z_ts.Time(:,1);
 
-%T_profile = unom(:,1);
-%z = Trajectory(:,3)';
-%vz = Trajectory(:,6)';
-AP = APMAT.ans;
-t_old = double(AP.Time);
-y_old = squeeze(AP.Data);
-[t_old_unique, idx] = unique(t_old, 'stable');
-y_old_unique = y_old(idx);
+t= z_ts.Time(:,1);
 
 T_profile = T_ts.Data(:,1);
 
@@ -73,12 +58,10 @@ t0=0;
 
 x_trajectory = zeros(1,length(t));
 y_trajectory = zeros(1,length(t));
-%z_trajectory = z;
 z_trajectory = -z_ts.Data(:,1)';
 
 vx_trajectory = zeros(1,length(t));
 vy_trajectory = zeros(1,length(t));
-%vz_trajectory = vz;
 vz_trajectory = diff(z_trajectory)./diff(t)';
 vz_trajectory(end+1)=vz_trajectory(end);
 
@@ -105,16 +88,11 @@ params.g = 9.80665;     % m/s^2  (Down is +Z in NED)
 params.d  = cg_init - engine_cg;       % m   thrust application x-offset in BODY frame (r = [-d;0;0])
 params.r_m = 0.125;     % m   moment arm for RCS term (your r_m)
 params.n_rcs = 1;       % unitless (if you keep it)
-m_profile = linspace(OUT.Vehicle.WetMass,100, length(t));
+m_profile = linspace(OUT.Vehicle.WetMass,OUT.Vehicle.DryMass, length(t));
 
 % inertia (constant, BODY frame about CG)
-Ix = 1;   %[kg*m^2]
-Iy = 41; 
-Iz = 41; 
-Ixy = 0; Ixz = 0; Iyz = 0;
-params.I = [ Ix  -Ixy -Ixz;
-           -Ixy  Iy  -Iyz;
-           -Ixz -Iyz  Iz ];
+params.I = MoI_init;
+
 % Preallocate (optional but nice)
 nx = 13;
 nu = 4;
@@ -136,8 +114,6 @@ tgrid = t;
 % Call gains using consistent (unique) grid + consistent trajectory
 %GainTable = TrajectoryFollowingGains(Sf,Q,R,Target_Trajectory,A,B,tgrid,T_profile);
 GainTable = TrajectoryFollowingGains2(Sf,Q,R,Target_Trajectory,A,B,tgrid,unom,params,Fref);
-
-%%
 
 K1 = GainTable.K1;
 K2grid = GainTable.K2';   
