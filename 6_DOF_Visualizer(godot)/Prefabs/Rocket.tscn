@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://b83so5khqqvt5"]
+
+[ext_resource type="ArrayMesh" uid="uid://c4u8pqo4fgsm4" path="res://Meshes/basic_Rocket_mesh.tres" id="1_an3i0"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_an3i0"]
+albedo_color = Color(0.18837145, 0.18837145, 0.18837145, 1)
+metallic = 1.0
+
+[node name="Rocket" type="Node3D" unique_id=428687506]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1805995052]
+mesh = ExtResource("1_an3i0")
+surface_material_override/0 = SubResource("StandardMaterial3D_an3i0")
