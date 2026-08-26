@@ -1,0 +1,136 @@
+[gd_scene format=3 uid="uid://ckavqb25bdaul"]
+
+[ext_resource type="Script" uid="uid://ck0se0p53kx0l" path="res://Scripts/main.gd" id="1_6bp64"]
+[ext_resource type="Texture2D" uid="uid://b0upfws3ygnfp" path="res://Grid-PNG-Image-HQ.png" id="1_21xkr"]
+[ext_resource type="PackedScene" uid="uid://b83so5khqqvt5" path="res://Prefabs/Rocket.tscn" id="1_jjvhh"]
+[ext_resource type="Script" uid="uid://cqkluksi35hny" path="res://Prefabs/rocket.gd" id="2_kry3j"]
+[ext_resource type="Texture2D" uid="uid://duwune4ljutgc" path="res://large-grid-png-25.png" id="3_ynf5e"]
+[ext_resource type="Script" uid="uid://cv5syrewqhoga" path="res://Scripts/input_controller.gd" id="4_6bp64"]
+[ext_resource type="Script" uid="uid://bveydejebtdet" path="res://Scripts/follow_along.gd" id="7_hptm8"]
+[ext_resource type="Texture2D" uid="uid://cg5orsqpu2su2" path="res://grasslands_sunset_4k.hdr" id="8_344ge"]
+[ext_resource type="PackedScene" uid="uid://dtchiwny84mt7" path="res://Scenes/csv_input.tscn" id="8_d1ilt"]
+[ext_resource type="PackedScene" uid="uid://bfajprmcnfslh" path="res://UI/tab_menu.tscn" id="8_hptm8"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_gv5m4"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_f3sb7"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_d1ilt"]
+albedo_texture = ExtResource("1_21xkr")
+
+[sub_resource type="BoxMesh" id="BoxMesh_344ge"]
+size = Vector3(100, 1, 100)
+
+[sub_resource type="Gradient" id="Gradient_21xkr"]
+offsets = PackedFloat32Array(0, 0.8366337)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_6bp64"]
+gradient = SubResource("Gradient_21xkr")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hptm8"]
+albedo_color = Color(0.12120061, 0.6153013, 0, 1)
+metallic = 1.0
+metallic_texture = SubResource("GradientTexture1D_6bp64")
+detail_albedo = ExtResource("3_ynf5e")
+
+[sub_resource type="GDScript" id="GDScript_ynf5e"]
+script/source = "extends MeshInstance3D
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+"
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_ynf5e"]
+panorama = ExtResource("8_344ge")
+
+[sub_resource type="Sky" id="Sky_hptm8"]
+sky_material = SubResource("PanoramaSkyMaterial_ynf5e")
+
+[sub_resource type="Environment" id="Environment_1bvp3"]
+background_energy_multiplier = 1.5
+sky = SubResource("Sky_hptm8")
+ambient_light_source = 3
+ambient_light_color = Color(0, 0.6431373, 0.70980394, 1)
+ambient_light_energy = 0.34
+reflected_light_source = 2
+
+[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_lquwl"]
+
+[sub_resource type="Compositor" id="Compositor_7mycd"]
+
+[node name="Main" type="Node" unique_id=79582569]
+script = ExtResource("1_6bp64")
+
+[node name="Objects" type="Node" parent="." unique_id=1969724257]
+
+[node name="Ground" type="StaticBody3D" parent="Objects" unique_id=243596776]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
+physics_material_override = SubResource("PhysicsMaterial_gv5m4")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Objects/Ground" unique_id=1513995245]
+shape = SubResource("BoxShape3D_f3sb7")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Objects/Ground" unique_id=1215472063]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.50360084, 0)
+material_override = SubResource("StandardMaterial3D_d1ilt")
+mesh = SubResource("BoxMesh_344ge")
+surface_material_override/0 = SubResource("StandardMaterial3D_hptm8")
+script = SubResource("GDScript_ynf5e")
+
+[node name="Rocket" parent="Objects" unique_id=428687506 instance=ExtResource("1_jjvhh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.001335144, 0.124785066, 0.008826613)
+script = ExtResource("2_kry3j")
+
+[node name="Follow Along" type="Camera3D" parent="Objects" unique_id=1387532379]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.001335144, 0.124785066, 4.3661275)
+fov = 66.2
+script = ExtResource("7_hptm8")
+
+[node name="UI" type="Node" parent="." unique_id=2096993618]
+
+[node name="Canvas" type="CanvasLayer" parent="UI" unique_id=892488652]
+
+[node name="Step" type="Button" parent="UI/Canvas" unique_id=1887815442]
+anchors_preset = -1
+offset_left = 435.0
+offset_top = 568.0
+offset_right = 521.0
+offset_bottom = 620.0
+text = "step
+"
+
+[node name="Right_Panel" parent="UI/Canvas" unique_id=1192186179 instance=ExtResource("8_hptm8")]
+anchor_left = 0.70500004
+anchor_right = 0.70500004
+anchor_bottom = 0.0
+offset_left = -136.16003
+offset_top = -1.0
+offset_right = 339.83997
+offset_bottom = 616.0
+
+[node name="CSV_Input" parent="UI/Canvas" unique_id=754149851 instance=ExtResource("8_d1ilt")]
+offset_left = 21.0
+offset_top = 534.0
+offset_right = 244.0
+offset_bottom = 642.0
+
+[node name="InputController" type="Node" parent="." unique_id=1393329081]
+script = ExtResource("4_6bp64")
+simulation_paused = null
+timeBetweenSamples = null
+stepSize = null
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=583581541]
+environment = SubResource("Environment_1bvp3")
+camera_attributes = SubResource("CameraAttributesPractical_lquwl")
+compositor = SubResource("Compositor_7mycd")
+
+[node name="Wide Angle" type="Camera3D" parent="." unique_id=2144901880]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.001335144, 0.124785066, 4.3661275)

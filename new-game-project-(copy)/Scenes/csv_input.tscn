@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://dtchiwny84mt7"]
+
+[ext_resource type="Script" uid="uid://bjsxwrsukjvi5" path="res://Scripts/submit_button.gd" id="1_trjeq"]
+
+[node name="CSV_Input" type="Control" unique_id=754149851]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="submitButton" type="Button" parent="." unique_id=88131198]
+layout_mode = 1
+offset_left = 147.0
+offset_top = 49.0
+offset_right = 199.84
+offset_bottom = 89.0
+text = "submit"
+script = ExtResource("1_trjeq")
+
+[node name="filePathInput" type="TextEdit" parent="." unique_id=1013646839]
+layout_mode = 1
+anchors_preset = -1
+offset_left = -3.0
+offset_right = 137.0
+offset_bottom = 91.0
+text = "C:\\Users\\chris\\OneDrive\\Documents\\godotData.csv"

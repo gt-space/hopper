@@ -1,0 +1,43 @@
+[gd_scene format=3 uid="uid://bfajprmcnfslh"]
+
+[ext_resource type="Script" uid="uid://bxe2jrf2454g2" path="res://Scripts/chart_of_y.gd" id="1_lqyug"]
+
+[node name="Right_Panel" type="Control" unique_id=1310126697]
+layout_mode = 3
+anchor_right = 0.43500003
+anchor_bottom = 1.0
+offset_top = 6.0
+offset_right = -0.120025635
+offset_bottom = 2.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TabContainer" type="TabContainer" parent="." unique_id=998262360]
+layout_mode = 0
+offset_right = 478.0
+offset_bottom = 642.0
+current_tab = 0
+
+[node name="VScrollBar" type="VScrollBar" parent="TabContainer" unique_id=501026009]
+layout_mode = 2
+metadata/_tab_index = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="TabContainer/VScrollBar" unique_id=2134054303]
+layout_mode = 0
+offset_right = 479.0
+offset_bottom = 818.0
+
+[node name="AltitudeChart" type="PanelContainer" parent="TabContainer/VScrollBar/VBoxContainer" unique_id=1582871769]
+layout_mode = 2
+script = ExtResource("1_lqyug")
+metadata/_custom_type_script = "uid://cl70y0vrmp36"
+
+[node name="VScrollBar2" type="VScrollBar" parent="TabContainer" unique_id=181747791]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 1
+
+[node name="VScrollBar3" type="VScrollBar" parent="TabContainer" unique_id=208896164]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 2
