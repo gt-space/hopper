@@ -20,7 +20,7 @@ ascent_fuel_used = 8.76;             % kg — update if ascent re-run
 m_wet_initial    = 135.90;           % kg
 
 % States
-r0 = [0; 0; 51];   v0 = [0; 0; 0];  % apex: at rest
+r0 = [0; 0; 10];   v0 = [0; 0; 5.698230544019777];  % apex: at rest
 rf = [0; 0;  0.05];   vf = [0; 0; 0];  % landing: 1m AGL, at rest
 
 % Vehicle mass
@@ -40,7 +40,7 @@ g0        = 9.80665;                 % m/s^2
 
 % Environment & constraints
 g_vec     = [0; 0; -g0];
-vz_max    = 7;                       % m/s (mission_inputs.max_descent_vel)
+vz_max    = 8;                       % m/s (mission_inputs.max_descent_vel)
 theta_max = deg2rad(15);             % TVC gimbal limit (mission_inputs.tvc.max_gimbal_angle)
 
 %% ── Discretization ───────────────────────────────────────────────────────
