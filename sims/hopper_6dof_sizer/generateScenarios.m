@@ -1,38 +1,71 @@
 function [scenarios, mcTable] = generateScenarios(jsonFile, n)
-    % Set master seed for deterministic Latin Hypercube sampling
     masterSeed = 42;
     rng(masterSeed, 'twister');
-
-    % Read JSON
+    
     bounds = readstruct(jsonFile);
     paramNames = fieldnames(bounds);
     dim = length(paramNames);
     
-    % Generate Latin Hypercube samples in [0,1]
     unitSamples = lhsdesign(n, dim, 'criterion', 'maximin', 'iterations', 50);
-    
-    % Preallocate struct array
     scenarios(1:n) = struct();
     
     for j = 1:dim
          name = paramNames{j};
          paramData = bounds.(name);
          
-        % --- Continuous parameter ---
-        if isfield(paramData, "lower")
-            lower = paramData.lower;
-            upper = paramData.upper;
-            scaled = lower + (upper - lower).*unitSamples(:,j);
-            
-        % --- Discrete parameter ---
-        elseif isfield(paramData, "values")
-            values = paramData.values;
-            k = length(values);
-            idx = floor(unitSamples(:,j)*k) + 1;
-            idx(idx > k) = k;
-            scaled = values(idx);
-        else
-            error("Parameter %s not properly defined.", name);
+         if isfield(paramData, "type")
+             distType = paramData.type;
+         else
+             distType = "uniform"; 
+         end
+         
+        switch char(distType)
+            case 'uniform'
+                lower = paramData.lower;
+                upper = paramData.upper;
+                scaled = lower + (upper - lower).*unitSamples(:,j);
+                
+            case 'normal'
+                mu = paramData.mean;
+                sigma = paramData.std;
+                scaled = norminv(unitSamples(:,j), mu, sigma);
+                
+            case 'lognormal'
+                mu = paramData.mean;
+                sigma = paramData.std;
+                pd = makedist('Lognormal', 'mu', mu, 'sigma', sigma);
+                scaled = icdf(pd, unitSamples(:,j));
+                
+            case 'weibull'
+                a = paramData.scale;
+                b = paramData.shape;
+                pd = makedist('Weibull', 'a', a, 'b', b);
+                scaled = icdf(pd, unitSamples(:,j));
+                
+            case 'beta'
+                alpha = paramData.alpha;
+                betaParam = paramData.beta;
+                pd = makedist('Beta', 'a', alpha, 'b', betaParam);
+                rawSamples = icdf(pd, unitSamples(:,j));
+                lower = paramData.lower;
+                upper = paramData.upper;
+                scaled = lower + (upper - lower) .* rawSamples;
+                
+            case 'discrete'
+                values = paramData.values;
+                k = length(values);
+                idx = floor(unitSamples(:,j)*k) + 1;
+                idx(idx > k) = k;
+                scaled = values(idx);
+                
+            otherwise
+                error("Distribution type for %s not recognized.", name);
+        end
+        
+        % Optional hard bounds clipping if specified (skip for beta since it scales directly to bounds)
+        if ~strcmpi(string(distType), 'beta') && isfield(paramData, "lower") && isfield(paramData, "upper")
+            scaled = max(scaled, paramData.lower);
+            scaled = min(scaled, paramData.upper);
         end
         
         for i = 1:n
@@ -40,15 +73,11 @@ function [scenarios, mcTable] = generateScenarios(jsonFile, n)
         end
     end
     
-    % Append metadata tracking fields to every scenario
     for i = 1:n
         scenarios(i).RunID = i;
         scenarios(i).Seed = masterSeed + i;
     end
     
-    % Convert dynamic struct array into a MATLAB workspace table
     mcTable = struct2table(scenarios);
-    
-    % Export table as a CSV file for lead tracking
     writetable(mcTable, 'mc_scenarios.csv');
 end
