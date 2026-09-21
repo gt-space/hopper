@@ -45,6 +45,7 @@ for mc_iter = 1:n_scenarios
         STRUCT    = evalin('base', 'STRUCT');
         cg_init   = evalin('base', 'cg_init');
         engine_cg = evalin('base', 'engine_cg');
+        MoI_init  = evalin('base', 'MoI_init');   % needed by LinerizationMaster
         OUT       = Outputs(IN, VEH, TANKS, STRUCT);
         LinerizationMaster();
         mc_sim_setup(scenarios(mc_iter));
@@ -195,6 +196,7 @@ function nominal = runNominal(params_file, model, flags)
     STRUCT    = evalin('base', 'STRUCT');
     cg_init   = evalin('base', 'cg_init');
     engine_cg = evalin('base', 'engine_cg');
+    MoI_init  = evalin('base', 'MoI_init');   % needed by LinerizationMaster
     OUT       = Outputs(IN, VEH, TANKS, STRUCT);
     saved_scenario = scenario;
     LinerizationMaster();
