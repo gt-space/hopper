@@ -1,15 +1,25 @@
-function results = mc_runner(n_scenarios, params_file, output_file)
+function results = mc_runner(n_scenarios, params_file, output_file, model, flags)
+% mc_runner(n_scenarios, params_file, output_file, model, flags)
+%   model: 'original' (default) | 'toggleable' | 'minimal'   (see mc_sim_input.m)
+%   flags: [enable_slosh enable_wind] for 'toggleable' (1 = on), default [1 1]
+%   Pass [] to keep any default, e.g.  mc_runner(20, [], [], 'minimal')
 
-if nargin < 1; n_scenarios = 10;              end
-if nargin < 2; params_file = 'mc_params.json'; end
-if nargin < 3; output_file = 'mc_results.mat'; end
+if nargin < 1 || isempty(n_scenarios); n_scenarios = 10;              end
+if nargin < 2 || isempty(params_file); params_file = 'mc_params.json'; end
+if nargin < 4 || isempty(model);       model       = 'original';       end
+if nargin < 5 || isempty(flags);       flags       = [1 1];            end
+if nargin < 3 || isempty(output_file)
+    output_file = 'mc_results.mat';
+    if ~strcmpi(model, 'original'); output_file = sprintf('mc_results_%s.mat', lower(model)); end
+end
+modelName = mc_sim_input(model, flags).ModelName;
 
 addpath('./sizing')
 addpath('./inputs')
 addpath('./propulsion')
 addpath('./dynamics')
 
-load_system('hopper_6dof_NED_v2');
+load_system(modelName);
 % set_param('hopper_6dof_NED_v2', 'SolverType', 'Fixed-step')
 % set_param('hopper_6dof_NED_v2', 'FixedStep', '0.0005')
 
@@ -19,10 +29,10 @@ n_scenarios  = length(scenarios);
 results_cell = cell(n_scenarios, 1);
 t_start      = tic;
 
-fprintf('Starting Monte Carlo: %d scenarios\n', n_scenarios);
+fprintf('Starting Monte Carlo: %d scenarios of %s\n', n_scenarios, modelName);
 
 fprintf('Running nominal scenario...\n');
-nominal = runNominal(params_file);
+nominal = runNominal(params_file, model, flags);
 
 
 for mc_iter = 1:n_scenarios
@@ -35,10 +45,11 @@ for mc_iter = 1:n_scenarios
         STRUCT    = evalin('base', 'STRUCT');
         cg_init   = evalin('base', 'cg_init');
         engine_cg = evalin('base', 'engine_cg');
+        MoI_init  = evalin('base', 'MoI_init');   % needed by LinerizationMaster
         OUT       = Outputs(IN, VEH, TANKS, STRUCT);
         LinerizationMaster();
         mc_sim_setup(scenarios(mc_iter));
-        sim_out = sim('hopper_6dof_NED_v2');
+        sim_out = sim(mc_sim_input(model, flags));
         r = mc_main(scenarios(mc_iter), sim_out);
         r = check_constraints(r);
     catch err
@@ -165,7 +176,7 @@ result.status.pass = passes;
 
 end
 
-function nominal = runNominal(params_file)
+function nominal = runNominal(params_file, model, flags)
     fid  = fopen(params_file);
     raw  = fread(fid, inf, 'uint8=>char')';
     fclose(fid);
@@ -185,11 +196,12 @@ function nominal = runNominal(params_file)
     STRUCT    = evalin('base', 'STRUCT');
     cg_init   = evalin('base', 'cg_init');
     engine_cg = evalin('base', 'engine_cg');
+    MoI_init  = evalin('base', 'MoI_init');   % needed by LinerizationMaster
     OUT       = Outputs(IN, VEH, TANKS, STRUCT);
     saved_scenario = scenario;
     LinerizationMaster();
     scenario  = saved_scenario;
     mc_sim_setup(scenario);
-    sim_out   = sim('hopper_6dof_NED_v2');
+    sim_out   = sim(mc_sim_input(model, flags));
     nominal   = mc_main(scenario, sim_out);
 end
