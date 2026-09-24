@@ -3,6 +3,7 @@ close all;
 
 
 Trajectory2
+ThreeSecTrajectory2
 
 
 % x y z vx vy vz P Q R q0 q1 q2 q3
