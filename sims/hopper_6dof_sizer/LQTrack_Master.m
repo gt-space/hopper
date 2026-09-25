@@ -7,6 +7,7 @@ T_profileEXCEL = readtable("ThrustProfileAP.xlsx");
 T_profileEXCEL = table2array(T_profileEXCEL);
 
 Trajectory2
+ThreeSecTrajectory2
 
 %% -------------------------
 % REDUCED 12-STATE WEIGHTS
