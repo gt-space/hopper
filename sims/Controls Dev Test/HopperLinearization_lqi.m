@@ -1,8 +1,8 @@
 function [A,B] = HopperLinearization_lqi(x, u, params, mass)
-% x = [X Y Z Vx Vy Vz P Q R q0 q1 q2 q3]'
+% x = [X Y Z Vx Vy Vz P Q R p1 p2 p3]'
 % u = [T delta_p delta_y F_rcs]'   (radians)
 
-% ----- full-state nonlinear dynamics (13x1)
+% ----- full-state nonlinear dynamics (12x1)
 
 h = 1e-12;                     
 nx = numel(x); 
@@ -50,8 +50,11 @@ function f = hopper_f(x,u,par,mass)
 
     % thrust in body
     Fx_T =  T * cos(delta_p) * cos(delta_y);
-    Fy_T = -T * cos(delta_p) * sin(delta_y);
-    Fz_T = -T * sin(delta_p);   
+    Fy_T = T*sin(delta_y);
+    Fz_T = -T * sin(delta_p)*cos(delta_y);   
+    % Fx_T =  -T * sin(delta_y);
+    % Fy_T = T * sin(delta_p) * cos(delta_y);
+    % Fz_T = -T * cos(delta_p)*cos(delta_y);   
     F_Tb = [Fx_T; Fy_T; Fz_T];
 
     % inertial translational dynamics
@@ -71,7 +74,7 @@ function f = hopper_f(x,u,par,mass)
     omegadot = I \ (M_body - cross(omega, I*omega));
     
    
-    pdot = ((1+norm(p)^2)/4)*(eye(3)+2*( (hat(p)^2+hat(p))/(1+norm(p)^2 )))*omega;
+    pdot = ((1+(p.'*p)^2)/4)*(eye(3)+2*( (hat(p)^2+hat(p))/(1+(p.'*p)^2 )))*omega;
     f = [posdot;
          Vdot;
          omegadot;
@@ -79,7 +82,7 @@ function f = hopper_f(x,u,par,mass)
 end
 
 function R = Rbody2NED(p)
-   R=(eye(3)-hat(p))/(eye(3)+hat(p));
+   R=((eye(3)-hat(p))/(eye(3)+hat(p)))^2;
 end
 
 

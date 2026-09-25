@@ -36,7 +36,7 @@ q = [sqrt(2)/2;0;sqrt(2)/2;0];
 p = qToMRP(q)
 
 x = [0;0;0;0;0;0;0;0;0;p];
-u  = [10;1e-4;1e-4;0];
+u  = [10;0;0;0];
 
 [A, B] = HopperLinearization_lqi(x, u, params, m);
 
