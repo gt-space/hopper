@@ -1,10 +1,12 @@
 /*
  * replay_main.c - open-loop check of the generated hopper_env C code.
  *
- * Reads a command history (t, thrust, tvc_pitch, tvc_yaw, rcs per line),
- * feeds one row per 1 ms step into hopper_env_step(), and writes the
- * resulting outputs (time, x_true[13], thrust, z) so they can be compared
- * against the Simulink run that produced the commands.
+ * Reads a command history (t, thrust, tvc_pitch, tvc_yaw, rcs per line) and
+ * runs one 1 ms step per row the way a flight-software loop would:
+ * hopper_env_output() gives the outputs at time t, the row's command is
+ * applied, and hopper_env_update() advances to t + 1 ms. Writes
+ * (time, x_true[13], thrust, z) per step for comparison with the Simulink
+ * run that produced the commands.
  *
  * usage: replay <commands.csv> <outputs.csv>
  */
@@ -32,24 +34,21 @@ int main(int argc, char **argv)
   double t, u[4];
   long steps = 0;
   while (fscanf(in, "%lf,%lf,%lf,%lf,%lf", &t, &u[0], &u[1], &u[2], &u[3]) == 5) {
+    hopper_env_output();
     if (rtmGetErrorStatus(hopper_env_M) != NULL || rtmGetStopRequested(hopper_env_M)) {
       break;
     }
-
-    for (int i = 0; i < 4; i++) {
-      hopper_env_U.u_cmd[i] = u[i];
-    }
-
-    /* The step applies u_cmd, integrates one fixed step, and leaves
-     * hopper_env_Y describing the end of the step, so label the row with the
-     * model time after the call (t + 1 ms), not the command time. */
-    hopper_env_step();
 
     fprintf(out, "%.17g", rtmGetT(hopper_env_M));
     for (int i = 0; i < 13; i++) {
       fprintf(out, ",%.17g", hopper_env_Y.x_true[i]);
     }
     fprintf(out, ",%.17g,%.17g\n", hopper_env_Y.thrust, hopper_env_Y.z);
+
+    for (int i = 0; i < 4; i++) {
+      hopper_env_U.u_cmd[i] = u[i];
+    }
+    hopper_env_update();
     steps++;
   }
 
