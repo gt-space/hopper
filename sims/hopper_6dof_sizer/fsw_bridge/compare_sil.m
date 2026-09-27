@@ -14,7 +14,7 @@ fprintf('Simulink reference: %d steps, ends t = %.3f s, max altitude %.3f m\n', 
 
 groups = {'position (m)', 1:3; 'velocity (m/s)', 4:6; 'body rate (rad/s)', 7:9; 'quaternion', 10:13};
 for f = 1:numel(varargin)
-    R = readmatrix(fullfile(here, varargin{f}));
+    R = readmatrix(fullfile(here, varargin{f}), 'NumHeaderLines', 1);
     k = round(R(:, 1) / dt) + 1;
     keep = k <= numel(ref.t);
     R = R(keep, :); k = k(keep);

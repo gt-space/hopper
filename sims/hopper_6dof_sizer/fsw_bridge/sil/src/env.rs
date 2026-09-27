@@ -18,6 +18,58 @@ extern "C" {
     fn env_set_u_cmd(u: *const f64);
     fn env_get_x_true(x: *mut f64);
     fn env_get_truth(out: *mut f64);
+    fn env_get_sensors(
+        imu: *mut f64,
+        mag: *mut f64,
+        baro: *mut f64,
+        gps: *mut f64,
+        lidar: *mut f64,
+    );
+}
+
+/// IMU sample, same fields and units as luna `fc_sensors::Imu`.
+#[derive(Debug, Clone, Copy)]
+pub struct Imu {
+    /// m/s^2, sensor axes
+    pub accelerometer: [f64; 3],
+    /// deg/s, sensor axes
+    pub gyroscope: [f64; 3],
+}
+
+/// Barometer sample, same fields and units as luna `fc_sensors::Barometer`.
+#[derive(Debug, Clone, Copy)]
+pub struct Barometer {
+    /// Pa
+    pub pressure: f64,
+    /// degC
+    pub temperature: f64,
+}
+
+/// GPS solution, same fields and units as luna `comm::GpsState`.
+#[derive(Debug, Clone, Copy)]
+pub struct Gps {
+    pub latitude_deg: f64,
+    pub longitude_deg: f64,
+    pub altitude_m: f64,
+    pub north_mps: f64,
+    pub east_mps: f64,
+    pub down_mps: f64,
+    pub has_fix: bool,
+    pub num_satellites: u8,
+}
+
+/// Latest output of every sensor model. Each sensor updates at its own rate
+/// (IMU 1 kHz, magnetometer/barometer/LiDAR 100 Hz, GPS 5 Hz) and holds its
+/// value in between.
+#[derive(Debug, Clone, Copy)]
+pub struct Sensors {
+    pub imu: Imu,
+    /// Gauss, sensor axes (luna `fc_sensors::Magnetometer`)
+    pub magnetometer: [f64; 3],
+    pub barometer: Barometer,
+    pub gps: Gps,
+    /// Range along each beam, m; `None` when there is no valid return.
+    pub lidar: [Option<f64>; 4],
 }
 
 /// The generated code keeps all model state in globals, so only one
@@ -101,6 +153,43 @@ impl Environment {
         let mut x = [0.0; 13];
         unsafe { env_get_x_true(x.as_mut_ptr()) };
         x
+    }
+
+    /// Sensor measurements at the current time.
+    pub fn sensors(&self) -> Sensors {
+        let (mut imu, mut mag, mut baro, mut gps, mut lidar) =
+            ([0.0; 6], [0.0; 3], [0.0; 2], [0.0; 8], [0.0; 4]);
+        unsafe {
+            env_get_sensors(
+                imu.as_mut_ptr(),
+                mag.as_mut_ptr(),
+                baro.as_mut_ptr(),
+                gps.as_mut_ptr(),
+                lidar.as_mut_ptr(),
+            )
+        };
+        Sensors {
+            imu: Imu {
+                accelerometer: [imu[0], imu[1], imu[2]],
+                gyroscope: [imu[3], imu[4], imu[5]],
+            },
+            magnetometer: mag,
+            barometer: Barometer {
+                pressure: baro[0],
+                temperature: baro[1],
+            },
+            gps: Gps {
+                latitude_deg: gps[0],
+                longitude_deg: gps[1],
+                altitude_m: gps[2],
+                north_mps: gps[3],
+                east_mps: gps[4],
+                down_mps: gps[5],
+                has_fix: gps[6] != 0.0,
+                num_satellites: gps[7] as u8,
+            },
+            lidar: lidar.map(|r| (r >= 0.0).then_some(r)),
+        }
     }
 
     pub fn truth(&self) -> Truth {

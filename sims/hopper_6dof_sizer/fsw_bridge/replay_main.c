@@ -5,8 +5,8 @@
  * runs one 1 ms step per row the way a flight-software loop would:
  * hopper_env_output() gives the outputs at time t, the row's command is
  * applied, and hopper_env_update() advances to t + 1 ms. Writes
- * (time, x_true[13], thrust, z) per step for comparison with the Simulink
- * run that produced the commands.
+ * (time, x_true[13], thrust, z, imu[6], mag[3], baro[2], gps[8], lidar[4])
+ * per step for comparison with the Simulink run that produced the commands.
  *
  * usage: replay <commands.csv> <outputs.csv>
  */
@@ -43,7 +43,16 @@ int main(int argc, char **argv)
     for (int i = 0; i < 13; i++) {
       fprintf(out, ",%.17g", hopper_env_Y.x_true[i]);
     }
-    fprintf(out, ",%.17g,%.17g\n", hopper_env_Y.thrust, hopper_env_Y.z);
+    fprintf(out, ",%.17g,%.17g", hopper_env_Y.thrust, hopper_env_Y.z);
+    const double *sensors[] = {hopper_env_Y.imu, hopper_env_Y.mag, hopper_env_Y.baro,
+                               hopper_env_Y.gps, hopper_env_Y.lidar};
+    const int widths[] = {6, 3, 2, 8, 4};
+    for (int s = 0; s < 5; s++) {
+      for (int i = 0; i < widths[s]; i++) {
+        fprintf(out, ",%.17g", sensors[s][i]);
+      }
+    }
+    fputc('\n', out);
 
     for (int i = 0; i < 4; i++) {
       hopper_env_U.u_cmd[i] = u[i];

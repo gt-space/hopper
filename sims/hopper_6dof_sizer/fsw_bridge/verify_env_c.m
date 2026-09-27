@@ -94,6 +94,23 @@ for tol = [1e-12 1e-9 1e-6 1e-3 1]
     j = find(D > tol, 1);
     if isempty(j), fprintf('  %-6g never\n', tol); else, fprintf('  %-6g t = %.3f s\n', tol, tc(j)); end
 end
+
+% Sensors: compare at each sensor's own logged sample times, up to the
+% point the state has drifted (after that the inputs differ anyway).
+tDrift = tc(find([D; inf] > 1e-9, 1));
+sensors = {'imu', 6; 'mag', 3; 'baro', 2; 'gps', 8; 'lidar', 4};
+col = 17;
+fprintf('\nSensors, C vs Simulink, up to t = %.3f s:\n', tDrift);
+for s = 1:size(sensors, 1)
+    ts = out.get([sensors{s, 1} '_meas']);
+    V  = asRows(ts.Data, numel(ts.Time));
+    j  = round(ts.Time / dt) + 1;                 % Simulink sample -> C row
+    [ok, r] = ismember(j, k);
+    ok = ok & ts.Time <= tDrift;
+    d = max(abs(C(r(ok), col:col + sensors{s, 2} - 1) - V(ok, :)), [], 'all');
+    fprintf('  %-6s %6d samples  max|diff| %.3g\n', sensors{s, 1}, nnz(ok), d);
+    col = col + sensors{s, 2};
+end
 save(fullfile(build, 'verify_env_c.mat'), 't', 'U', 'Xs', 'C', 'thrustSL', 'zSL');
 end
 

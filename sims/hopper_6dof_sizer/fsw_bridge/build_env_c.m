@@ -11,8 +11,8 @@ function codeDir = build_env_c(varargin)
 %
 %   Returns the folder holding the generated code.
 %
-%   Needs the usual base workspace (IN, VEH, lookup tables, ...). If it is
-%   missing, sim_setup_cached is run first.
+%   Needs the usual base workspace (IN, VEH, lookup tables, ...) and SENS.
+%   If they are missing, sim_setup_cached / sensor_params are run first.
 %
 %   Parameters are inlined for now, so a change to a workspace value needs a
 %   rebuild.
@@ -29,6 +29,9 @@ cd(sizer);
 
 if ~evalin('base', 'exist(''IN'', ''var'') && exist(''VEH'', ''var'')')
     evalin('base', 'sim_setup_cached');
+end
+if ~evalin('base', 'exist(''SENS'', ''var'')')
+    assignin('base', 'SENS', sensor_params());
 end
 
 src = 'hopper_6dof_NED_v2_fswBridge';

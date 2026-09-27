@@ -2,11 +2,14 @@
 //! hopper environment, in lockstep, one 1 ms step at a time.
 //!
 //! ```text
-//! cargo run --release -- [--gains DIR] [--out FILE] [--matlab-k2-sign] [--t-max S]
+//! cargo run --release -- [--gains DIR] [--out FILE] [--luna-k2-sign] [--t-max S]
 //! ```
 //!
-//! Writes one CSV row per step:
-//! `t, x_true[13], u_cmd[4], thrust, z, ox_mass, fuel_mass`.
+//! Writes a CSV (with a header row) of one row per step: time, true state,
+//! command, truth logs, then every sensor measurement (see `CSV_HEADER`).
+//!
+//! The controller still flies on the true state; the sensor readings are
+//! logged for the estimator that will sit between them.
 
 // luna's lqr.rs imports `common::comm::ctv`; point `common` at this crate.
 extern crate self as common;
@@ -49,6 +52,16 @@ use comm::ctv::{ControlState, Quaternion, Vector3};
 use control::Controller;
 use env::Environment;
 
+const CSV_HEADER: &str = "t,\
+pos_n,pos_e,pos_d,vel_n,vel_e,vel_d,p,q,r,q0,q1,q2,q3,\
+u_thrust,u_tvc_pitch,u_tvc_yaw,u_rcs,\
+thrust,z,ox_mass,fuel_mass,\
+acc_x,acc_y,acc_z,gyro_x_dps,gyro_y_dps,gyro_z_dps,\
+mag_x,mag_y,mag_z,\
+baro_pa,baro_temp_c,\
+gps_lat_deg,gps_lon_deg,gps_alt_m,gps_vn,gps_ve,gps_vd,gps_fix,gps_sats,\
+lidar_1,lidar_2,lidar_3,lidar_4";
+
 struct Args {
     gains: PathBuf,
     out: PathBuf,
@@ -61,7 +74,8 @@ fn parse_args() -> Result<Args, String> {
     let mut args = Args {
         gains: build.join("gains"),
         out: build.join("sil_run.csv"),
-        negate_k2: false,
+        // Simulink's -K2, the team's chosen sign (luna's lqr.rs has +K2)
+        negate_k2: true,
         t_max: 60.0,
     };
     let mut it = std_env::args().skip(1);
@@ -69,7 +83,7 @@ fn parse_args() -> Result<Args, String> {
         match arg.as_str() {
             "--gains" => args.gains = it.next().ok_or("--gains needs a folder")?.into(),
             "--out" => args.out = it.next().ok_or("--out needs a file")?.into(),
-            "--matlab-k2-sign" => args.negate_k2 = true,
+            "--luna-k2-sign" => args.negate_k2 = false,
             "--t-max" => {
                 args.t_max = it
                     .next()
@@ -118,6 +132,10 @@ fn main() -> ExitCode {
         }
     };
     let mut csv = BufWriter::new(file);
+    if let Err(e) = writeln!(csv, "{CSV_HEADER}") {
+        eprintln!("error writing {}: {e}", args.out.display());
+        return ExitCode::FAILURE;
+    }
 
     println!(
         "K2 sign: {}",
@@ -128,6 +146,8 @@ fn main() -> ExitCode {
     let mut world = Environment::new();
     let mut steps = 0u64;
     let mut max_alt = f64::NEG_INFINITY;
+    let mut gps_fixes = 0u64;
+    let mut last_gps_lat = f64::NAN;
 
     loop {
         world.output();
@@ -147,10 +167,31 @@ fn main() -> ExitCode {
 
         let truth = world.truth();
         max_alt = max_alt.max(-truth.z);
+        let s = world.sensors();
+        if s.gps.has_fix && s.gps.latitude_deg != last_gps_lat {
+            gps_fixes += 1;
+            last_gps_lat = s.gps.latitude_deg;
+        }
+        let gps = [
+            s.gps.latitude_deg,
+            s.gps.longitude_deg,
+            s.gps.altitude_m,
+            s.gps.north_mps,
+            s.gps.east_mps,
+            s.gps.down_mps,
+            f64::from(u8::from(s.gps.has_fix)),
+            f64::from(s.gps.num_satellites),
+        ];
         let row = std::iter::once(t)
             .chain(x)
             .chain(u)
             .chain([truth.thrust, truth.z, truth.ox_mass, truth.fuel_mass])
+            .chain(s.imu.accelerometer)
+            .chain(s.imu.gyroscope)
+            .chain(s.magnetometer)
+            .chain([s.barometer.pressure, s.barometer.temperature])
+            .chain(gps)
+            .chain(s.lidar.map(|r| r.unwrap_or(-1.0)))
             .map(|v| format!("{v:.17e}"))
             .collect::<Vec<_>>()
             .join(",");
@@ -166,7 +207,7 @@ fn main() -> ExitCode {
     let elapsed = wall.elapsed().as_secs_f64();
     let t_end = world.time();
     println!(
-        "flew {steps} steps to t = {t_end:.3} s{} | max altitude {max_alt:.3} m",
+        "flew {steps} steps to t = {t_end:.3} s{} | max altitude {max_alt:.3} m | {gps_fixes} GPS fixes",
         if world.stop_requested() { " (touchdown stop)" } else { "" }
     );
     println!(
