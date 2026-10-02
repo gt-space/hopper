@@ -313,3 +313,30 @@ func _material(color: Color, unshaded: bool = false, alpha: float = 1.0) -> Stan
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED if unshaded else BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if alpha < 1.0 else BaseMaterial3D.TRANSPARENCY_DISABLED
 	return material
+## Updates the landing ellipse geometry dynamically based on target or covariance statistics.
+func set_landing_ellipse_params(center_east: float, center_north: float, semi_major: float, semi_minor: float, rotation_rad: float = 0.0, segments: int = 64) -> void:
+	var mesh := landing_ellipse.mesh as ImmediateMesh
+	if mesh == null:
+		return
+		
+	mesh.clear_surfaces()
+	mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+	
+	for i in range(segments + 1):
+		var angle := TAU * float(i) / float(segments)
+		
+		# Parametric equation of an ellipse in local coordinates
+		var local_x := cos(angle) * semi_major
+		var local_z := sin(angle) * semi_minor
+		
+		# Rotate the ellipse if a rotation angle is provided
+		var rot_x := local_x * cos(rotation_rad) - local_z * sin(rotation_rad)
+		var rot_z := local_x * sin(rotation_rad) + local_z * cos(rotation_rad)
+		
+		# Map to Godot coordinates (East -> X, North -> -Z)
+		var world_x := center_east + rot_x
+		var world_z := -(center_north + rot_z)
+		
+		mesh.surface_add_vertex(Vector3(world_x, 0.04, world_z))
+		
+	mesh.surface_end()

@@ -69,9 +69,21 @@ func _display_frame(start_index: int, end_index: int, interpolation: float) -> v
 	var row: PackedFloat64Array = database.sample_at(start_index)
 	if end_index != start_index:
 		row = TelemetryInterpolator.interpolate(row, database.sample_at(end_index), interpolation)
+	
 	if not row.is_empty():
 		flight_world.apply_sample(start_index, row, initial_fuel, initial_ox)
 		dashboard.update_readout(row, start_index, initial_fuel, initial_ox)
+		
+		# --- UPDATE THE LANDING ELLIPSE DYNAMICALLY PER FRAME ---
+		var landing_pred := _calculate_predicted_landing(row)
+		flight_world.set_landing_ellipse_params(
+			landing_pred.center_east,
+			landing_pred.center_north,
+			landing_pred.semi_major,
+			landing_pred.semi_minor,
+			landing_pred.rotation
+		)
+		# --------------------------------------------------------
 
 func _load_telemetry(path: String) -> void:
 	if database.load_csv(path):
@@ -123,3 +135,34 @@ func _export_pdf_report(path: String) -> void:
 
 func _process(delta: float) -> void:
 	flight_world.update_camera(delta)
+	
+	## Computes the instantaneous predicted landing point and shrinks uncertainty as altitude decreases.
+func _calculate_predicted_landing(row: PackedFloat64Array) -> Dictionary:
+	var north := row[TelemetrySchema.Column.NORTH]
+	var east := row[TelemetrySchema.Column.EAST]
+	var up := maxf(row[TelemetrySchema.Column.UP], 0.0)
+	var vn := row[TelemetrySchema.Column.VN]
+	var ve := row[TelemetrySchema.Column.VE]
+	var vd := row[TelemetrySchema.Column.VD] # Positive is downward
+	
+	var pred_north := north
+	var pred_east := east
+	
+	# If descending and above ground, project forward linearly (or ballistically)
+	if vd > 0.1 and up > 0.0:
+		var time_to_go := up / vd
+		pred_north += vn * time_to_go
+		pred_east += ve * time_to_go
+	
+	# Uncertainty ellipse shrinks as altitude decreases (converging to accuracy at touchdown)
+	var altitude_fraction := clampf(up / 1000.0, 0.05, 1.0)
+	var semi_major := maxf(14.0 * altitude_fraction, 3.0)
+	var semi_minor := maxf(8.0 * altitude_fraction, 2.0)
+	
+	return {
+		"center_east": pred_east,
+		"center_north": pred_north,
+		"semi_major": semi_major,
+		"semi_minor": semi_minor,
+		"rotation": 0.0
+	}
