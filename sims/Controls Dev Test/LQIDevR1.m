@@ -46,10 +46,8 @@ u  = [10;0;0;0];
 %%
 
 [Atilde,Btilde] = extendedDynamics(A,B);
-
-
-
 CrossTerm = zeros(15,4);
+
 %sysI = sys(Atilde,Btilde,CI,DI);
 
 KlqI = lqr(Atilde,Btilde,QI,R,CrossTerm)
@@ -59,7 +57,26 @@ KlqI = lqr(Atilde,Btilde,QI,R,CrossTerm)
 % KlqI(3,9) = KlqI(2,8);
 % KlqI(3,10) = KlqI(2,11);
 % KlqI(3,14) = KlqI(2,13);
-%KlqI(3,12) = -KlqI(2,11);
- %Klqi = lqi(sys,Q,R,CrossTerm);
+%KlqI(3,12) = -KlqI(2,11);%Klqi = lqi(sys,Q,R,CrossTerm);
+% %KlqI(:,10:12)
 
-%KlqI(:,10:12)
+CL = Atilde - Btilde*KlqI;
+poles = eig(CL);
+[V,D] = eig(CL);
+
+poles
+plot(real(poles), imag(poles),'rx')
+
+tolerance = 1/500;
+
+names = {'x','y','z','vx','vy','vz','P','Q','R','p1','p2','p3','ex','ey','ez'};
+for k = 1:15
+  v      = abs(V(:,k));
+  threshold = tolerance * norm(v);  
+  idx    = find(v > threshold);
+  [vals, order] = sort(v(idx), 'descend');
+  idx    = idx(order);
+  %parts = arrayfun(@(j) sprintf('%s = %.3f', names{j}, v(j)), idx, 'UniformOutput', false);
+  parts = names(idx);
+  fprintf('pole %8.3f%+8.3fi : %s\n', real(D(k,k)), imag(D(k,k)), strjoin(parts, ', '))
+end
