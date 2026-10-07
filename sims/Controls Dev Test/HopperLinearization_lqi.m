@@ -12,7 +12,7 @@ A  = zeros(nx,nx);
 B  = zeros(nx,nu);  
 
 
-% ----- full 13x13 A matrix
+
 for i = 1:nx
     dx = zeros(nx,1); 
     dx(i) = 1;
@@ -20,7 +20,7 @@ for i = 1:nx
     A(:,i) = imag(fi)/h;
 end
 
-% ----- full 13x4 B matrix
+
 for j = 1:nu
     du = zeros(nu,1); 
     du(j) = 1;
@@ -59,12 +59,13 @@ function f = hopper_f(x,u,par,mass)
 
     % inertial translational dynamics
     Rbn = Rbody2NED(p);
-    F_n  = Rbn * F_Tb + [0;0;m*g];
+    F_n  = (Rbn * F_Tb) + [0;0;m*g];
     Vdot = (1/m) * F_n;
     posdot = [Vx;Vy;Vz];
     
     % rotational dynamics
     r_tvc = [-d;0;0];
+    %r_tvc = [0;0;d];
     M_tvc = cross(r_tvc, F_Tb);
     M_body = [M_tvc(1)+Tor_rcs;
               M_tvc(2);
