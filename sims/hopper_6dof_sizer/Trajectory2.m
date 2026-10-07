@@ -154,7 +154,7 @@ scenario = scenario.addElement(T_ts,"thrust_ref");
 
 z_ts = timeseries(z, t); 
 z_ts.Name = "z_ref";
-% vz_ts = timeseries(zdot,t);
+vz_ts = timeseries(zdot,t);
 scenario = scenario.addElement(z_ts, "z_ref");
 
 
