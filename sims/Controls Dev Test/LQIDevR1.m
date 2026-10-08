@@ -60,16 +60,16 @@ poles = eig(CL);
 poles
 plot(real(poles), imag(poles),'rx')
 
-tolerance = 1/500;
+tolerance = 1e-5; %Tune this
 
 names = {'x','y','z','vx','vy','vz','P','Q','R','p1','p2','p3','ex','ey','ez'};
 for k = 1:15
-  v      = abs(V(:,k));
-  threshold = tolerance * norm(v);  
-  idx    = find(v > threshold);
-  [vals, order] = sort(v(idx), 'descend');
+  vnormalized = V(:,k);
+  idx    = find(vnormalized > tolerance);
+  [vals, order] = sort(vnormalized(idx), 'descend');
   idx    = idx(order);
   %parts = arrayfun(@(j) sprintf('%s = %.3f', names{j}, v(j)), idx, 'UniformOutput', false);
-  parts = names(idx);
-  fprintf('pole %8.3f%+8.3fi : %s\n', real(D(k,k)), imag(D(k,k)), strjoin(parts, ', '))
+  phi = rad2deg(angle(V(:,k)));
+  parts = compose('%s(%+.0f°)', string(names(idx)).', phi(idx));
+  fprintf('pole %8.3f%+8.3fi, phase= : %s\n', real(D(k,k)), imag(D(k,k)), strjoin(parts, ', '))
 end
