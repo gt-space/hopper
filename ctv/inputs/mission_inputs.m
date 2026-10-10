@@ -25,6 +25,22 @@ IN.mission.max_vehicle_height = 2.44; % m
 IN.structures.payload_mass = 15; % kg, CPLC Requirement
 IN.structures.structures_mass = 34.26; % kg from CAD
 
+%CTV PARAMETERS (FROM CAD)
+IN.ctv.mass    = 2614.88 / 1000;                    % g -> kg
+IN.ctv.volume  = 1352684.64 * (1e-3)^3;             % mm^3 -> m^3
+IN.ctv.surface_area = 1025706.72 * (1e-3)^2;        % mm^2 -> m^2
+IN.ctv.cg = [-41.76; 349.21; 6.07] * 1e-3;          % mm -> m
+IN.ctv.moi.principal = [12286697.54; 103188992.22; 103841863.97] * 1e-9;
+IN.ctv.moi.principal_axes = [ 0.02  1.00 -0.01;
+                             -0.99  0.01 -0.13;
+                             -0.13  0.01  0.99];
+IN.ctv.moi.tensor_cg = [103179574.33   1374767.18     68051.49;
+                          1374767.18  12321923.43  -1150369.65;
+                            68051.49  -1150369.65  103816055.97] * 1e-9;
+IN.ctv.moi.tensor_origin = [422148026.91  -36757081.16    -594348.41;
+                            -36757081.16   16978085.84    4388856.49;
+                              -594348.41    4388856.49  427248223.80] * 1e-9;
+
 %  AVIONICS
 IN.avionics.standby_hours = 2.0; % hr
 IN.avionics.flight_time = 2 * 30; % sec
