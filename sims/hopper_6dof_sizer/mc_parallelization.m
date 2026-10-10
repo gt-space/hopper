@@ -63,23 +63,49 @@ slxFiles = dir('*.slx');
 xlsxFiles = dir('*.xlsx');
 jsonFiles = dir('*.json');
 addAllFiles = [{matFiles.name}, {slxFiles.name}, {xlsxFiles.name}, {jsonFiles.name}, {mFiles.name}];
+
 if strcmp(runMode, 'parallel')
     p = gcp();
     addAttachedFiles(p, addAllFiles);
 end
 
-% --- Scenario & Batch Generation / Loading ---
+% --- Scenario & Batch Generation / Loading / Extending ---
 if ~strcmp(runMode, 'nominal')
     masterScenariosFile = fullfile(batchDir, 'master_scenarios.mat');
     
-    if ~exist(masterScenariosFile, 'file')
-        n = input('Enter the total number of Monte Carlo scenarios (e.g., 1000): ');
-        if isempty(n) || n <= 0
-            error('Invalid input. Please enter a positive integer.');
+    action = 'generate'; % Default for first time
+    if exist(masterScenariosFile, 'file')
+        load(masterScenariosFile, 'n', 'numBatches');
+        fprintf('\nExisting scenario configuration found with n = %d scenarios across %d batches.\n', n, numBatches);
+        fprintf('Options:\n');
+        fprintf('  [c] Continue running current scenarios\n');
+        fprintf('  [a] Add more scenarios (e.g., extend from %d to %d+)\n', n, n);
+        fprintf('  [r] Reset and start fresh with a new scenario count\n');
+        choice = input('Select action (c/a/r) [c]: ', 's');
+        if isempty(choice), choice = 'c'; end
+        
+        if strcmpi(choice, 'r')
+            n = input('Enter the total number of Monte Carlo scenarios for the fresh run: ');
+            if isempty(n) || n <= 0, error('Invalid input.'); end
+            action = 'generate';
+        elseif strcmpi(choice, 'a')
+            addN = input('Enter the number of *additional* scenarios to add (e.g. 100): ');
+            if isempty(addN) || addN <= 0, error('Invalid input.'); end
+            oldN = n;
+            n = oldN + addN;
+            action = 'append';
+        else
+            action = 'load';
         end
+    else
+        n = input('Enter the total number of Monte Carlo scenarios (e.g., 100): ');
+        if isempty(n) || n <= 0, error('Invalid input.'); end
+        action = 'generate';
+    end
+    
+    if strcmp(action, 'generate')
         [scenarios, mcTable] = generateScenarios(jsonFile, n);
         
-        % Split into batches
         numBatches = ceil(n / batchSize);
         allScenarioStructs = table2struct(mcTable);
         
@@ -97,7 +123,46 @@ if ~strcmp(runMode, 'nominal')
             save(batchFile, 'batchData');
         end
         save(masterScenariosFile, 'n', 'numBatches');
-        fprintf('Successfully generated and split %d scenarios into %d batches of size %d.\n', n, numBatches, batchSize);
+        fprintf('Successfully generated and split %d scenarios into %d batches.\n', n, numBatches);
+        
+    elseif strcmp(action, 'append')
+        % Load existing scenarios so we preserve 1 to oldN intact
+        oldScenarioStructs = [];
+        oldMcTables = cell(numBatches, 1);
+        for b = 1:numBatches
+            bFile = fullfile(batchDir, sprintf('batch_%03d.mat', b));
+            bData = load(bFile, 'batchData');
+            oldScenarioStructs = [oldScenarioStructs; bData.batchData.scenarios(:)];
+            oldMcTables{b} = bData.batchData.mcTable;
+        end
+        oldMcTable = vertcat(oldMcTables{:});
+        
+        % Generate new additional scenarios
+        [~, newMcTable] = generateScenarios(jsonFile, n);
+        newMcTable = newMcTable(oldN + 1 : end, :); % Keep only the new ones
+        newScenarioStructs = table2struct(newMcTable);
+        
+        % Combine old and new
+        allScenarioStructs = [oldScenarioStructs; newScenarioStructs];
+        mcTable = [oldMcTable; newMcTable];
+        
+        % Re-batch everything with the new total n
+        numBatches = ceil(n / batchSize);
+        for b = 1:numBatches
+            startIdx = (b - 1) * batchSize + 1;
+            endIdx   = min(b * batchSize, n);
+            
+            batchData.batchID     = b;
+            batchData.startIdx    = startIdx;
+            batchData.endIdx      = endIdx;
+            batchData.scenarios   = allScenarioStructs(startIdx:endIdx);
+            batchData.mcTable     = mcTable(startIdx:endIdx, :);
+            
+            batchFile = fullfile(batchDir, sprintf('batch_%03d.mat', b));
+            save(batchFile, 'batchData');
+        end
+        save(masterScenariosFile, 'n', 'numBatches');
+        fprintf('Successfully extended scenarios to %d total (%d new added) across %d batches.\n', n, addN, numBatches);
     else
         load(masterScenariosFile, 'n', 'numBatches');
     end
@@ -109,7 +174,6 @@ if ~strcmp(runMode, 'nominal')
         bData = load(batchFile, 'batchData');
         gIndices = bData.batchData.startIdx : bData.batchData.endIdx;
         
-        % Check if all checkpoints exist for this batch
         batchComplete = true;
         for idx = gIndices
             ckptFile = fullfile(ckptDir, sprintf('scenario_%05d.mat', idx));
@@ -183,7 +247,6 @@ switch runMode
             fprintf('Running parsim across workers for Batch %d...\n', targetBatch);
             simOuts = parsim(simIn, 'ShowProgress', 'on');
             
-            % Reload updated individual checkpoint files into resultsCell
             for k = 1:numMissing
                 localIdx = missingLocalIdx(k);
                 globalIdx = globalIndices(localIdx);
@@ -198,7 +261,6 @@ switch runMode
         elapsedTime = toc;
         fprintf('Completed parallel execution phase for Batch %d in %.2f seconds.\n', targetBatch, elapsedTime);
         
-        % --- Export Batch Results ---
         batchResults = [resultsCell{:}];
         batchResultsFile = fullfile(batchDir, sprintf('batch_%03d_results.mat', targetBatch));
         save(batchResultsFile, 'batchResults', 'globalIndices');
