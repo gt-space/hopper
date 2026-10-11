@@ -9,6 +9,11 @@
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%% Add relevant file paths
+addpath("Filter Sims\");
+addpath("Src\");
+addpath("Filters\");
+
 %% Filter parameters
 filter_st = 0.002;      % Filter sample time (seconds)
 
