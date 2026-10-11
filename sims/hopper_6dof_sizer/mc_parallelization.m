@@ -19,7 +19,6 @@ batchSize   = 300;        % Number of scenarios per batch file (e.g., 300)
 jsonFile  = 'mc_params.json';
 ckptDir   = fullfile(currentDir, 'mc_checkpoints'); % Individual scenario checkpoints
 batchDir  = fullfile(currentDir, 'mc_batches');     % Batch definition files
-
 if ~exist(ckptDir, 'dir'), mkdir(ckptDir); end
 if ~exist(batchDir, 'dir'), mkdir(batchDir); end
 
@@ -63,7 +62,6 @@ slxFiles = dir('*.slx');
 xlsxFiles = dir('*.xlsx');
 jsonFiles = dir('*.json');
 addAllFiles = [{matFiles.name}, {slxFiles.name}, {xlsxFiles.name}, {jsonFiles.name}, {mFiles.name}];
-
 if strcmp(runMode, 'parallel')
     p = gcp();
     addAttachedFiles(p, addAllFiles);
@@ -193,6 +191,28 @@ if ~strcmp(runMode, 'nominal')
         fprintf('\n===============================================\n');
         fprintf(' 🎉 All %d scenarios across all batches are fully completed!\n', n);
         fprintf('===============================================\n');
+        
+        % --- AUTOMATIC BATCH MERGING ---
+        fprintf('Merging all batch results into mc_results_parallel.mat...\n');
+        batchFiles = dir(fullfile(batchDir, 'batch_*_results.mat'));
+        
+        results = [];
+        for i = 1:length(batchFiles)
+            data = load(fullfile(batchDir, batchFiles(i).name), 'batchResults');
+            results = [results, data.batchResults(:)'];
+        end
+        
+        save('mc_results_parallel.mat', 'results');
+        fprintf('Successfully combined %d batch files into mc_results_parallel.mat!\n', length(batchFiles));
+        
+        % --- AUTOMATICALLY LAUNCH PLOTS ---
+        if exist('mc_plots', 'file') == 2
+            fprintf('Launching mc_plots...\n');
+            mc_plots('mc_results_parallel.mat');
+        else
+            warning('mc_plots.m not found in path. Skipping automated plot generation.');
+        end
+        
         return;
     end
     
