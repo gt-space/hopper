@@ -12,6 +12,14 @@
 %% Filter parameters
 filter_st = 0.002;      % Filter sample time (seconds)
 
+% Initial conditions
+% state: xx, xy, xz, vx, vy, vz, P, Q, R, q0, q1, q2, q3, ax, ay, az, gx,
+% gy, gz, b
+x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
+P0 = zeros(19,19); % TODO! THIS CANNOT BE INITTED TO ZERO
+% Note covariance is 19x19, not 20x20, because covariance uses a 3-element
+% rotation representation
+
 %% Sensor parameters
 
 % IMU parameters
