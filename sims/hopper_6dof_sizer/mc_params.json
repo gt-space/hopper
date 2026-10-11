@@ -2,76 +2,91 @@
   "ox_mass": {
     "lower": 15,
     "upper": 17,
-    "nominal": 16
+    "nominal": 16,
+    "distribution": "uniform"
   },
   "fuel_mass": {
     "lower": 12,
     "upper": 14,
-    "nominal": 13
+    "nominal": 13,
+    "distribution": "uniform"
   },
   "cstar": {
     "lower": 0.83,
     "upper": 0.87,
-    "nominal": 0.85
+    "nominal": 0.85,
+    "distribution": "uniform"
   },
   "mass_factor": {
     "lower": 0.98,
-    "upper": 1.02,
-    "nominal": 1.0
+    "upper": 1.02,    
+    "nominal": 1.0,
+    "distribution": "uniform"
   },
    "cg_factor": {
     "lower": 0.99,
     "upper": 1.01,
-    "nominal": 1.0
+    "nominal": 1.0,
+     "distribution": "uniform"
   },
   "slosh_lateral_damping": {
     "lower": 0.02,
     "upper": 0.06,
-    "nominal": 0.04
+    "nominal": 0.04,
+    "distribution": "uniform"
   },
   "slosh_axial_damping": {
     "lower": 0.3,
     "upper": 0.3,
-    "nominal": 0.3
+    "nominal": 0.3,
+    "distribution": "uniform"
   },
   "throttle_rate_limit": {
     "lower": 90,
     "upper": 90,
-    "nominal": 90
+    "nominal": 90,
+    "distribution": "uniform"
   },
   "throttle_latency": {
     "lower": 0.01,
     "upper": 0.01,
-    "nominal": 0.01
+    "nominal": 0.01,
+    "distribution": "uniform"
   },
   "tvc_actuator_rate_limit": {
     "lower": 14,
     "upper": 16,
-    "nominal": 15
+    "nominal": 15,
+    "distribution": "uniform"
   },
   "tvc_actuator_latency": {
     "lower": 0.01,
     "upper": 0.01,
-    "nominal": 0.01
+    "nominal": 0.01,
+    "distribution": "uniform"
   },
   "engine_off_axis_y": {
     "lower": -0.01,
     "upper": 0.01,
-    "nominal": 0
+    "nominal": 0,
+    "distribution": "uniform"
   },
   "engine_off_axis_z": {
     "lower": -0.01,
     "upper": 0.01,
-    "nominal": 0.0
+    "nominal": 0.0,
+    "distribution": "uniform"
   },
   "uwind": {
     "lower": -5,
     "upper": 5,
-    "nominal": 2.5
+    "nominal": 2.5,
+    "distribution": "uniform"
   },
   "vwind": {
     "lower": -5,
     "upper": 5,
-    "nominal": 2.5
+    "nominal": 2.5,
+    "distribution": "uniform"
   }
 }
