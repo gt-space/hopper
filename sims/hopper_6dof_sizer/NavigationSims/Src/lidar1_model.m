@@ -21,4 +21,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [dist, timestamp, validity] = lidar1_model(x, time)
 
+    % First calculate the true distance using frame info
+
+    % Calculate the measured distance from the true distance
+    dist = lidar_model_base(dist_true);
+
 end
