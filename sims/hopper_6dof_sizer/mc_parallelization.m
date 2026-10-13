@@ -3,6 +3,14 @@
 warning('off', 'MATLAB:Python:PyNotFound')
 clear; clc;
 
+% --- Which 6DOF model to run (see mc_sim_input.m) ---
+%   'original'   full physics (the master)
+%   'toggleable' slosh / wind switchable with mc_flags
+%   'minimal'    no slosh or wind, constant mass (cg_factor dispersion not applied)
+mc_model = 'original';
+mc_flags = [1 1];      % [enable_slosh enable_wind], toggleable only (1 = on, 0 = off)
+modelName = mc_sim_input(mc_model, mc_flags).ModelName;
+
 n = input('Enter the number of Monte Carlo scenarios (e.g., 1000): ');
 if isempty(n) || n <= 0
     error('Invalid input. Please enter a positive integer.');
@@ -15,7 +23,8 @@ end
 % Attach all required models, lookup files, and subfolder directories to workers
 p = gcp();
 addAttachedFiles(p, { ...
-    'hopper_6dof_NED_v2.slx', ...
+    [modelName '.slx'], ...
+    'mc_sim_input.m', ...
     'mc_params.json', ...
     'mdot_lookup.xlsx', ...
     'wind_vectors2.mat', ...
@@ -42,7 +51,7 @@ parfor i = 1:n
         mc_sim_setup(currentScenario);
 
         % Configure Simulink simulation input object
-        simInput = Simulink.SimulationInput('hopper_6dof_NED_v2');
+        simInput = mc_sim_input(mc_model, mc_flags);
         simInput = simInput.setVariable('currentScenario', currentScenario);
 
         % Execute simulation
@@ -60,9 +69,11 @@ parfor i = 1:n
     resultsCell{i} = localResult;
 end
 elapsedTime = toc;
-fprintf('Completed %d Monte Carlo runs in %.2f seconds.\n', n, elapsedTime);
+fprintf('Completed %d Monte Carlo runs of %s in %.2f seconds.\n', n, modelName, elapsedTime);
 
 % --- Export Results ---
 mcTable.Results = resultsCell;
-writetable(mcTable, 'mc_results_parallel.csv');
-fprintf('Results successfully saved to mc_results_parallel.csv\n');
+resultsFile = 'mc_results_parallel.csv';
+if ~strcmpi(mc_model, 'original'), resultsFile = sprintf('mc_results_parallel_%s.csv', lower(mc_model)); end %#ok<UNRCH> mc_model is a setting
+writetable(mcTable, resultsFile);
+fprintf('Results successfully saved to %s\n', resultsFile);
