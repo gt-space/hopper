@@ -12,13 +12,14 @@
 %   xn: n state vector (20x1)
 %   accel_meas: IMU acceleration measured (3x1) (m/s^2) (body frame)
 %   angvel_meas: IMU angular vel measured (3x1) (radians/s) (body frame)
+%   g: acceleration of gravity (scalar)
 %   dt: time delta to propagate (s)
 % 
 % Outputs:
 %   xnp1: n+1 state vector (20x1)
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function xnp1 = propagate_state(xn, accel_meas, angvel_meas, dt)
+function xnp1 = propagate_state(xn, accel_meas, angvel_meas, g, dt)
     
     % First depackage the state vector into useful variables
     posn = xn(1:3);
@@ -28,8 +29,8 @@ function xnp1 = propagate_state(xn, accel_meas, angvel_meas, dt)
     gbn = xn(17:19);
     bbn = xn(20);
 
-    % Acceleration of gravity vector in Atlanta
-    g_vec = [0; 0; 9.795];
+    % Acceleration of gravity vector in NED
+    g_vec = [0; 0; g];
 
     % Update position and velocity
     w = qn(1); x = qn(2); y = qn(3); z = qn(4);
