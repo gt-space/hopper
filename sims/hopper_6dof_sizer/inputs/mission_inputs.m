@@ -9,8 +9,8 @@ IN.const.FS_struct = 2;             % structural factor of safety
 %  MISSION CONSTRAINTS (checked after flight simulation)
 IN.mission.target_altitude = 51;    % m
 IN.mission.hover_time_55m = 2;      % s
-IN.mission.max_ascent_vel = 7;      % m/s
-IN.mission.max_descent_vel = 7;     % m/s
+IN.mission.max_ascent_vel = 26;     % m/s
+IN.mission.max_descent_vel = 26;    % m/s
 IN.mission.hover_time_1m = 1;       % s
 IN.mission.landing_vel = 0;         % m/s at 1 m
 IN.mission.landing_alt = 1;         % m
@@ -94,7 +94,7 @@ IN.tanks.lateral_damping = 0.08;   % <-- MUST BE UNCOMMENTED
 IN.tanks.axial_damping = 0.3;      % <-- MUST BE UNCOMMENTED
 
 %  TVC
-IN.tvc.max_gimbal_angle = deg2rad(15); % deg
+IN.tvc.max_gimbal_angle = deg2rad(8);  % deg
 IN.tvc.max_gimbal_rate = deg2rad(15);  % deg
 IN.tvc.voltage = 24;                % V
 IN.tvc.current = 3;                 % A
