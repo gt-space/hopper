@@ -1,4 +1,9 @@
 %% LQTrack_Master_ctv
+% NOT THE ACTIVE SETUP PATH. v2 is the model we fly, and sim_setup_ctv.m
+% runs LinerizationMaster_ctv for it. This file is the v3 setup, kept for
+% whenever v3 is picked up again. See the note at the end about what v3
+% still needs beyond this.
+%
 % Builds the reference trajectory and the time-varying LQR gain table that
 % hopper_6dof_NED_v3_ctv.slx actually consumes.
 %
@@ -192,3 +197,12 @@ end
 z_ref_ts  = timeseries(z_trajectory, t);
 T_ref_ts  = timeseries(T_profile, t);
 vz_ref_ts = timeseries(vz_trajectory, t);
+
+%% -------------------------
+% STILL OUTSTANDING FOR v3 (not needed by v2):
+% the v3 Slosh subsystem references IN.tanks.lateral_damping and
+% IN.tanks.axial_damping, which ctv/inputs/mission_inputs.m leaves
+% commented out and generateBaffleLUT_ctv does not assign. Uncomment those
+% two lines (the sizer's copy has them, marked "MUST BE UNCOMMENTED")
+% before trying to simulate v3.
+% -------------------------

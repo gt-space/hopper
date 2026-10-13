@@ -12,7 +12,7 @@ function add_onboard_gfold(varargin)
 % installed block and its wiring first.
 %
 % WHAT IT DOES
-%   Before:  Constant8 (Target_Trajectory_full) --> Gain_Selector/xref
+%   Before:  Constant8 (the reference table)   --> Gain_Selector/xref
 %            Constant7 (unom)                   --> Gain_Selector/unom
 %
 %   After:   Constant8 ----\
@@ -28,9 +28,16 @@ function add_onboard_gfold(varargin)
 %
 % The block's body is ctv/gnc/gfold_replan.m, read in with fileread, so the
 % script that lives in the model and the file in the repo cannot diverge.
+%
+% Defaults to hopper_6dof_NED_v2_ctv, the active CTV model. Works on v3 too
+% via 'Model'; the reference-table Constant is called Target_Trajectory in
+% v2 and Target_Trajectory_full in v3, and both are accepted.
+%
+% Run disable_roll_actuator first -- unrelated to this change, but the model
+% will produce NaN without it.
 
 p = inputParser;
-p.addParameter('Model', 'hopper_6dof_NED_v3_ctv', @(s) ischar(s) || isstring(s));
+p.addParameter('Model', 'hopper_6dof_NED_v2_ctv', @(s) ischar(s) || isstring(s));
 p.addParameter('Save', true, @islogical);
 p.addParameter('SampleTime', '1', @(s) ischar(s) || isstring(s));
 p.parse(varargin{:});
@@ -136,9 +143,8 @@ else
     fprintf('Save skipped (Save=false); model left dirty in memory.\n');
 end
 
-fprintf(['\nDone. Run ctv/sim_setup_ctv.m to populate tgrid / ' ...
-         'Target_Trajectory_full /\nunom / K1flat / K2grid, then simulate ' ...
-         '%s.\n'], mdl);
+fprintf(['\nDone. Run ctv/sim_setup_ctv.m to populate the reference and ' ...
+         'gain tables,\nthen simulate %s.\n'], mdl);
 
 end
 
@@ -161,9 +167,11 @@ end
 assert(~isempty(sel.gain), ...
     'Could not find the Gain_Selector subsystem (an inport named K1flat).');
 
-sel.tgrid = const_by_value(mdl, 'tgrid');
-sel.xref  = const_by_value(mdl, 'Target_Trajectory_full');
-sel.unom  = const_by_value(mdl, 'unom');
+sel.tgrid = const_by_value(mdl, {'tgrid'});
+% v2 names the reference table Target_Trajectory, v3 names it
+% Target_Trajectory_full. Accept whichever this model actually uses.
+sel.xref  = const_by_value(mdl, {'Target_Trajectory', 'Target_Trajectory_full'});
+sel.unom  = const_by_value(mdl, {'unom'});
 
 clk = find_system(mdl, 'SearchDepth', 1, 'BlockType', 'Clock');
 assert(~isempty(clk), 'Could not find a Clock block at the model root.');
@@ -188,16 +196,19 @@ assert(~isempty(sel.mass), ...
 
 end
 
-function blk = const_by_value(mdl, val)
+function blk = const_by_value(mdl, vals)
+% vals is a cellstr of acceptable Value expressions, tried in order.
 cs = find_system(mdl, 'SearchDepth', 1, 'BlockType', 'Constant');
-blk = '';
-for i = 1:numel(cs)
-    if strcmp(strtrim(get_param(cs{i}, 'Value')), val)
-        blk = cs{i};
-        return
+for v = 1:numel(vals)
+    for i = 1:numel(cs)
+        if strcmp(strtrim(get_param(cs{i}, 'Value')), vals{v})
+            blk = cs{i};
+            return
+        end
     end
 end
-error('Could not find a root Constant block with Value ''%s''.', val);
+error('Could not find a root Constant block with Value one of: %s.', ...
+    strjoin(vals, ', '));
 end
 
 function src = upstream(blk, port)

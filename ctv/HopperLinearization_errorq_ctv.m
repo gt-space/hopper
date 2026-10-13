@@ -14,18 +14,18 @@ function [A,B,f0] = HopperLinearization_errorq_ctv(x, u, params, mass)
 % ----- full-state nonlinear dynamics (13x1)
 f_full = hopper_f(x,u,params,mass);
 
-h = 1e-12;                     
-nx = numel(x); 
+h = 1e-12;
+nx = numel(x);
 nu = numel(u);
 
 A_full  = zeros(nx,nx);
-B_full  = zeros(nx,nu);  
+B_full  = zeros(nx,nu);
 
 q0 = x(10:13);
 
 % ----- full 13x13 A matrix
 for i = 1:nx
-    dx = zeros(nx,1); 
+    dx = zeros(nx,1);
     dx(i) = 1;
     fi = hopper_f(x + 1i*h*dx, u, params, mass);
     A_full(:,i) = imag(fi)/h;
@@ -33,7 +33,7 @@ end
 
 % ----- full 13x4 B matrix
 for j = 1:nu
-    du = zeros(nu,1); 
+    du = zeros(nu,1);
     du(j) = 1;
     fj = hopper_f(x, u + 1i*h*du, params, mass);
     B_full(:,j) = imag(fj)/h;
@@ -60,11 +60,11 @@ function f = hopper_f(x,u,p,mass)
     delta_p = u(2);
     delta_y = u(3);
     Tor_rcs = u(4);
-    
-    m = mass; 
-    g = p.g; 
-    I = p.I; 
-    d = p.d; 
+
+    m = mass;
+    g = p.g;
+    I = p.I;
+    d = p.d;
 
     H = [zeros(1,3); eye(3)];
 
@@ -79,19 +79,19 @@ function f = hopper_f(x,u,p,mass)
     F_n  = Rbn * F_Tb + [0;0;m*g];
     Vdot = (1/m) * F_n;
     posdot = [Vx;Vy;Vz];
-    
+
     % rotational dynamics
     r_tvc = [-d;0;0];
     M_tvc = cross(r_tvc, F_Tb);
     M_body = [M_tvc(1) + Tor_rcs;
               M_tvc(2);
               M_tvc(3)];
-    
+
     omega = [P;Q;R];
     omegadot = I \ (M_body - cross(omega, I*omega));
-    
+
     % quaternion kinematics
-    qdot = 0.5 * Lfunc(q) * H * omega; 
+    qdot = 0.5 * Lfunc(q) * H * omega;
 
     f = [posdot;
          Vdot;
@@ -124,7 +124,7 @@ end
 function L = Lfunc(q)
     s = q(1);
     v = q(2:4);
-    
+
     L = [s -v';
          v s*eye(3)+hat(v)];
 end
