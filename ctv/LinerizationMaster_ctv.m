@@ -113,10 +113,22 @@ end
 tgrid = t;
 % Call gains using consistent (unique) grid + consistent trajectory
 %GainTable = TrajectoryFollowingGains(Sf,Q,R,Target_Trajectory,A,B,tgrid,T_profile);
-GainTable = TrajectoryFollowingGains2(Sf,Q,R,Target_Trajectory,A,B,tgrid,unom,params,Fref);
+% No roll actuator per the FDIR doc, so the roll channel is removed from the
+% control problem: solve the LQR over the first 3 inputs only
+% (T, delta_p, delta_y) and pad a zero 4th row back on afterwards. That keeps
+% K1flat/K2grid at the 4-input shape the model's Gain_Selector expects while
+% guaranteeing it can never command roll.
+nu_act = 3;
 
-K1 = GainTable.K1;
-K2grid = GainTable.K2';   
+GainTable = TrajectoryFollowingGains2(Sf, Q, R(1:nu_act,1:nu_act), ...
+    Target_Trajectory, A, B(:,1:nu_act,:), tgrid, unom(:,1:nu_act), ...
+    params, Fref);
+
+K1 = zeros(nu,nx,N);
+K1(1:nu_act,:,:) = GainTable.K1;        % 4th row stays zero -> no roll command
+
+K2grid = zeros(N,nu);
+K2grid(:,1:nu_act) = GainTable.K2';     % 4th column stays zero
 
 alpha = 1.04;
 tau = 3;   % seconds

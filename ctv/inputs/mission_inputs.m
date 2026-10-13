@@ -126,7 +126,11 @@ IN.tvc.resolution = deg2rad(0.1); % deg
 IN.tvc.damping_ratio = 0.5; 
 
 % RCS
-IN.rcs.max_thrust = 16; % N
+% No roll actuator on the vehicle per the FDIR doc. The model's RCS/EDF
+% saturation and its "max Thrust" constant both read this, so zero here
+% disables the roll channel without rewiring the .slx. The LQR 4th row is
+% zeroed to match in LinerizationMaster_ctv.m.
+IN.rcs.max_thrust = 0; % N (was 16; no roll actuator)
 IN.rcs.throttle_rate = 50; % N/s
 IN.rcs_time_constant = 0.1;
 IN.rcs.resolution = 0.1; % N
