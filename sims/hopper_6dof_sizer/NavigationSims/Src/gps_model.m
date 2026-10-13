@@ -14,11 +14,12 @@
 %
 % Outputs:
 %   pos: position vector (3x1) (m)
+%   vel: velocity vector (3x1) (m/s)
 %   timestamp: time elapsed (s)
 %   validity: boolean (true if valid measurement)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [pos, timestamp, validity] = gps_model(x, simtime)
+function [pos, vel, timestamp, validity] = gps_model(x, simtime)
 
 % Retrieve parameters from the workspace (set by filter_sim_initializer)
 persistent gps_params;
