@@ -64,12 +64,39 @@ tolerance = 1e-5; %Tune this
 
 names = {'x','y','z','vx','vy','vz','P','Q','R','p1','p2','p3','ex','ey','ez'};
 for k = 1:15
+    %{
   vnormalized = V(:,k);
-  idx    = find(vnormalized > tolerance);
+  idx    = find(abs(vnormalized) > tolerance);
   [vals, order] = sort(vnormalized(idx), 'descend');
   idx    = idx(order);
   %parts = arrayfun(@(j) sprintf('%s = %.3f', names{j}, v(j)), idx, 'UniformOutput', false);
   phi = rad2deg(angle(V(:,k)));
   parts = compose('%s(%+.0f°)', string(names(idx)).', phi(idx));
   fprintf('pole %8.3f%+8.3fi, phase= : %s\n', real(D(k,k)), imag(D(k,k)), strjoin(parts, ', '))
-end
+    %}
+    lambda = poles(k);
+    sigma = -real(lambda);
+    wd = abs(imag(lambda));
+    wn = abs(lambda);
+    zeta = sigma/wn;
+    period = 2*pi/wd;
+    ts = 4/sigma;
+    thalf = log(2)/sigma;
+    x0 = real(V(:,k));
+    tspan = linspace(0, 20, 1000);
+    [t, X] = ode45(@(t,x) CL*x, tspan, x0);
+    
+    figure('Name', sprintf('Mode %d', k))
+
+    subplot(4,1,1); plot(t, X(:,1:3));   ylabel('pos [m]');        legend('x','y','z');    grid on
+    subplot(4,1,2); plot(t, X(:,4:6));   ylabel('vel [m/s]');      legend('vx','vy','vz'); grid on
+    subplot(4,1,3); plot(t, X(:,7:9));   ylabel('rates [rad/s]');  legend('P','Q','R');    grid on
+    subplot(4,1,4); plot(t, X(:,10:12)); ylabel('attitude (MRP)'); legend('p1','p2','p3'); grid on
+    xlabel('t [s]')
+    line1 = sprintf('Mode %d:  %s = %.3f %+.3fi', k, '\lambda', real(lambda), imag(lambda));
+    line2 = sprintf('%s = %.3f  |  %s = %.4f rad/s  |  %s = %.4f rad/s  |  T = %.2f s', ...
+                '\zeta', zeta, '\omega_n', wn, '\omega_d', wd, period);
+    line3 = sprintf('t_s = %.2f s  |  t_{1/2} = %.2f s', ts, thalf);
+    sgtitle({line1, line2, line3}, 'FontSize', 10)
+
+end 
