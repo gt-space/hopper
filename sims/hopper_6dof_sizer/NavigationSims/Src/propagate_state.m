@@ -6,12 +6,13 @@
 % position) which may need to be upgraded later.
 % 
 % Author: David Meisinger
-% Date: 10/11/26
+% Date: 10/14/26
 % 
 % Inputs:
 %   xn: n state vector (20x1)
 %   accel_meas: IMU acceleration measured (3x1) (m/s^2) (body frame)
 %   angvel_meas: IMU angular vel measured (3x1) (radians/s) (body frame)
+%   validity: if IMU measurement is valid
 %   g: acceleration of gravity (scalar)
 %   dt: time delta to propagate (s)
 % 
@@ -19,7 +20,7 @@
 %   xnp1: n+1 state vector (20x1)
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function xnp1 = propagate_state(xn, accel_meas, angvel_meas, g, dt)
+function xnp1 = propagate_state(xn, accel_meas, angvel_meas, validity, g, dt)
     
     % First depackage the state vector into useful variables
     posn = xn(1:3);
