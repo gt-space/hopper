@@ -11,6 +11,8 @@
 % Inputs:
 %   x: state vector (20x1)
 %   a: acceleration vector (3x1)
+%   accelBias: accelerometer measurement bias in body frame (m/s^2)
+%   gyroBias: gyroscope measurement bias in body frame (rad/s)
 %   simtime: time elapsed (s)
 %
 % Outputs:
@@ -20,7 +22,8 @@
 %   validity: boolean (true if valid measurement)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [accel, angvel, timestamp, validity] = imu_model(x, a, simtime)
+function [accel, angvel, timestamp, validity] ...
+            = imu_model(x, a, accelBias, gyroBias, simtime)
 
 % Retrieve parameters from the workspace (set by filter_sim_initializer)
 persistent imu_params;

@@ -10,6 +10,7 @@
 %
 % Inputs:
 %   x: state vector (20x1)
+%   baroBias: barometer measurement bias (m)
 %   simtime: time elapsed (s)
 %
 % Outputs:
@@ -18,7 +19,7 @@
 %   validity: boolean (true if valid measurement)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [height, timestamp, validity] = barometer_model(x, time)
+function [height, timestamp, validity] = barometer_model(x, baroBias, time)
 
 % Retrieve parameters from the workspace (set by filter_sim_initializer)
 persistent baro_params;
