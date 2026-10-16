@@ -53,50 +53,144 @@ KlqI = lqr(Atilde,Btilde,QI,R,CrossTerm)
 %Klqi = lqi(sys,Q,R,CrossTerm);
 % KlqI(:,10:12)
 
+
+
+%% Nyquist stability analysis of the LQI feedback loop
+
+% Open-loop return ratio:
+% L(s) = K * (sI - Atilde)^(-1) * Btilde
+%
+% Negative feedback gives:
+% Acl = Atilde - Btilde*K
+
+K = KlqI;
+
+% Construct the 4-input, 4-output return-ratio system.
+% Its output is K*x_aug, and its input is the control input.
+L = ss(Atilde, Btilde, K, zeros(size(K,1), size(Btilde,2)));
+
+%% 1. Conventional Nyquist plot
+figure('Name', 'LQI Nyquist Plot');
+nyquist(L);
+grid on;
+title('Nyquist Plot of LQI Return Ratio');
+
+
+
+%% Generalized MIMO Nyquist eigenloci
+
+w = logspace(-4, 2, 3000);
+Ljw = freqresp(L, w);
+
+eigL = zeros(size(L,1), length(w));
+
+for k = 1:length(w)
+    eigL(:,k) = eig(Ljw(:,:,k));
+end
+
+% Explicitly create a new figure and axes
+figNyq = figure( ...
+    'Name', 'Generalized MIMO Nyquist Plot', ...
+    'NumberTitle', 'off');
+
+axNyq = axes('Parent', figNyq);
+hold(axNyq, 'on');
+grid(axNyq, 'on');
+
+% Plot each eigenvalue locus
+for k = 1:size(eigL,1)
+    plot(axNyq, real(eigL(k,:)), imag(eigL(k,:)), ...
+        'LineWidth', 1.2);
+    plot(axNyq, real(eigL(k,:)), -imag(eigL(k,:)), ...
+        '--', 'HandleVisibility', 'off');
+end
+
+% Critical point
+plot(axNyq, -1, 0, 'rx', ...
+    'MarkerSize', 12, 'LineWidth', 2);
+
+xlabel(axNyq, 'Real');
+ylabel(axNyq, 'Imaginary');
+title(axNyq, 'Generalized MIMO Nyquist Eigenloci');
+legend(axNyq, {'Eigenlocus 1', 'Eigenlocus 2', ...
+    'Eigenlocus 3', 'Eigenlocus 4', 'Critical point -1'}, ...
+    'Location', 'best');
+
+hold(axNyq, 'off');
+drawnow;
+
+
+
+%% 3. MIMO disk margins (if supported by your MATLAB version)
+try
+    DM = diskmargin(L);
+    disp('MIMO disk-margin analysis:');
+    disp(DM);
+    figure('Name', 'Disk Margin');
+    diskmargin(L);
+catch ME
+    warning('Disk-margin analysis unavailable: %s', ME.message);
+end
+
+
+
+
 CL = Atilde - Btilde*KlqI;
 poles = eig(CL);
 [V,D] = eig(CL);
 
 poles
-plot(real(poles), imag(poles),'rx')
+%plot(real(poles), imag(poles),'rx')
 
-tolerance = 1e-5; %Tune this
 
-names = {'x','y','z','vx','vy','vz','P','Q','R','p1','p2','p3','ex','ey','ez'};
+tolerance = 1e-5; % Tune this
+
+
+names = {'x','y','z','vx','vy','vz','P','Q','R', ...
+         'p1','p2','p3','ex','ey','ez'};
+
 for k = 1:15
-    %{
+    lambda = D(k,k);
+
+    % Normalize eigenvector magnitudes for comparison
+    participation = abs(V(:,k));
+    participation = participation / max(participation);
+
+    [sortedValues, idx] = sort(participation, 'descend');
+
+    if real(lambda) < -1e-8
+        stability = 'Stable';
+    elseif real(lambda) > 1e-8
+        stability = 'UNSTABLE';
+    else
+        stability = 'Marginal';
+    end
+
+    fprintf('\nMode %2d: lambda = %+.5f %+.5fi (%s)\n', ...
+        k, real(lambda), imag(lambda), stability);
+
+    if abs(imag(lambda)) > 1e-8
+        fprintf('  Frequency: %.4f Hz, Period: %.4f s\n', ...
+            abs(imag(lambda))/(2*pi), ...
+            2*pi/abs(imag(lambda)));
+    end
+
+    fprintf('  Dominant states:\n');
+    for j = 1:5
+        fprintf('    %-3s  %.3f\n', ...
+            names{idx(j)}, sortedValues(j));
+    end
+end
+
+
+% Print eigenvalue and eigenvector phase information
+for k = 1:15
   vnormalized = V(:,k);
-  idx    = find(abs(vnormalized) > tolerance);
+  idx    = find(vnormalized > tolerance);
   [vals, order] = sort(vnormalized(idx), 'descend');
   idx    = idx(order);
   %parts = arrayfun(@(j) sprintf('%s = %.3f', names{j}, v(j)), idx, 'UniformOutput', false);
   phi = rad2deg(angle(V(:,k)));
   parts = compose('%s(%+.0f°)', string(names(idx)).', phi(idx));
   fprintf('pole %8.3f%+8.3fi, phase= : %s\n', real(D(k,k)), imag(D(k,k)), strjoin(parts, ', '))
-    %}
-    lambda = poles(k);
-    sigma = -real(lambda);
-    wd = abs(imag(lambda));
-    wn = abs(lambda);
-    zeta = sigma/wn;
-    period = 2*pi/wd;
-    ts = 4/sigma;
-    thalf = log(2)/sigma;
-    x0 = real(V(:,k));
-    tspan = linspace(0, 20, 1000);
-    [t, X] = ode45(@(t,x) CL*x, tspan, x0);
-    
-    figure('Name', sprintf('Mode %d', k))
-
-    subplot(4,1,1); plot(t, X(:,1:3));   ylabel('pos [m]');        legend('x','y','z');    grid on
-    subplot(4,1,2); plot(t, X(:,4:6));   ylabel('vel [m/s]');      legend('vx','vy','vz'); grid on
-    subplot(4,1,3); plot(t, X(:,7:9));   ylabel('rates [rad/s]');  legend('P','Q','R');    grid on
-    subplot(4,1,4); plot(t, X(:,10:12)); ylabel('attitude (MRP)'); legend('p1','p2','p3'); grid on
-    xlabel('t [s]')
-    line1 = sprintf('Mode %d:  %s = %.3f %+.3fi', k, '\lambda', real(lambda), imag(lambda));
-    line2 = sprintf('%s = %.3f  |  %s = %.4f rad/s  |  %s = %.4f rad/s  |  T = %.2f s', ...
-                '\zeta', zeta, '\omega_n', wn, '\omega_d', wd, period);
-    line3 = sprintf('t_s = %.2f s  |  t_{1/2} = %.2f s', ts, thalf);
-    sgtitle({line1, line2, line3}, 'FontSize', 10)
-
-end 
+end
