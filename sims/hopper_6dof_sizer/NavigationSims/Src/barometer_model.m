@@ -28,7 +28,6 @@ if isempty(baro_params)
         baro_params = evalin('base', 'baro_params');
     catch
         % Fallback defaults if initializer hasn't populated workspace yet
-        baro_params.bias = 0.0;                 % Height bias (m)
         baro_params.noise_std = 0.1;            % Height noise std deviation (m)
         baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
     end
@@ -42,7 +41,7 @@ timestamp = time;
 % Adjust index x(3) to match whatever index represents your true height/altitude in the 20x1 state vector
 true_height = x(3);
 baro_noise = baro_params.noise_std * randn();
-height = true_height + baro_params.bias + baro_noise;
+height = true_height + baroBias + baro_noise;
 
 % 3. Validity Flag Assignment
 if rand() < baro_params.packet_invalid_prob

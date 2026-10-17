@@ -14,8 +14,10 @@
 % 
 % Outputs:
 %   dist_meas: measured distance (m)
+%   validity: false if sensor misbehaves
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function dist_meas = lidar_model_base(dist_true)
-
+    % TODO: IMPLEMENT NOISE AND STUFF
+    dist_meas = dist_true;
 end
