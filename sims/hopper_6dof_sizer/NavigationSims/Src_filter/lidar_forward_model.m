@@ -15,7 +15,7 @@
 %   d_vec: LIDAR sensor distance predictions (4x1) (m)
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [d_vec] = lidar_forward_model(x, time)
+function [d_vec] = lidar_forward_model(x, time, lidar_frames)
 
 % Load the LIDAR frames
 

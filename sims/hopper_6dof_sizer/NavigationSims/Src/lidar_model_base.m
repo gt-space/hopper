@@ -6,18 +6,23 @@
 % Depends on filter_sim_initializer being ran first, which has bias/noise
 % params.
 % 
-% Author:
+% Author: 
 % Date: 
 % 
 % Inputs:
-%   dist_true: true distance computed using sensor and vehicle frame (m)
+%   dist_true: true distances to measure (m) (4x1)
 % 
 % Outputs:
-%   dist_meas: measured distance (m)
+%   dist_meas: measured distances with noise (m) (4x1)
 %   validity: false if sensor misbehaves
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function dist_meas = lidar_model_base(dist_true)
+function [dist_meas, validity] = lidar_model_base(dist_true)
+
     % TODO: IMPLEMENT NOISE AND STUFF
-    dist_meas = dist_true;
+    for idx = 1:size(dist_true,1)
+        dist_meas(idx,1) = dist_true(idx,1);
+        validity(idx,1) = true;
+    end
+
 end

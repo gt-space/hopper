@@ -12,6 +12,7 @@
 %% Add relevant file paths
 addpath("Filter Sims\");
 addpath("Src\");
+addpath("Src_filter\");
 addpath("Filters\");
 
 %% Filter parameters
@@ -79,12 +80,31 @@ lidar_st = 0.01;        % sample time (s)
 % IMU Frame Transformation
 
 
-% LIDAR 1, 2, 3, 4 mounting rotations
-
+% LIDAR 1, 2, 3, 4 mounting frame information
+% TODO: get these params from CAD accurately
+lidar_frames.A1 = lidarRotMat(0, 20);
+lidar_frames.A2 = lidarRotMat(90, 20);
+lidar_frames.A3 = lidarRotMat(180, 20);
+lidar_frames.A4 = lidarRotMat(270, 20);
+lidar_frames.r1 = [0.25 0 0]';
+lidar_frames.r2 = [0 0.25 0]';
+lidar_frames.r3 = [-0.25 0 0]';
+lidar_frames.r4 = [0 -0.25 0]';
 
 %% Function to build rotation matrix for each LIDAR unit vector
-% phi: angle from x about z-axis of body frame
-% theta: angle between lidar sensor direction and body z-axis
+% phi: angle from x about z-axis of body frame (deg)
+% theta: angle between lidar sensor direction and body z-axis (deg)
 function A_Li = lidarRotMat(phi, theta)
-A3 = 
+psi = theta - 90;
+cp = cosd(phi);
+sp = sind(phi);
+ct = cosd(psi);
+st = sind(psi);
+A3 = [cp -sp 0;
+      sp  cp 0;
+      0   0  1];
+A2 = [ ct 0 st;
+       0  1 0;
+      -st 0 ct];
+A_Li = A3*A2;
 end
