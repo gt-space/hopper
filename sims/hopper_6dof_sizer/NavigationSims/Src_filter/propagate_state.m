@@ -47,25 +47,29 @@ function xnp1 = propagate_state(xn, accel_meas, torque, validity, J, g, dt)
         accel_est = A'*(accel_meas - abn) + g_vec;
         posnp1 = posn + veln*dt + accel_est/2*dt^2;
         velnp1 = veln + accel_est*dt;
-    
-        % Update the rotational velocity
-        angveldot = inv(J)*(torque - cross(angveln, J*angveln));
-        angvelnp1 = angveln + dt*angveldot;
     else
         % If invalid IMU measurement, dead-reckon based on previous state
         posnp1 = posn + veln*dt;
         velnp1 = veln;
-        angvelnp1 = angveln;
     end
 
-    % Update quaternion
-    qthing = [-x -y -z;
-               w -z  y;
-               z  w -x;
-              -y  x  w];
-    qdot = 0.5*qthing*angvelnp1;
-    qnp1 = qn + qdot*dt;
-    qnp1 = qnp1/norm(qnp1); % normalize the quaternion
+    % Update the rotational velocity using Heun (trapezoidal integration)
+    f = @(om) J \ (torque - cross(om, J*om));
+    k1 = f(angveln);
+    angvelnp1 = angveln + 0.5*dt*(f(angveln) + f(angveln+dt*k1));
+    angvelavg = 0.5*(angveln+angvelnp1);
+
+    % Update quaternion using exponential with average angvel
+    theta = angvelavg*dt;
+    ang = norm(theta);
+    if ang < 10^-8
+        dq = [1; 0.5*theta];
+    else
+        dq = [cos(ang/2); sin(ang/2)*theta/ang];
+    end
+    dq_conj = [dq(1); -dq(2:4)];
+    qnp1 = quatmult(dq_conj, qn);
+    qnp1 = qnp1/norm(qnp1); % normalize the in case of numerical drift
     
     % Rebuild the propagated state vector
     xnp1 = [posnp1; velnp1; angvelnp1; qnp1; abn; gbn; bbn];
