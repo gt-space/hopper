@@ -5,7 +5,7 @@
 % in the GMEKF filter.  
 % 
 % Author: David Meisinger
-% Date: 10/11/26
+% Date: 10/18/26
 % 
 % Inputs:
 %   xn: n state vector (20x1)
