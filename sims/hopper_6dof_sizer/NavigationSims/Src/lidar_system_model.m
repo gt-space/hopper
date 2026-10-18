@@ -39,10 +39,13 @@ function [d_vec, timestamp, validity] = lidar_system_model(x, time, lidar_frames
     n = [2*(q3*q1+q2*q0) 2*(q3*q2-q1*q0) -q1^1-q2^2+q3^2+q0^2];
 
     % Compute all the LIDAR true distances
-    d_vec = [(n*r1 + h)/(n*A1(:,3));
-             (n*r2 + h)/(n*A2(:,3));
-             (n*r3 + h)/(n*A3(:,3));
-             (n*r4 + h)/(n*A4(:,3))];
+    d_vec = [-(n*r1 + h)/(n*A1(:,1));
+             -(n*r2 + h)/(n*A2(:,1));
+             -(n*r3 + h)/(n*A3(:,1));
+             -(n*r4 + h)/(n*A4(:,1))];
+
+    % Apply sensor model with noise
+    [d_vec, validity] = lidar_model_base(d_vec);
 
     % Set timestamp (assume no delay for now)
     timestamp = time;
