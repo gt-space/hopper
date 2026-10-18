@@ -10,6 +10,7 @@
 % 
 % Inputs:
 %   xn: n state vector (20x1)
+%   aux: struct with useful shared variables for the filter
 %   accel_meas: IMU acceleration measured (3x1) (m/s^2) (body frame)
 %   torque: control torque applied (3x1) (N*m) (body frame)
 %   validity: if IMU measurement is valid
@@ -21,7 +22,7 @@
 %   xnp1: n+1 state vector (20x1)
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function xnp1 = propagate_state(xn, accel_meas, torque, validity, J, g, dt)
+function xnp1 = propagate_state(xn, aux, accel_meas, torque, validity, J, g, dt)
 
     % First depackage the state vector into useful variables
     posn = xn(1:3);
@@ -32,19 +33,13 @@ function xnp1 = propagate_state(xn, accel_meas, torque, validity, J, g, dt)
     gbn = xn(17:19);
     bbn = xn(20);
 
-    % Unpack quaternion
-    w = qn(1); x = qn(2); y = qn(3); z = qn(4);
-
     % Predict state based on validity
     if validity
         % Acceleration of gravity vector in NED
         g_vec = [0; 0; g];
     
         % Update position and velocity
-        A = [1-2*(y^2+z^2),  2*(x*y+w*z),    2*(x*z-w*y);
-             2*(x*y-w*z),    1-2*(x^2+z^2),  2*(y*z+w*x);
-             2*(x*z+w*y),    2*(y*z-w*x),    1-2*(x^2+y^2)];
-        accel_est = A'*(accel_meas - abn) + g_vec;
+        accel_est = aux.A_IB*(accel_meas - abn) + g_vec;
         posnp1 = posn + veln*dt + accel_est/2*dt^2;
         velnp1 = veln + accel_est*dt;
     else
