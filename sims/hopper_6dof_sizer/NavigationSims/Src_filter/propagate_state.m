@@ -11,8 +11,9 @@
 % Inputs:
 %   xn: n state vector (20x1)
 %   accel_meas: IMU acceleration measured (3x1) (m/s^2) (body frame)
-%   angvel_meas: IMU angular vel measured (3x1) (deg/s) (body frame)
+%   torque: control torque applied (3x1) (N*m) (body frame)
 %   validity: if IMU measurement is valid
+%   J: Inertia tensor, xyz aligning with body frame (kg*m^2)
 %   g: acceleration of gravity (scalar)
 %   dt: time delta to propagate (s)
 % 
@@ -20,7 +21,7 @@
 %   xnp1: n+1 state vector (20x1)
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function xnp1 = propagate_state(xn, accel_meas, angvel_meas, validity, g, dt)
+function xnp1 = propagate_state(xn, accel_meas, torque, validity, J, g, dt)
 
     % First depackage the state vector into useful variables
     posn = xn(1:3);
@@ -48,7 +49,8 @@ function xnp1 = propagate_state(xn, accel_meas, angvel_meas, validity, g, dt)
         velnp1 = veln + accel_est*dt;
     
         % Update the rotational velocity
-        angvelnp1 = angvel_meas*2*pi/180 - gbn;
+        angveldot = inv(J)*(torque - cross(angveln, J*angveln));
+        angvelnp1 = angveln + dt*angveldot;
     else
         % If invalid IMU measurement, dead-reckon based on previous state
         posnp1 = posn + veln*dt;
