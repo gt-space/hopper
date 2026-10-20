@@ -1,5 +1,5 @@
 %% Trajectory settings
-zf     = 52;     % m
+zf     = 5;     % m
 Tup    = 12;     % s
 Thover = 2;      % s
 Tdown  = 13;     % s
@@ -164,32 +164,32 @@ scenario = scenario.addElement(z_ts, "z_ref");
 
 
 % Plots
-% figure
-% plot(t,z,"LineWidth",1.5)
-% grid on
-% xlabel("Time (s)")
-% ylabel("z (m)")
-% title("Reference Position")
-% 
-% figure
-% plot(t,zddot,"LineWidth",1.5)
-% grid on
-% xlabel("Time (s)")
-% ylabel("Acceleration (m/s^2)")
-% title("Vertical Acceleration")
-% 
-% figure
-% plot(t,zdot,"LineWidth",1.5)
-% grid on
-% xlabel("Time (s)")
-% ylabel("Velocity (m/s)")
-% title("Vertical Velocity")
-% 
-% figure
-% plot(t,T_cmd,"LineWidth",1.5)
-% grid on
-% xlabel("Time (s)")
-% ylabel("Thrust (N)")
-% title("Thrust Profile (limited)")
-% yline(Tmin,'--r')
-% yline(Tmax,'--r')
+figure
+plot(t,z,"LineWidth",1.5)
+grid on
+xlabel("Time (s)")
+ylabel("z (m)")
+title("Reference Position")
+
+figure
+plot(t,zddot,"LineWidth",1.5)
+grid on
+xlabel("Time (s)")
+ylabel("Acceleration (m/s^2)")
+title("Vertical Acceleration")
+
+figure
+plot(t,zdot,"LineWidth",1.5)
+grid on
+xlabel("Time (s)")
+ylabel("Velocity (m/s)")
+title("Vertical Velocity")
+
+figure
+plot(t,T_cmd,"LineWidth",1.5)
+grid on
+xlabel("Time (s)")
+ylabel("Thrust (N)")
+title("Thrust Profile (limited)")
+yline(Tmin,'--r')
+yline(Tmax,'--r')
