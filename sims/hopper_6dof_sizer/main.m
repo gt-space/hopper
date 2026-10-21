@@ -19,23 +19,12 @@ VEH.mass.wet = VEH.mass.dry + ...
 
 [STRUCT, VEH] = size_structures(IN, VEH);
 
-
-%r_leg_1 = [0 IN.legs.feet_radial_dist 0];
-%r_leg_2 = [0 -IN.legs.feet_radial_dist 0];
-%r_leg_3 = [0 0 IN.legs.feet_radial_dist ];
-%r_leg_4 = [0 0 -IN.legs.feet_radial_dist];
 r_leg = [
     0 IN.legs.feet_radial_dist 0
     0 -IN.legs.feet_radial_dist 0
     0 0 IN.legs.feet_radial_dist
     0 0 -IN.legs.feet_radial_dist
 ]';
-
-% k_leg = IN.legs.mod * IN.legs.section_area / IN.legs.length;
-%k_leg = VEH.mass.wet * IN.const.g0 / 0.01;  % 1.5^2 / (0.01^2);
-
-% Back out spring constant from leg geometry
-damping_leg = 1.0;
 
 VEH.k_engine = (IN.engine_cg/IN.mission.max_vehicle_height)^2;
 
