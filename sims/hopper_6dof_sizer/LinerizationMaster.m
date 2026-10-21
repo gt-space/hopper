@@ -29,15 +29,20 @@ Q =  [1e3 0 0 0 0 0 0 0 0 0 0 0 0; % x
     0 0 0 0 0 0 1e6 0 0 0 0 0 0; % P
     0 0 0 0 0 0 0 1e6 0 0 0 0 0; % Q
     0 0 0 0 0 0 0 0 1e6 0 0 0 0; % R
-    0 0 0 0 0 0 0 0 0 100 0 0 0; % q0
-    0 0 0 0 0 0 0 0 0 0 100 0 0; % q1
-    0 0 0 0 0 0 0 0 0 0 0 100 0; % q2
-    0 0 0 0 0 0 0 0 0 0 0 0 100]./10000; % q3
+    0 0 0 0 0 0 0 0 0 1e4 0 0 0; % q0
+    0 0 0 0 0 0 0 0 0 0 1e4 0 0; % q1
+    0 0 0 0 0 0 0 0 0 0 0 1e4 0; % q2
+    0 0 0 0 0 0 0 0 0 0 0 0 1e4]./10000; % q3
+% Retuned 2026-10-20 on the rigid (slosh-off) vehicle: quaternion weights
+% raised from 100 and TVC input weights (R below) raised 10x. The old gains
+% drove the gimbal into its 15 deg/s rate limit and only flew with
+% double-counted slosh inertia in the plant (SLOSH_VALIDATION.md). These
+% fly with the plant inertia scaled 0.8x-1.2x.
 
 % T delta rcs
 R = [3e7 0 0 0;
-   0 8e5 0 0;
-   0 0 8e5 0
+   0 8e6 0 0;
+   0 0 8e6 0
    0 0 0 10000]./10000;
 
 
@@ -100,11 +105,23 @@ N  = length(t);
 A  = zeros(nx,nx,N);
 B  = zeros(nx,nu,N);
 
+% Schedule inertia and thrust moment arm with propellant burned
+% (cg_moi_test tables); false -> constant full-tank values
+if ~exist('lqr_schedule_inertia', 'var'), lqr_schedule_inertia = true; end
+prop_frac = (m_profile - OUT.Vehicle.DryMass) / (OUT.Vehicle.WetMass - OUT.Vehicle.DryMass);
+prop_frac = min(max(prop_frac, 0), 1);
+
 % Linearize along the full target trajectory
 for i = 1:N
    x_i = Target_Trajectory(i,:).';   % 13x1
    u_i = unom(i,:).';               % 4x1
-   [A(:,:,i), B(:,:,i),f_i] = HopperLinearization_6DOF_inertial(x_i, u_i, params, m_profile(i));
+   params_i = params;
+   if lqr_schedule_inertia
+       params_i.I = interp1(prop_frac_grid, permute(MoI_vs_frac, [3 1 2]), prop_frac(i));
+       params_i.I = reshape(params_i.I, 3, 3);
+       params_i.d = interp1(prop_frac_grid, cg_vs_frac, prop_frac(i)) - engine_cg;
+   end
+   [A(:,:,i), B(:,:,i),f_i] = HopperLinearization_6DOF_inertial(x_i, u_i, params_i, m_profile(i));
    Fref(i,:) = f_i.';
 
 end

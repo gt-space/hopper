@@ -7,8 +7,8 @@ ox_nu = 0.17e-6; % m^2/s OX
 
 tank_r = TANKS.singular.radius;
 % as-built tank lengths (override sizer TANKS.singular.*.h)
-ox_tank_h = 29.18 * 0.0254;   % LOx, m
-fu_tank_h = 18.91 * 0.0254;   % RP-1, m
+ox_tank_h = IN.tanks.ox_h_as_built;   % LOx, m
+fu_tank_h = IN.tanks.fu_h_as_built;   % RP-1, m
 
 % 'fixed': closed-loop verified design below (default)
 % 'sweep': analytic sizing to the damping targets (sweepBaffleDesign)
@@ -17,22 +17,23 @@ if ~exist('baffle_mode', 'var'),   baffle_mode   = 'fixed'; end
 if ~exist('baffle_export', 'var'), baffle_export = true;    end
 
 baffle_opts.zeta_lat_min = 0.04;
-baffle_opts.zeta_ax_min  = 0.15;
+% The axisymmetric mode puts no first-order force or moment on the tank
+% (SLOSH_VALIDATION.md 3.3), so axial damping is not a sizing target.
+baffle_opts.zeta_ax_min  = 0;
 baffle_opts.min_fill     = 0.10;
 baffle_opts.slosh_amp    = 0.1 * tank_r;   % wall slosh amplitude, m
 baffle_opts.objective    = 'count';        % 'count' (fewest baffles) or 'mass'
 baffle_opts.baffle_rho   = 2700;           % Al6061
 
-% Closed-loop design (hopper_6dof_NED_v2, 2026-10-05): 0 flight
-% divergences in 70 runs at 0.75x / 1x / 2x damping. Rings sit from the
-% tank floor up to 'span' (max liquid level), not the full tank.
-% Landing transient (last 1 m): >10 deg pitch in ~7% of runs vs ~1.5% for
-% the analytic 33/21 design.
-% Validated with the baffle mount's vertical members included; they added
-% <= 0.0013 lateral damping (rodDampingCalc), well inside the 0.75x margin,
-% so they are left out here.
-ox_fixed = struct('Nb', 17, 'w', 0.5 * tank_r, 't', 0.5e-3, 'span', 14.59 * 0.0254);
-fu_fixed = struct('Nb', 4,  'w', 0.5 * tank_r, 't', 0.5e-3, 'span', 17.48 * 0.0254);
+% Analytic design (sweepBaffleDesign, 2026-10-20) with the corrected ring
+% mode shape in lateralDampingCalc: fewest rings giving lateral zeta >= 0.04
+% for fill >= 10%, rings over the full tank height. Not yet closed-loop
+% verified: the current LQR does not fly the corrected plant (see
+% SLOSH_VALIDATION.md); re-check with sweepBaffleSim on the LQI controller.
+% The previous closed-loop design (17 / 4 rings) relied on the inverted
+% mode shape and gives RP-1 lateral zeta ~0.009 at mid fill.
+ox_fixed = struct('Nb', 15, 'w', 0.5 * tank_r, 't', 0.5e-3, 'span', ox_tank_h);
+fu_fixed = struct('Nb', 11, 'w', 0.5 * tank_r, 't', 0.5e-3, 'span', fu_tank_h);
 in2m = 0.0254;
 
 ox_mass_profile = linspace(0.1, IN.propulsion.oxidizer_mass, 200);

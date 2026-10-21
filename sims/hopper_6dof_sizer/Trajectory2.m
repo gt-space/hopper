@@ -3,16 +3,18 @@ zf     = 52;     % m
 Tup    = 12;     % s
 Thover = 2;      % s
 Tdown  = 13;     % s
-Tterm  = 0.1;      % terminal descent extension
+Tterm  = 2.5;    % s, constant-sink terminal segment
+z_td   = 0.4;    % m, altitude where the constant-sink segment starts
+v_td   = 0.3;    % m/s, touchdown sink rate
 dt     = 0.01;   % 100 Hz
+% The reference keeps sinking through ground contact so the engine cutoff
+% (feet < 0.1 m while descending) always fires and touchdown happens well
+% before the end of the finite-horizon gain table, where the attitude gains
+% go to zero. Ending at z = 0, v = 0 let the ~0.1 m altitude lag stall the
+% vehicle just above the cutoff height in ~7 % of runs (landing transient).
 
 Tmin = IN.propulsion.nominal_thrust * IN.propulsion.throttle_range(1);
 Tmax = IN.propulsion.nominal_thrust * IN.propulsion.throttle_range(2);
-
-z0_term = 0;
-v0_term = 0;
-a0_term = 0;
-term_initialized = false;
 
 t_end = Tup + Thover + Tdown + Tterm;
 t = (0:dt:t_end)';
@@ -55,63 +57,22 @@ for k = 1:length(t)
 
     elseif tk < Tup + Thover + Tdown
 
-        % DESCENT
+        % DESCENT: quintic from hover to z_td, arriving at sink rate v_td
         s = (tk-(Tup+Thover))/Tdown;
-        s = min(max(s,0),1);
 
-        z(k) = zf*(1-mjerk(s));
+        z(k) = zf + (z_td - zf)*mjerk(s) - v_td*Tdown*(-4*s.^3 + 7*s.^4 - 3*s.^5);
 
-        acc = -zf*(60*s - 180*s^2 + 120*s^3)/Tdown^2;
+        acc = ((z_td - zf)*(60*s - 180*s^2 + 120*s^3) ...
+               - v_td*Tdown*(-24*s + 84*s^2 - 60*s^3))/Tdown^2;
 
         T_cmd(k) = m(k)*(g + acc);
 
     else
 
-        if ~term_initialized
-            z0_term = z(k-1);
-            v0_term = zdot(k-1);
-            a0_term = zddot(k-1);
-            term_initialized = true;
-        end
-
-        t0 = Tup + Thover + Tdown;
-        tau = tk - t0;
-
-        T = Tterm;
-
-        % Solve 5th-order polynomial:
-        % z(t) = a0 + a1*t + a2*t^2 + a3*t^3 + a4*t^4 + a5*t^5
-
-        zf_term = 0;     % final position (m)
-        vf_term = -0.1;   % final velocity (m/s)
-        af_term = 0;      % final acceleration (smooth thrust)
-
-        a0 = zf_term;
-        a1 = vf_term;
-        a2 = af_term/2;
-
-        % Solve for a3, a4, a5
-         A = [ T^3   T^4    T^5;
-          3*T^2 4*T^3  5*T^4;
-          6*T   12*T^2 20*T^3 ];
-
-         b = [ z0_term - a0 - a1*T - a2*T^2;
-          v0_term - a1 - 2*a2*T;
-          a0_term - 2*a2 ];             
-
-        x = A\b;
-
-        a3 = x(1);
-        a4 = x(2);
-        a5 = x(3);
-
-        % Evaluate trajectory
-        z(k) = a0 + a1*tau + a2*tau^2 + a3*tau^3 + a4*tau^4 + a5*tau^5;
-
-        zdot_term  = a1 + 2*a2*tau + 3*a3*tau^2 + 4*a4*tau^3 + 5*a5*tau^4;
-        zddot_term = 2*a2 + 6*a3*tau + 12*a4*tau^2 + 20*a5*tau^3;
-
-        T_cmd(k) = m(k)*(g + zddot_term);
+        % TERMINAL: constant sink through ground contact
+        tau = tk - (Tup + Thover + Tdown);
+        z(k) = z_td - v_td*tau;
+        T_cmd(k) = m(k)*g;
 
     end
     zdot  = gradient(z,dt);

@@ -47,7 +47,9 @@ for i = 1:length(prop_heights)
 
     zeta_smooth = (c_1 / (2 * tank_r)) * sqrt(nu / (2 * omega));
 
-    phi = cosh(k * (z_baf - h)) ./ cosh(k * h);
+    % potential-flow mode shape at each ring, 1 at the free surface,
+    % 1/cosh(k h) at the floor (rings above the liquid see the surface value)
+    phi = cosh(k * min(z_baf, h)) ./ cosh(k * h);
 
     alpha_part = 0.5 * (1 - exp(-2*h/tank_r));
 

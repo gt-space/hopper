@@ -97,9 +97,9 @@ function mc_sim_setup(scenario)
     fu_mass         = IN.propulsion.fuel_mass;
     engine_mass     = 37.83;
     ox_tank_mass    = TANKS.singular.oxidizer.mass;
-    ox_tank_h       = TANKS.singular.oxidizer.h;
+    ox_tank_h       = IN.tanks.ox_h_as_built;   % as-built, not sizer TANKS.singular.oxidizer.h
     fu_tank_mass    = TANKS.singular.fuel.mass;
-    fu_tank_h       = TANKS.singular.fuel.h;
+    fu_tank_h       = IN.tanks.fu_h_as_built;   % as-built, not sizer TANKS.singular.fuel.h
     structures_mass = 34.26;
     avi_mass        = 11.52;
     fluids_mass     = 28.41;

@@ -84,6 +84,11 @@ IN.press.autogenous.piston_friction = 0; % Pa
 IN.tanks.geometry = 'stacked';      % stacked, concentric, clustered
 IN.tanks.material = 'Al6061';
 IN.tanks.max_radius = 4.25*0.0254;  % in -> m
+% As-built tank lengths. These override the sizer TANKS.singular.*.h for
+% CG/MOI and slosh (SLOSH_VALIDATION.md 6-7). The Slosh and CG // MOI
+% r_*_tank constants in hopper_6dof_NED_v2.slx use the same values.
+IN.tanks.ox_h_as_built = 29.18*0.0254;  % LOx, in -> m
+IN.tanks.fu_h_as_built = 18.91*0.0254;  % RP-1, in -> m
 IN.tanks.lateral_damping = 0.08;   % <-- MUST BE UNCOMMENTED
 IN.tanks.axial_damping = 0.3;      % <-- MUST BE UNCOMMENTED
 
