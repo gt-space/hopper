@@ -44,8 +44,8 @@ p.parse(varargin{:});
 opt = p.Results;
 
 mdl      = char(opt.Model);
-gnc_dir  = fileparts(mfilename('fullpath'));
-ctv_dir  = fileparts(gnc_dir);
+gnc_dir  = fileparts(mfilename('fullpath'));          % ctv/archive/gfold_onboard
+ctv_dir  = fileparts(fileparts(gnc_dir));             % ctv
 mdl_file = fullfile(ctv_dir, [mdl '.slx']);
 body_fil = fullfile(gnc_dir, 'gfold_replan.m');
 

@@ -23,8 +23,8 @@
 % Ported from sims/hopper_6dof_sizer/LQTrack_Master.m with three changes:
 %   - uses ctv's own cg/MoI (MoI_init, cg_init) instead of hardcoded inertia
 %   - mass profile runs wet -> dry from OUT, instead of a hardcoded 100 kg
-%   - the roll channel is removed (no roll actuator), same as in
-%     LinerizationMaster_ctv.m
+%   - (roll is kept as a 4th control input: CTV has roll control via four
+%     small propeller motors, modelled by the EDF Dynamics subsystem)
 %
 % Produces, in the base workspace:
 %   tgrid, Target_Trajectory_full (Nx13), Target_Trajectory (Nx12),
@@ -159,22 +159,10 @@ end
 %% target trajectory (keep same length as t)
 tgrid = t;
 
-% No roll actuator per the FDIR doc, so the roll channel is removed from the
-% control problem: solve the LQR over the first 3 inputs only
-% (T, delta_p, delta_y) and pad a zero 4th row back on afterwards. That keeps
-% K1flat/K2grid at the 4-input shape the model's Gain_Selector expects while
-% guaranteeing it can never command roll.
-nu_act = 3;
+GainTable = TrajectoryFollowingGains3(Sf,Q,R,Target_Trajectory,A,B,tgrid,unom,params,Fref);
 
-GainTable = TrajectoryFollowingGains3(Sf, Q, R(1:nu_act,1:nu_act), ...
-    Target_Trajectory, A, B(:,1:nu_act,:), tgrid, unom(:,1:nu_act), ...
-    params, Fref);
-
-K1 = zeros(nu,nx,N);
-K1(1:nu_act,:,:) = GainTable.K1;        % 4th row stays zero -> no roll command
-
-K2grid = zeros(N,nu);
-K2grid(:,1:nu_act) = GainTable.K2';     % 4th column stays zero
+K1 = GainTable.K1;
+K2grid = GainTable.K2';
 
 alpha = 1.04;
 tau   = 3;

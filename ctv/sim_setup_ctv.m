@@ -17,15 +17,14 @@
 % it is NOT part of this script. v3 also still has an unresolved reference to
 % IN.tanks.lateral_damping / IN.tanks.axial_damping, which v2 does not use.
 %
-% ONE-TIME MODEL CHANGES (run once each, they edit the .slx):
-%   >> cd gnc
-%   >> disable_roll_actuator          % required: see note below
-%   >> add_onboard_gfold              % optional: onboard G-FOLD descent
-%   >> cd ..
+% Guidance: the vehicle flies the precomputed reference trajectory from
+% Trajectory2. LQR gains (K1flat/K2grid) are computed offline here and the
+% controller uses them in flight. Onboard G-FOLD is archived in
+% ctv/archive/gfold_onboard and is NOT part of this setup.
 %
-% disable_roll_actuator is REQUIRED. IN.rcs.max_thrust = 0 on its own makes
-% the EDF Dynamics subsystem compute 0/0 = NaN, which propagates into the
-% 6DOF moments. That script removes the subsystem structurally instead.
+% Roll: the 4th control input is roll torque from the four propeller motors
+% (EDF Dynamics subsystem, sized by IN.rcs.max_thrust). Nothing needs to be
+% disabled in the model.
 
 clearvars;
 
