@@ -10,13 +10,19 @@ IN.const.FS_struct = 2;           % structural factor of safety
 %  MISSION CONSTRAINTS (checked after flight simulation)
 IN.mission.target_altitude = 51;    % m
 IN.mission.hover_time_55m = 2;      % s
-IN.mission.max_ascent_vel = 7;     % m/s
-IN.mission.max_descent_vel = 7;    % m/s
+IN.mission.max_ascent_vel = 26;    % m/s
+IN.mission.max_descent_vel = 26;   % m/s
 IN.mission.hover_time_1m = 1;       %s
 IN.mission.landing_vel = 0;         % m/s at 1 m
 IN.mission.landing_alt = 1;         % m
 IN.mission.TWR_hover_landing = 1;
 IN.mission.max_vehicle_height = 2.44; % m
+
+%  MASS BUDGET (FDIR doc, source of truth)
+% Single source for dry mass. Structures (legs + intertank), tanks, engine,
+% avionics and payload are all treated as already inside this budget, so
+% size_structures must NOT add to it.
+IN.mass.dry_total = 48;             % kg dry  -> wet = 48 + 24 = 72 kg
 
 %  MASS GROWTH MARGIN
 % IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
@@ -53,8 +59,8 @@ IN.avionics.avi_mass = 11.52; % kg from CAD
 %  PROPULSION
 IN.propulsion.oxidizer = 'O2'; %Oxygen - coolprop
 IN.propulsion.fuel = 'Dodecane'; %AKA KEROSENE - coolprop
-IN.propulsion.oxidizer_mass = 16; % kg -> internal
-IN.propulsion.fuel_mass = 13; % kg -> internal
+IN.propulsion.oxidizer_mass = 13.333; % kg -> internal (24 kg total @ MR 1.25)
+IN.propulsion.fuel_mass = 10.667; % kg -> internal (24 kg total @ MR 1.25)
 IN.propulsion.ox_vol = 0.01638; % m^3
 IN.propulsion.fu_vol = 0.02034; % m^3
 IN.propulsion.ox_press = 500 * 6894.76; % Pa
@@ -66,7 +72,7 @@ IN.propulsion.fu_sys_CdA = 1.1E-5; % m^2
 IN.propulsion.eta_cstar = 0.85;
 IN.propulsion.At = 1.056 * 0.00064516; % in^2 --> m^2
 IN.propulsion.eps = 2.93;
-IN.propulsion.nominal_thrust = 500 * 4.44822; % N
+IN.propulsion.nominal_thrust = 300 * 4.44822; % N (1334.5 N; 1468 N at 110%)
 IN.propulsion.throttle_range = [0.4 1.1];
 IN.solenoid_valve_quantity = 5;
 IN.valves.voltage = 12; % V
@@ -110,7 +116,7 @@ IN.tanks.max_radius = 4.25*0.0254; % in -> m
 % IN.tanks.axial_damping = 0.3;
 
 %  TVC
-IN.tvc.max_gimbal_angle = deg2rad(15); % deg
+IN.tvc.max_gimbal_angle = deg2rad(8); % deg
 IN.tvc.max_gimbal_rate = deg2rad(15); % deg
 IN.tvc.voltage = 24; % V
 IN.tvc.current = 3; % A
@@ -120,6 +126,10 @@ IN.tvc.resolution = deg2rad(0.1); % deg
 IN.tvc.damping_ratio = 0.5; 
 
 % RCS
+% Roll control: 4 small coreless brushed motors with 65 mm propellers
+% (2 CW / 2 CCW), modelled by the EDF Dynamics subsystem.
+% TODO: 16 N is the pre-existing value. Replace with the measured/datasheet
+% thrust for the real motor+prop set once we have it.
 IN.rcs.max_thrust = 16; % N
 IN.rcs.throttle_rate = 50; % N/s
 IN.rcs_time_constant = 0.1;
