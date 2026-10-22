@@ -1,6 +1,5 @@
 % Vehicle mass properties for the sim: dry block (main.m dry-mass override)
-% plus the propellant columns. See mass_properties_setup and
-% MASS_PROPERTIES.md.
+% plus the propellant columns. See mass_properties_setup.
 
 % Variables used directly by Simulink blocks and other scripts
 ox_mass = IN.propulsion.oxidizer_mass;

@@ -1,7 +1,7 @@
 function T = compareSloshML(slosh_ml_dir, design)
 % Compare the hopper_6dof_NED_v2 slosh model against SLOSH-ML
 % (https://github.com/lgst-lab/slosh_ml, v1.0.0) for the as-built LOx and
-% RP-1 tanks. See SLOSH_VALIDATION.md.
+% RP-1 tanks.
 %
 %   slosh_ml_dir - path to a clone of lgst-lab/slosh_ml
 %   design       - optional struct with fields ox, fu (Nb, w, t, span);
