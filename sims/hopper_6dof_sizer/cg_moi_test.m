@@ -1,62 +1,25 @@
+% Vehicle mass properties for the sim: dry block (main.m dry-mass override)
+% plus the propellant columns. See mass_properties_setup and
+% MASS_PROPERTIES.md.
 
+% Variables used directly by Simulink blocks and other scripts
 ox_mass = IN.propulsion.oxidizer_mass;
 fu_mass = IN.propulsion.fuel_mass;
-
 engine_mass = IN.engine_mass;
 engine_cg = IN.engine_cg;
 mount_cg = IN.mount_cg;
-ox_tank_mass = TANKS.singular.oxidizer.mass;
-ox_tank_cg = IN.ox_tank_cg;
-ox_tank_wall_thick = IN.ox_tank_wall_thick;
-ox_tank_h = IN.tanks.ox_h_as_built;   % as-built, not sizer TANKS.singular.oxidizer.h
-fu_tank_mass = TANKS.singular.fuel.mass;
-fu_tank_cg = IN.fu_tank_cg;
-fu_tank_wall_thick = IN.fu_tank_wall_thick;
-fu_tank_h = IN.tanks.fu_h_as_built;   % as-built, not sizer TANKS.singular.fuel.h
-structures_mass = IN.structures.structures_mass;
-structures_cg = IN.structures_cg;
-avi_mass = IN.avionics.avi_mass;
-avi_cg = IN.avi_cg;
-fluids_mass = IN.fluids_mass;
-fluids_cg = IN.fluids_cg;
-payload_mass = IN.structures.payload_mass;
-payload_cg = IN.payload_cg;
 tank_r = TANKS.singular.radius;
-copv_mass = IN.press.copv.mass + IN.press.copv.gas_mass;
-copv_r = IN.press.copv.r;
-copv_t = IN.press.copv.t;
-copv_h = IN.press.copv.h;
-copv_zcg = IN.copv_zcg;
-copv_ycg = IN.copv_ycg;
-it_h = TANKS.singular.radius;
 
-[cg_init, MoI_init, ~, ~, ~, ~] = cg_moi_init(...
-    ox_mass, fu_mass,...
-    engine_mass, engine_cg, ...
-    ox_tank_mass, ox_tank_cg, ox_tank_wall_thick, ...
-    fu_tank_mass, fu_tank_cg, fu_tank_wall_thick, ...
-    structures_mass, structures_cg, ...
-    avi_mass, avi_cg,...
-    fluids_mass, fluids_cg, ...
-    payload_mass, payload_cg, ...
-    ox_tank_h, fu_tank_h, tank_r, it_h, ...
-    copv_mass, copv_r, copv_t, copv_h, copv_zcg, copv_ycg);
+MP = mass_properties_setup(IN, TANKS, OUT.Vehicle.DryMass);
 
-% CG and inertia vs propellant fraction (ox and fuel drained together), for
-% scheduling the LQR linearization (LinerizationMaster)
-prop_frac_grid = linspace(0, 1, 11);
-cg_vs_frac  = zeros(size(prop_frac_grid));
-MoI_vs_frac = zeros(3, 3, numel(prop_frac_grid));
-for k = 1:numel(prop_frac_grid)
-    [cg_vs_frac(k), MoI_vs_frac(:,:,k), ~, ~, ~, ~] = cg_moi_init(...
-        prop_frac_grid(k) * ox_mass, prop_frac_grid(k) * fu_mass, ...
-        engine_mass, engine_cg, ...
-        ox_tank_mass, ox_tank_cg, ox_tank_wall_thick, ...
-        fu_tank_mass, fu_tank_cg, fu_tank_wall_thick, ...
-        structures_mass, structures_cg, ...
-        avi_mass, avi_cg,...
-        fluids_mass, fluids_cg, ...
-        payload_mass, payload_cg, ...
-        ox_tank_h, fu_tank_h, tank_r, it_h, ...
-        copv_mass, copv_r, copv_t, copv_h, copv_zcg, copv_ycg);
-end
+cg_init  = MP.cg_init;
+MoI_init = MP.MoI_init;
+
+% Derivative tables for CG // MOI Script v3 (replace the cg_I_LUT.mat
+% values loaded by load_lookup, so they always match the current masses)
+ox_masses      = MP.ox_masses;
+fu_masses      = MP.fu_masses;
+dcg_dMox_table = MP.dcg_dMox_table;
+dcg_dMfu_table = MP.dcg_dMfu_table;
+dI_dMox_table  = MP.dI_dMox_table;
+dI_dMfu_table  = MP.dI_dMfu_table;

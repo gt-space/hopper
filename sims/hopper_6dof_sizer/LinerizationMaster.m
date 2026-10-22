@@ -90,10 +90,21 @@ params = struct();
 params.g = 9.80665;     % m/s^2  (Down is +Z in NED)
 % params.m = linspace(OUT.Vehicle.WetMass,100, length(t));         % kg     (constant mass for now)
 % geometry / actuator
-params.d  = cg_init - engine_cg;       % m   thrust application x-offset in BODY frame (r = [-d;0;0])
+params.d  = cg_init - IN.mount_cg;     % m   thrust line through the gimbal pivot, x-offset in BODY frame (r = [-d;0;0])
 params.r_m = 0.125;     % m   moment arm for RCS term (your r_m)
 params.n_rcs = 1;       % unitless (if you keep it)
-m_profile = linspace(OUT.Vehicle.WetMass,OUT.Vehicle.DryMass, length(t));
+% Propellant along the reference trajectory: ox/fuel flow from the
+% reference thrust (mdot_lookup), so mass, CG and inertia follow the
+% propellant actually burned rather than a straight line to dry mass.
+% mdot_lookup.xlsx holds ox in column 2 and fuel in column 3
+% (mdot_table_generation), but load_lookup names them the other way round
+% and the sim's mdot Subsystem swaps its outports back: in the workspace,
+% fu_mdot_data is the oxidizer flow and ox_mdot_data the fuel flow.
+ox_mdot_ref = interp1(thrust_data, fu_mdot_data, T_profile, 'linear', 'extrap');
+fu_mdot_ref = interp1(thrust_data, ox_mdot_data, T_profile, 'linear', 'extrap');
+m_ox_ref = max(IN.propulsion.oxidizer_mass - cumtrapz(t, ox_mdot_ref), 0);
+m_fu_ref = max(IN.propulsion.fuel_mass     - cumtrapz(t, fu_mdot_ref), 0);
+m_profile = (OUT.Vehicle.DryMass + m_ox_ref + m_fu_ref).';
 
 % inertia (constant, BODY frame about CG)
 params.I = MoI_init;
@@ -105,11 +116,10 @@ N  = length(t);
 A  = zeros(nx,nx,N);
 B  = zeros(nx,nu,N);
 
-% Schedule inertia and thrust moment arm with propellant burned
-% (cg_moi_test tables); false -> constant full-tank values
+% Schedule inertia and thrust moment arm with the propellant left along
+% the reference (mass_properties_setup dry block + propellant columns);
+% false -> constant full-tank values
 if ~exist('lqr_schedule_inertia', 'var'), lqr_schedule_inertia = true; end
-prop_frac = (m_profile - OUT.Vehicle.DryMass) / (OUT.Vehicle.WetMass - OUT.Vehicle.DryMass);
-prop_frac = min(max(prop_frac, 0), 1);
 
 % Linearize along the full target trajectory
 for i = 1:N
@@ -117,9 +127,8 @@ for i = 1:N
    u_i = unom(i,:).';               % 4x1
    params_i = params;
    if lqr_schedule_inertia
-       params_i.I = interp1(prop_frac_grid, permute(MoI_vs_frac, [3 1 2]), prop_frac(i));
-       params_i.I = reshape(params_i.I, 3, 3);
-       params_i.d = interp1(prop_frac_grid, cg_vs_frac, prop_frac(i)) - engine_cg;
+       [cg_i, params_i.I] = vehicle_mass_props(MP.DRY, MP.TG, m_ox_ref(i), m_fu_ref(i));
+       params_i.d = cg_i(1) - IN.mount_cg;
    end
    [A(:,:,i), B(:,:,i),f_i] = HopperLinearization_6DOF_inertial(x_i, u_i, params_i, m_profile(i));
    Fref(i,:) = f_i.';

@@ -149,6 +149,8 @@ IN.wind.vwind = 5;
 
 % MASS FACTOR
 IN.mass_factor = 1.0;               % default / nominal case
+IN.cg_factor = 1.0;                 % dry CG axial position factor (MC)
+IN.inertia_factor = 1.0;            % dry inertia factor (MC)
 
 % MONTE CARLO SCENARIO STRUCT CREATION (SAFEGUARDED)
 if ~isempty(scenario_params) && isfield(scenario_params, 'ox_mass')
@@ -167,5 +169,7 @@ if ~isempty(scenario_params) && isfield(scenario_params, 'ox_mass')
     IN.wind.uwind                     = scenario_params.uwind;
     IN.wind.vwind                     = scenario_params.vwind;
     IN.wind.mode                      = 1; 
+    if isfield(scenario_params, 'cg_factor'),      IN.cg_factor      = scenario_params.cg_factor;      end
+    if isfield(scenario_params, 'inertia_factor'), IN.inertia_factor = scenario_params.inertia_factor; end
 end
 end

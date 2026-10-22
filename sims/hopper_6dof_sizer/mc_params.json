@@ -24,6 +24,11 @@
     "upper": 1.01,
     "nominal": 1.0
   },
+  "inertia_factor": {
+    "lower": 0.95,
+    "upper": 1.05,
+    "nominal": 1.0
+  },
   "slosh_lateral_damping": {
     "lower": 0.02,
     "upper": 0.06,
