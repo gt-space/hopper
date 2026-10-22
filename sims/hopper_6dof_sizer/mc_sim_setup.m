@@ -21,11 +21,13 @@ function mc_sim_setup(scenario)
     VEH.mass.engine  = ENGINE.mass;
     VEH.mass.avi     = AVI.mass;
     VEH.mass.press   = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
-    VEH.mass.dry     = IN.mass_factor * 112.36;
+    % Dry mass: main.m override (legs/intertank included), dispersed by mass_factor
+    dry_mass_nominal = 116.86;
+    VEH.mass.dry     = IN.mass_factor * dry_mass_nominal;
     VEH.mass.wet     = VEH.mass.dry + IN.propulsion.oxidizer_mass + IN.propulsion.fuel_mass;
     
     [STRUCT, VEH] = size_structures(IN, VEH);
-    VEH.mass.dry = IN.mass_factor * 112.36;
+    VEH.mass.dry = IN.mass_factor * dry_mass_nominal;   % size_structures adds legs; already included
     VEH.mass.wet = VEH.mass.dry + IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass;
     
     OUT = Outputs(IN, VEH, TANKS, STRUCT);
@@ -86,7 +88,7 @@ function mc_sim_setup(scenario)
     avi_cg             = 1.4224;
     fluids_cg          = 1.0668;
     payload_cg         = 2;
-    mount_cg           = 0.3556;
+    mount_cg           = IN.mount_cg;   % gimbal pivot (was the engine CG, 0.3556)
     copv_r             = 0.18;
     copv_t             = 13.21/1000;
     copv_h             = 0.56;
@@ -108,14 +110,21 @@ function mc_sim_setup(scenario)
     copv_mass       = IN.press.copv.mass + 6;
     it_h            = TANKS.singular.radius;
 
-    [cg_init, MoI_init, ~, ~, ~, ~] = cg_moi_init( ...
-        ox_mass, fu_mass, engine_mass, engine_cg, ...
-        ox_tank_mass, ox_tank_cg, ox_tank_wall_thick, ...
-        fu_tank_mass, fu_tank_cg, fu_tank_wall_thick, ...
-        structures_mass, structures_cg, avi_mass, avi_cg, ...
-        fluids_mass, fluids_cg, payload_mass, payload_cg, ...
-        ox_tank_h, fu_tank_h, tank_r, it_h, ...
-        copv_mass, copv_r, copv_t, copv_h, copv_zcg, copv_ycg);
+    % Dry block plus propellant columns. The plant gets this scenario's
+    % dispersed dry mass, CG and inertia; the controller is designed on the
+    % nominal dry block (swapped in around LinerizationMaster below), so the
+    % dispersion is something the controller has to reject.
+    MP = mass_properties_setup(IN, TANKS, VEH.mass.dry);
+    IN_nom = IN; IN_nom.cg_factor = 1; IN_nom.inertia_factor = 1;
+    MP_ctrl = mass_properties_setup(IN_nom, TANKS, dry_mass_nominal);
+    OUT_ctrl = OUT;
+    OUT_ctrl.Vehicle.DryMass = dry_mass_nominal;
+    OUT_ctrl.Vehicle.WetMass = dry_mass_nominal + IN.propulsion.oxidizer_mass + IN.propulsion.fuel_mass;
+    cg_init  = MP.cg_init;
+    MoI_init = MP.MoI_init;
+    for f = {'ox_masses', 'fu_masses', 'dcg_dMox_table', 'dcg_dMfu_table', 'dI_dMox_table', 'dI_dMfu_table'}
+        assignin('base', f{1}, MP.(f{1}));
+    end
 
     % ---- Slosh & Profile Dummies (Safeguards for Lookup Blocks) ----
     ox_mass_profile         = linspace(0, ox_mass, 100); % Fallback profile if needed
@@ -141,7 +150,12 @@ function mc_sim_setup(scenario)
 
     % ---- Run Linearization & Trajectory Generator ----
     % This generates tgrid, unom, K1flat, K2grid, Target_Trajectory, reference timeseries, etc.
+    OUT_plant = OUT;     MP_plant = MP;
+    OUT = OUT_ctrl;      MP = MP_ctrl;
+    cg_init = MP.cg_init;  MoI_init = MP.MoI_init;
     LinerizationMaster();
+    OUT = OUT_plant;     MP = MP_plant;
+    cg_init = MP.cg_init;  MoI_init = MP.MoI_init;
 
     % ---- Push Everything to Base Workspace for Simulink ----
     assignin('base', 'IN',                    IN);
