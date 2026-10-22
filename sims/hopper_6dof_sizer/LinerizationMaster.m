@@ -36,7 +36,7 @@ Q =  [1e3 0 0 0 0 0 0 0 0 0 0 0 0; % x
 % Retuned 2026-10-20 on the rigid (slosh-off) vehicle: quaternion weights
 % raised from 100 and TVC input weights (R below) raised 10x. The old gains
 % drove the gimbal into its 15 deg/s rate limit and only flew with
-% double-counted slosh inertia in the plant (SLOSH_VALIDATION.md). These
+% double-counted slosh inertia in the plant. These
 % fly with the plant inertia scaled 0.8x-1.2x.
 
 % T delta rcs

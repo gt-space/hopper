@@ -18,7 +18,7 @@ if ~exist('baffle_export', 'var'), baffle_export = true;    end
 
 baffle_opts.zeta_lat_min = 0.04;
 % The axisymmetric mode puts no first-order force or moment on the tank
-% (SLOSH_VALIDATION.md 3.3), so axial damping is not a sizing target.
+% (zero equivalent mass), so axial damping is not a sizing target.
 baffle_opts.zeta_ax_min  = 0;
 baffle_opts.min_fill     = 0.10;
 baffle_opts.slosh_amp    = 0.1 * tank_r;   % wall slosh amplitude, m
@@ -27,9 +27,9 @@ baffle_opts.baffle_rho   = 2700;           % Al6061
 
 % Analytic design (sweepBaffleDesign, 2026-10-20) with the corrected ring
 % mode shape in lateralDampingCalc: fewest rings giving lateral zeta >= 0.04
-% for fill >= 10%, rings over the full tank height. Not yet closed-loop
-% verified: the current LQR does not fly the corrected plant (see
-% SLOSH_VALIDATION.md); re-check with sweepBaffleSim on the LQI controller.
+% for fill >= 10%, rings over the full tank height. Closed-loop checked at
+% 0.5x / 1x / 2x damping with the retuned LQR; closed-loop sweeps cannot
+% size the ring count (ring count had no measurable closed-loop effect).
 % The previous closed-loop design (17 / 4 rings) relied on the inverted
 % mode shape and gives RP-1 lateral zeta ~0.009 at mid fill.
 ox_fixed = struct('Nb', 15, 'w', 0.5 * tank_r, 't', 0.5e-3, 'span', ox_tank_h);
@@ -124,8 +124,11 @@ if baffle_export
                           'fu_mass_profile', 'fu_lateral_damping_ratios', 'fu_axial_damping_ratios'});
     writetable(baffle_lut, 'baffle_lut.csv');
 
+    % fluid properties saved with the design so mc_sim_setup can rebuild the
+    % damping table for dispersed propellant loads from this file alone
     save('baffle_lut.mat', 'baffle_lut', 'ox_baffle', 'fu_baffle', 'baffle_opts', 'baffle_mode', ...
-        'ox_baffle_sweep', 'fu_baffle_sweep', 'tank_r', 'ox_tank_h', 'fu_tank_h');
+        'ox_baffle_sweep', 'fu_baffle_sweep', 'tank_r', 'ox_tank_h', 'fu_tank_h', ...
+        'ox_density', 'fu_density', 'ox_nu', 'fu_nu');
 
     fprintf('Baffle LUT written to baffle_lut.csv / baffle_lut.mat\n');
 end

@@ -126,14 +126,25 @@ function mc_sim_setup(scenario)
         assignin('base', f{1}, MP.(f{1}));
     end
 
-    % ---- Slosh & Profile Dummies (Safeguards for Lookup Blocks) ----
-    ox_mass_profile         = linspace(0, ox_mass, 100); % Fallback profile if needed
-    ox_lateral_damping_ratios = IN.tanks.lateral_damping * ones(size(ox_mass_profile));
-    ox_axial_damping_ratios   = IN.tanks.axial_damping   * ones(size(ox_mass_profile));
-
-    fu_mass_profile           = linspace(0, fu_mass, 100);                    
-    fu_lateral_damping_ratios = IN.tanks.lateral_damping * ones(size(fu_mass_profile)); 
-    fu_axial_damping_ratios   = IN.tanks.axial_damping   * ones(size(fu_mass_profile));
+    % ---- Slosh damping tables ----
+    % Baffle damping model for the fixed baffle design (baffle_lut.mat, from
+    % generateBaffleLUT), evaluated at this scenario's propellant loads, then
+    % scaled per tank by the dispersed damping factor (log-uniform 0.5x-2x):
+    % the dispersion represents damping-model uncertainty, which dwarfs the
+    % effect of baffle manufacturing tolerances.
+    B = load('baffle_lut.mat', 'ox_baffle', 'fu_baffle', 'baffle_opts', 'tank_r', ...
+             'ox_density', 'fu_density', 'ox_nu', 'fu_nu');
+    ox_mass_profile = linspace(0.1, ox_mass, 200);
+    fu_mass_profile = linspace(0.1, fu_mass, 200);
+    ob = B.ox_baffle; fb = B.fu_baffle; amp = B.baffle_opts.slosh_amp;
+    ox_lateral_damping_ratios = IN.tanks.damping_factor_ox * lateralDampingCalc(ox_mass_profile, ...
+        B.ox_density, B.ox_nu, B.tank_r, ob.w, ob.Nb, ob.span, ob.t, amp);
+    ox_axial_damping_ratios   = IN.tanks.damping_factor_ox * axialDampingCalc(ox_mass_profile, ...
+        B.ox_density, B.ox_nu, B.tank_r, ob.w, ob.Nb, ob.span, ob.t, amp);
+    fu_lateral_damping_ratios = IN.tanks.damping_factor_fu * lateralDampingCalc(fu_mass_profile, ...
+        B.fu_density, B.fu_nu, B.tank_r, fb.w, fb.Nb, fb.span, fb.t, amp);
+    fu_axial_damping_ratios   = IN.tanks.damping_factor_fu * axialDampingCalc(fu_mass_profile, ...
+        B.fu_density, B.fu_nu, B.tank_r, fb.w, fb.Nb, fb.span, fb.t, amp);
 
     % ---- MC Scenario Params (Flat for Simulink blocks) ----
     slosh_lateral_damping   = IN.tanks.lateral_damping;
