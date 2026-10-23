@@ -16,7 +16,8 @@ e3 = [0; 0; 1];
 h_baro = e3' * m_X + m_bh;
 % Measurement Jacobian H for Barometer (1x19 state vector order: [theta, v, X, beta, gamma, lambda])
 % H_h = [0(1x3), 0(1x3), -e3^T, 0(1x3), 0(1x3), -1] as noted in the handoff doc[cite: 5]
+
 H_baro = zeros(1, 19);
-H_baro(7:9) = -e3';   % Position error components
-H_baro(19)   = -1.0;   % Barometer bias error component (lambda)
+H_baro(3)  = -1;
+H_baro(19) =  1;
 end
