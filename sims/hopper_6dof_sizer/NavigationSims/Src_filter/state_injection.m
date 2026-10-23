@@ -9,6 +9,7 @@
 % Outputs:
 %   m_plus: Updated nominal state vector
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%{
 function m_plus = state_injection(m_minus, delta_x_hat)
 % Extract error states from delta_x_hat
 delta_theta = delta_x_hat(1:3); % Attitude error
@@ -52,4 +53,44 @@ m_bh_plus  = m_bh - delta_lambda;
 
 % Recombine into m_plus state vector
 m_plus = [m_X_plus; m_V_plus; m_q_plus; m_bg_plus; m_ba_plus; m_bh_plus];
+end
+%}
+
+
+function nominalStatePosterior = state_injection(nominalStatePrior, errorCorrection)
+% (Yuma's implementation | 10/23/26)
+% Measurement update for state estimate
+%
+% Inputs:
+% 
+%   nominalStatePrior       - Prior state estimate (20x1)
+%   errorCorrection         - Estimated error correction state vector (19x1)
+% 
+% Outputs:
+%
+%   nominalStatePosterior   - Posterior state estimate (20x1)
+    
+    % Extract nominal state
+    positionPrior        = nominalStatePrior(1:3);
+    velocityPrior        = nominalStatePrior(4:6);
+    angularVelocityPrior = nominalStatePrior(7:9);
+    quaternionPrior      = nominalStatePrior(10:13);
+    accelBiasPrior       = nominalStatePrior(14:16);
+    gyroBiasPrior        = nominalStatePrior(17:19);
+    baroBiasPrior        = nominalStatePrior(20);
+    
+    % Extract estimated error components
+    positionError        = errorCorrection(1:3);
+    velocityError        = errorCorrection(4:6);
+    angularVelocityError = errorCorrection(7:9);
+    attitudeError        = errorCorrection(10:12);
+    accelBiasError       = errorCorrection(13:15);
+    gyroBiasError        = errorCorrection(16:18);
+    baroBiasError        = errorCorrection(19);
+
+    positionPosterior = positionPrior - positionError;
+    velocityPosterior = velocityPrior - velocityError;
+    baroBiasPosterior = baroBiasPrior - baroBiasError;
+    
+    % Remaining injection equations to be derived
 end
