@@ -1,20 +1,17 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% baro_filter_model.m
-% Author: Yuma Nagayoshi
-% Date: 10/23/2026
-% Computes the predicted barometer measurement and its H matrix row for the filter.
-% 
+function [predictedMeasurement, measurementJacobian] = baro_filter_model(positionEstimate, baroBiasEstimate)
+% (Yuma's implementation | 10/24/26)
+% Computes predicted barometer measurement and respective measurement Jacobian
+%
 % Inputs:
-%   m_X: nominal position vector (3x1)
-%   m_bh: nominal barometer bias (scalar)
-% 
+%
+%   positionEstimate    - Nominal position vector (3x1)
+%   baroBiasEstimate    - Barometer Bias Estimate (1x1)
+%
 % Outputs:
-%   h_baro: predicted measurement (scalar)
-%   H_baro: measurement Jacobian row (1x19)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%   predictedMeasurement    - Predicted Measurement (1x1)
+%   measurementJacobian     - A Measurement Jacobian Row (1x19)
 
-function [predictedMeasurement, measurementJacobian] = ...
-    baro_filter_model(positionEstimate, baroBiasEstimate)
 
     % Predicted altitude in NED coordinates
     predictedMeasurement = -positionEstimate(3) + baroBiasEstimate;
