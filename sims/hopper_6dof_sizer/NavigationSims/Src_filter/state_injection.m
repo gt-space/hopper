@@ -88,9 +88,20 @@ function nominalStatePosterior = state_injection(nominalStatePrior, errorCorrect
     gyroBiasError        = errorCorrection(16:18);
     baroBiasError        = errorCorrection(19);
 
+    % Make the additive corrections
     positionPosterior = positionPrior - positionError;
     velocityPosterior = velocityPrior - velocityError;
+    angularVelocityPosterior = angularVelocityPrior + angularVelocityError;
     baroBiasPosterior = baroBiasPrior - baroBiasError;
+
     
-    % Remaining injection equations to be derived
+    % Correct the quaternion using the attitude error, which is a small
+    % angle rotation vector
+    w = quaternionPrior(1); x = quaternionPrior(2);
+    y = quaternionPrior(3); z = quaternionPrior(4);
+    Chi = [-x -y -z;
+            w -z  y;
+            z  w -x;
+           -y  x  w];
+    quaternionPosterior = quaternionPrior + 0.5*Chi*attitudeError;
 end
