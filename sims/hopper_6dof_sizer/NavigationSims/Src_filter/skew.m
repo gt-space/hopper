@@ -1,3 +1,4 @@
+function S = skew(v)
 % (Yuma's implementation | 10/23/26)
 % Returns skew-symmetric matrix associated with a 3D vector
 %
@@ -8,7 +9,6 @@
 % Outputs:
 %
 %   S   - Skew-symmetric matrix satisfying S*u = cross(v,u) (3x3)
-function S = skew(v)
 
     assert(numel(v) == 3, 'Input must have 3 elements'); % checks for vector size
 
@@ -18,4 +18,3 @@ function S = skew(v)
          v(3),      0, -v(1);
         -v(2),   v(1),     0; ];
 end
-
