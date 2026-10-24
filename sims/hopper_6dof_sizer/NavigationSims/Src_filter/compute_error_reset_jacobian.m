@@ -1,3 +1,38 @@
+function resetJacobian = compute_error_reset_jacobian(errorCorrection)
+% (Yuma's implementation | 10/24/26)
+% Computes the local error-reset Jacobian for covariance update
+%
+% Inputs:
+%
+%   errorCorrection - Estimated error correction state vector (19x1)
+%
+% Outputs:
+%
+%   resetJacobian   - Local covariance reset matrix (19x19)  
+
+    assert(numel(errorCorrection) == 19);
+
+    attitudeError = errorCorrection(10:12);
+    accelBiasError = errorCorrection(13:15);
+    gyroBiasError = errorCorrection(16:18);
+
+    resetJacobian = eye(19);
+    
+    % First-order attitude-error reset
+    resetJacobian(10:12, 10:12) = eye(3) - 0.5 * skew(attitudeError);
+
+    % Coupling attitude and inertial-aligned bias errors
+    resetJacobian(13:15,10:12) = -skew(accelBiasError);
+    resetJacobian(16:18,10:12) = -skew(gyroBiasError);
+
+end
+
+
+
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % compute_error_reset_jacobian.m
 % Computes the local error reset Jacobian matrix J for the covariance update.
@@ -8,6 +43,8 @@
 % Outputs:
 %   J: Local covariance reset matrix (19x19 or matching error state dimension)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%{
 function J = compute_error_reset_jacobian(delta_x_hat)
 delta_theta = delta_x_hat(1:3);
 % Skew-symmetric matrix of attitude error
@@ -22,3 +59,5 @@ J = eye(dim);
 J(1:3, 1:3) = eye(3) + 0.5 * theta_skew;
 % Remaining blocks are identity mappings for velocity, position, and biases to first order[cite: 4]
 end
+
+%}
