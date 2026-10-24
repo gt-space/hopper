@@ -25,6 +25,24 @@ filter_st = 1/480;      % Filter sample time (seconds)
 % gy, gz, b
 x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
 
+%% GMEKF continuous-time process-noise spectral densities
+
+% Translational acceleration disturbance: 3 channels
+accelerationNoisePSD = imu_params.accel_noise_std.^2 * imu_st;
+
+% requires calibration
+torqueNoisePSD = zeros(3,1);
+accelBiasNoisePSD = zeros(3,1);
+gyroBiasNoisePSD = zeros(3,1);
+baroBiasNoisePSD = 0;
+
+Qc = blkdiag( ...
+    diag(accelerationNoisePSD), ...
+    diag(torqueNoisePSD), ...
+    diag(accelBiasNoisePSD), ...
+    diag(gyroBiasNoisePSD), ...
+    baroBiasNoisePSD);
+
 % TODO! TUNE THIS COVARIANCE
 P0 = [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
