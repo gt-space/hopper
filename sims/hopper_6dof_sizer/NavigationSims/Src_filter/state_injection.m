@@ -11,7 +11,11 @@
 % 
 % Outputs:
 %   nominalStatePosterior   - Posterior state estimate (20x1)
-% 
+%
+% NOTES
+% - The estimates and error states are strictly defined in the
+% body-frame
+% - The quaternions are rotations from the inertial to the body-frame
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function nominalStatePosterior = state_injection(nominalStatePrior, errorCorrection)
@@ -53,7 +57,7 @@ function nominalStatePosterior = state_injection(nominalStatePrior, errorCorrect
     quaternionPosterior = quaternionPrior + 0.5*Chi*attitudeError;
 
     % Renormalize the quaternion
-    quaternionPosterior = quaternionPosterior/norm(qauternionPosterior);
+    quaternionPosterior = quaternionPosterior/norm(quaternionPosterior);
 
     % Assemble the state
     nominalStatePosterior = [positionPosterior;

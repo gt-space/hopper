@@ -111,7 +111,7 @@ function [errorCorrection, errorCovariancePosterior, accepted] = ...
 % Joseph-form covariance update
     identityMinusKH = eye(stateDim) - (kalmanGain * measurementJacobian);
     errorCovariancePosterior = identityMinusKH * errorCovariancePrior * identityMinusKH' + ...
-        (kalmanGain * measurementNoiseCovariance * kalmanGain');;
+        (kalmanGain * measurementNoiseCovariance * kalmanGain');
 
     errorCovariancePosterior = 0.5 * (errorCovariancePosterior + errorCovariancePosterior'); % remove numerical asymmetry
 

@@ -1,5 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % baro_filter_model.m
+% Author: Yuma Nagayoshi
+% Date: 10/23/2026
 % Computes the predicted barometer measurement and its H matrix row for the filter.
 % 
 % Inputs:
@@ -10,22 +12,9 @@
 %   h_baro: predicted measurement (scalar)
 %   H_baro: measurement Jacobian row (1x19)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%{
-function [h_baro, H_baro] = baro_filter_model(m_X, m_bh)
-e3 = [0; 0; 1];
-% Predicted measurement: z_h = e3^T * X + b_h
-h_baro = e3' * m_X + m_bh;
-% Measurement Jacobian H for Barometer (1x19 state vector order: [theta, v, X, beta, gamma, lambda])
-% H_h = [0(1x3), 0(1x3), -e3^T, 0(1x3), 0(1x3), -1] as noted in the handoff doc[cite: 5]
-H_baro = zeros(1, 19);
-H_baro(7:9) = -e3';   % Position error components
-H_baro(19)   = -1.0;   % Barometer bias error component (lambda)
-end
-%}
 
 function [predictedMeasurement, measurementJacobian] = ...
     baro_filter_model(positionEstimate, baroBiasEstimate)
-% (Yuma's implementation | 10/23/26)
 
     % Predicted altitude in NED coordinates
     predictedMeasurement = -positionEstimate(3) + baroBiasEstimate;
