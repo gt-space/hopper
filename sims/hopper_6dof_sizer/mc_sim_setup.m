@@ -139,10 +139,6 @@ function mc_sim_setup(scenario)
     vwind                   = IN.wind.vwind;
     wind_mode               = IN.wind.mode;
 
-    % ---- Run Linearization & Trajectory Generator ----
-    % This generates tgrid, unom, K1flat, K2grid, Target_Trajectory, reference timeseries, etc.
-    LinerizationMaster();
-
     % ---- Push Everything to Base Workspace for Simulink ----
     assignin('base', 'IN',                    IN);
     assignin('base', 'VEH',                   VEH);
@@ -196,4 +192,15 @@ function mc_sim_setup(scenario)
     assignin('base', 'fu_lateral_damping_ratios', fu_lateral_damping_ratios);  
     assignin('base', 'ox_axial_damping_ratios',   ox_axial_damping_ratios);   
     assignin('base', 'fu_axial_damping_ratios',   fu_axial_damping_ratios);  
+
+    % ---- Run Linearization & Trajectory Generator ----
+    % Generates tgrid, unom, K1flat, K2grid, Target_Trajectory, reference
+    % timeseries, etc. cg_moi_test and LinerizationMaster are scripts, not
+    % functions: called from in here their variables land in this function's
+    % workspace instead of base, and LinerizationMaster fails with
+    % 'Unrecognized function or variable ''prop_frac_grid''' because
+    % cg_moi_test only ever creates prop_frac_grid / cg_vs_frac / MoI_vs_frac
+    % in the caller's workspace. Run both in base, after the assignin block
+    % above has put IN / TANKS / OUT / engine_cg there.
+    evalin('base', 'cg_moi_test; LinerizationMaster;');
 end
