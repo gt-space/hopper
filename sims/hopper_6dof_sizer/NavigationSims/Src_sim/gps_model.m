@@ -13,13 +13,16 @@
 %   simtime: time elapsed (s)
 %
 % Outputs:
-%   pos: position vector (3x1) (m)
-%   vel: velocity vector (3x1) (m/s)
-%   timestamp: time elapsed (s)
-%   validity: boolean (true if valid measurement)
+%   gpsBus: struct containing- 
+%       pos: position relative to datum NED frame (m)
+%       pcovariance: position measurement covariance (3x3)
+%       vel: velocity relative to datum NED frame (m)
+%       vcovariance: velocity measurement covariance (3x3)
+%       timestamp: time since start (s)
+%       validity: valid measurement (true), false otherwise
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [pos, vel, timestamp, validity] = gps_model(x, simtime)
+function gpsBus = gps_model(x, simtime)
 
 % Retrieve parameters from the workspace (set by filter_sim_initializer)
 persistent gps_params;

@@ -11,7 +11,7 @@
 
 %% Add relevant file paths
 addpath("Filter Sims\");
-addpath("Src\");
+addpath("Src_sim\");
 addpath("Src_filter\");
 addpath("Filters\");
 
