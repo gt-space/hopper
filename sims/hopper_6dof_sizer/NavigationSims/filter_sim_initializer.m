@@ -26,18 +26,18 @@ filter_st = 1/480;      % Filter sample time (seconds)
 x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
 
 % TODO! TUNE THIS COVARIANCE
-P0 = [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0;
+P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0.01 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0.01 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0.01 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0.001 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0.001 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 0.001 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 0 0.03 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 0 0 0.03 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 0 0 0 0.03 0 0 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0;
@@ -47,6 +47,21 @@ P0 = [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1];
 % Note covariance is 19x19, not 20x20, because covariance uses a 3-element
 % rotation representation
+
+% TODO: TUNE THIS PROCESS NOISE COVARIANCE!
+qc = [1 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 1 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 1 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 1 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 1 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 1 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 1 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 1 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 1 0 0 0 0;
+      0 0 0 0 0 0 0 0 0 1 0 0 0;
+      0 0 0 0 0 0 0 0 0 0 1 0 0;
+      0 0 0 0 0 0 0 0 0 0 0 1 0;
+      0 0 0 0 0 0 0 0 0 0 0 0 1];
 
 %% Sensor sampling and noise parameters
 
@@ -64,21 +79,27 @@ gps_st = 0.1;           % sample time (s)
 gps_params.r_b = [0.1; 0.0; -0.2];             % Antenna lever arm from CG (3x1) (m)
 gps_params.multipath = [0.002; 0.001; -0.003]; % Pad bounce error (b_mp,k) (m)[cite: 1]
 gps_params.pos_noise_std = [0.02; 0.02; 0.05]; % Position jitter standard deviation (eta_p) (m)[cite: 1]
+gps_params.vel_noise_std = [0.05, 0.05, 0.01]; % Velocity jitter standard deviation
+gps_params.pos_covariance = eye(3)*[0.02^2; 0.02^2; 0.05^2]; % Filter measurement covariance
+gps_params.vel_covariance = eye(3)*[0.05^2; 0.05^2; 0.1^2]; % Filter measurement covariance
 gps_params.packet_invalid_prob = 0.0;          % Set to 0 for now
 
 % Barometer parameters
 barometer_st = 0.05;    % sample time (s)
 % --- Barometer Sensor Parameters ---
 baro_params.noise_std = 0.1;            % Noise standard deviation (m)
+baro_params.covariance = 0.1^2;         % Filter measurement covariance
 baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
 
 % LIDAR parameters
 lidar_st = 0.01;        % sample time (s)
+% --- Barometer Sensor Parameters (SJ-GU-TF-Luna A03)---
+lidar_params.noise_std_1 = 0.06; % Distance measurement jitter (cm) for 0.2-3m
+lider_params.noise_std_2 = 0.02; % Distance measurement jitter (% distance) for 3-8m
+lidar_params.packet_invalid_prob = 0.0; % set to zero for now
+% Note- any distances over 8m will be not valid it appears
 
 %% Sensor frame parameters
-
-% IMU Frame Transformation
-
 
 % LIDAR 1, 2, 3, 4 mounting frame information
 % TODO: get these params from CAD accurately
