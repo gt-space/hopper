@@ -1,7 +1,13 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% lidar_update_model.m
-% Computes the predicted LiDAR range and its Jacobian row for the filter.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% LIDAR forward measurement model for the GMEKF
+%
+% Inputs:
+%   nominalState        - Nominal state estimate (20x1)
+%   measurement         - LIDAR measurement struct
+%   params              - Sensor parameters (lidarFrameBus in this case)
+%
+% Outputs:
+%   innovation          - Predicted-minus-measured residual
+%   measurementJacobian - Error-state measurement Jacobian H (1x19)
 function [rho_hat, H_lidar] = lidar_update_model(m_X, m_q, lidar_params)
 l = lidar_params.l;     % Lever arm (3x1)
 d = lidar_params.d;     % Unit beam direction (3x1)
