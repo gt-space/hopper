@@ -28,7 +28,7 @@ if isempty(lidar_params)
     catch
         % Fallback defaults if initializer hasn't populated workspace yet
         lidar_params.noise_std_1 = 0.06; % Distance measurement jitter (cm) for 0.2-3m
-        lider_params.noise_std_2 = 0.02; % Distance measurement jitter (% distance) for 3-8m
+        lidar_params.noise_std_2 = 0.02; % Distance measurement jitter (proportion distance) for 3-8m
         lidar_params.packet_invalid_prob = 0.0; % set to zero for now
     end
 end
@@ -36,13 +36,24 @@ end
 % 4. Validity Flag Assignment
 validity = rand(4,1) > gps_params.packet_invalid_prob;
 
-% Handle noise according to the true distance
+% Handle noise and validity according to the true distance
 if dist_true < 0.2
     validity = zeros(4,1);
+    covariance = eye(4);
+    dist_noise = zeros(4,1);
+elseif dist_true <= 3
+    covariance = lidar_params.noise_std_1^2*eye(4);
+    dist_noise = lidar_params.noise_std_1*randn(4,1);
+elseif dist_true <= 8
+    dist_noise = lidar_params.noise_std_2*dist_true.*randn(4,1);
+    covariance = lidar_params.noise_std_2*(dist_true+dist_noise).^2*eye(4);
+else
+    validity = zeros(4,1);
+    covariance = eye(4);
+    dist_noise = zeros(4,1);
 end
 
-% For each distance add gaussian noise and determine validity
-dist_meas(idx,1) = dist_true(idx,1);
-validity(idx,1) = true;
+% Compute the measured distance
+dist_meas = dist_true + dist_noise;
 
 end

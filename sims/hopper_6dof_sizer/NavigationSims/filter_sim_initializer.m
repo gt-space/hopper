@@ -95,7 +95,7 @@ baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
 lidar_st = 0.01;        % sample time (s)
 % --- Barometer Sensor Parameters (SJ-GU-TF-Luna A03)---
 lidar_params.noise_std_1 = 0.06; % Distance measurement jitter (cm) for 0.2-3m
-lider_params.noise_std_2 = 0.02; % Distance measurement jitter (% distance) for 3-8m
+lider_params.noise_std_2 = 0.02; % Distance measurement jitter (proportion distance) for 3-8m
 lidar_params.packet_invalid_prob = 0.0; % set to zero for now
 % Note- any distances over 8m will be not valid it appears
 
@@ -111,6 +111,7 @@ lidar_frames.r1 = [0.25 0 0]';
 lidar_frames.r2 = [0 0.25 0]';
 lidar_frames.r3 = [-0.25 0 0]';
 lidar_frames.r4 = [0 -0.25 0]';
+lidar_frames.heightCOM = 1;
 
 %% Function to build rotation matrix for each LIDAR unit vector
 % phi: angle from x about z-axis of body frame (deg)
