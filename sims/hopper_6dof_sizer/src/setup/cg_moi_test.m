@@ -14,7 +14,7 @@ MP = mass_properties_setup(IN, TANKS, OUT.Vehicle.DryMass);
 cg_init  = MP.cg_init;
 MoI_init = MP.MoI_init;
 
-% Derivative tables for CG // MOI Script v3 (replace the cg_I_LUT.mat
+% Derivative tables for the Mass_Properties block (replace the cg_I_LUT.mat
 % values loaded by load_lookup, so they always match the current masses)
 ox_masses      = MP.ox_masses;
 fu_masses      = MP.fu_masses;

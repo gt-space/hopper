@@ -60,10 +60,10 @@ fprintf('INT empty: cg direct %.5f integrated %.5f | I direct %s integrated %s\n
 
 % ---------- 4. nominal sim: integrated outputs vs direct ----------
 mdl = 'hopper_6dof_NED_v2'; load_system(mdl);
-ph = get_param([mdl '/CG // MOI Script v3'], 'PortHandles');
+ph = get_param([mdl '/Mass_Properties'], 'PortHandles');
 nm = {'cg_out', 'moi_out', 'didt_out', 'engcg_out'};
 for k = 1:4, set_param(ph.Outport(k), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 'DataLoggingName', nm{k}); end
-ph1 = get_param([mdl '/Subsystem1'], 'PortHandles');
+ph1 = get_param([mdl '/Propellant_Mass_Integration'], 'PortHandles');
 set_param(ph1.Outport(1), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 'DataLoggingName', 'm_ox');
 set_param(ph1.Outport(2), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 'DataLoggingName', 'm_fu');
 phs = get_param([mdl '/Saturation1'], 'PortHandles');

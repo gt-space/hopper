@@ -39,8 +39,8 @@ flowchart LR
   WS --> SIM
   subgraph SIM [hopper_6dof_NED_v2.slx]
     SSF[Slosh Specific Force<br/>F_total/m − g_body] --> SL
-    TM[Subsystem1<br/>tank masses] --> SL
-    CGM[CG // MOI Script v3<br/>cg] --> SL
+    TM[Propellant_Mass_Integration<br/>tank masses] --> SL
+    CGM[Mass_Properties<br/>cg] --> SL
     DOF[6DOF: ω, ω̇] --> SL
     subgraph SL [Slosh]
       P[slosh_parameters<br/>m₁, L₁, ω₁, ζ per tank] --> CH[pendulum channels<br/>pitch, yaw, axial]
@@ -59,12 +59,12 @@ flowchart LR
 | Baffle sizing | `sweepBaffleDesign.m` (damping targets), `sweepBaffleSim.m` / `scoreBaffleSweep.m` (closed loop) | §5.2, §7.5 |
 | Table load | `sim_setup.m` | Reads `baffle_lut.csv` into `ox_/fu_mass_profile`, `*_lateral_damping_ratios`, `*_axial_damping_ratios` |
 | Drive signal | top level `Slosh Specific Force` | F_total/m − g_body: the non-gravitational acceleration at the CG |
-| Parameters | `Slosh/MATLAB Function` (LOx), `MATLAB Function1` (RP-1) | m₁, L₁, ω₁ for the lateral and axisymmetric modes |
-| Tank acceleration | `Slosh/Subsystem`, `Subsystem1` | f at the slosh-mass point: f_cg + ω̇ × r + ω × (ω × r) |
+| Parameters | `Slosh/Ox_Slosh_Parameters` (LOx), `Fu_Slosh_Parameters` (RP-1) | m₁, L₁, ω₁ for the lateral and axisymmetric modes |
+| Tank acceleration | `Slosh/Ox_Effective_Accel`, `Fu_Effective_Accel` | f at the slosh-mass point: f_cg + ω̇ × r + ω × (ω × r) |
 | Rest point | `Slosh/Ox Slosh Mass Location`, `Fu Slosh Mass Location` | r₁ = tank floor + H₁(fill) |
 | Pendulums | `Slosh/Oxidizer|Fuel Pitch|Yaw|Axial Force` (6 channels) | Integrate φ, output ΔF = −m₁L₁φ̈ and displacement y = L₁φ |
 | Moments | `Cross Product1/2`, `Ox/Fu Slosh Offset Moment`, `Sum5` | r₁ × ΔF and −m₁ y × f, summed into `Slosh_M` |
-| Outputs | `Slosh_F`, `Slosh_M` → 6DOF; slosh pos/mass → `CG // MOI Script v3` | Loads on the vehicle; positions/masses only for the diagnostic `cg_with_slosh` / `MOI_with_slosh` |
+| Outputs | `Slosh_F`, `Slosh_M` → 6DOF; slosh pos/mass → `Mass_Properties` | Loads on the vehicle; positions/masses only for the diagnostic `cg_with_slosh` / `MOI_with_slosh` |
 
 ## 3. Mechanical analog (`slosh_parameters`)
 
@@ -132,7 +132,7 @@ Slosh_M = Σ_tanks [ r₁ × ΔF  −  m₁ y × f ]
 
 **Why at r₁ and not at the hinge.** The physical rod force acts at the hinge r_h = r₁ + L₁x̂. Moving ΔF from the rest point to the hinge gives the same moment, because r_h × ΔF + L₁x̂ × F_rigid = r₁ × ΔF − m₁ y × f_x x̂ when ω₁²L₁ = f_x. But with m₁ already rigid at r₁, applying ΔF at the hinge *alone* would drop the L₁x̂ × F_rigid term. The model therefore applies ΔF at r₁ and adds −m₁ y × f explicitly.
 
-**Not in the CG/inertia.** The offset moment −m₁ y × f is the dynamic effect of the slosh CG shift, so the slosh displacement is not fed into `CG // MOI Script v3`. Doing so would count it twice. The slosh-inclusive CG and inertia are logged as diagnostics only (`cg_with_slosh`, `MOI_with_slosh`). The full argument is in `MASS_PROPERTIES.md` §5, "Why slosh is not fed into CG // MOI".
+**Not in the CG/inertia.** The offset moment −m₁ y × f is the dynamic effect of the slosh CG shift, so the slosh displacement is not fed into `Mass_Properties`. Doing so would count it twice. The slosh-inclusive CG and inertia are logged as diagnostics only (`cg_with_slosh`, `MOI_with_slosh`). The full argument is in `MASS_PROPERTIES.md` §5, "Why slosh is not fed into CG // MOI".
 
 ## 5. Damping and baffles
 
@@ -316,7 +316,7 @@ The campaign above found and fixed eight defects in the earlier slosh model:
 | 1 | `tanh` outside the square root in ω₁ | ω₁ low by 44 % at 5 % fill, 25 % at 10 %, 4 % at 25 %; ω² ≠ g/L |
 | 2 | Ring-baffle mode shape inverted in `lateralDampingCalc` | Deepest rings got the most credit; RP-1 ζ overstated ≈ 5× at mid fill |
 | 3 | Axial mode as a pendulum with ω = π√(g/h), mass m/π², thrust-axis force and roll torque | Spurious axial force and roll torque; frequency disagreed with theory |
-| 4 | Slosh masses added again as point inertias in `CG // MOI Script v3` (datum reference, non-symmetric tensor) | +11 to 18 kg·m² of fake pitch/yaw inertia |
+| 4 | Slosh masses added again as point inertias in `Mass_Properties` (then `CG // MOI Script v3`; datum reference, non-symmetric tensor) | +11 to 18 kg·m² of fake pitch/yaw inertia |
 | 5 | Pendulums driven by dV/dt *including gravity* | In hover, ω₁ ≈ 1 rad/s instead of 13 rad/s |
 | 6 | Pendulum force sign +m₁ÿ | Slosh mass added to the lateral inertia instead of removed |
 | 7 | Force applied at the sizer tank floor; offset moment from a slosh CG shift ÷ propellant mass, sign reversed, 10 ms delay | Moment arm wrong by up to 0.35 m; offset moment 9–11× too large and reversed |

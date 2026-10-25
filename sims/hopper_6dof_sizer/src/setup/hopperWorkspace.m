@@ -19,6 +19,14 @@ else
     mc_sim_setup(scenario);
 end
 W = snapshotBase();
+
+% Data a model callback loads into base itself: the fluid network's InitFcn
+% loads FuelProps (Simscape tank fluid properties). buildSimInput only sets
+% what a model reads, so models without the fluid network are unaffected.
+F = load('FuelPropsData.mat');
+for f = fieldnames(F)'
+    W.(f{1}) = F.(f{1});
+end
 end
 
 function S = snapshotBase()

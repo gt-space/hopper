@@ -12,7 +12,7 @@ function MP = mass_properties_setup(IN, TANKS, dry_mass)
 %   MP.MoI_init full-tank inertia [3x3]      (Simulink constant MoI_init)
 %   MP.ox_masses, MP.fu_masses, MP.dcg_dMox_table, MP.dcg_dMfu_table,
 %   MP.dI_dMox_table, MP.dI_dMfu_table       derivative tables for the
-%                                            CG // MOI Script v3 lookups
+%                                            Mass_Properties block lookups
 
 % ---- Tank geometry (as-built) ----
 TG.tank_r   = TANKS.singular.radius;

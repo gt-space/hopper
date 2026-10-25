@@ -4,15 +4,17 @@ function build_v2_fluid_integration()
 %   v3 (error-quaternion LQR) model that needs sim_setup_v3. This script
 %   applies the same change to the current master, hopper_6dof_NED_v2, so the
 %   result runs from sim_setup:
-%     - replace v2's commented-out Fluid Network2 with #26's version (enabled)
-%     - feed it the thrust command from Subsystem2, as #26 did
+%     - replace v2's commented-out Fluid_Network with #26's version (enabled)
+%     - feed it the thrust command from Propellant_Depletion_Cutoff, as #26 did
 %     - Actual Thrust drives the actuators, IC1 and the thrust logging
-%     - Actual Ox/Fuel mdot replace the thrust->mdot lookup (Subsystem),
+%     - Actual Ox/Fuel mdot replace the thrust->mdot lookup (Thrust_to_Mdot_LUT),
 %       which is commented out
 %     - #27's ground contact (strut spring/damper per leg) feeds body force
 %       and moment into Sum4/Sum5, so the vehicle sits on the pad while the
-%       fluid network spools up (~1 s to build thrust). v2's own "Ground "
-%       block only drives scopes and stays commented out.
+%       fluid network spools up (~1 s to build thrust). v2's own
+%       Ground_Contact_Unwired only drives scopes and stays commented out.
+%     - renameV2Blocks gives the copied fluid network the same block names
+%       as v2's.
 %   Writes models/hopper_6dof_NED_v2_fluid_integration.slx. Run with the
 %   HopperSim project open.
 
@@ -32,7 +34,7 @@ close_system(base, 0);
 m = new;
 
 % Swap in #26's fluid network at the same position
-fn = [m '/Fluid Network2'];
+fn = [m '/Fluid_Network'];
 pos = get_param(fn, 'Position');
 deleteLines(fn);
 delete_block(fn);
@@ -40,25 +42,25 @@ add_block([src '/Fluid Network2'], fn, 'Position', pos);
 set_param(fn, 'Commented', 'off');
 
 % The thrust -> mdot lookup is replaced by the fluid network
-lut = [m '/Subsystem'];
+lut = [m '/Thrust_to_Mdot_LUT'];
 lutDst = destinations(lut);      % where its Ox/Fuel mdot outputs went
 deleteLines(lut);
 set_param(lut, 'Commented', 'on');
 
 % Thrust command now goes to the fluid network instead of the actuators
-thrustDst = {'IC1', 1; 'Control Inputs -> Fxyz & Mxyz', 1; 'To Workspace7', 1; 'Thrust', 1};
+thrustDst = {'IC1', 1; 'Actuators_TVC_RCS', 1; 'To Workspace7', 1; 'Thrust', 1};
 for k = 1:size(thrustDst, 1)
     disconnectInput([m '/' thrustDst{k, 1}], thrustDst{k, 2});
 end
-connect(m, 'Subsystem2', 1, 'Fluid Network2', 1);
+connect(m, 'Propellant_Depletion_Cutoff', 1, 'Fluid_Network', 1);
 
 % Actual Thrust (out 1) and Actual Ox/Fuel mdot (outs 2/3)
 for k = 1:size(thrustDst, 1)
-    connect(m, 'Fluid Network2', 1, thrustDst{k, 1}, thrustDst{k, 2});
+    connect(m, 'Fluid_Network', 1, thrustDst{k, 1}, thrustDst{k, 2});
 end
 for o = 1:2
     for d = lutDst{o}'
-        connect(m, 'Fluid Network2', o + 1, d{1}, d{2});
+        connect(m, 'Fluid_Network', o + 1, d{1}, d{2});
     end
 end
 
@@ -77,6 +79,7 @@ connect(m, 'Ground_Contact', 2, 'Sum5', 2);   % body moment
 % The fluid network's tank blocks read FuelProps from FuelPropsData.mat (data/)
 set_param(m, 'InitFcn', 'load(''FuelPropsData.mat'');');
 save_system(m);
+renameV2Blocks(m);   % #26's fluid network still has the old inner names
 close_system(m, 0);
 close_system(src, 0);
 fprintf('Built %s\n', out);

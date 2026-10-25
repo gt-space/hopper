@@ -93,7 +93,7 @@ IN.tanks.geometry = 'stacked';      % stacked, concentric, clustered
 IN.tanks.material = 'Al6061';
 IN.tanks.max_radius = 4.25*0.0254;  % in -> m
 % As-built tank lengths. These override the sizer TANKS.singular.*.h for
-% CG/MOI and slosh. The Slosh and CG // MOI
+% CG/MOI and slosh. The Slosh and Mass_Properties
 % r_*_tank constants in hopper_6dof_NED_v2.slx use the same values.
 IN.tanks.ox_h_as_built = 29.18*0.0254;  % LOx, in -> m
 IN.tanks.fu_h_as_built = 18.91*0.0254;  % RP-1, in -> m

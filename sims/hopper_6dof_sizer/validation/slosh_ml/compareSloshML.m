@@ -8,7 +8,7 @@ function T = compareSloshML(slosh_ml_dir, design)
 %                  defaults to the generateBaffleLUT fixed design
 %
 % Lateral mode: frequency, slosh mass and pendulum length from the model's
-% Slosh/MATLAB Function equations vs SLOSH-ML's Lomen/Dodge solver.
+% Slosh/Ox_Slosh_Parameters equations vs SLOSH-ML's Lomen/Dodge solver.
 % Damping: lateralDampingCalc vs the SLOSH-ML correlations (Stephens,
 % Mikishev smooth wall; Bauer, Coogan ring baffles at eta = 0.1 R).
 
@@ -34,7 +34,7 @@ for T_ = tanks
         h = m / T_.rho / (pi * R^2);
         s = sloshMLHeadless(R, T_.H, h, T_.rho, g);
 
-        % hopper_6dof_NED_v2 Slosh/MATLAB Function
+        % hopper_6dof_NED_v2 Slosh/Ox_Slosh_Parameters
         w_model = sqrt(xi * g / R * tanh(xi * h / R));
         m_model = m * (2 * R * tanh(xi * h / R)) / (xi * (xi^2 - 1) * h);
         l_model = R / (xi * tanh(xi * h / R));
