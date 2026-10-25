@@ -2,6 +2,8 @@
 
 MATLAB/Simulink sims used for preliminary vehicle sizing of the Hopper (YJSP's Propulsive Lander), modeling wind, slosh, resonant behavior, & mass/inertia variation.
 
+**Working on the sim?** Read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) first. It covers setup, branches, model rules, tests, and when to update the baseline.
+
 ## Quick start (MATLAB R2026a)
 
 1. Open the project: double-click `HopperSim.prj`, or run `openProject('sims/hopper_6dof_sizer')`.
