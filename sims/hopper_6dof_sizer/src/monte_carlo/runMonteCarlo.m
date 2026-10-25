@@ -17,7 +17,7 @@ function R = runMonteCarlo(n, opts)
 %
 %   R.results   1xn mc_main results with status.pass / status.failed (against
 %               Limits) and status.meets_requirements / missed_requirements
-%               (against the mission requirements, checkConstraints defaults)
+%               (against the mission requirements in inputs/mission_inputs.m)
 %   R.nominal   nominal result (or [])
 %   R.summary   table, one row per run
 %   R.scenarios the generated scenarios (generateScenarios, rng seed 42)

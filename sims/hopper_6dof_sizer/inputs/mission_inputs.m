@@ -7,11 +7,18 @@ IN.const.R_univ = 8.314462618;      % J/mol-K
 IN.const.FS_struct = 2;             % structural factor of safety
 
 %  MISSION CONSTRAINTS (checked after flight simulation)
-IN.mission.target_altitude = 51;    % m
+% checkConstraints judges every flight against the fields marked [req];
+% change a requirement here and it applies everywhere (MC summaries,
+% meets_requirements). CI's looser regression limits: tests/montecarlo/mcLimits.m
+IN.mission.target_altitude = 51;    % m          [req] minimum peak altitude
 IN.mission.hover_time_55m = 2;      % s
 IN.mission.three_sec_check = false; % true: hold 3 s on the pad before ascent (ThreeSecTrajectory2)
-IN.mission.max_ascent_vel = 7;      % m/s
-IN.mission.max_descent_vel = 7;     % m/s
+IN.mission.max_ascent_vel = 7;      % m/s        [req]
+IN.mission.max_descent_vel = 7;     % m/s        [req]
+IN.mission.max_impact_vel = 0.5;    % m/s        [req] vertical speed at ground contact
+IN.mission.max_landing_offset = 0.5; % m         [req] from pad center (pad radius)
+IN.mission.max_tilt_deg = 10;       % deg        [req] body axis from vertical, whole flight
+IN.mission.min_twr = 1.0;           % -          [req] initial TWR at full throttle
 IN.mission.hover_time_1m = 1;       % s
 IN.mission.landing_vel = 0;         % m/s at 1 m
 IN.mission.landing_alt = 1;         % m

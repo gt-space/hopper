@@ -1,8 +1,9 @@
 function L = mcLimits()
 %MCLIMITS  Regression limits the CI Monte Carlo enforces (checkConstraints).
 %   Today's vehicle plus margin, so CI catches a change that makes flights
-%   worse. These are looser than the mission requirements (checkConstraints
-%   defaults), which runMonteCarlo reports separately as meets_requirements.
+%   worse. These are looser than the mission requirements (MISSION CONSTRAINTS
+%   in inputs/mission_inputs.m), which runMonteCarlo reports separately as
+%   meets_requirements.
 %   Measured 2026-10-24, seeded 10-run MC: ascent 8.13, descent 7.35,
 %   impact 1.03-1.04 m/s, offset 0.73-2.87 m, tilt 0.83-2.09 deg.
 %   Tighten these as the vehicle improves; note any change in the PR.

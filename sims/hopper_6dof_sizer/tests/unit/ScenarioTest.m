@@ -36,6 +36,18 @@ classdef ScenarioTest < matlab.unittest.TestCase
             tc.verifyEqual(checkConstraints(r).status.failed, {'max_altitude'});
         end
 
+        function requirementsComeFromMissionInputs(tc)
+            M = mission_inputs().mission;
+            L = checkConstraints(fakeResult()).status.limits;
+            tc.verifyEqual(L.min_altitude, M.target_altitude);
+            tc.verifyEqual(L.max_ascent_vel, M.max_ascent_vel);
+            tc.verifyEqual(L.max_descent_vel, M.max_descent_vel);
+            tc.verifyEqual(L.max_landing_vel, M.max_impact_vel);
+            tc.verifyEqual(L.max_landing_offset, M.max_landing_offset);
+            tc.verifyEqual(L.max_tilt_deg, M.max_tilt_deg);
+            tc.verifyEqual(L.min_twr, M.min_twr);
+        end
+
         function limitsCanBeOverridden(tc)
             r = fakeResult(); r.flight.landing_vel = 2;
             r = checkConstraints(r, struct('max_landing_vel', 3));

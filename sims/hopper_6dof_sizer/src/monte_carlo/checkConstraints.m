@@ -1,7 +1,8 @@
 function result = checkConstraints(result, limits)
 %CHECKCONSTRAINTS  Pass/fail for one Monte Carlo result (from mc_main).
-%   result = checkConstraints(result)          mission requirements (defaults
-%                                              below)
+%   result = checkConstraints(result)          mission requirements, from the
+%                                              MISSION CONSTRAINTS section of
+%                                              inputs/mission_inputs.m
 %   result = checkConstraints(result, limits)  override any field of the
 %                                              defaults, e.g. the looser CI
 %                                              regression limits (mcLimits)
@@ -43,14 +44,16 @@ result.status.limits = L;
 end
 
 function L = defaultLimits()
-% Mission requirements. (OUT.Vehicle.FinalTWR is minimum throttle over final
-% weight, which must be below 1 to descend, so it is not checked against
-% min_twr.)
-L.min_twr            = 1.0;   % initial, full throttle
-L.min_altitude       = 51;    % m
-L.max_ascent_vel     = 7;     % m/s
-L.max_descent_vel    = 7;     % m/s
-L.max_landing_vel    = 0.5;   % m/s, vertical at the end of the run
-L.max_landing_offset = 0.5;   % m, pad radius (mc_plots)
-L.max_tilt_deg       = 10;    % deg
+% Mission requirements, read from the MISSION CONSTRAINTS section of
+% mission_inputs.m (edit them there). OUT.Vehicle.FinalTWR is minimum
+% throttle over final weight, which must be below 1 to descend, so it is not
+% checked against min_twr.
+M = mission_inputs().mission;
+L.min_twr            = M.min_twr;
+L.min_altitude       = M.target_altitude;
+L.max_ascent_vel     = M.max_ascent_vel;
+L.max_descent_vel    = M.max_descent_vel;
+L.max_landing_vel    = M.max_impact_vel;
+L.max_landing_offset = M.max_landing_offset;
+L.max_tilt_deg       = M.max_tilt_deg;
 end

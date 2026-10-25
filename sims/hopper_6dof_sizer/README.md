@@ -22,7 +22,7 @@ From the project root (`buildtool` needs R2023b or later):
 CI runs `buildtool check test sim mc` on every push and pull request.
 
 - **`check`** fails if build caches or autosaves are committed, or if a model is saved in a release newer than R2026a.
-- **`mc`** fails a run that errors, diverges, or does worse than today's vehicle plus margin. Separately, `R.summary.meets_requirements` reports each run against the stricter mission requirements (`checkConstraints` defaults).
+- **`mc`** fails a run that errors, diverges, or does worse than today's vehicle plus margin. Separately, `R.summary.meets_requirements` reports each run against the stricter mission requirements. Edit those in the MISSION CONSTRAINTS section of `inputs/mission_inputs.m` (fields marked `[req]`).
 - **Intended physics change:** if your change is meant to alter the flight, run `NominalFlightTest.updateBaseline()`, say so in the PR, and commit the new baseline.
 
 Results are repeatable: the same inputs give bit-identical results in any session.
