@@ -74,6 +74,10 @@ jobs:
           HOPPER_PYTHON: ${{ steps.py.outputs.python-path }}
         with:
           command: cd('${{ env.PROJECT }}'); openProject(pwd); buildtool check test sim
+      - name: Test report
+        if: always()
+        working-directory: ${{ env.PROJECT }}
+        run: python tools/ci/junit_report.py outputs/test-results/*.xml >> "$GITHUB_STEP_SUMMARY"
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -109,6 +113,10 @@ jobs:
         if: always()
         working-directory: ${{ env.PROJECT }}
         run: python tools/ci/mc_summary.py outputs/montecarlo/mc_summary.csv >> "$GITHUB_STEP_SUMMARY"
+      - name: Test report
+        if: always()
+        working-directory: ${{ env.PROJECT }}
+        run: python tools/ci/junit_report.py outputs/test-results/*.xml >> "$GITHUB_STEP_SUMMARY"
       - name: Upload Monte Carlo results
         if: always()
         uses: actions/upload-artifact@v4
