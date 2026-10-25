@@ -101,22 +101,15 @@ fault_map = uint8([ ...
 FDIR_CONFIG.fault_map = fault_map;
 
 %% 5. Full system lookup table (102 fault conditions)
-% Severity maps to response tier as:
-% 1 -> R0 (Nominal/Mask)        4 -> R3 (Nav-Degraded Abort)
-% 2 -> R1 (Degrade / Mask)      5 -> R4 (Cutoff & Safing)
-% 3 -> R2 (Abort to Land)
+% Severity and tier come from fdir_fault_catalog_data, which is generated
+% from fdir_fault_catalog.csv ("Fault List" sheet of FaultConditions.xlsx)
+% by make_fdir_catalog. Do not hand-type these: the previous array was
+% typed in the sheet's text-sort order (F-10, F-100, F-101, F-102, F-11,
+% ...), which silently shifted every row from F-11 on.
 %
-% F-01..F-28 (GNC) and F-98..F-102 (System) checked against
-% FaultConditions.xlsx. F-29..F-97 are still in the old text-sorted order
-% and have not been reconciled.
-severities = [ ...
-    3, 3, 2, 3, 3, 2, 3, 3, 4, 3, 3, 1, 5, 4, 5, 4, 4, 4, 3, 4, ...   % F-01..F-20
-    4, 4, 5, 3, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 4, 2, 4, 3, 5, 5, ...   % F-21..F-40
-    5, 5, 3, 5, 5, 4, 3, 4, 5, 2, 2, 2, 1, 1, 2, 2, 2, 2, 3, 3, ...   % F-41..F-60
-    3, 5, 2, 3, 3, 3, 3, 2, 2, 2, 5, 2, 5, 5, 1, 5, 2, 4, 2, 2, ...   % F-61..F-80
-    3, 2, 3, 1, 5, 3, 1, 1, 2, 2, 3, 4, 5, 5, 3, 4, 4, 5, 5, 5, ...   % F-81..F-100
-    5, 5 ...                                                          % F-101..F-102
-    ];
+% Tier is severity - 1: 1 -> R0, 2 -> R1, 3 -> R2, 4 -> R3, 5 -> R4.
+% A severity of 0 is the sheet's N/A (not on the vehicle) and pins to R0.
+[severities, tiers] = fdir_fault_catalog_data();
 
 num_faults = numel(severities);
 num_checks = N_SENSORS * N_CHECKS;
@@ -133,7 +126,7 @@ fault_config = repmat(struct( ...
 for i = 1:num_faults
     fault_config(i).ID            = uint8(i);
     fault_config(i).Severity      = uint8(severities(i));
-    fault_config(i).Response_Tier = uint8(max(0, severities(i) - 1));
+    fault_config(i).Response_Tier = uint8(tiers(i));
 end
 
 %% 6. Per-check persistence thresholds

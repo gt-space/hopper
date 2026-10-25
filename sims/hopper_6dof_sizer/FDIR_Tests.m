@@ -182,14 +182,32 @@ end
 
 %% ------------------------- catalog -------------------------
 
+function testCatalogDataRegeneratesFromTheCsv(tc)
+% fdir_fault_catalog_data.m is generated from fdir_fault_catalog.csv. If
+% someone edits the CSV and forgets to run make_fdir_catalog, or hand-edits
+% the generated file, this fails.
+here = tc.TestData.here;
+csvPath = fullfile(here, 'fdir_fault_catalog.csv');
+committed = fullfile(here, 'fdir_fault_catalog_data.m');
+
+verifyTrue(tc, isfile(csvPath), 'fdir_fault_catalog.csv is missing.');
+verifyTrue(tc, isfile(committed), 'fdir_fault_catalog_data.m is missing.');
+
+tmp = [tempname '.m'];
+cleanup = onCleanup(@() delete(tmp));
+make_fdir_catalog(csvPath, tmp);
+
+verifyEqual(tc, fileread(tmp), fileread(committed), ...
+    'fdir_fault_catalog_data.m is stale - rerun make_fdir_catalog.');
+end
+
 function testSeveritiesMatchTheSheet(tc)
 % Spot-check GNC (F-01..F-28) and System (F-98..F-102) against
-% FaultConditions.xlsx, sheet "Fault List". The array was previously copied
+% FaultConditions.xlsx, sheet "Fault List". The array was previously typed
 % in text-sort order (F-10, F-100, F-101, F-102, F-11, ...), which shifted
-% every row from F-11 on.
-%
-% F-29..F-97 belong to other subsystems and have not been reconciled yet,
-% so nothing is asserted about them here.
+% every row from F-11 on. It now comes from the sheet via the CSV, so all
+% 102 rows are in numeric order, but only GNC and System are spot-checked
+% in this PR.
 fc = tc.TestData.fault_config;
 expected = [11 3; 12 1; 15 5; 19 3; 23 5; 26 2; 98 5; 99 5; 102 5];
 
@@ -199,12 +217,36 @@ for k = 1:size(expected, 1)
         sprintf('F-%02d severity does not match the sheet.', id));
 end
 
+% F-73 is N/A in the sheet (throttle valve limit switch, not on the
+% rocket), so it carries severity 0 and can never escalate.
+verifyEqual(tc, fc(73).Severity, uint8(0), 'F-73 is not marked N/A.');
+verifyEqual(tc, fc(73).Response_Tier, uint8(0), 'F-73 does not pin to R0.');
+
 % Tier is severity - 1 across the board; the sheet has no separate
 % course-of-action column.
 for id = 1:numel(fc)
     verifyEqual(tc, fc(id).Response_Tier, uint8(max(0, double(fc(id).Severity) - 1)), ...
         sprintf('F-%02d tier is not severity - 1.', id));
 end
+end
+
+function testReadableCatalogAgreesWithTheNumbers(tc)
+% The human-facing table and the code-generatable arrays come from the same
+% CSV, so they must not drift apart.
+T = fdir_fault_catalog();
+fc = tc.TestData.fault_config;
+
+verifyEqual(tc, height(T), numel(fc), 'Catalog table and fault_config differ in length.');
+verifyEqual(tc, T.ID(15), "F-15", 'Catalog table is not in numeric F-ID order.');
+
+for id = [1 2 4 5 6 7 8 15 73 102]
+    verifyEqual(tc, uint8(T.Severity(id)), fc(id).Severity, ...
+        sprintf('F-%02d severity differs between the table and fault_config.', id));
+    verifyEqual(tc, uint8(T.ResponseTier(id)), fc(id).Response_Tier, ...
+        sprintf('F-%02d tier differs between the table and fault_config.', id));
+end
+
+verifyTrue(tc, strlength(T.CourseOfAction(15)) > 0, 'F-15 has no course of action.');
 end
 
 function testSensorChecksMapToSensorRows(tc)

@@ -61,6 +61,15 @@ assignin('base', 'fault_config', fault_config);
 assignin('base', 'FDIR_CONFIG', FDIR_CONFIG);
 assignin('base', 'fault_map', fault_map);
 assignin('base', 'check_config', check_config);
+
+% Readable catalog for the workspace: ID, subsystem, failure condition,
+% severity, tier and what that tier commands. Not used by the model.
+try
+    assignin('base', 'fault_catalog', fdir_fault_catalog());
+catch catalogErr
+    warning('Init_FDIR:CatalogUnavailable', ...
+        'Could not load fdir_fault_catalog.csv (%s).', catalogErr.message);
+end
 assignin('base', 'NUM_FAULTS', NUM_FAULTS);
 
 disp(['-> Loaded ', num2str(NUM_FAULTS), ' faults into fault_config lookup table.']);
