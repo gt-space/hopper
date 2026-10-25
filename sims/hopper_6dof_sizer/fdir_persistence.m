@@ -1,12 +1,17 @@
 function [states, fail_counts, p_state] = fdir_persistence( ...
-        raw_fails, ground_resets, flight_state, fault_config, p_state)
-% FDIR_PERSISTENCE  Per-fault N-of-M persistence filter.
+        raw_fails, ground_resets, flight_state, check_config, p_state)
+% FDIR_PERSISTENCE  Per-check N-of-M persistence filter.
 %
-% N and M come from fault_config(i).N_Threshold / .M_Window rather than a
-% hard-coded 4-of-10, so loss and stuck faults can latch inside one frame.
+% N and M come from check_config(i).N_Threshold / .M_Window rather than a
+% hard-coded 4-of-10, so loss and stuck checks can latch inside one frame.
 %
-%   states       num_faults x 1 struct array matching Fault_State_Bus
-%   fail_counts  num_faults x 1 uint8, failures inside each fault's window
+% This runs over the 16 monitor checks, not the 102 catalog rows: checks
+% that share a catalog row do not share a threshold (Barometer loss needs
+% N = 1, Barometer drift needs N = 4, both report against F-04). Use
+% fdir_fold_checks to turn the result into catalog-indexed states.
+%
+%   states       num_checks x 1 struct array matching Fault_State_Bus
+%   fail_counts  num_checks x 1 uint8, failures inside each check's window
 %   p_state      filter state, feed back in next frame
 %                (see fdir_persistence_state)
 %
@@ -17,12 +22,12 @@ INACTIVE = uint8(0);
 PENDING  = uint8(1);
 LATCHED  = uint8(2);
 
-num_faults = numel(raw_fails);
+num_items = numel(raw_fails);
 m_max = size(p_state.history, 2);
 
 p_state.sim_time = p_state.sim_time + 0.01;   % 100 Hz frame rate increment
 
-fail_counts = zeros(num_faults, 1, 'uint8');
+fail_counts = zeros(num_items, 1, 'uint8');
 
 % Output bus struct template matching Fault_State_Bus
 single_fault_struct = struct( ...
@@ -32,17 +37,17 @@ single_fault_struct = struct( ...
     'Persistence_State',     uint8(0), ...
     'Fail_Count',            uint8(0), ...
     'First_Fault_Timestamp', 0.0);
-states = repmat(single_fault_struct, num_faults, 1);
+states = repmat(single_fault_struct, num_items, 1);
 
 in_active_phase = any(flight_state == ACTIVE_PHASES);
 
-for i = 1:num_faults
+for i = 1:num_items
     states(i).Fault_ID = uint8(i);
     states(i).Monitor_Valid = true;
     states(i).Raw_Fail = logical(raw_fails(i));
 
-    n_thresh = double(fault_config(i).N_Threshold);
-    m_window = min(double(fault_config(i).M_Window), m_max);
+    n_thresh = double(check_config(i).N_Threshold);
+    m_window = min(double(check_config(i).M_Window), m_max);
 
     % Handle individual ground reset
     if ground_resets(i)

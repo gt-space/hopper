@@ -1,4 +1,4 @@
-function [FDIR_CONFIG, fault_config, fault_map] = fdir_config()
+function [FDIR_CONFIG, fault_config, fault_map, check_config] = fdir_config()
 % FDIR_CONFIG  Single source of truth for FDIR tuning and the fault catalog.
 %
 % Pure function so the MATLAB Function blocks can call it directly (the
@@ -6,19 +6,33 @@ function [FDIR_CONFIG, fault_config, fault_map] = fdir_config()
 % without loading Simulink. Init_FDIR.m pushes the results to the base
 % workspace for the model.
 %
-% [FDIR_CONFIG, fault_config, fault_map] = fdir_config()
+%   FDIR_CONFIG   rates, sensor layout, thresholds, fault_map
+%   fault_config  102 catalog rows: ID, Severity, Response_Tier
+%   fault_map     catalog row each of the 16 monitor checks reports against
+%   check_config  16 monitor checks: ID, Fault_ID, N_Threshold, M_Window
+%
+% Persistence runs over the 16 checks, not the 102 catalog rows, because
+% several checks share a row and they do not share a threshold: Barometer
+% loss has to latch in one frame while Barometer drift still needs 4 of 10,
+% and both report against F-04.
 %
 %#codegen
 
 %% 1. Executive rates
-FDIR_CONFIG.M_WINDOW_SIZE  = 10;      % default rolling window size (M frames)
-FDIR_CONFIG.N_FAIL_THRESH  = 4;       % default failure threshold (N out of M)
-FDIR_CONFIG.SAMPLE_RATE_SEC = 0.01;   % execution rate: 10 ms (100 Hz)
+M_WINDOW_SIZE   = 10;     % default rolling window size (M frames)
+N_FAIL_THRESH   = 4;      % default failure threshold (N out of M)
+SAMPLE_RATE_SEC = 0.01;   % execution rate: 10 ms (100 Hz)
+
+FDIR_CONFIG.M_WINDOW_SIZE   = M_WINDOW_SIZE;
+FDIR_CONFIG.N_FAIL_THRESH   = N_FAIL_THRESH;
+FDIR_CONFIG.SAMPLE_RATE_SEC = SAMPLE_RATE_SEC;
 
 %% 2. Sensor vector layout
 % Sensor_data and fdir_ekf_ref are both this 11-wide stacked vector.
-FDIR_CONFIG.N_SENSORS = 4;
-FDIR_CONFIG.N_CHECKS  = 4;            % loss, drift, saturation, stuck
+N_SENSORS = 4;
+N_CHECKS  = 4;            % loss, drift, saturation, stuck
+FDIR_CONFIG.N_SENSORS = N_SENSORS;
+FDIR_CONFIG.N_CHECKS  = N_CHECKS;
 FDIR_CONFIG.WIDTH     = 11;
 
 %% 3. Per-sensor thresholds
@@ -62,71 +76,88 @@ s.GPS.stuck_frames = 20;
 
 FDIR_CONFIG.sensors = s;
 
-%% 4. Monitor check -> catalog fault ID
-% TODO confirm against FaultConditions.xlsx. FaultConditions.xlsx is not in
-% the repo, so this block is a placeholder: the 16 monitor checks are mapped
-% onto catalog rows F-01..F-16 in sensor order. The stuck checks in
-% particular may need new catalog rows, since a frozen-sensor condition may
-% not exist in the current 102.
+%% 4. Monitor check -> catalog fault row (FaultConditions.xlsx, "Fault List")
+% Order is [loss, drift, saturation, stuck] per sensor, sensors in order
+% IMU, Barometer, Lidar, GPS. Only F-01..F-08 are sensor rows, so several
+% checks share one:
 %
-% Order is [loss, drift, saturation, stuck] per sensor,
-% sensors in order IMU, Barometer, Lidar, GPS.
+%   F-01 IMU loss (no data / stale data)      <- IMU loss, IMU stuck
+%   F-02 IMU drift or bias beyond limits      <- IMU drift, IMU saturation
+%   F-04 Barometer loss or plume/pressure err <- all four barometer checks
+%   F-05 GPS/GNSS dropout                     <- GPS loss, GPS stuck
+%   F-06 GNSS multipath / degraded solution   <- GPS drift, GPS saturation
+%   F-07 LiDAR altimeter dropout              <- Lidar loss, saturation, stuck
+%   F-08 LiDAR disagreement                   <- Lidar drift
+%
+% Saturation has no dedicated row anywhere: present-but-invalid data is
+% folded onto the sensor's degraded-data row. Stale data counts as a
+% dropout, which is how the sheet words F-01, F-05 and F-07.
 fault_map = uint8([ ...
-     1,  2,  3,  4, ...   % IMU       loss, drift, saturation, stuck
-     5,  6,  7,  8, ...   % Barometer loss, drift, saturation, stuck
-     9, 10, 11, 12, ...   % Lidar     loss, drift, saturation, stuck
-    13, 14, 15, 16 ...    % GPS       loss, drift, saturation, stuck
+    1, 2, 2, 1, ...   % IMU       loss, drift, saturation, stuck
+    4, 4, 4, 4, ...   % Barometer loss, drift, saturation, stuck
+    7, 8, 7, 7, ...   % Lidar     loss, drift, saturation, stuck
+    5, 6, 6, 5 ...    % GPS       loss, drift, saturation, stuck
     ]');
 FDIR_CONFIG.fault_map = fault_map;
 
 %% 5. Full system lookup table (102 fault conditions)
-% Direct mapping from FaultConditions.xlsx:
-% Severity 1 -> R0 (Nominal/Mask)
-% Severity 2 -> R1 (Degrade / Mask)
-% Severity 3 -> R2 (Abort to Land)
-% Severity 4 -> R3 (Nav-Degraded Abort)
-% Severity 5 -> R4 (Cutoff & Safing)
+% Severity maps to response tier as:
+% 1 -> R0 (Nominal/Mask)        4 -> R3 (Nav-Degraded Abort)
+% 2 -> R1 (Degrade / Mask)      5 -> R4 (Cutoff & Safing)
+% 3 -> R2 (Abort to Land)
+%
+% F-01..F-28 (GNC) and F-98..F-102 (System) checked against
+% FaultConditions.xlsx. F-29..F-97 are still in the old text-sorted order
+% and have not been reconciled.
 severities = [ ...
-    3, 3, 2, 3, 3, 2, 3, 3, 4, 3, 5, 5, 5, 3, 1, 5, 4, 5, 4, 4, ... % F-01..F-20
-    4, 3, 4, 4, 4, 5, 3, 2, 2, 2, 2, 5, 2, 2, 4, 2, 4, 3, 5, 5, ... % F-21..F-40
-    5, 5, 3, 5, 5, 4, 3, 4, 5, 2, 2, 2, 1, 1, 2, 2, 2, 2, 3, 3, ... % F-41..F-60
-    3, 5, 2, 3, 3, 3, 3, 2, 2, 2, 5, 2, 5, 5, 1, 5, 2, 4, 2, 2, ... % F-61..F-80
-    3, 2, 3, 1, 5, 3, 1, 1, 2, 2, 3, 4, 5, 5, 3, 4, 4, 3, 3, 5, ... % F-81..F-100
-    5, 5 ...                                                        % F-101..F-102
+    3, 3, 2, 3, 3, 2, 3, 3, 4, 3, 3, 1, 5, 4, 5, 4, 4, 4, 3, 4, ...   % F-01..F-20
+    4, 4, 5, 3, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 4, 2, 4, 3, 5, 5, ...   % F-21..F-40
+    5, 5, 3, 5, 5, 4, 3, 4, 5, 2, 2, 2, 1, 1, 2, 2, 2, 2, 3, 3, ...   % F-41..F-60
+    3, 5, 2, 3, 3, 3, 3, 2, 2, 2, 5, 2, 5, 5, 1, 5, 2, 4, 2, 2, ...   % F-61..F-80
+    3, 2, 3, 1, 5, 3, 1, 1, 2, 2, 3, 4, 5, 5, 3, 4, 4, 5, 5, 5, ...   % F-81..F-100
+    5, 5 ...                                                          % F-101..F-102
     ];
 
 num_faults = numel(severities);
-% Set every FDIR_CONFIG field before the loop below reads any of them: code
+num_checks = N_SENSORS * N_CHECKS;
+% Set every FDIR_CONFIG field before the loops below read any of them: code
 % generation rejects a field added to a struct that has already been read.
 FDIR_CONFIG.NUM_FAULTS = num_faults;
-
-% Faults that have to act inside a single frame get N = 1: a NaN or an Inf
-% propagates into the controller on the next frame, well before 4-of-10
-% persistence (40 ms) could latch. The stuck checks are also N = 1 because
-% the monitor's own stuck_frames counter already provides the persistence.
-fast_path = false(1, num_faults);
-fast_path(fault_map(1:4:end)) = true;   % loss checks
-fast_path(fault_map(4:4:end)) = true;   % stuck checks
+FDIR_CONFIG.NUM_CHECKS = num_checks;
 
 fault_config = repmat(struct( ...
     'ID',            uint8(0), ...
     'Severity',      uint8(0), ...
-    'N_Threshold',   uint8(0), ...
-    'M_Window',      uint8(0), ...
     'Response_Tier', uint8(0)), num_faults, 1);
 
 for i = 1:num_faults
-    fault_config(i).ID       = uint8(i);
-    fault_config(i).Severity = uint8(severities(i));
-
-    if fast_path(i)
-        fault_config(i).N_Threshold = uint8(1);
-    else
-        fault_config(i).N_Threshold = uint8(FDIR_CONFIG.N_FAIL_THRESH);
-    end
-    fault_config(i).M_Window = uint8(FDIR_CONFIG.M_WINDOW_SIZE);
-
-    % Response tier derived from severity (1->R0, 2->R1, 3->R2, 4->R3, 5->R4)
+    fault_config(i).ID            = uint8(i);
+    fault_config(i).Severity      = uint8(severities(i));
     fault_config(i).Response_Tier = uint8(max(0, severities(i) - 1));
+end
+
+%% 6. Per-check persistence thresholds
+% Loss and stuck act inside a single frame: a NaN or a frozen reading is
+% already in the controller before 4-of-10 persistence (40 ms) could latch,
+% and the stuck monitor's own stuck_frames counter is the persistence.
+% Drift and saturation keep the default N-of-M.
+LOSS = 1; STUCK = 4;      % positions within each sensor's 4 checks
+
+check_config = repmat(struct( ...
+    'ID',          uint8(0), ...
+    'Fault_ID',    uint8(0), ...
+    'N_Threshold', uint8(0), ...
+    'M_Window',    uint8(0)), num_checks, 1);
+
+for k = 1:num_checks
+    within = mod(k - 1, N_CHECKS) + 1;
+    check_config(k).ID       = uint8(k);
+    check_config(k).Fault_ID = fault_map(k);
+    if within == LOSS || within == STUCK
+        check_config(k).N_Threshold = uint8(1);
+    else
+        check_config(k).N_Threshold = uint8(N_FAIL_THRESH);
+    end
+    check_config(k).M_Window = uint8(M_WINDOW_SIZE);
 end
 end

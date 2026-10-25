@@ -15,18 +15,21 @@ end
 function setupOnce(tc)
 tc.TestData.here = fileparts(mfilename('fullpath'));
 addpath(tc.TestData.here);
-[C, fault_config, fault_map] = fdir_config();
+[C, fault_config, fault_map, check_config] = fdir_config();
 tc.TestData.C = C;
 tc.TestData.fault_config = fault_config;
 tc.TestData.fault_map = fault_map;
+tc.TestData.check_config = check_config;
 
 % Steady nominal readings: IMU at 1 g down, 50 m baro, 2 m lidar, GPS NED.
 tc.TestData.nominal = [0 0 -9.81 0 0 0, 50, 2.0, 10 20 -50]';
 
 % Check and sensor offsets into the 16-wide monitor output.
-tc.TestData.IMU_DRIFT   = 2;    % IMU   check 2
-tc.TestData.IMU_LOSS    = 1;
-tc.TestData.GPS_STUCK   = 16;   % GPS   check 4
+tc.TestData.IMU_LOSS    = 1;    % IMU       check 1
+tc.TestData.IMU_DRIFT   = 2;    % IMU       check 2
+tc.TestData.BARO_LOSS   = 5;    % Barometer check 1
+tc.TestData.BARO_DRIFT  = 6;    % Barometer check 2
+tc.TestData.GPS_STUCK   = 16;   % GPS       check 4
 tc.TestData.ASCENT = uint8(3);
 tc.TestData.LANDED = uint8(5);
 end
@@ -39,6 +42,7 @@ function r = runFrames(tc, meas, ref, opts)
 C = tc.TestData.C;
 fc = tc.TestData.fault_config;
 fm = tc.TestData.fault_map;
+cc = tc.TestData.check_config;
 nFrames = size(meas, 2);
 
 if nargin < 4, opts = struct(); end
@@ -53,14 +57,15 @@ mon = cell(1, 4);
 for k = 1:4
     mon{k} = fdir_monitor_state(numel(slices{k}));
 end
-p_state = fdir_persistence_state(C.NUM_FAULTS, C.M_WINDOW_SIZE);
+p_state = fdir_persistence_state(C.NUM_CHECKS, C.M_WINDOW_SIZE);
 current_response = uint8(0);
 feedback = struct('Response_Ack', false, 'Execution_Status', uint8(0));
 
-r.monitor_fails = false(C.N_SENSORS * C.N_CHECKS, nFrames);
+r.monitor_fails = false(C.NUM_CHECKS, nFrames);
 r.monitor_valid = false(4, nFrames);
-r.persistence_state = zeros(C.NUM_FAULTS, nFrames, 'uint8');
-r.fail_counts = zeros(C.NUM_FAULTS, nFrames, 'uint8');
+r.check_state = zeros(C.NUM_CHECKS, nFrames, 'uint8');   % per monitor check
+r.fail_counts = zeros(C.NUM_CHECKS, nFrames, 'uint8');   % per monitor check
+r.fault_state = zeros(C.NUM_FAULTS, nFrames, 'uint8');   % per catalog row
 r.tier = zeros(1, nFrames, 'uint8');
 r.cutoff = false(1, nFrames);
 
@@ -76,18 +81,21 @@ for f = 1:nFrames
     end
     r.monitor_fails(:, f) = checks;
 
-    full_fails = fdir_expand_raw_fails(checks, fm, C.NUM_FAULTS);
-    ground_resets = repmat(opts.ground_reset(f), C.NUM_FAULTS, 1);
-    [states, counts, p_state] = fdir_persistence( ...
-        full_fails, ground_resets, opts.flight_state(f), fc, p_state);
+    % Persistence runs over the 16 checks, then folds onto the 102 rows.
+    ground_resets = repmat(opts.ground_reset(f), C.NUM_CHECKS, 1);
+    [check_states, counts, p_state] = fdir_persistence( ...
+        checks, ground_resets, opts.flight_state(f), cc, p_state);
+
+    fault_states = fdir_fold_checks(check_states, fm, C.NUM_FAULTS);
 
     [tier, current_response] = fdir_arbitration( ...
-        states, opts.flight_state(f), opts.ground_override(f), feedback, ...
+        fault_states, opts.flight_state(f), opts.ground_override(f), feedback, ...
         fc, current_response);
 
     [~, ~, ~, ~, cutoff, ~] = fdir_response_mapping(tier);
 
-    r.persistence_state(:, f) = [states.Persistence_State]';
+    r.check_state(:, f) = [check_states.Persistence_State]';
+    r.fault_state(:, f) = [fault_states.Persistence_State]';
     r.fail_counts(:, f) = counts;
     r.tier(f) = tier;
     r.cutoff(f) = cutoff;
@@ -110,7 +118,7 @@ r = runFrames(tc, meas, ref);
 
 verifyFalse(tc, any(r.monitor_fails(:)), 'Clean data raised a monitor flag.');
 verifyEqual(tc, r.tier, zeros(1, 30, 'uint8'), 'Nominal run left R0.');
-verifyFalse(tc, any(r.persistence_state(:) == 2), 'Nominal run latched a fault.');
+verifyFalse(tc, any(r.fault_state(:) == 2), 'Nominal run latched a fault.');
 verifyTrue(tc, all(r.monitor_valid(:)), 'Unmasked monitors reported invalid.');
 end
 
@@ -162,9 +170,57 @@ stuckRow = r.monitor_fails(tc.TestData.GPS_STUCK, :);
 verifyFalse(tc, any(stuckRow(1:sf-1)), 'Stuck flagged before stuck_frames.');
 verifyTrue(tc, stuckRow(sf), 'Stuck not flagged on frame stuck_frames.');
 
-gpsStuckId = double(tc.TestData.fault_map(tc.TestData.GPS_STUCK));
-verifyEqual(tc, r.persistence_state(gpsStuckId, sf), uint8(2), ...
+verifyEqual(tc, r.check_state(tc.TestData.GPS_STUCK, sf), uint8(2), ...
     'Stuck GPS did not latch on the frame it was detected.');
+
+% F-05 GPS/GNSS dropout is the catalog row GPS stuck reports against.
+gpsStuckId = double(tc.TestData.fault_map(tc.TestData.GPS_STUCK));
+verifyEqual(tc, gpsStuckId, 5, 'GPS stuck is not mapped to F-05.');
+verifyEqual(tc, r.fault_state(gpsStuckId, sf), uint8(2), ...
+    'Latched GPS stuck did not fold onto its catalog row.');
+end
+
+%% ------------------------- catalog -------------------------
+
+function testSeveritiesMatchTheSheet(tc)
+% Spot-check GNC (F-01..F-28) and System (F-98..F-102) against
+% FaultConditions.xlsx, sheet "Fault List". The array was previously copied
+% in text-sort order (F-10, F-100, F-101, F-102, F-11, ...), which shifted
+% every row from F-11 on.
+%
+% F-29..F-97 belong to other subsystems and have not been reconciled yet,
+% so nothing is asserted about them here.
+fc = tc.TestData.fault_config;
+expected = [11 3; 12 1; 15 5; 19 3; 23 5; 26 2; 98 5; 99 5; 102 5];
+
+for k = 1:size(expected, 1)
+    id = expected(k, 1);
+    verifyEqual(tc, fc(id).Severity, uint8(expected(k, 2)), ...
+        sprintf('F-%02d severity does not match the sheet.', id));
+end
+
+% Tier is severity - 1 across the board; the sheet has no separate
+% course-of-action column.
+for id = 1:numel(fc)
+    verifyEqual(tc, fc(id).Response_Tier, uint8(max(0, double(fc(id).Severity) - 1)), ...
+        sprintf('F-%02d tier is not severity - 1.', id));
+end
+end
+
+function testSensorChecksMapToSensorRows(tc)
+% Only F-01..F-08 are sensor rows. The placeholder used F-01..F-16, which
+% reached F-11 (mass estimate), F-13 (controller instability), F-15 (TWR<1)
+% and F-16 (position error).
+fm = tc.TestData.fault_map;
+verifyEqual(tc, double(fm)', [1 2 2 1, 4 4 4 4, 7 8 7 7, 5 6 6 5], ...
+    'fault_map does not match the sheet rows.');
+verifyTrue(tc, all(double(fm) <= 8), 'A sensor check maps outside F-01..F-08.');
+
+% No sensor check can command cutoff any more: the sensor rows are S3 (R2)
+% except F-06, which is S2 (R1).
+fc = tc.TestData.fault_config;
+tiers = arrayfun(@(id) double(fc(id).Response_Tier), double(fm));
+verifyTrue(tc, all(tiers <= 2), 'A sensor check still escalates past R2.');
 end
 
 %% ------------------------- persistence -------------------------
@@ -179,8 +235,7 @@ nFrames = 18;
 meas(1, 3:5) = ref(1, 3:5) + 5.0;   % IMU accel X, well past 5 sigma
 r = runFrames(tc, meas, ref);
 
-driftId = double(tc.TestData.fault_map(tc.TestData.IMU_DRIFT));
-states = r.persistence_state(driftId, :);
+states = r.check_state(tc.TestData.IMU_DRIFT, :);
 
 verifyEqual(tc, states(3:5), uint8([1 1 1]), 'Transient drift did not go PENDING.');
 verifyFalse(tc, any(states == 2), 'Transient drift latched.');
@@ -193,13 +248,16 @@ function testPersistentDriftLatchesOnFourthFrame(tc)
 meas(1, :) = ref(1, :) + 5.0;
 r = runFrames(tc, meas, ref);
 
-driftId = double(tc.TestData.fault_map(tc.TestData.IMU_DRIFT));
-states = r.persistence_state(driftId, :);
+driftCheck = tc.TestData.IMU_DRIFT;
+driftId = double(tc.TestData.fault_map(driftCheck));
+states = r.check_state(driftCheck, :);
 
 verifyEqual(tc, states(1:3), uint8([1 1 1]), 'Drift latched before the 4th frame.');
 verifyEqual(tc, states(4), uint8(2), 'Drift did not latch on the 4th failing frame.');
-verifyEqual(tc, r.fail_counts(driftId, 4), uint8(4), 'Wrong fail count at latch.');
+verifyEqual(tc, r.fail_counts(driftCheck, 4), uint8(4), 'Wrong fail count at latch.');
 
+% F-02 IMU drift or bias beyond estimate error limits -> severity 3 -> R2.
+verifyEqual(tc, driftId, 2, 'IMU drift is not mapped to F-02.');
 expectedTier = tc.TestData.fault_config(driftId).Response_Tier;
 verifyEqual(tc, r.tier(4), expectedTier, 'Latched drift set the wrong response tier.');
 verifyEqual(tc, r.tier(1:3), zeros(1, 3, 'uint8'), 'Tier rose before the latch.');
@@ -212,14 +270,49 @@ function testNaNLatchesOnFirstFrame(tc)
 meas(1, :) = NaN;
 r = runFrames(tc, meas, ref);
 
-lossId = double(tc.TestData.fault_map(tc.TestData.IMU_LOSS));
-verifyEqual(tc, tc.TestData.fault_config(lossId).N_Threshold, uint8(1), ...
-    'Loss fault is not on the fast path.');
-verifyTrue(tc, r.monitor_fails(tc.TestData.IMU_LOSS, 1), 'NaN not seen as loss.');
-verifyEqual(tc, r.persistence_state(lossId, 1), uint8(2), ...
+lossCheck = tc.TestData.IMU_LOSS;
+lossId = double(tc.TestData.fault_map(lossCheck));
+verifyEqual(tc, tc.TestData.check_config(lossCheck).N_Threshold, uint8(1), ...
+    'Loss check is not on the fast path.');
+verifyTrue(tc, r.monitor_fails(lossCheck, 1), 'NaN not seen as loss.');
+verifyEqual(tc, r.check_state(lossCheck, 1), uint8(2), ...
     'Loss did not latch on the first frame.');
 verifyEqual(tc, r.tier(1), tc.TestData.fault_config(lossId).Response_Tier, ...
     'Loss latched but the tier did not follow.');
+end
+
+function testSharedRowKeepsPerCheckThresholds(tc)
+% All four barometer checks report against F-04, but they do not share a
+% threshold: loss has to latch in one frame while drift still needs 4 of 10.
+% This is why persistence runs over the 16 checks, not the 102 rows.
+cc = tc.TestData.check_config;
+baroLoss = tc.TestData.BARO_LOSS;
+baroDrift = tc.TestData.BARO_DRIFT;
+
+verifyEqual(tc, double(tc.TestData.fault_map(baroLoss)), 4, 'Baro loss is not on F-04.');
+verifyEqual(tc, double(tc.TestData.fault_map(baroDrift)), 4, 'Baro drift is not on F-04.');
+verifyEqual(tc, cc(baroLoss).N_Threshold, uint8(1), 'Baro loss is not N = 1.');
+verifyEqual(tc, cc(baroDrift).N_Threshold, uint8(4), 'Baro drift is not N = 4.');
+
+% Barometer reads NaN: loss latches on frame 1.
+[meas, ref] = nominalFrames(tc, 6);
+meas(7, :) = NaN;
+rLoss = runFrames(tc, meas, ref);
+verifyEqual(tc, rLoss.check_state(baroLoss, 1), uint8(2), ...
+    'Baro loss did not latch on the first frame.');
+
+% Barometer drifts past 5 sigma: drift needs four frames.
+[meas2, ref2] = nominalFrames(tc, 8);
+meas2(7, :) = ref2(7, :) + 10.0;
+rDrift = runFrames(tc, meas2, ref2);
+verifyEqual(tc, rDrift.check_state(baroDrift, 1:3), uint8([1 1 1]), ...
+    'Baro drift latched before the 4th frame.');
+verifyEqual(tc, rDrift.check_state(baroDrift, 4), uint8(2), ...
+    'Baro drift did not latch on the 4th failing frame.');
+
+% Either way F-04 ends up latched, since the row takes the worst state.
+verifyEqual(tc, rLoss.fault_state(4, 1), uint8(2), 'F-04 not latched by loss.');
+verifyEqual(tc, rDrift.fault_state(4, 4), uint8(2), 'F-04 not latched by drift.');
 end
 
 function testInfIsAlsoLoss(tc)
@@ -244,8 +337,7 @@ r = runFrames(tc, meas, ref, opts);
 verifyTrue(tc, r.tier(6) > 0, 'Fault never escalated, so the reset proves nothing.');
 verifyEqual(tc, r.tier(end), uint8(0), 'Ground reset with override did not return to R0.');
 
-driftId = double(tc.TestData.fault_map(tc.TestData.IMU_DRIFT));
-verifyEqual(tc, r.persistence_state(driftId, end), uint8(0), ...
+verifyEqual(tc, r.check_state(tc.TestData.IMU_DRIFT, end), uint8(0), ...
     'Ground reset did not clear the latched persistence state.');
 end
 

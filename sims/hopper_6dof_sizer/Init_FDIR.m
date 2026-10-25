@@ -9,7 +9,7 @@
 
 disp('Initializing Table-Driven FDIR Architecture (102 Fault Conditions)...');
 
-[FDIR_CONFIG, fault_config, fault_map] = fdir_config();
+[FDIR_CONFIG, fault_config, fault_map, check_config] = fdir_config();
 NUM_FAULTS = FDIR_CONFIG.NUM_FAULTS;
 
 %% 1. Fault State Bus Definition
@@ -60,6 +60,7 @@ assignin('base', 'FDIR_Command_Bus', FDIR_Command_Bus);
 assignin('base', 'fault_config', fault_config);
 assignin('base', 'FDIR_CONFIG', FDIR_CONFIG);
 assignin('base', 'fault_map', fault_map);
+assignin('base', 'check_config', check_config);
 assignin('base', 'NUM_FAULTS', NUM_FAULTS);
 
 disp(['-> Loaded ', num2str(NUM_FAULTS), ' faults into fault_config lookup table.']);
