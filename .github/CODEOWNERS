@@ -12,9 +12,13 @@
 #       ├── hopper-fdir     fault detection, isolation and recovery
 #       ├── hopper-fsw      flight-software bridge
 #       └── hopper-modsim   modeling and sim: vehicle model, propulsion,
-#                           structures, slosh, Monte Carlo, tests, CI
+#                           structures, slosh, Monte Carlo, tests
+#   hopper-gnc-leads        leadership: sole owner of the files that change
+#                           the rules for everyone (see the end of this file)
 # Each team needs Write access to this repo (granting it to hopper covers
 # all of them). CI's guards job fails if GitHub can't resolve an owner here.
+# With several owners on a line, any one of them can approve; a line with a
+# single owner needs that team's approval.
 
 # Default: the sim team owns anything not listed below
 /sims/hopper_6dof_sizer/                                            @gt-space/hopper-modsim
@@ -35,6 +39,12 @@
 # Flight-software bridge (C codegen, Rust SIL)
 /sims/hopper_6dof_sizer/fsw_bridge/                                 @gt-space/hopper-fsw
 
-# CI and this file
-/.github/workflows/hopper-sim.yml                                   @gt-space/hopper-modsim
-/.github/CODEOWNERS                                                 @gt-space/hopper-modsim
+# Mission requirements share a file with everyday vehicle parameters, so
+# either the sim team or the leads can approve changes to it
+/sims/hopper_6dof_sizer/inputs/mission_inputs.m                     @gt-space/hopper-modsim @gt-space/hopper-gnc-leads
+
+# Rules for everyone: leads only
+/sims/hopper_6dof_sizer/TEAM_RELEASE                                @gt-space/hopper-gnc-leads
+/sims/hopper_6dof_sizer/tests/montecarlo/mcLimits.m                 @gt-space/hopper-gnc-leads
+/.github/workflows/hopper-sim.yml                                   @gt-space/hopper-gnc-leads
+/.github/CODEOWNERS                                                 @gt-space/hopper-gnc-leads

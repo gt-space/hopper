@@ -33,6 +33,7 @@ How we work on this sim together without breaking each other's models. The [READ
   - `hopper-fdir`: FDIR
   - `hopper-fsw`: FSW bridge
   - `hopper-modsim`: everything else, including propulsion and structures for now
+  - `hopper-gnc-leads`: the files that set the rules for everyone. It is the sole owner of `TEAM_RELEASE`, `tests/montecarlo/mcLimits.m`, the CI workflow and CODEOWNERS itself, and co-owns `inputs/mission_inputs.m`, where the requirements live.
 
   Joining or leaving only changes team membership (gt-space org → Teams), never the file. Edit CODEOWNERS only when an area moves to a different team or a new team is created. CI's guards job fails if GitHub can't resolve an owner, for example a renamed team or one without Write access to the repo.
 
@@ -66,7 +67,7 @@ The team release lives in one place: [`TEAM_RELEASE`](../TEAM_RELEASE), one line
 
 To move up, in one PR of its own:
 
-1. **Agree on a date with the team.** Everyone needs the new release installed before the PR merges, or they can't open models saved after it.
+1. **Agree on a date with the team.** Everyone needs the new release installed before the PR merges, or they can't open models saved after it. `hopper-gnc-leads` owns `TEAM_RELEASE` and approves the PR.
 2. **Change the one line in `TEAM_RELEASE`.**
 3. **Run `buildtool check test sim mc` locally on the new release.**
    - A new solver or block version can shift the nominal flight by tiny amounts. If `NominalFlightTest` fails only by small numbers, run `NominalFlightTest.updateBaseline()` in the same PR and say so.
@@ -101,7 +102,7 @@ If you did **not** mean to change the flight and `sim` fails, that's a regressio
 - **Mission requirements** live in the *MISSION CONSTRAINTS* section of `inputs/mission_inputs.m` (fields marked `[req]`). Each Monte Carlo run reports `meets_requirements`.
 - **CI regression limits** live in `tests/montecarlo/mcLimits.m`. They describe today's vehicle plus margin, and the CI Monte Carlo fails outside them.
 
-Tighten the regression limits as the vehicle improves. Loosening one needs a reason in the PR.
+Tighten the regression limits as the vehicle improves. Loosening one needs a reason in the PR and an approval from `hopper-gnc-leads`, which owns `mcLimits.m`.
 
 ### Adding tests
 
