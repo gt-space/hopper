@@ -13,8 +13,8 @@ function [scenarios, mcTable] = generateScenarios(jsonFile, n)
          name = paramNames{j};
          paramData = bounds.(name);
          
-         if isfield(paramData, "type")
-             distType = paramData.type;
+         if isfield(paramData, "distribution")
+             distType = paramData.distribution;
          else
              distType = "uniform"; 
          end
