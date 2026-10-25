@@ -9,13 +9,15 @@ function build_v2_fluid_integration()
 %     - Actual Thrust drives the actuators, IC1 and the thrust logging
 %     - Actual Ox/Fuel mdot replace the thrust->mdot lookup (Subsystem),
 %       which is commented out
-%   Known issue: the fluid network takes ~1 s to build thrust from zero and
-%   this model (like #26's) has no ground reaction force, so the vehicle
-%   sinks below the pad during spool-up and the controller saturates.
+%     - #27's ground contact (strut spring/damper per leg) feeds body force
+%       and moment into Sum4/Sum5, so the vehicle sits on the pad while the
+%       fluid network spools up (~1 s to build thrust). v2's own "Ground "
+%       block only drives scopes and stays commented out.
 %   Writes models/hopper_6dof_NED_v2_fluid_integration.slx. Run with the
 %   HopperSim project open.
 
 src = 'hopper_6dof_NED_v3_fluid_integration';   % archive/models, PR #26
+gnd = 'hopper_6dof_NED_v2_ground';              % models/, PR #27
 base = 'hopper_6dof_NED_v2';
 new = 'hopper_6dof_NED_v2_fluid_integration';
 out = hopperRoot('models', [new '.slx']);
@@ -59,6 +61,18 @@ for o = 1:2
         connect(m, 'Fluid Network2', o + 1, d{1}, d{2});
     end
 end
+
+% Ground contact from #27: same 6DOF inputs, forces/moments into Sum4/Sum5
+load_system(gnd);
+gpos = get_param([gnd '/Ground'], 'Position');
+add_block([gnd '/Ground'], [m '/Ground_Contact'], 'Position', gpos + [0 150 0 150]);
+close_system(gnd, 0);
+sixdofOut = [2 1 5 7];          % Inertial position, velocity, DCM, body rates
+for k = 1:4
+    connect(m, '6DOF (Quaternion)', sixdofOut(k), 'Ground_Contact', k);
+end
+connect(m, 'Ground_Contact', 1, 'Sum4', 2);   % body force
+connect(m, 'Ground_Contact', 2, 'Sum5', 2);   % body moment
 
 % The fluid network's tank blocks read FuelProps from FuelPropsData.mat (data/)
 set_param(m, 'InitFcn', 'load(''FuelPropsData.mat'');');
