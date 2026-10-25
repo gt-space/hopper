@@ -61,6 +61,16 @@ How we work on this sim together without breaking each other's models. The [READ
 - **Random blocks need a fixed seed.** For example, Bernoulli/Random Source `SeedSource = 'Parameter'`. A block on `'Auto'` reads MATLAB's global random stream and makes every run depend on what ran before it.
 - **Reviewing someone's model change:** download the PR's **model-diffs** artifact (a Simulink Comparison report per changed `.slx`), or run `git difftool -t mlDiff -- <file>.slx` locally.
 
+## Shared subsystems
+
+Blocks that more than one model uses live in their own files under `subsystems/<area>/`, for example `subsystems/propulsion/Thrust_to_Mdot_LUT.slx`. The models hold **Subsystem Reference** blocks that point at those files. The reference block shows the file name under its icon.
+
+- **To change a shared block, open its file:** double-click the reference block, then edit and save. Every model that references the file picks up the change. Prefer this to editing a copy inside one model.
+- **Keep the ports stable.** Port names and order are the interface every referencing model is wired to. If you must add or reorder a port, update every model that uses the file in the same PR. CI's model tests load them all.
+- **Read parameters from workspace variables** (for example `IN.*` or `thrust_data`), not from the parent model. The file has no workspace of its own, and `buildSimInput` sets the variables per run.
+- **To share another block,** add it to the list in `tools/refactor/convertToSubsystemReferences.m` and run it. It converts the block in v2, and models built from v2 (such as the fluid-integration model) pick it up when rebuilt. Check that the nominal flight is unchanged: `buildtool sim`.
+- **Conflicts get rarer.** Two people editing different subsystem files never touch the same `.slx`, so prefer a new or existing subsystem file over editing the top-level model.
+
 ## Moving to a new MATLAB release
 
 The team release lives in one place: [`TEAM_RELEASE`](../TEAM_RELEASE), one line such as `R2026a`. CI installs that release, and `tools/ci/guards.sh`, `buildtool check` and `tests/models` all check models against it (`teamRelease()` in MATLAB). Models saved in older releases stay valid, so upgrading never forces anyone to re-save files.

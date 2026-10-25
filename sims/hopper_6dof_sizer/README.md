@@ -53,7 +53,7 @@ Save models in the **team release** (`TEAM_RELEASE`) or older. A model saved in 
 | Folder | Contents |
 |---|---|
 | `models/` | Top-level models (`hopper_6dof_NED_v2.slx` is the master). `dev/` holds work in progress (LQI); `standalone/` holds component models. |
-| `subsystems/` | Subsystem files referenced by the models (FDIR, actuators, propulsion sensors/valves, navigation filters). |
+| `subsystems/` | Shared subsystem files the models reference: propulsion (mdot lookup, propellant mass, sensors, valves), flight_logic (engine cutoffs, touchdown stop), FDIR, actuators, navigation filters. Edit a block here once and every model using it changes; see CONTRIBUTING, *Shared subsystems*. |
 | `src/` | MATLAB code: `setup`, `sizing`, `dynamics`, `gnc`, `propulsion`, `slosh`, `fdir`, `monte_carlo`, `analysis`, `util`. |
 | `inputs/` | `mission_inputs.m` and `mc_params.json`. |
 | `data/` | Lookup tables the sims read (`mdot_lookup.xlsx`, `wind_vectors2.mat`, `cg_I_LUT.mat`, `baffle_lut.*`, `engine_contour.xlsx`). |
