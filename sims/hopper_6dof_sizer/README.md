@@ -6,8 +6,26 @@ MATLAB/Simulink sims used for preliminary vehicle sizing of the Hopper (YJSP's P
 
 1. Open the project: double-click `HopperSim.prj`, or run `openProject('sims/hopper_6dof_sizer')`.
    This puts every source folder on the path and sends Simulink caches to `work/`. No `addpath` or `cd` is needed.
-2. Run `sim_setup`, then simulate `hopper_6dof_NED_v2`.
-3. Monte Carlo: `mc_runner(10)` (serial) or `mc_parallelization` (parallel, batched). Every run calls CoolProp through Python (`pip install CoolProp`).
+2. Nominal flight: `out = sim(buildSimInput())`. `buildSimInput(model, scenario)` returns a `Simulink.SimulationInput` carrying every variable the model reads, so nothing has to be in the base workspace. The old way (`sim_setup`, then simulate `hopper_6dof_NED_v2`) still works.
+3. Monte Carlo: `R = runMonteCarlo(10)`; add `UseParallel=true` to use `parsim`. `R.summary` has one row per run. `mc_runner` and the batched/checkpointed `mc_parallelization` (for thousands of runs) use the same pieces. Every run calls CoolProp through Python (`pip install CoolProp`).
+
+## Testing
+
+From the project root (`buildtool` needs R2023b or later):
+
+| Command | Runs | Time |
+|---|---|---|
+| `buildtool` | `check` + `test`: repo guards, unit, model-file and FDIR tests | ~2 min |
+| `buildtool sim` | Nominal flight against `tests/baselines/nominal_v2.mat`, plus the slosh open-loop check | ~5 min |
+| `buildtool mc` | Seeded 10-run Monte Carlo against the regression limits in `tests/montecarlo/mcLimits.m` | ~5 min with a parallel pool |
+
+CI runs `buildtool check test sim mc` on every push and pull request.
+
+- **`check`** fails if build caches or autosaves are committed, or if a model is saved in a release newer than R2026a.
+- **`mc`** fails a run that errors, diverges, or does worse than today's vehicle plus margin. Separately, `R.summary.meets_requirements` reports each run against the stricter mission requirements (`checkConstraints` defaults).
+- **Intended physics change:** if your change is meant to alter the flight, run `NominalFlightTest.updateBaseline()`, say so in the PR, and commit the new baseline.
+
+Results are repeatable: the same inputs give bit-identical results in any session.
 
 Save models in **R2026a** only. A model saved in a newer release can't be opened by everyone else.
 

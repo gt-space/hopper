@@ -355,7 +355,7 @@ for s = 1:3
 
     for i = 1:n_ok
         ts = results(i).timeseries;
-        data_deg = rad2deg(ts.(att_fields{s}));
+        data_deg = ts.(att_fields{s});   % logged in degrees already
 
         if i == 1
             h_mc = plot(ts.t, data_deg, 'Color', [c_mc 0.4], 'LineWidth', 0.8);
@@ -369,7 +369,7 @@ for s = 1:3
     h_mean = plot(t_grid, mean(att_mat,1), 'Color', c_mean, 'LineWidth', 3.0);
 
     h_nom = plot(nominal.timeseries.t, ...
-        rad2deg(nominal.timeseries.(att_fields{s})), ...
+        nominal.timeseries.(att_fields{s}), ...
         'Color', c_nom, 'LineWidth', 3.0);
 
     ylabel(att_labels{s},'FontSize',10);
@@ -388,7 +388,7 @@ end
 % ================================
 % Figure 8 - 2d trajectory with pad
 % =================================
-pad_radius = 0.5; % 0.5m diameter
+pad_radius = 0.5; % m (1 m diameter pad)
 land_x = arrayfun(@(r) r.timeseries.x(end), results);  % North
 land_y = arrayfun(@(r) r.timeseries.y(end), results);  % East
 on_pad = sqrt(land_x.^2 + land_y.^2) <= pad_radius;

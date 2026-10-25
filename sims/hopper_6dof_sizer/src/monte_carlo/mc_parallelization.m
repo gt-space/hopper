@@ -290,13 +290,12 @@ switch runMode
             localResult = struct(); 
             
             try
-                mc_sim_setup(currentScenario);
-                simInput = Simulink.SimulationInput('hopper_6dof_NED_v2');
-                simInput = simInput.setVariable('currentScenario', currentScenario);
-                
+                simInput = buildSimInput('hopper_6dof_NED_v2', currentScenario);
                 sim_out = sim(simInput);
                 localResult = mc_main(currentScenario, sim_out); 
-                localResult = check_constraints(localResult);
+                if localResult.status.success
+                    localResult = checkConstraints(localResult);
+                end
             catch ME
                 localResult.scenario = currentScenario;
                 localResult.status.success = false;
@@ -320,24 +319,14 @@ switch runMode
    case 'nominal'
         tic;
         try
-            nominalScenario.ox_mass                 = 16;
-            nominalScenario.fuel_mass               = 13;
-            nominalScenario.cstar                   = 0.85;
-            nominalScenario.mass_factor             = 1.0;
-            nominalScenario.slosh_lateral_damping   = 0.08; 
-            nominalScenario.slosh_axial_damping     = 0.3;  
-            nominalScenario.throttle_rate_limit     = 180;  
-            nominalScenario.throttle_latency        = 0.01;
-            nominalScenario.tvc_actuator_rate_limit = 15; 
-            nominalScenario.tvc_actuator_latency    = 0.01;
-            nominalScenario.engine_off_axis_y       = 0;
-            nominalScenario.engine_off_axis_z       = 0;
-            nominalScenario.uwind                   = 5;
-            nominalScenario.vwind                   = 5;
-            
-            mc_sim_setup(nominalScenario);
-            simInput = Simulink.SimulationInput('hopper_6dof_NED_v2');
-            sim_out = sim(simInput);
+            % Nominal = the 'nominal' value of every parameter in mc_params.json
+            P = readstruct(jsonFile);
+            nominalScenario = struct();
+            for f = fieldnames(P)'
+                nominalScenario.(f{1}) = P.(f{1}).nominal;
+            end
+
+            sim_out = sim(buildSimInput('hopper_6dof_NED_v2', nominalScenario));
             nominal = mc_main(nominalScenario, sim_out);
             
             save(hopperRoot('results', 'mc_results_nominal.mat'), 'nominal');
@@ -353,7 +342,7 @@ switch runMode
 end
 
 function in = local_pre_sim(in, scenario)
-    mc_sim_setup(scenario);
+    in = buildSimInput(in, scenario);
 end
 
 function out = local_post_sim(out, scenario, globalIdx, ckptDir)
@@ -362,6 +351,9 @@ function out = local_post_sim(out, scenario, globalIdx, ckptDir)
             error(out.ErrorMessage);
         end
         localResult = mc_main(scenario, out);
+        if localResult.status.success
+            localResult = checkConstraints(localResult);
+        end
     catch ME
         localResult.scenario = scenario;
         localResult.status.success = false;
