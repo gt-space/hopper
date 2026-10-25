@@ -139,10 +139,41 @@ end
 tgrid = t;
 % Call gains using consistent (unique) grid + consistent trajectory
 %GainTable = TrajectoryFollowingGains(Sf,Q,R,Target_Trajectory,A,B,tgrid,T_profile);
+% The finite-horizon Riccati sweep starts from Sf at the final time. Over
+% the last ~1.5 s that drove the TVC position gain up ~13x and the attitude
+% gain to zero (K = R\B'*Sf only damps rates), so any drift at touchdown
+% (e.g. from wind) was corrected with a large, unrestored tilt.
+% Add a run-out to the reference: after the trajectory ends, keep
+% descending at its final rate with hover thrust for lqr_runout_time
+% seconds. The Riccati end effects then fall after touchdown, and a vehicle
+% still above ground when the trajectory ends keeps descending instead of
+% settling into a hover offset from a frozen final point. The run-out is
+% part of the exported reference and gain table; the sim stops at ground
+% contact, so the model StopTime must cover tgrid(end).
+if ~exist('lqr_runout_time', 'var'), lqr_runout_time = 5; end   % s
+dt_end = tgrid(end) - tgrid(end-1);
+n_run  = round(lqr_runout_time / dt_end);
+if n_run > 0
+    tau    = dt_end * (1:n_run)';
+    x_end  = Target_Trajectory(end,:);
+    TT_run = repmat(x_end, n_run, 1);
+    TT_run(:, 4:5) = 0;                              % no horizontal motion
+    TT_run(:, 7:9) = 0;                              % no body rates
+    TT_run(:, 6)   = x_end(6);                       % final descent rate (NED, down +)
+    TT_run(:, 3)   = x_end(3) + x_end(6) * tau;      % keep descending
+    u_run  = repmat([m_profile(end) * params.g, 0, 0, 0], n_run, 1);   % hover thrust
+    [A_r, B_r, f_r] = HopperLinearization_6DOF_inertial(TT_run(1,:).', u_run(1,:).', params_i, m_profile(end));
+    tgrid  = [tgrid; tgrid(end) + tau];
+    Target_Trajectory = [Target_Trajectory; TT_run];
+    unom   = [unom; u_run];
+    A      = cat(3, A, repmat(A_r, 1, 1, n_run));
+    B      = cat(3, B, repmat(B_r, 1, 1, n_run));
+    Fref   = [Fref; repmat(f_r.', n_run, 1)];
+end
 GainTable = TrajectoryFollowingGains2(Sf,Q,R,Target_Trajectory,A,B,tgrid,unom,params,Fref);
 
 K1 = GainTable.K1;
-K2grid = GainTable.K2';   
+K2grid = GainTable.K2';
 
 alpha = 1.04;
 tau = 3;   % seconds
