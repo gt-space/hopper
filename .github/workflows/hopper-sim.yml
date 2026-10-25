@@ -1,0 +1,156 @@
+name: Hopper 6DOF sim
+
+on:
+  push:
+    paths:
+      - "sims/hopper_6dof_sizer/**"
+      - ".github/workflows/hopper-sim.yml"
+      - "!sims/hopper_6dof_sizer/**/*.md"
+  pull_request:
+    paths:
+      - "sims/hopper_6dof_sizer/**"
+      - ".github/workflows/hopper-sim.yml"
+      - "!sims/hopper_6dof_sizer/**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same branch cancels the run it supersedes.
+concurrency:
+  group: hopper-sim-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT: sims/hopper_6dof_sizer
+  MATLAB_RELEASE: R2026a
+  # From dependencies.toolboxDependencyAnalysis on the models plus
+  # matlab.codetools.requiredFilesAndProducts on src/ and tests/.
+  MATLAB_PRODUCTS: >-
+    Simulink
+    Aerospace_Blockset
+    Aerospace_Toolbox
+    Communications_Toolbox
+    DSP_System_Toolbox
+    Signal_Processing_Toolbox
+    Simscape
+    Simscape_Fluids
+    Control_System_Toolbox
+    Optimization_Toolbox
+    Statistics_and_Machine_Learning_Toolbox
+    Parallel_Computing_Toolbox
+
+jobs:
+  guards:
+    name: Repo guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: No committed caches, no model newer than R2026a
+        working-directory: ${{ env.PROJECT }}
+        run: bash tools/ci/guards.sh
+
+  test:
+    name: Unit, model and nominal-flight tests
+    needs: guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        id: py
+        with:
+          python-version: "3.11"
+      - run: pip install CoolProp
+      - uses: matlab-actions/setup-matlab@v2
+        with:
+          release: ${{ env.MATLAB_RELEASE }}
+          products: ${{ env.MATLAB_PRODUCTS }}
+          cache: true
+      - name: buildtool check test sim
+        uses: matlab-actions/run-command@v2
+        env:
+          HOPPER_PYTHON: ${{ steps.py.outputs.python-path }}
+        with:
+          command: cd('${{ env.PROJECT }}'); openProject(pwd); buildtool check test sim
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ env.PROJECT }}/outputs/test-results/
+          if-no-files-found: ignore
+
+  montecarlo:
+    name: Monte Carlo (10 seeded runs)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        id: py
+        with:
+          python-version: "3.11"
+      - run: pip install CoolProp
+      - uses: matlab-actions/setup-matlab@v2
+        with:
+          release: ${{ env.MATLAB_RELEASE }}
+          products: ${{ env.MATLAB_PRODUCTS }}
+          cache: true
+      - name: buildtool mc
+        uses: matlab-actions/run-command@v2
+        env:
+          HOPPER_PYTHON: ${{ steps.py.outputs.python-path }}
+        with:
+          command: cd('${{ env.PROJECT }}'); openProject(pwd); buildtool mc
+      - name: Monte Carlo summary
+        if: always()
+        working-directory: ${{ env.PROJECT }}
+        run: python tools/ci/mc_summary.py outputs/montecarlo/mc_summary.csv >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Monte Carlo results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: montecarlo
+          path: |
+            ${{ env.PROJECT }}/outputs/montecarlo/
+            ${{ env.PROJECT }}/outputs/test-results/
+          if-no-files-found: ignore
+
+  model-diff:
+    name: Model diff report
+    if: github.event_name == 'pull_request'
+    needs: guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Any models changed?
+        id: changed
+        run: |
+          n=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- "${{ env.PROJECT }}/*.slx" "${{ env.PROJECT }}/**/*.slx" | wc -l)
+          echo "count=$n" >> "$GITHUB_OUTPUT"
+      - uses: matlab-actions/setup-matlab@v2
+        if: steps.changed.outputs.count != '0'
+        with:
+          release: ${{ env.MATLAB_RELEASE }}
+          products: ${{ env.MATLAB_PRODUCTS }}
+          cache: true
+      - name: Simulink comparison reports
+        if: steps.changed.outputs.count != '0'
+        uses: matlab-actions/run-command@v2
+        with:
+          command: >-
+            cd('${{ env.PROJECT }}'); openProject(pwd); addpath(fullfile(pwd, 'tools', 'ci'));
+            modelDiffReport('origin/${{ github.base_ref }}')
+      - name: Upload model diff reports
+        if: steps.changed.outputs.count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-diffs
+          path: ${{ env.PROJECT }}/outputs/model-diffs/
+          if-no-files-found: ignore

@@ -19,7 +19,22 @@ From the project root (`buildtool` needs R2023b or later):
 | `buildtool sim` | Nominal flight against `tests/baselines/nominal_v2.mat`, plus the slosh open-loop check | ~5 min |
 | `buildtool mc` | Seeded 10-run Monte Carlo against the regression limits in `tests/montecarlo/mcLimits.m` | ~5 min with a parallel pool |
 
-CI runs `buildtool check test sim mc` on every push and pull request.
+### CI
+
+[`.github/workflows/hopper-sim.yml`](../../.github/workflows/hopper-sim.yml) runs on every push and pull request that touches this folder, on GitHub-hosted Linux runners with MATLAB R2026a. The repo is public, so MathWorks provides the license for these runners.
+
+| Job | What it does |
+|---|---|
+| `guards` | `tools/ci/guards.sh`, no MATLAB: no committed caches, no model newer than R2026a. Fails in seconds. |
+| `test` | `buildtool check test sim`. JUnit XML is uploaded as the `test-results` artifact. |
+| `montecarlo` | `buildtool mc`. Writes the per-run table to the run's summary page and uploads `outputs/montecarlo/` (`mc_ci.mat`, `mc_summary.csv`). |
+| `model-diff` | Pull requests only. A Simulink Comparison HTML report for every changed `.slx`, uploaded as the `model-diffs` artifact. |
+
+To make `main` require these jobs, an admin turns this on once under **Settings → Branches → Add branch protection rule** for `main`:
+- **Require status checks to pass:** `Repo guards`, `Unit, model and nominal-flight tests`, `Monte Carlo (10 seeded runs)`.
+- **Require a pull request before merging,** with 1 approval.
+
+What each task checks:
 
 - **`check`** fails if build caches or autosaves are committed, or if a model is saved in a release newer than R2026a.
 - **`mc`** fails a run that errors, diverges, or does worse than today's vehicle plus margin. Separately, `R.summary.meets_requirements` reports each run against the stricter mission requirements. Edit those in the MISSION CONSTRAINTS section of `inputs/mission_inputs.m` (fields marked `[req]`).
