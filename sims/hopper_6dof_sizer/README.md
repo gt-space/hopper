@@ -23,9 +23,12 @@ Save models in **R2026a** only. A model saved in a newer release can't be opened
 | `results/` | Tracked Monte Carlo and sweep results (`.mat`). |
 | `tests/`, `validation/` | Automated tests and validation studies. |
 | `fsw_bridge/` | C codegen and Rust SIL bridge to flight software. |
+| `tools/refactor/` | Scripts that build or convert models reproducibly (for example `build_v2_fluid_integration`). |
 | `docs/` | Model notes (`SLOSH_MODEL.md`). |
 | `archive/` | Superseded models and scripts, kept for reference and **not** on the path. |
 | `outputs/`, `work/` | Generated figures, videos, CSVs and build caches. Gitignored. |
+
+If you move or add files with `git mv` or Explorer instead of the Project panel, run `syncProjectFiles` so the project's file list matches the folders.
 
 Scripts that write files use `hopperRoot('data', ...)`, `hopperRoot('results', ...)` or `hopperRoot('outputs', ...)`, so output lands in the right folder whatever the current folder is.
 
