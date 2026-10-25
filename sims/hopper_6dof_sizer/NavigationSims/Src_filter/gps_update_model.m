@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 function [innovation, measurementJacobian] = gps_update_model(nominalState, measurement, params)
 % (Yuma's implementation | 10/25/26)
 % GPS position/velocity forward measurement model for the GMEKF
@@ -61,7 +60,8 @@ function [innovation, measurementJacobian] = gps_update_model(nominalState, meas
     measurementJacobian(4:6,7:9) = -C_IB * skew(r_B);
     measurementJacobian(4:6,10:12) = -skew(rotationalVelocityInertial);
 
-=======
+    %{
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % gps_update_model.m
 % 
@@ -115,3 +115,5 @@ H_gps(:, 1:3) = -skew_lever; % Attitude error coupling through lever arm
 H_gps(:, 7:9) = eye(3);      % Position error (chi) coupling (identity)
 >>>>>>> ef24f709a8dbddd6c79e22cd08112e04c7f92083
 end
+
+    %}
