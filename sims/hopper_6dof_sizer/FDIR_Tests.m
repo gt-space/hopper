@@ -430,13 +430,32 @@ verifyFalse(tc, mask);
 verifyEqual(tc, deg, 1.0);
 verifyFalse(tc, abortLand || nav || cutoff || entry);
 
-[~, ~, ~, ~, cutoff3, entry3] = fdir_response_mapping(uint8(3));
-verifyTrue(tc, cutoff3, 'R3 did not command cutoff.');
+% R3 is a nav-degraded abort, not a mission loss: severity 4 is
+% "significant damage to one vehicle subsystem". It still has to fly
+% itself down, so the engine stays lit.
+[mask3, deg3, abort3, nav3, cutoff3, entry3] = fdir_response_mapping(uint8(3));
+verifyTrue(tc, mask3, 'R3 did not mask the source.');
+verifyEqual(tc, deg3, 0.5, 'R3 did not derate to 0.5.');
+verifyTrue(tc, abort3, 'R3 did not command abort to land.');
+verifyTrue(tc, nav3, 'R3 did not command nav fallback.');
+verifyFalse(tc, cutoff3, 'R3 cut the engine - an abort to land needs thrust.');
 verifyFalse(tc, entry3, 'R3 raised the entry trigger.');
 
 [~, deg4, ~, ~, cutoff4, entry4] = fdir_response_mapping(uint8(4));
 verifyEqual(tc, deg4, 0.0);
 verifyTrue(tc, cutoff4 && entry4, 'R4 did not command cutoff and entry.');
+end
+
+function testOnlyR4CutsTheEngine(tc)
+% Cutting thrust is reserved for severity 5, complete loss of mission.
+for tier = uint8(0):uint8(4)
+    [~, ~, ~, ~, cutoff, ~] = fdir_response_mapping(tier);
+    if tier == uint8(4)
+        verifyTrue(tc, cutoff, 'R4 did not command cutoff.');
+    else
+        verifyFalse(tc, cutoff, sprintf('R%d commands cutoff; only R4 may.', tier));
+    end
+end
 end
 
 %% ------------------------- end to end -------------------------

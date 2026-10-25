@@ -26,12 +26,15 @@ switch active_response
         Degrade_Multiplier = 0.5;
         Abort_Land_Active = true;
 
-    case uint8(3) % R3 - Navigation Fallback / Engine Cutoff
+    case uint8(3) % R3 - Nav-Degraded Abort
+        % Severity 4 in FaultConditions.xlsx is "significant damage to one
+        % vehicle subsystem", not "complete loss of mission" (severity 5).
+        % An R3 abort still has to fly itself down, so the engine stays lit
+        % and throttle is derated rather than cut. Only R4 cuts.
         Mask_Target = true;
-        Degrade_Multiplier = 0.0;
+        Degrade_Multiplier = 0.5;
         Abort_Land_Active = true;
         Nav_Fallback_Active = true;
-        Cutoff_Active = true;
 
     case uint8(4) % R4 - Emergency Escape / Abort
         Mask_Target = true;
