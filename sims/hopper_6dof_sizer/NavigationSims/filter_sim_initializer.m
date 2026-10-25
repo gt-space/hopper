@@ -124,6 +124,10 @@ lidar_frames.r3 = [-0.25 0 0]';
 lidar_frames.r4 = [0 -0.25 0]';
 lidar_frames.heightCOM = 1;
 
+% GPS mounting parameters
+gps_frame.r1 = gps_params.r1;
+gps_frame.r2 = gps_params.r2;
+
 %% Function to build rotation matrix for each LIDAR unit vector
 % phi: angle from x about z-axis of body frame (deg)
 % theta: angle between lidar sensor direction and body z-axis (deg)

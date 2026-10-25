@@ -2,11 +2,12 @@
 %
 % Inputs:
 %   trueState  - True vehicle state (20x1)
+%   baroBiasTrue - True barometer height bias (m)
 %   simtime    - Simulation time (s)
 %
 % Outputs:
 %   baroBus    - struct defined in the Navigation Dictionary
-function baroBus = barometer_model(trueState, simtime)
+function baroBus = barometer_model(trueState, baroBiasTrue, simtime)
 
     % Build an empty output struct from the dictionary definition
     persistent baroBusData;
@@ -39,7 +40,6 @@ function baroBus = barometer_model(trueState, simtime)
     
     % Measurement bias and Gaussian white noise
     baroNoise = baro_params.noise_std * randn();
-    baroBiasTrue = baro_params.bias;
     
     % Compute the measured height and assign validity
     height = heightTrue + baroBiasTrue + baroNoise;
