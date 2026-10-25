@@ -69,9 +69,9 @@ qc = [1 0 0 0 0 0 0 0 0 0 0 0 0;
 imu_st = filter_st;     % sample time (s)
 % --- IMU Sensor Parameters ---
 imu_params.accel_noise_std = [0.05; 0.05; 0.05]; % Accelerometer noise standard deviation
-imu_params.acovariance = [0.05; 0.05; 0.05].^2*eye(3);
+imu_params.acovariance = eye(3)*[0.05; 0.05; 0.05].^2;
 imu_params.gyro_noise_std = [0.005; 0.005; 0.005];% Gyroscope noise standard deviation
-imu_params.gcovariance = [0.005; 0.005; 0.005].^2*eye(3);
+imu_params.gcovariance = eye(3)*[0.005; 0.005; 0.005].^2;
 imu_params.gravity_scalar = 9.81;                % Gravity acceleration
 imu_params.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
 

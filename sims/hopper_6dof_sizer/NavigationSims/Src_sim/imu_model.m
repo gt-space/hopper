@@ -35,8 +35,8 @@ if isempty(imu_params)
         % Fallback defaults if initializer hasn't populated workspace yet
         imu_params.accel_noise_std = [0; 0; 0];
         imu_params.gyro_noise_std = [0; 0; 0];
-        imu_params.acovariance = [0.05; 0.05; 0.05].^2*eye(3);
-        imu_params.gcovariance = [0.005; 0.005; 0.005].^2*eye(3);
+        imu_params.acovariance = eye(3)*[0.05; 0.05; 0.05].^2;
+        imu_params.gcovariance = eye(3)*[0.005; 0.005; 0.005].^2;
         imu_params.gravity_scalar = 9.81; % Example body frame gravity component
         imu_params.packet_invalid_prob = 0.0;
     end

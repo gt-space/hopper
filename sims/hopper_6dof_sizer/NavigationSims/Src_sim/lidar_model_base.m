@@ -46,7 +46,7 @@ elseif dist_true <= 3
     dist_noise = lidar_params.noise_std_1*randn(4,1);
 elseif dist_true <= 8
     dist_noise = lidar_params.noise_std_2*dist_true.*randn(4,1);
-    covariance = lidar_params.noise_std_2*(dist_true+dist_noise).^2*eye(4);
+    covariance = eye(4)*lidar_params.noise_std_2*(dist_true+dist_noise).^2;
 else
     validity = zeros(4,1);
     covariance = eye(4);
