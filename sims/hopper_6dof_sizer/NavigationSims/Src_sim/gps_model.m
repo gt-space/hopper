@@ -1,4 +1,3 @@
-function [position, velocity, timestamp, validity] = gps_model(trueState, simtime)
 % GPS antenna position and velocity simulation.
 %
 % Coordinate conventions:
@@ -6,18 +5,36 @@ function [position, velocity, timestamp, validity] = gps_model(trueState, simtim
 %   Angular velocity: body frame
 %   Quaternion: inertial-to-body, Hamilton, scalar-first
 %   Antenna lever arm: body frame
+%
+% Inputs:
+%   trueState       - True vehicle state (20x1)
+%   simtime         - Simulation time (s)
+% 
+% Outputs:
+%   gpsBus          - struct defined in the Navigation Dictionary
+function gpsBus = gps_model(trueState, simtime)
 
+    % Build an empty output struct from the dictionary definition
+    persistent gpsBusData;
+    if isempty(gpsBusData)
+        dictionary = Simulink.data.dictionary.open('NavigationDictionary.sldd');
+        gpsBusData = Simulink.Bus.createMATLABStruct('gpsBus',[],1,dictionary);
+    end
+
+    % Load in the gps_params struct
     persistent gps_params;
-
     if isempty(gps_params)
         try
             gps_params = evalin('base', 'gps_params');
         catch
-            gps_params.r_b = [0; 0; 0];
+            gps_params.r1 = [0.5; 0.0; -0.2];              % Antenna 2 vector from COM (3x1) (m)
+            gps_params.r2 = [-0.5; 0.0; -0.2];             % Antenna 2 vector from COM (3x1) (m)
             gps_params.bias = [0; 0; 0];
             gps_params.multipath = [0; 0; 0];
             gps_params.pos_noise_std = [0.02; 0.02; 0.05];
             gps_params.vel_noise_std = [0.1; 0.1; 0.1];
+            gps_params.pos_covariance = eye(3)*[0.02^2; 0.02^2; 0.05^2]; % Filter measurement covariance
+            gps_params.vel_covariance = eye(3)*[0.05^2; 0.05^2; 0.1^2]; % Filter measurement covariance
             gps_params.packet_invalid_prob = 0;
         end
     end
@@ -33,7 +50,7 @@ function [position, velocity, timestamp, validity] = gps_model(trueState, simtim
     C_IB = quaternion_to_DCM(quaternionTrue)';
     
     % Antenna lever arm in body coordinates
-    r_B = gps_params.r_b(:);
+    r_B = (gps_params.r1(:) + gps_params.r2(:))/2;
     
     % Ideal antenna position and velocity
     antennaPosition = positionTrue + C_IB * r_B;
@@ -46,7 +63,15 @@ function [position, velocity, timestamp, validity] = gps_model(trueState, simtim
     % Simulated measurements
     position = antennaPosition + gps_params.bias(:) + gps_params.multipath(:) + positionNoise;
     velocity = antennaVelocity + velocityNoise;
-    
     validity = rand() >= gps_params.packet_invalid_prob;
+
+    % Load the output struct
+    gpsBusData.pos = position;
+    gpsBusData.vel = velocity;
+    gpsBusData.pcovariance = gps_params.pos_covariance;
+    gpsBusData.vcovariance = gps_params.vel_covariance;
+    gpsBusData.timestamp = timestamp;
+    gpsBusData.validity = validity;
+    gpsBus = gpsBusData;
 
 end

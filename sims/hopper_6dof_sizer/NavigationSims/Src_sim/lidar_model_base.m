@@ -37,20 +37,21 @@ end
 validity = rand(4,1) > lidar_params.packet_invalid_prob;
 
 % Handle noise and validity according to the true distance
+num_sensors = size(dist_true,1);
 if dist_true < 0.2
-    validity = zeros(4,1);
-    covariance = eye(4);
-    dist_noise = zeros(4,1);
+    validity = zeros(num_sensors,1);
+    covariance = eye(num_sensors);
+    dist_noise = zeros(num_sensors,1);
 elseif dist_true <= 3
-    covariance = lidar_params.noise_std_1^2*eye(4);
-    dist_noise = lidar_params.noise_std_1*randn(4,1);
+    covariance = lidar_params.noise_std_1^2*eye(num_sensors);
+    dist_noise = lidar_params.noise_std_1*randn(num_sensors,1);
 elseif dist_true <= 8
-    dist_noise = lidar_params.noise_std_2*dist_true.*randn(4,1);
-    covariance = eye(4)*lidar_params.noise_std_2*(dist_true+dist_noise).^2;
+    dist_noise = lidar_params.noise_std_2*dist_true.*randn(num_sensors,1);
+    covariance = eye(num_sensors)*lidar_params.noise_std_2*(dist_true+dist_noise).^2;
 else
-    validity = zeros(4,1);
-    covariance = eye(4);
-    dist_noise = zeros(4,1);
+    validity = zeros(num_sensors,1);
+    covariance = eye(num_sensors);
+    dist_noise = zeros(num_sensors,1);
 end
 
 % Compute the measured distance
