@@ -45,13 +45,10 @@ if dist_true < 0.2
 elseif dist_true <= 3
     covariance = lidar_params.noise_std_1^2*eye(num_sensors);
     dist_noise = lidar_params.noise_std_1*randn(num_sensors,1);
-elseif dist_true <= 8
+else
+    validity = dist_true <= 8;
     dist_noise = lidar_params.noise_std_2*dist_true.*randn(num_sensors,1);
     covariance = eye(num_sensors)*lidar_params.noise_std_2*(dist_true+dist_noise).^2;
-else
-    validity = zeros(num_sensors,1);
-    covariance = eye(num_sensors);
-    dist_noise = zeros(num_sensors,1);
 end
 
 % Compute the measured distance

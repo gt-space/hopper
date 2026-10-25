@@ -68,7 +68,7 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
     gps_incorp = meas_posvel.validity && meas_posvel.timestamp > gps_timestamp;
     gyro_incorp = meas_angvel.validity && meas_angvel.timestamp > gyro_timestamp;
     baro_incorp = meas_baro.validity && meas_baro.timestamp > baro_timestamp;
-    lid_incorp = meas_LID.validity && meas_LID.timestamp > lid_timestamp;
+    lid_incorp = any(meas_LID.validity) && meas_LID.timestamp > lid_timestamp;
     mag_incorp = meas_mag.validity && meas_mag.timestamp > mag_timestamp;
 
 
@@ -123,6 +123,6 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
 
     % TODO: LIDAR correction
     % TODO: Magnetometer correction
-    % TODO: Differential GPS, if included
+    % TODO: Differential GPS
 
 end
