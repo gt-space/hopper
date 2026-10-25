@@ -9,8 +9,8 @@ tgrid = tgrid(:);
 N     = numel(tgrid);
 t0    = tgrid(1);
 tf    = tgrid(end);
-nx    = size(Eta,2);
-nu    = size(unom,2);
+nx    = 12;
+nu    = 4;
 
 %% reference state derivative from trajectory table
 Etadot = zeros(size(Eta));   % N x 12
