@@ -52,6 +52,9 @@ jobs:
       - name: No committed caches, no model newer than the team release
         working-directory: ${{ env.PROJECT }}
         run: bash tools/ci/guards.sh
+      - name: Every CODEOWNERS owner resolves
+        working-directory: ${{ env.PROJECT }}
+        run: python3 tools/ci/codeowners_check.py "${{ github.repository }}" "${{ github.sha }}" "${{ github.token }}"
 
   test:
     name: Unit, model and nominal-flight tests

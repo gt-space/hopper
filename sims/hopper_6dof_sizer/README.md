@@ -29,7 +29,7 @@ From the project root (`buildtool` needs R2023b or later):
 
 | Job | What it does |
 |---|---|
-| `guards` | `tools/ci/guards.sh`, no MATLAB: no committed caches, no model newer than the team release. Fails in seconds. |
+| `guards` | No MATLAB, fails in seconds. `tools/ci/guards.sh`: no committed caches, no model newer than the team release. `tools/ci/codeowners_check.py`: every owner in `.github/CODEOWNERS` is a team GitHub can resolve. |
 | `test` | `buildtool check test sim`. JUnit XML is uploaded as the `test-results` artifact. |
 | `montecarlo` | `buildtool mc`. Writes the per-run table to the run's summary page and uploads `outputs/montecarlo/` (`mc_ci.mat`, `mc_summary.csv`). |
 | `model-diff` | Pull requests only. A Simulink Comparison HTML report for every changed `.slx`, uploaded as the `model-diffs` artifact. |

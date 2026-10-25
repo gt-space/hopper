@@ -27,7 +27,14 @@ How we work on this sim together without breaking each other's models. The [READ
   - Wire it into the master model behind a switch.
   - The shared-subsystem/variant work is turning these switches into proper variant choices; ask if unsure where yours goes.
 - **Open a pull request early** (draft is fine). CI runs on every push, and the PR template asks for the Monte Carlo numbers.
-- **Code owners** (`.github/CODEOWNERS`) are asked to review changes in their area. If you now own an area, add yourself there.
+- **Code owners** (`.github/CODEOWNERS`) are GitHub teams. A pull request automatically requests review from the team that owns each file it touches:
+  - `hopper-gca`: guidance and control
+  - `hopper-nav`: navigation filters
+  - `hopper-fdir`: FDIR
+  - `hopper-fsw`: FSW bridge
+  - `hopper-modsim`: everything else, including propulsion and structures for now
+
+  Joining or leaving only changes team membership (gt-space org → Teams), never the file. Edit CODEOWNERS only when an area moves to a different team or a new team is created. CI's guards job fails if GitHub can't resolve an owner, for example a renamed team or one without Write access to the repo.
 
 ## Files and folders
 

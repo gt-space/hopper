@@ -1,58 +1,40 @@
 # Code owners for the hopper 6DOF sim. GitHub requests a review from the
 # owners of every file a pull request touches; with branch protection's
 # "Require review from Code Owners" on, one of them must approve.
-# Later lines win over earlier ones. Owners need write access to the repo.
-# Picked from git history (who has changed each area most); update as
-# ownership moves.
+# Later lines win over earlier ones.
+#
+# Owners are GitHub teams, so people joining or leaving only changes team
+# membership (gt-space org -> Teams), never this file:
+#   hopper
+#   └── hopper-gnc
+#       ├── hopper-gca      guidance and control (LQR/LQI)
+#       ├── hopper-nav      navigation filters
+#       ├── hopper-fdir     fault detection, isolation and recovery
+#       ├── hopper-fsw      flight-software bridge
+#       └── hopper-modsim   modeling and sim: vehicle model, propulsion,
+#                           structures, slosh, Monte Carlo, tests, CI
+# Each team needs Write access to this repo (granting it to hopper covers
+# all of them). CI's guards job fails if GitHub can't resolve an owner here.
 
-# Default for anything in the sim not listed below
-/sims/hopper_6dof_sizer/                                   @Asingh-007
+# Default: the sim team owns anything not listed below
+/sims/hopper_6dof_sizer/                                            @gt-space/hopper-modsim
 
-# Vehicle model and the subsystems everyone shares
-/sims/hopper_6dof_sizer/models/                            @Asingh-007
-/sims/hopper_6dof_sizer/subsystems/                        @Asingh-007
-/sims/hopper_6dof_sizer/inputs/                            @Asingh-007
-
-# Guidance and control (LQR gain scheduling, LQI work in models/dev)
-/sims/hopper_6dof_sizer/src/gnc/                           @Asingh-007 @Max-Goldstein1
-/sims/hopper_6dof_sizer/models/dev/                        @Max-Goldstein1 @Asingh-007
-
-# Slosh and mass properties
-/sims/hopper_6dof_sizer/src/slosh/                         @Asingh-007
-/sims/hopper_6dof_sizer/src/dynamics/                      @Asingh-007
-/sims/hopper_6dof_sizer/docs/SLOSH_MODEL.md                @Asingh-007
-
-# Monte Carlo
-/sims/hopper_6dof_sizer/src/monte_carlo/                   @Asingh-007 @TheRealT-Dawg
-
-# FDIR and fault injection
-/sims/hopper_6dof_sizer/src/fdir/                          @Asingh-007 @EkanshSingh401 @TheRealT-Dawg
-/sims/hopper_6dof_sizer/subsystems/fdir/                   @Asingh-007 @EkanshSingh401 @TheRealT-Dawg
-/sims/hopper_6dof_sizer/tests/fdir/                        @Asingh-007 @EkanshSingh401 @TheRealT-Dawg
-/sims/hopper_6dof_sizer/models/hopper_6dof_NED_fault_injection.slx @Asingh-007 @EkanshSingh401 @TheRealT-Dawg
+# Guidance and control
+/sims/hopper_6dof_sizer/src/gnc/                                    @gt-space/hopper-gca
+/sims/hopper_6dof_sizer/models/dev/                                 @gt-space/hopper-gca
 
 # Navigation filters (GMEKF / MEKF)
-/sims/hopper_6dof_sizer/subsystems/navigation/             @Asingh-007 @mmurphy213
+/sims/hopper_6dof_sizer/subsystems/navigation/                      @gt-space/hopper-nav
 
-# Propulsion: feed system, throttle valve, fluid network
-/sims/hopper_6dof_sizer/src/propulsion/                    @Asingh-007
-/sims/hopper_6dof_sizer/models/standalone/throttle_valve_simulink.slx @npwtub
-/sims/hopper_6dof_sizer/models/hopper_6dof_NED_v2_fluid_integration.slx @maddoxle9 @Asingh-007
-/sims/hopper_6dof_sizer/subsystems/propulsion/             @Asingh-007
-
-# Landing legs / ground contact
-/sims/hopper_6dof_sizer/models/hopper_6dof_NED_v2_ground.slx @EWall25 @Asingh-007
-
-# RCS fans
-/sims/hopper_6dof_sizer/subsystems/actuators/              @Asingh-007
+# FDIR and fault injection
+/sims/hopper_6dof_sizer/src/fdir/                                   @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/subsystems/fdir/                            @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/tests/fdir/                                 @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/models/hopper_6dof_NED_fault_injection.slx  @gt-space/hopper-fdir
 
 # Flight-software bridge (C codegen, Rust SIL)
-/sims/hopper_6dof_sizer/fsw_bridge/                        @Asingh-007 @aadityabarbudhe08
+/sims/hopper_6dof_sizer/fsw_bridge/                                 @gt-space/hopper-fsw
 
-# Tests, CI and project plumbing
-/sims/hopper_6dof_sizer/tests/                             @Asingh-007
-/sims/hopper_6dof_sizer/tools/                             @Asingh-007
-/sims/hopper_6dof_sizer/buildfile.m                        @Asingh-007
-/sims/hopper_6dof_sizer/HopperSim.prj                      @Asingh-007
-/.github/workflows/hopper-sim.yml                          @Asingh-007
-/.github/CODEOWNERS                                        @Asingh-007
+# CI and this file
+/.github/workflows/hopper-sim.yml                                   @gt-space/hopper-modsim
+/.github/CODEOWNERS                                                 @gt-space/hopper-modsim
