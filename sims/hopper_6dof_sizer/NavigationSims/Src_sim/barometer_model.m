@@ -10,14 +10,13 @@
 %
 % Inputs:
 %   x: state vector (20x1)
-%   baroBias: barometer measurement bias (m)
 %   simtime: time elapsed (s)
 %
 % Outputs:
 %   baroBus: struct defined in the Navigation Dictionary
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function baroBus = barometer_model(x, baroBias, time)
+function baroBus = barometer_model(x, time)
 
 % Build an empty output struct from the dictionary definition
 baroBus = Simulink.Bus.createMATLABStruct('baroBus');
@@ -32,6 +31,7 @@ if isempty(baro_params)
         baro_params.noise_std = 0.1;            % Height noise std deviation (m)
         baro_params.covariance = 0.1^2;
         baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
+        baro_params.bias = 0;
     end
 end
 
@@ -43,7 +43,7 @@ timestamp = time;
 % Adjust index x(3) to match whatever index represents your true height/altitude in the 20x1 state vector
 true_height = x(3);
 baro_noise = baro_params.noise_std * randn();
-height = true_height + baroBias + baro_noise;
+height = true_height + baro_params.bias + baro_noise;
 
 % 3. Validity Flag Assignment
 validity = rand() > baro_params.packet_invalid_prob;
