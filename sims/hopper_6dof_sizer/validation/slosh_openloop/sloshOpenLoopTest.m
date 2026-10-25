@@ -9,7 +9,7 @@ function R = sloshOpenLoopTest(slxFile, ox_frac, fu_frac, inputMode, floorSet)
 %             'kinematic' : driven by dVb/dt incl. gravity (old wiring)
 %   floorSet  'asbuilt' | 'sizer' : tank floor used by the truth model
 % Run sim_setup first (uses OUT, MoI_init, cg_init, TANKS from the base
-% workspace). See SLOSH_VALIDATION.md section 7.
+% workspace).
 %
 %   R = sloshOpenLoopTest('hopper_6dof_NED_v2.slx', 1, 0, 'specific', 'asbuilt')
 for v = {'OUT', 'MoI_init', 'cg_init', 'TANKS'}, W.(v{1}) = evalin('base', v{1}); end

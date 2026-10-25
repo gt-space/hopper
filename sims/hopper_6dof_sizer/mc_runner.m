@@ -28,8 +28,9 @@ nominal = runNominal(params_file);
 for mc_iter = 1:n_scenarios
     fprintf('Running scenario %d / %d\n', mc_iter, n_scenarios);
     try
-        % mc_sim_setup now runs cg_moi_test and LinerizationMaster in base
-        % itself, so the pull-into-this-workspace-and-rerun dance is gone.
+        % mc_sim_setup runs LinerizationMaster itself, around the
+        % nominal/dispersed controller swap, so the old
+        % pull-into-this-workspace-and-rerun dance is gone.
         mc_sim_setup(scenarios(mc_iter));
         sim_out = sim('hopper_6dof_NED_v2');
         r = mc_main(scenarios(mc_iter), sim_out);
