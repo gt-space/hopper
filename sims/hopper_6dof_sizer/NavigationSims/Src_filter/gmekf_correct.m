@@ -69,5 +69,6 @@ function [xnp1_c, Pnp1_c] = gmekf_correct(xnp1, Pnp1, aux, meas_posvel, ...
     end
 
     % TODO: LIDAR correction
+    % TODO: differential gps correction
 
 end
