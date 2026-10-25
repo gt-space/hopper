@@ -18,6 +18,15 @@ function [nominalStatePosterior, errorCovariancePosterior, accepted] = ...
 %   accepted                 - Boolean flag if measurement passed gating
 
     [innovation, measurementJacobian] = sensorModel(nominalStatePrior, measurement, params);
+
+    % If sensor models discover a validity issue, they report an empty
+    % innovation. This is how we address those.
+    if isempty(innovation)
+        nominalStatePosterior = nominalStatePrior;
+        errorCovariancePosterior = errorCovariancePrior;
+        accepted = false;
+        return;
+    end
     
     measurementNoiseCovariance = measurement.R;
     

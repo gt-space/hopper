@@ -68,7 +68,10 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
     gps_incorp = meas_posvel.validity && meas_posvel.timestamp > gps_timestamp;
     gyro_incorp = meas_angvel.validity && meas_angvel.timestamp > gyro_timestamp;
     baro_incorp = meas_baro.validity && meas_baro.timestamp > baro_timestamp;
-    lid_incorp = any(meas_LID.validity) && meas_LID.timestamp > lid_timestamp;
+    lid1_incorp = meas_LID.validity(1) && meas_LID.timestamp > lid_timestamp;
+    lid2_incorp = meas_LID.validity(2) && meas_LID.timestamp > lid_timestamp;
+    lid3_incorp = meas_LID.validity(3) && meas_LID.timestamp > lid_timestamp;
+    lid4_incorp = meas_LID.validity(4) && meas_LID.timestamp > lid_timestamp;
     mag_incorp = meas_mag.validity && meas_mag.timestamp > mag_timestamp;
 
 
@@ -122,6 +125,73 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
     end
 
     % TODO: LIDAR correction
+    lidarParams = lidar_frames;
+    if lid1_incorp
+
+        meas_lid1.measurement = meas_LID.measurement(1);
+        meas_lid1.covariance = meas_LID.covariance(1);
+        lidarParams.lidarIndex = 1;
+        
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @lidar_update_model, ...
+            meas_lid1, ...
+            lidarParams);
+
+        lid_timestamp = meas_LID.timestamp;
+
+    end
+    if lid2_incorp
+
+        meas_lid2.measurement = meas_LID.measurement(2);
+        meas_lid2.covariance = meas_LID.covariance(2);
+        lidarParams.lidarIndex = 2;
+
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @lidar_update_model, ...
+            meas_lid2, ...
+            lidarParams);
+
+        lid_timestamp = meas_LID.timestamp;
+
+    end
+    if lid3_incorp
+
+        meas_lid3.measurement = meas_LID.measurement(3);
+        meas_lid3.covariance = meas_LID.covariance(3);
+        lidarParams.lidarIndex = 3;
+
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @lidar_update_model, ...
+            meas_lid3, ...
+            lidarParams);
+
+        lid_timestamp = meas_LID.timestamp;
+
+    end
+    if lid4_incorp
+
+        meas_lid4.measurement = meas_LID.measurement(4);
+        meas_lid4.covariance = meas_LID.covariance(4);
+        lidarParams.lidarIndex = 4;
+
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @lidar_update_model, ...
+            meas_lid4, ...
+            lidarParams);
+
+        lid_timestamp = meas_LID.timestamp;
+
+    end
+
+
     % TODO: Magnetometer correction
     % TODO: Differential GPS
 

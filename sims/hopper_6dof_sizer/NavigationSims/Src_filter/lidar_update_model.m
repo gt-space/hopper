@@ -26,7 +26,7 @@ end
 
 % Get the height and attitude of the vehicle
 h = nominalState(3) - params.heightCOM;
-q_BI = x(10:13);
+q_BI = nominalState(10:13);
 
 % Compute the rotation matrix from q
 R = quaternion_to_rotation(q_BI);
@@ -44,12 +44,12 @@ if abs(D) < 1e-3 || d <= 0
 end
 
 % Compute innovation
-innovation = d_vec - measurement.distance(idx);
+innovation = distanceEstimate - measurement.distance;
 
 % Calculate measurement Jacobian using the GMEKF conventions
-u = R*(r + distanceEstimate*a);                   % inertial COM -> ground-hit vector
+u = R*(r + distanceEstimate*A(:,1));                    % inertial COM -> ground-hit vector
 measurementJacobian = zeros(1,19);
-measurementJacobian(3)     = -1/D;                % position z
+measurementJacobian(3)     = -1/D;                      % position z
 measurementJacobian(10:12) = (cross([0 0 1]',u)/D)';    % attitude error (inertial frame)
 
 end
