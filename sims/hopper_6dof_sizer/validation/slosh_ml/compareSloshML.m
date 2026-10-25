@@ -14,7 +14,6 @@ function T = compareSloshML(slosh_ml_dir, design)
 
 here = fileparts(mfilename('fullpath'));
 addpath(fullfile(slosh_ml_dir, 'source', 'v1.0.0', 'functions'));
-addpath(fileparts(fileparts(here)));   % hopper_6dof_sizer
 
 g    = 9.81;
 in2m = 0.0254;
