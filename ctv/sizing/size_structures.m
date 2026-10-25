@@ -40,6 +40,8 @@ STRUCT.intertank.mass = 3; % guess
 
 STRUCT.total = STRUCT.legs.mass + STRUCT.intertank.mass;
 
-VEH.mass.dry = VEH.mass.dry + STRUCT.total;
+% Legs + intertank are already inside the IN.mass.dry_total budget, so this
+% sizing pass is reported but deliberately does NOT add to VEH.mass.dry.
+% (It used to, which left DryMass and WetMass inconsistent with each other.)
 
 end
