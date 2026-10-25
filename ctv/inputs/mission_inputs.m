@@ -10,6 +10,7 @@ IN.const.FS_struct = 2;           % structural factor of safety
 %  MISSION CONSTRAINTS (checked after flight simulation)
 IN.mission.target_altitude = 4;    % m
 IN.mission.hover_time_55m = 2;      % s
+IN.mission.three_sec_check = false; % true: hold 3 s on the pad before ascent (ThreeSecTrajectory2)
 IN.mission.max_ascent_vel = 26;    % m/s
 IN.mission.max_descent_vel = 26;   % m/s
 IN.mission.hover_time_1m = 1;       %s

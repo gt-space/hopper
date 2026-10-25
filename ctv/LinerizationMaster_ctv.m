@@ -2,8 +2,12 @@
 close all;
 
 
-Trajectory2
-ThreeSecTrajectory2
+% IN.mission.three_sec_check (mission_inputs) adds the 3 s pre-ascent check period
+if isfield(IN.mission, 'three_sec_check') && IN.mission.three_sec_check
+    ThreeSecTrajectory2
+else
+    Trajectory2
+end
 
 
 % x y z vx vy vz P Q R q0 q1 q2 q3

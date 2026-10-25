@@ -6,8 +6,12 @@ APMAT = load("AP_T.mat");
 T_profileEXCEL = readtable("ThrustProfileAP.xlsx");
 T_profileEXCEL = table2array(T_profileEXCEL);
 
-Trajectory2
-ThreeSecTrajectory2
+% IN.mission.three_sec_check (mission_inputs) adds the 3 s pre-ascent check period
+if isfield(IN.mission, 'three_sec_check') && IN.mission.three_sec_check
+    ThreeSecTrajectory2
+else
+    Trajectory2
+end
 
 %% -------------------------
 % REDUCED 12-STATE WEIGHTS
