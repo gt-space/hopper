@@ -5,11 +5,13 @@ on:
     paths:
       - "sims/hopper_6dof_sizer/**"
       - ".github/workflows/hopper-sim.yml"
+      - ".github/CODEOWNERS"
       - "!sims/hopper_6dof_sizer/**/*.md"
   pull_request:
     paths:
       - "sims/hopper_6dof_sizer/**"
       - ".github/workflows/hopper-sim.yml"
+      - ".github/CODEOWNERS"
       - "!sims/hopper_6dof_sizer/**/*.md"
   workflow_dispatch:
 
