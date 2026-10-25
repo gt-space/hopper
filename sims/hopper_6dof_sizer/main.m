@@ -23,11 +23,16 @@ VEH.mass.wet = VEH.mass.dry + ...
 [STRUCT, VEH] = size_structures(IN, VEH);
 VEH.mass.dry = dry_mass_override;   % size_structures adds legs/intertank; already in the override
 
-
-r_leg_1 = [0 IN.legs.feet_radial_dist 0];
-r_leg_2 = [0 -IN.legs.feet_radial_dist 0];
-r_leg_3 = [0 0 IN.legs.feet_radial_dist ];
-r_leg_4 = [0 0 -IN.legs.feet_radial_dist];
+r_leg = [
+    0 IN.legs.feet_radial_dist 0
+    0 -IN.legs.feet_radial_dist 0
+    0 0 IN.legs.feet_radial_dist
+    0 0 -IN.legs.feet_radial_dist
+]';
+r_leg_1 = r_leg(:,1)';   % per-leg names still read by the v2/v3 models
+r_leg_2 = r_leg(:,2)';
+r_leg_3 = r_leg(:,3)';
+r_leg_4 = r_leg(:,4)';
 
 VEH.k_engine = (IN.engine_cg/IN.mission.max_vehicle_height)^2;
 

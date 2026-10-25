@@ -33,6 +33,7 @@ end
 A = pi*r^2;
 m_leg = A * L * rho;
 
+STRUCT.legs.k = (A * E) / L;
 STRUCT.legs.mass = N_legs * m_leg * 1.5;
 
 %% Intertank structure

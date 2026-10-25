@@ -122,6 +122,7 @@ IN.throttle_valve.resolution = 5;   % N
 IN.legs.material = 'Al6061';
 IN.legs.tip_factor = 2;             % non-symmetric landing factor
 IN.legs.feet_radial_dist = 0.5;     % m
+IN.legs.damping_const = 1.0;        % strut damping
 
 % CG VALUES
 IN.engine_cg = 0.3556;
