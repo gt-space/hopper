@@ -11,7 +11,7 @@
 
 %% Add relevant file paths
 addpath("Filter Sims\");
-addpath("Src\");
+addpath("Src_sim\");
 addpath("Src_filter\");
 addpath("Filters\");
 
@@ -45,18 +45,18 @@ Qc = blkdiag( ...
     baroBiasNoisePSD);
 
 % TODO! TUNE THIS COVARIANCE
-P0 = [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0;
+P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0.01 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0.01 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0.01 0 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0.001 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0.001 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 0.001 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 0 0.03 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 0 0 0.03 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 0 0 0 0.03 0 0 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0;
@@ -67,13 +67,30 @@ P0 = [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
 % Note covariance is 19x19, not 20x20, because covariance uses a 3-element
 % rotation representation
 
+% TODO: TUNE THIS PROCESS NOISE COVARIANCE!
+qc = [1 0 0 0 0 0 0 0 0 0 0 0 0;
+      0 1 0 0 0 0 0 0 0 0 0 0 0;
+      0 0 1 0 0 0 0 0 0 0 0 0 0;
+      0 0 0 1 0 0 0 0 0 0 0 0 0;
+      0 0 0 0 1 0 0 0 0 0 0 0 0;
+      0 0 0 0 0 1 0 0 0 0 0 0 0;
+      0 0 0 0 0 0 1 0 0 0 0 0 0;
+      0 0 0 0 0 0 0 1 0 0 0 0 0;
+      0 0 0 0 0 0 0 0 1 0 0 0 0;
+      0 0 0 0 0 0 0 0 0 1 0 0 0;
+      0 0 0 0 0 0 0 0 0 0 1 0 0;
+      0 0 0 0 0 0 0 0 0 0 0 1 0;
+      0 0 0 0 0 0 0 0 0 0 0 0 1];
+
 %% Sensor sampling and noise parameters
 
 % IMU parameters
 imu_st = filter_st;     % sample time (s)
 % --- IMU Sensor Parameters ---
 imu_params.accel_noise_std = [0.05; 0.05; 0.05]; % Accelerometer noise standard deviation
+imu_params.acovariance = eye(3)*[0.05; 0.05; 0.05].^2;
 imu_params.gyro_noise_std = [0.005; 0.005; 0.005];% Gyroscope noise standard deviation
+imu_params.gcovariance = eye(3)*[0.005; 0.005; 0.005].^2;
 imu_params.gravity_scalar = 9.81;                % Gravity acceleration
 imu_params.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
 
@@ -83,6 +100,9 @@ gps_st = 0.1;           % sample time (s)
 gps_params.r_b = [0.1; 0.0; -0.2];             % Antenna lever arm from CG (3x1) (m)
 gps_params.multipath = [0.002; 0.001; -0.003]; % Pad bounce error (b_mp,k) (m)[cite: 1]
 gps_params.pos_noise_std = [0.02; 0.02; 0.05]; % Position jitter standard deviation (eta_p) (m)[cite: 1]
+gps_params.vel_noise_std = [0.05, 0.05, 0.01]; % Velocity jitter standard deviation
+gps_params.pos_covariance = eye(3)*[0.02^2; 0.02^2; 0.05^2]; % Filter measurement covariance
+gps_params.vel_covariance = eye(3)*[0.05^2; 0.05^2; 0.1^2]; % Filter measurement covariance
 gps_params.packet_invalid_prob = 0.0;          % Set to 0 for now
 % Provisional GPS velocity noise standard deviations (m/s).
 % Replace with receiver specifications.
@@ -92,15 +112,19 @@ gps_params.vel_noise_std = [0.1; 0.1; 0.1];
 barometer_st = 0.05;    % sample time (s)
 % --- Barometer Sensor Parameters ---
 baro_params.noise_std = 0.1;            % Noise standard deviation (m)
+baro_params.covariance = 0.1^2;         % Filter measurement covariance
 baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
+baro_params.bias = 0.5;                 % Placeholder
 
 % LIDAR parameters
 lidar_st = 0.01;        % sample time (s)
+% --- Barometer Sensor Parameters (SJ-GU-TF-Luna A03)---
+lidar_params.noise_std_1 = 0.06; % Distance measurement jitter (cm) for 0.2-3m
+lider_params.noise_std_2 = 0.02; % Distance measurement jitter (proportion distance) for 3-8m
+lidar_params.packet_invalid_prob = 0.0; % set to zero for now
+% Note- any distances over 8m will be not valid it appears
 
 %% Sensor frame parameters
-
-% IMU Frame Transformation
-
 
 % LIDAR 1, 2, 3, 4 mounting frame information
 % TODO: get these params from CAD accurately
@@ -112,6 +136,7 @@ lidar_frames.r1 = [0.25 0 0]';
 lidar_frames.r2 = [0 0.25 0]';
 lidar_frames.r3 = [-0.25 0 0]';
 lidar_frames.r4 = [0 -0.25 0]';
+lidar_frames.heightCOM = 1;
 
 %% Function to build rotation matrix for each LIDAR unit vector
 % phi: angle from x about z-axis of body frame (deg)

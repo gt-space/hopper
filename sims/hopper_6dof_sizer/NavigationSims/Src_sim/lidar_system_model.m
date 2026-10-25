@@ -6,18 +6,19 @@
 % Depends on filter_sim_initializer setting the sensor frames.
 % 
 % Author: David Meisinger
-% Date: 10/17/26
+% Date: 10/25/26
 % 
 % Inputs:
 %   x: true state vector (20x1)
 % 
 % Outputs:
-%   d_vec: LIDAR sensor distance estimates (4x1) (m)
-%   timestamp: time elapsed (s)
-%   validity: boolean vector (true if valid measurement) (4x1)
+%   lidarBus: LIDAR measurement struct defined in the Navigation Dictionary
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [d_vec, timestamp, validity] = lidar_system_model(x, time, lidar_frames)
+function lidarBus = lidar_system_model(x, time, lidar_frames)
+
+    % Build an empty output struct from the dictionary definition
+    lidarBus = Simulink.Bus.createMATLABStruct('lidarBus');
 
     % Load the LIDAR frame variables
     A1 = lidar_frames.A1;
@@ -30,7 +31,7 @@ function [d_vec, timestamp, validity] = lidar_system_model(x, time, lidar_frames
     r4 = lidar_frames.r4;
 
     % Get the height and attitude of the vehicle
-    h = x(3);
+    h = x(3) + lidar_frames.heightCOM;
     q_BI = x(10:13);
     q_IB = [q_BI(1); -q_BI(2:4)];
 
@@ -45,9 +46,12 @@ function [d_vec, timestamp, validity] = lidar_system_model(x, time, lidar_frames
              -(n*r4 + h)/(n*A4(:,1))];
 
     % Apply sensor model with noise
-    [d_vec, validity] = lidar_model_base(d_vec);
+    [d_vec, covariance, validity] = lidar_model_base(d_vec);
 
-    % Set timestamp (assume no delay for now)
-    timestamp = time;
+    % Build the output struct
+    lidarBus.distance = d_vec;
+    lidarBus.covariance = covariance;
+    lidarBus.timestamp = time;
+    lidarBus.validity = validity;
 
 end

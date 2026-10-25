@@ -1,8 +1,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% lidar_filter_model.m
+% lidar_update_model.m
 % Computes the predicted LiDAR range and its Jacobian row for the filter.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [rho_hat, H_lidar] = lidar_filter_model(m_X, m_q, lidar_params)
+function [rho_hat, H_lidar] = lidar_update_model(m_X, m_q, lidar_params)
 l = lidar_params.l;     % Lever arm (3x1)
 d = lidar_params.d;     % Unit beam direction (3x1)
 z_g = lidar_params.z_g; % Flat ground height
