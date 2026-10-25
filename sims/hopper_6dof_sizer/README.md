@@ -4,7 +4,9 @@ MATLAB/Simulink sims used for preliminary vehicle sizing of the Hopper (YJSP's P
 
 **Working on the sim?** Read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) first. It covers setup, branches, model rules, tests, and when to update the baseline.
 
-## Quick start (MATLAB R2026a)
+## Quick start
+
+Use the MATLAB release named in [`TEAM_RELEASE`](TEAM_RELEASE). CI installs that release, and models must be saved in it or older.
 
 1. Open the project: double-click `HopperSim.prj`, or run `openProject('sims/hopper_6dof_sizer')`.
    This puts every source folder on the path and sends Simulink caches to `work/`. No `addpath` or `cd` is needed.
@@ -23,11 +25,11 @@ From the project root (`buildtool` needs R2023b or later):
 
 ### CI
 
-[`.github/workflows/hopper-sim.yml`](../../.github/workflows/hopper-sim.yml) runs on every push and pull request that touches this folder, on GitHub-hosted Linux runners with MATLAB R2026a. The repo is public, so MathWorks provides the license for these runners.
+[`.github/workflows/hopper-sim.yml`](../../.github/workflows/hopper-sim.yml) runs on every push and pull request that touches this folder, on GitHub-hosted Linux runners with the MATLAB release in `TEAM_RELEASE`. The repo is public, so MathWorks provides the license for these runners.
 
 | Job | What it does |
 |---|---|
-| `guards` | `tools/ci/guards.sh`, no MATLAB: no committed caches, no model newer than R2026a. Fails in seconds. |
+| `guards` | `tools/ci/guards.sh`, no MATLAB: no committed caches, no model newer than the team release. Fails in seconds. |
 | `test` | `buildtool check test sim`. JUnit XML is uploaded as the `test-results` artifact. |
 | `montecarlo` | `buildtool mc`. Writes the per-run table to the run's summary page and uploads `outputs/montecarlo/` (`mc_ci.mat`, `mc_summary.csv`). |
 | `model-diff` | Pull requests only. A Simulink Comparison HTML report for every changed `.slx`, uploaded as the `model-diffs` artifact. |
@@ -38,13 +40,13 @@ To make `main` require these jobs, an admin turns this on once under **Settings 
 
 What each task checks:
 
-- **`check`** fails if build caches or autosaves are committed, or if a model is saved in a release newer than R2026a.
+- **`check`** fails if build caches or autosaves are committed, or if a model is saved in a release newer than `TEAM_RELEASE`.
 - **`mc`** fails a run that errors, diverges, or does worse than today's vehicle plus margin. Separately, `R.summary.meets_requirements` reports each run against the stricter mission requirements. Edit those in the MISSION CONSTRAINTS section of `inputs/mission_inputs.m` (fields marked `[req]`).
 - **Intended physics change:** if your change is meant to alter the flight, run `NominalFlightTest.updateBaseline()`, say so in the PR, and commit the new baseline.
 
 Results are repeatable: the same inputs give bit-identical results in any session.
 
-Save models in **R2026a** only. A model saved in a newer release can't be opened by everyone else.
+Save models in the **team release** (`TEAM_RELEASE`) or older. A model saved in a newer release can't be opened by everyone else.
 
 ## Layout
 
@@ -69,12 +71,12 @@ Scripts that write files use `hopperRoot('data', ...)`, `hopperRoot('results', .
 
 ## Diffing and merging models
 
-`.slx` files are binary to git. `.gitattributes` routes them to MATLAB's merge driver (`merge=mlAutoMerge`). Set it up once per machine, using your own MATLAB install path:
+`.slx` files are binary to git. `.gitattributes` routes them to MATLAB's merge driver (`merge=mlAutoMerge`). Set it up once per machine. Use your own install path (run `matlabroot` in MATLAB), and rerun these when you move to a new release:
 
 ```bash
-git config --global merge.mlAutoMerge.driver '"C:/Program Files/MATLAB/R2026a/bin/win64/mlAutoMerge.bat" %O %A %B %A'
-git config --global difftool.mlDiff.cmd '"C:/Program Files/MATLAB/R2026a/bin/win64/mlDiff.bat" $LOCAL $REMOTE'
-git config --global mergetool.mlMerge.cmd '"C:/Program Files/MATLAB/R2026a/bin/win64/mlMerge.bat" $BASE $LOCAL $REMOTE $MERGED'
+git config --global merge.mlAutoMerge.driver '"C:/Program Files/MATLAB/<release>/bin/win64/mlAutoMerge.bat" %O %A %B %A'
+git config --global difftool.mlDiff.cmd '"C:/Program Files/MATLAB/<release>/bin/win64/mlDiff.bat" $LOCAL $REMOTE'
+git config --global mergetool.mlMerge.cmd '"C:/Program Files/MATLAB/<release>/bin/win64/mlMerge.bat" $BASE $LOCAL $REMOTE $MERGED'
 ```
 
 - **Diffs:** `git difftool -t mlDiff -- <model>.slx` opens Simulink's Comparison Tool.

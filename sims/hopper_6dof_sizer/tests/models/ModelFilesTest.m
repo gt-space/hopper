@@ -1,10 +1,7 @@
 classdef ModelFilesTest < matlab.unittest.TestCase
     % Every live model and subsystem file loads and is saved in the team
-    % release or older, so nobody pushes a model the others can't open.
-
-    properties (Constant)
-        Release = 'R2026a'
-    end
+    % release (TEAM_RELEASE) or older, so nobody pushes a model the others
+    % can't open.
 
     properties (TestParameter)
         file = liveModelFiles()
@@ -12,10 +9,10 @@ classdef ModelFilesTest < matlab.unittest.TestCase
 
     methods (Test)
         function notNewerThanTeamRelease(tc, file)
-            info = Simulink.MDLInfo(hopperRoot(file));
-            tc.verifyLessThanOrEqual(releaseOrder(info.ReleaseName), releaseOrder(tc.Release), ...
-                sprintf('%s was saved in %s; export it to %s (Simulink.exportToVersion).', ...
-                file, info.ReleaseName, tc.Release));
+            team = teamRelease();
+            rel = Simulink.MDLInfo(hopperRoot(file)).ReleaseName;
+            tc.verifyFalse(isNewerRelease(rel, team), ...
+                sprintf('%s was saved in %s; export it to %s (Simulink.exportToVersion).', file, rel, team));
         end
 
         function loads(tc, file)
@@ -26,11 +23,6 @@ classdef ModelFilesTest < matlab.unittest.TestCase
             tc.verifyTrue(bdIsLoaded(name));
         end
     end
-end
-
-function n = releaseOrder(rel)
-% 'R2025b' -> 4051
-n = 2 * str2double(rel(2:5)) + (lower(rel(6)) == 'b');
 end
 
 function files = liveModelFiles()

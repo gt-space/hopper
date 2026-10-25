@@ -4,14 +4,14 @@ How we work on this sim together without breaking each other's models. The [READ
 
 ## One-time setup
 
-1. **MATLAB R2026a.** Toolboxes:
+1. **MATLAB, in the release named in [`TEAM_RELEASE`](../TEAM_RELEASE).** Toolboxes:
    - Simulink, Aerospace Blockset
    - Communications, DSP System and Signal Processing Toolbox
    - Simscape, Simscape Fluids
    - Control System, Optimization, and Statistics and Machine Learning Toolbox
    - Parallel Computing Toolbox (optional, for parallel Monte Carlo)
 
-   Other releases can be installed alongside, but only **save** from R2026a (see [Models](#models)).
+   Other releases can be installed alongside, but only **save** from the team release (see [Models](#models)).
 2. **Python with CoolProp** (`pip install CoolProp`). Every Monte Carlo run calls it. Check with `pyenv` in MATLAB.
 3. **Git merge tools for `.slx`:** run the three `git config` lines in the README's *Diffing and merging models* section.
 4. Open `HopperSim.prj` every time you work. It sets the path; there is no `addpath`.
@@ -46,12 +46,28 @@ How we work on this sim together without breaking each other's models. The [READ
 
 ## Models
 
-- **Save in R2026a or older.** A model saved in a newer release can't be opened by anyone on R2026a, and CI rejects it.
-  - If you saved one by accident, re-save it from the newer release with `Simulink.exportToVersion(model, 'tmp.slx', 'R2026a')` and replace the file.
+- **Save in the team release or older.** A model saved in a newer release can't be opened by anyone on the team release, and CI rejects it.
+  - If you saved one by accident, re-save it from the newer release with `Simulink.exportToVersion(model, 'tmp.slx', teamRelease())` and replace the file.
 - **Give blocks real names:** `Thrust_to_Mdot_LUT`, not `Subsystem3`. Scripts and tests find blocks by path, so renaming later breaks them.
 - **Read parameters from workspace variables or `IN.*`, not hard-coded literals.** Then `buildSimInput` can set them per run.
 - **Random blocks need a fixed seed.** For example, Bernoulli/Random Source `SeedSource = 'Parameter'`. A block on `'Auto'` reads MATLAB's global random stream and makes every run depend on what ran before it.
 - **Reviewing someone's model change:** download the PR's **model-diffs** artifact (a Simulink Comparison report per changed `.slx`), or run `git difftool -t mlDiff -- <file>.slx` locally.
+
+## Moving to a new MATLAB release
+
+The team release lives in one place: [`TEAM_RELEASE`](../TEAM_RELEASE), one line such as `R2026a`. CI installs that release, and `tools/ci/guards.sh`, `buildtool check` and `tests/models` all check models against it (`teamRelease()` in MATLAB). Models saved in older releases stay valid, so upgrading never forces anyone to re-save files.
+
+To move up, in one PR of its own:
+
+1. **Agree on a date with the team.** Everyone needs the new release installed before the PR merges, or they can't open models saved after it.
+2. **Change the one line in `TEAM_RELEASE`.**
+3. **Run `buildtool check test sim mc` locally on the new release.**
+   - A new solver or block version can shift the nominal flight by tiny amounts. If `NominalFlightTest` fails only by small numbers, run `NominalFlightTest.updateBaseline()` in the same PR and say so.
+   - A large change means the release changed behavior: find out why before merging.
+4. **Check the CI run.** It installs the new release on its own.
+   - If `setup-matlab` rejects a product name, fix `MATLAB_PRODUCTS` in `.github/workflows/hopper-sim.yml`.
+   - If MATLAB rejects the Python version, change `python-version` in that file.
+5. **After merging,** everyone reruns the three `git config` lines in the README with the new install path, so model diffs and merges use the new release.
 
 ## Running and testing
 
@@ -84,7 +100,7 @@ Tighten the regression limits as the vehicle improves. Loosening one needs a rea
 
 `matlab.unittest` classes:
 - `tests/unit/`: fast, no simulation
-- `tests/models/`: model files load and are saved in R2026a or older
+- `tests/models/`: model files load and are saved in the team release or older
 - `tests/sim/`: a single simulation
 - `tests/montecarlo/`: the Monte Carlo
 

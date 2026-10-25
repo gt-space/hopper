@@ -10,7 +10,7 @@
 - [ ] Changed models/subsystems (list them; CI attaches a **model-diffs** report for each):
   -
 
-Saved in **R2026a** or older? <!-- CI's guards job fails otherwise -->
+Saved in the team release (`sims/hopper_6dof_sizer/TEAM_RELEASE`) or older? <!-- CI's guards job fails otherwise -->
 
 Copying the top-level model to add a feature makes merges painful. If you made a new variant this way, say so here so it can become a variant choice instead.
 

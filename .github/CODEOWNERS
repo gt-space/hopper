@@ -26,28 +26,28 @@
 /sims/hopper_6dof_sizer/src/monte_carlo/                   @Asingh-007 @TheRealT-Dawg
 
 # FDIR and fault injection
-/sims/hopper_6dof_sizer/src/fdir/                          @EkanshSingh401 @TheRealT-Dawg
-/sims/hopper_6dof_sizer/subsystems/fdir/                   @EkanshSingh401 @TheRealT-Dawg
-/sims/hopper_6dof_sizer/tests/fdir/                        @EkanshSingh401 @TheRealT-Dawg
-/sims/hopper_6dof_sizer/models/hopper_6dof_NED_fault_injection.slx @EkanshSingh401 @TheRealT-Dawg
+/sims/hopper_6dof_sizer/src/fdir/                          @Asingh-007 @EkanshSingh401 @TheRealT-Dawg
+/sims/hopper_6dof_sizer/subsystems/fdir/                   @Asingh-007 @EkanshSingh401 @TheRealT-Dawg
+/sims/hopper_6dof_sizer/tests/fdir/                        @Asingh-007 @EkanshSingh401 @TheRealT-Dawg
+/sims/hopper_6dof_sizer/models/hopper_6dof_NED_fault_injection.slx @Asingh-007 @EkanshSingh401 @TheRealT-Dawg
 
 # Navigation filters (GMEKF / MEKF)
-/sims/hopper_6dof_sizer/subsystems/navigation/             @mmurphy213
+/sims/hopper_6dof_sizer/subsystems/navigation/             @Asingh-007 @mmurphy213
 
 # Propulsion: feed system, throttle valve, fluid network
-/sims/hopper_6dof_sizer/src/propulsion/                    @Vedanth27 @Asingh-007
-/sims/hopper_6dof_sizer/models/standalone/throttle_valve_simulink.slx @tdeodhar3 @npwtub
+/sims/hopper_6dof_sizer/src/propulsion/                    @Asingh-007
+/sims/hopper_6dof_sizer/models/standalone/throttle_valve_simulink.slx @npwtub
 /sims/hopper_6dof_sizer/models/hopper_6dof_NED_v2_fluid_integration.slx @maddoxle9 @Asingh-007
-/sims/hopper_6dof_sizer/subsystems/propulsion/             @Vedanth27 @Asingh-007
+/sims/hopper_6dof_sizer/subsystems/propulsion/             @Asingh-007
 
 # Landing legs / ground contact
 /sims/hopper_6dof_sizer/models/hopper_6dof_NED_v2_ground.slx @EWall25 @Asingh-007
 
 # RCS fans
-/sims/hopper_6dof_sizer/subsystems/actuators/              @ZerunW @Asingh-007
+/sims/hopper_6dof_sizer/subsystems/actuators/              @Asingh-007
 
 # Flight-software bridge (C codegen, Rust SIL)
-/sims/hopper_6dof_sizer/fsw_bridge/                        @aadityabarbudhe08
+/sims/hopper_6dof_sizer/fsw_bridge/                        @Asingh-007 @aadityabarbudhe08
 
 # Tests, CI and project plumbing
 /sims/hopper_6dof_sizer/tests/                             @Asingh-007

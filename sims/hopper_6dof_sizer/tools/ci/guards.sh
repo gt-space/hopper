@@ -3,10 +3,15 @@
 # The same checks run inside MATLAB as `buildtool check`.
 #   - no Simulink build caches, autosaves or .slx backups are committed
 #   - no live model (outside archive/) is saved newer than the team release
+#     (the TEAM_RELEASE file at the project root)
 # Run from sims/hopper_6dof_sizer.
 set -euo pipefail
 
-TEAM_RELEASE="R2026a"
+TEAM_RELEASE="$(tr -d '[:space:]' < TEAM_RELEASE)"
+if [[ ! "$TEAM_RELEASE" =~ ^R[0-9]{4}[ab]$ ]]; then
+  echo "::error file=sims/hopper_6dof_sizer/TEAM_RELEASE::must hold a release name like R2026a, not '$TEAM_RELEASE'"
+  exit 1
+fi
 fail=0
 
 rank() {  # R2025b -> 4051
