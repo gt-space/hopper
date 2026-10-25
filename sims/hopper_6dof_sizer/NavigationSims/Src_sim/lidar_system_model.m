@@ -18,7 +18,11 @@
 function lidarBus = lidar_system_model(x, time, lidar_frames)
 
     % Build an empty output struct from the dictionary definition
-    lidarBus = Simulink.Bus.createMATLABStruct('lidarBus');
+    persistent lidarBusData;
+    if isempty(lidarBusData)
+        dictionary = Simulink.data.dictionary.open('NavigationDictionary.sldd');
+        lidarBusData = Simulink.Bus.createMATLABStruct('lidarBus',[],1,dictionary);
+    end
 
     % Load the LIDAR frame variables
     A1 = lidar_frames.A1;
@@ -31,13 +35,12 @@ function lidarBus = lidar_system_model(x, time, lidar_frames)
     r4 = lidar_frames.r4;
 
     % Get the height and attitude of the vehicle
-    h = x(3) + lidar_frames.heightCOM;
+    h = x(3) - lidar_frames.heightCOM;
     q_BI = x(10:13);
-    q_IB = [q_BI(1); -q_BI(2:4)];
 
-    % Compute the rotation matrix 3rd row (n) from q components
-    q0 = q_IB(1); q1 = q_IB(2); q2 = q_IB(3); q3 = q_IB(4);
-    n = [2*(q3*q1+q2*q0) 2*(q3*q2-q1*q0) -q1^1-q2^2+q3^2+q0^2];
+    % Compute the rotation matrix 3rd col (n) from q components
+    q0 = q_BI(1); q1 = q_BI(2); q2 = q_BI(3); q3 = q_BI(4);
+    n = [2*(q1*q3-q2*q0) 2*(q2*q3+q1*q0) -q1^2-q2^2+q3^2+q0^2];
 
     % Compute all the LIDAR true distances
     d_vec = [-(n*r1 + h)/(n*A1(:,1));
@@ -49,9 +52,10 @@ function lidarBus = lidar_system_model(x, time, lidar_frames)
     [d_vec, covariance, validity] = lidar_model_base(d_vec);
 
     % Build the output struct
-    lidarBus.distance = d_vec;
-    lidarBus.covariance = covariance;
-    lidarBus.timestamp = time;
-    lidarBus.validity = validity;
+    lidarBusData.distance = d_vec;
+    lidarBusData.covariance = covariance;
+    lidarBusData.timestamp = time;
+    lidarBusData.validity = validity;
+    lidarBus = lidarBusData;
 
 end

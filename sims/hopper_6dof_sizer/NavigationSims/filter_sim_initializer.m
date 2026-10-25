@@ -25,25 +25,6 @@ filter_st = 1/480;      % Filter sample time (seconds)
 % gy, gz, b
 x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
 
-%% GMEKF continuous-time process-noise spectral densities
-
-% Translational acceleration disturbance: 3 channels
-accelerationNoisePSD = imu_params.accel_noise_std.^2 * imu_st;
-imu_params.gyro_R = diag(imu_params.gyro_noise_std.^2);
-
-% requires calibration
-torqueNoisePSD = zeros(3,1);
-accelBiasNoisePSD = zeros(3,1);
-gyroBiasNoisePSD = zeros(3,1);
-baroBiasNoisePSD = 0;
-
-Qc = blkdiag( ...
-    diag(accelerationNoisePSD), ...
-    diag(torqueNoisePSD), ...
-    diag(accelBiasNoisePSD), ...
-    diag(gyroBiasNoisePSD), ...
-    baroBiasNoisePSD);
-
 % TODO! TUNE THIS COVARIANCE
 P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
@@ -66,21 +47,6 @@ P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1];
 % Note covariance is 19x19, not 20x20, because covariance uses a 3-element
 % rotation representation
-
-% TODO: TUNE THIS PROCESS NOISE COVARIANCE!
-qc = [1 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 1 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 1 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 1 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 1 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 1 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 1 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 1 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 1 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 1 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 1 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 1 0;
-      0 0 0 0 0 0 0 0 0 0 0 0 1];
 
 %% Sensor sampling and noise parameters
 
@@ -120,9 +86,28 @@ baro_params.bias = 0.5;                 % Placeholder
 lidar_st = 0.01;        % sample time (s)
 % --- Barometer Sensor Parameters (SJ-GU-TF-Luna A03)---
 lidar_params.noise_std_1 = 0.06; % Distance measurement jitter (cm) for 0.2-3m
-lider_params.noise_std_2 = 0.02; % Distance measurement jitter (proportion distance) for 3-8m
+lidar_params.noise_std_2 = 0.02; % Distance measurement jitter (proportion distance) for 3-8m
 lidar_params.packet_invalid_prob = 0.0; % set to zero for now
 % Note- any distances over 8m will be not valid it appears
+
+%% GMEKF continuous-time process-noise spectral densities
+
+% Translational acceleration disturbance: 3 channels
+accelerationNoisePSD = imu_params.accel_noise_std.^2 * imu_st;
+imu_params.gyro_R = diag(imu_params.gyro_noise_std.^2);
+
+% requires calibration
+torqueNoisePSD = zeros(3,1);
+accelBiasNoisePSD = zeros(3,1);
+gyroBiasNoisePSD = zeros(3,1);
+baroBiasNoisePSD = 0;
+
+qc = blkdiag( ...
+    diag(accelerationNoisePSD), ...
+    diag(torqueNoisePSD), ...
+    diag(accelBiasNoisePSD), ...
+    diag(gyroBiasNoisePSD), ...
+    baroBiasNoisePSD);
 
 %% Sensor frame parameters
 

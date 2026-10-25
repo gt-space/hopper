@@ -34,7 +34,7 @@ if isempty(lidar_params)
 end
 
 % 4. Validity Flag Assignment
-validity = rand(4,1) > gps_params.packet_invalid_prob;
+validity = rand(4,1) > lidar_params.packet_invalid_prob;
 
 % Handle noise and validity according to the true distance
 if dist_true < 0.2
