@@ -50,6 +50,8 @@ function [xnp1_c, Pnp1_c] = gmekf_correct(xnp1, Pnp1, aux, meas_posvel, ...
     lid_incorp = meas_LID.validity && meas_LID.timestamp ~= lid_timestamp;
     mag_incorp = meas_mag.validity && meas_mag.timestamp ~= mag_timestamp;
 
+    % TODO: GPS correction
+    % TODO: Gyroscope correction
 
     % Barometer correction
     if baro_incorp
@@ -66,8 +68,6 @@ function [xnp1_c, Pnp1_c] = gmekf_correct(xnp1, Pnp1, aux, meas_posvel, ...
         baro_timestamp = meas_baro.timestamp; % mark this measurement as processed, even if gated out
     end
 
-    % TODO: GPS correction
-    % TODO: Gyroscope correction
     % TODO: LIDAR correction
 
 end

@@ -16,14 +16,15 @@
 %   simtime: time elapsed (s)
 %
 % Outputs:
-%   accel: acceleration vector (3x1) (m/s^2)
-%   angvel: angular velocity vector (3x1) (radians/s)
-%   timestamp: time elapsed (s)
-%   validity: boolean (true if valid measurement)
+%   accelBus: struct defined in the Navigation Dictionary
+%   angvelBus: struct defined in the Navigation Dictionary
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [accel, angvel, timestamp, validity] ...
-            = imu_model(x, a, accelBias, gyroBias, simtime)
+function [accelBus, angvelBus] = imu_model(x, a, accelBias, gyroBias, simtime)
+
+% Build empty output structs from the dictionary definition
+accelBus = Simulink.Bus.createMATLABStruct('accelBus');
+angvelBus = Simulink.Bus.createMATLABStruct('angvelBus');
 
 % Retrieve parameters from the workspace (set by filter_sim_initializer)
 persistent imu_params;
@@ -34,6 +35,8 @@ if isempty(imu_params)
         % Fallback defaults if initializer hasn't populated workspace yet
         imu_params.accel_noise_std = [0; 0; 0];
         imu_params.gyro_noise_std = [0; 0; 0];
+        imu_params.acovariance = [0.05; 0.05; 0.05].^2*eye(3);
+        imu_params.gcovariance = [0.005; 0.005; 0.005].^2*eye(3);
         imu_params.gravity_scalar = 9.81; % Example body frame gravity component
         imu_params.packet_invalid_prob = 0.0;
     end
@@ -62,4 +65,16 @@ if rand() < imu_params.packet_invalid_prob
 else
     validity = true;
 end
+
+% Build the output structs
+accelBus.accel = accel;
+accelBus.covariance = imu_params.acovariance;
+accelBus.timestamp = timestamp;
+accelBus.validity = validity;
+
+angvelBus.angvel = anvel;
+angvelBus.covariance = imu_params.gcovariance;
+angvelBus.timestamp = timestamp;
+angvelBus.validity = validity;
+
 end
