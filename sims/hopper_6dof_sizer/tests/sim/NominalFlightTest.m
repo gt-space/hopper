@@ -6,10 +6,18 @@ classdef NominalFlightTest < matlab.unittest.TestCase
     properties (Constant)
         Model = 'hopper_6dof_NED_v2'
         BaselineFile = hopperRoot('tests', 'baselines', 'nominal_v2.mat')
-        % Linux CI and Windows can differ in the last bits; these are far
-        % below anything physical.
-        AbsTol = 1e-3
-        RelTol = 1e-4
+        % Absolute tolerance per key number. The same flight on Linux (CI)
+        % and Windows differs by about a millimetre at touchdown (different
+        % math libraries), so bit-exactness can't hold across platforms.
+        % These are still far below any real change to the flight.
+        Tol = struct('flight_time', 0.01, ...     % s
+                     'max_altitude', 0.01, ...    % m
+                     'final_altitude', 0.01, ...  % m
+                     'landing_offset', 0.02, ...  % m
+                     'final_velocity', 0.02, ...  % m/s
+                     'max_tilt_deg', 0.05, ...    % deg
+                     'final_ox_mass', 0.01, ...   % kg
+                     'final_fu_mass', 0.01)       % kg
     end
 
     properties
@@ -35,7 +43,9 @@ classdef NominalFlightTest < matlab.unittest.TestCase
             B = load(tc.BaselineFile);
             K = NominalFlightTest.keyNumbers(tc.out);
             for f = fieldnames(B.K)'
-                tc.verifyEqual(K.(f{1}), B.K.(f{1}), 'AbsTol', tc.AbsTol, 'RelTol', tc.RelTol, f{1});
+                tc.verifyEqual(K.(f{1}), B.K.(f{1}), 'AbsTol', tc.Tol.(f{1}), ...
+                    sprintf('%s: got %s, baseline %s (tolerance %g)', f{1}, ...
+                    mat2str(K.(f{1}), 6), mat2str(B.K.(f{1}), 6), tc.Tol.(f{1})));
             end
         end
 

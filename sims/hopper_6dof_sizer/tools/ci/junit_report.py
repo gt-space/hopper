@@ -5,6 +5,7 @@
 Each failed test becomes an ::error annotation, which shows on the run page and
 in a PR's checks without signing in. The summary gets one row per failed test.
 """
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -13,6 +14,22 @@ from pathlib import Path
 def clean(text, limit):
     text = " ".join((text or "").split())
     return text if len(text) <= limit else text[: limit - 3] + "..."
+
+
+def checks(detail):
+    """One short line per failed verification in a MATLAB failure message.
+
+    MATLAB puts every failed verify of a test method into one message; the
+    'Test Diagnostic' of each is the human-readable part (e.g.
+    'landing_offset: got 2.559, baseline 2.561 (tolerance 0.02)')."""
+    out = []
+    for part in re.split(r"Verification failed in [^\n]*\.", detail or ""):
+        m = re.search(r"Test Diagnostic:\s*-+\s*(.*?)\s*-+\s*Framework Diagnostic", part, re.S)
+        if m:
+            out.append(clean(m.group(1), 300))
+        elif part.strip():
+            out.append(clean(part, 300))
+    return out or [clean(detail, 300)]
 
 
 def main(paths):
@@ -32,9 +49,10 @@ def main(paths):
             failed += 1
             name = f"{case.get('classname', '')}/{case.get('name', '')}"
             detail = bad.get("message") or bad.text or ""
-            # stderr: annotation; stdout: summary markdown
-            print(f"::error title={clean(name, 120)}::{clean(detail, 1500)}", file=sys.stderr)
-            rows.append((p.stem, name, clean(detail, 400).replace("|", "\\|")))
+            for line in checks(detail):
+                # stderr: annotation; stdout: summary markdown
+                print(f"::error title={clean(name, 120)}::{line}", file=sys.stderr)
+                rows.append((p.stem, name, line.replace("|", "\\|")))
 
     print("## Test results\n")
     if total == 0:
