@@ -27,11 +27,9 @@
 function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity, J, g, dt, Qc)
     
     % Generate some shared quantities
-    g_vec = [0 0 g];
+    g_vec = [0; 0; g];
     w = xn(10); x = xn(11); y = xn(12); z = xn(13);
-    aux.A_IB = [1-2*(y^2+z^2),  2*(x*y+w*z),    2*(x*z-w*y);
-                2*(x*y-w*z),    1-2*(x^2+z^2),  2*(y*z+w*x);
-                2*(x*z+w*y),    2*(y*z-w*x),    1-2*(x^2+y^2)]';
+    aux.A_IB = quaternion_to_rotation(xn(10:13))';
 
     % Propagate the state
     xnp1 = propagate_state(xn, aux, accel_meas, torque, validity, J, g, dt);
@@ -41,9 +39,7 @@ function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity,
 
     % Calculate rotation matrix at the one-half time step
     w = xnp05(10); x = xnp05(11); y = xnp05(12); z = xnp05(13);
-    aux.A_IB05 = [1-2*(y^2+z^2),  2*(x*y+w*z),    2*(x*z-w*y);
-                  2*(x*y-w*z),    1-2*(x^2+z^2),  2*(y*z+w*x);
-                  2*(x*z+w*y),    2*(y*z-w*x),    1-2*(x^2+y^2)]';
+    aux.A_IB05 = quaternion_to_rotation(xnp05(10:13))';
 
     % fill aux params
     if validity

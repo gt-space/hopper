@@ -45,13 +45,13 @@ function nominalStatePosterior = state_injection(nominalStatePrior, errorCorrect
 
         FOR FUTURE: May consider finite rotation formula with exponential-maps attitude correction
     %}
-    quaternionPosterior = quaternionPrior - 0.5 * xi_left(quaternionPrior) * attitudeError;
+    quaternionPosterior = quaternionPrior + 0.5 * xi(quaternionPrior) * attitudeError;
 
     % Re-normalize the quaternion
     quaternionPosterior = quaternionPosterior / norm(quaternionPosterior);
 
 
-    rotationBodyToInertialPosterior = quaternion_to_rotation(quaternionPosterior);
+    rotationBodyToInertialPosterior = quaternion_to_rotation(quaternionPosterior)';
 
     % Frame corrections
     accelBiasPosterior = accelBiasPrior - rotationBodyToInertialPosterior' * accelBiasError;

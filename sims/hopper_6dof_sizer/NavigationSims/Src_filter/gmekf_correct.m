@@ -22,7 +22,9 @@
 %   Pnp1_c: n+1 corrected covariance (19x19)
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [xnp1_c, Pnp1_c] = gmekf_correct(xnp1, Pnp1, aux, meas_posvel, ...
+
+function [xnp1_c, Pnp1_c] = gmekf_correct( ...
+    xnp1, Pnp1, aux, meas_posvel, ...
     meas_angvel, meas_baro, meas_LID, lidar_frames, meas_mag)
 
     % Declare persistent timestamps for last sensor read
@@ -41,33 +43,86 @@ function [xnp1_c, Pnp1_c] = gmekf_correct(xnp1, Pnp1, aux, meas_posvel, ...
         mag_timestamp = -1;
     end
 
-    xnp1_c = xnp1; Pnp1_c = Pnp1; % initialize corrected outputs with propagated values
+    % LIDAR is not implemented yet
+    meas_LID.validity = false;
+    meas_LID.timestamp = -1;
+
+    % Magnetometer is not implemented yet
+    meas_mag.validity = false;
+    meas_mag.timestamp = -1;
+
+    % Unused LIDAR frame data
+    lidar_frames = struct();
+
+    % initialize corrected outputs with propagated values
+    xnp1_c = xnp1;
+    Pnp1_c = Pnp1;
+
+    aux.baroGateThreshold = 6.635;   % 99%, 1 DOF
+    aux.gyroGateThreshold = 11.345;  % 99%, 3 DOF
+    aux.gpsGateThreshold  = 16.812;  % 99%, 6 DOF
+
+    aux.gpsLeverArmBody = [0.1; 0; -0.2];
 
     % Check if each sensor should be incorporated
-    gps_incorp = meas_posvel.validity && meas_posvel.timestamp ~= gps_timestamp;
-    gyro_incorp = meas_angvel.validity && meas_angvel.timestamp ~= gyro_timestamp;
+    gps_incorp = meas_posvel.validity && meas_posvel.timestamp > gps_timestamp;
+    gyro_incorp = meas_angvel.validity && meas_angvel.timestamp > gyro_timestamp;
     baro_incorp = meas_baro.validity && meas_baro.timestamp > baro_timestamp;
-    lid_incorp = meas_LID.validity && meas_LID.timestamp ~= lid_timestamp;
-    mag_incorp = meas_mag.validity && meas_mag.timestamp ~= mag_timestamp;
+    lid_incorp = meas_LID.validity && meas_LID.timestamp > lid_timestamp;
+    mag_incorp = meas_mag.validity && meas_mag.timestamp > mag_timestamp;
 
 
     % Barometer correction
     if baro_incorp
-        baroParams.gateThreshold = aux.baroGateThreshold; % innovation gating threshold
+
+        baroParams.gateThreshold = aux.baroGateThreshold;
 
         % Perform complete GMEKF update
-        [xnp1_c, Pnp1_c, accepted] = update( ...
+        [xnp1_c, Pnp1_c, ~] = update( ...
             xnp1_c, ...
             Pnp1_c, ...
             @baro_update_model, ...
             meas_baro, ...
             baroParams);
 
-        baro_timestamp = meas_baro.timestamp; % mark this measurement as processed, even if gated out
+        baro_timestamp = meas_baro.timestamp; % consume measurement even if gated out
     end
 
-    % TODO: GPS correction
-    % TODO: Gyroscope correction
+    if gyro_incorp
+
+        gyroParams.gateThreshold = aux.gyroGateThreshold;
+
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @gyro_update_model, ...
+            meas_angvel, ...
+            gyroParams);
+
+        gyro_timestamp = meas_angvel.timestamp;
+
+    end
+
+    if gps_incorp
+
+        gpsParams.gateThreshold = aux.gpsGateThreshold;
+
+        % Antenna lever arm in body coordinates
+        gpsParams.r_b = aux.gpsLeverArmBody;
+
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @gps_update_model, ...
+            meas_posvel, ...
+            gpsParams);
+
+        gps_timestamp = meas_posvel.timestamp;
+
+    end
+
     % TODO: LIDAR correction
+    % TODO: Magnetometer correction
+    % TODO: Differential GPS, if included
 
 end

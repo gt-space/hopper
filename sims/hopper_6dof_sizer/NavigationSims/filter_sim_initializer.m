@@ -29,6 +29,7 @@ x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
 
 % Translational acceleration disturbance: 3 channels
 accelerationNoisePSD = imu_params.accel_noise_std.^2 * imu_st;
+imu_params.gyro_R = diag(imu_params.gyro_noise_std.^2);
 
 % requires calibration
 torqueNoisePSD = zeros(3,1);
@@ -83,6 +84,9 @@ gps_params.r_b = [0.1; 0.0; -0.2];             % Antenna lever arm from CG (3x1)
 gps_params.multipath = [0.002; 0.001; -0.003]; % Pad bounce error (b_mp,k) (m)[cite: 1]
 gps_params.pos_noise_std = [0.02; 0.02; 0.05]; % Position jitter standard deviation (eta_p) (m)[cite: 1]
 gps_params.packet_invalid_prob = 0.0;          % Set to 0 for now
+% Provisional GPS velocity noise standard deviations (m/s).
+% Replace with receiver specifications.
+gps_params.vel_noise_std = [0.1; 0.1; 0.1];
 
 % Barometer parameters
 barometer_st = 0.05;    % sample time (s)
