@@ -28,7 +28,7 @@ function [nominalStatePosterior, errorCovariancePosterior, accepted] = ...
         return;
     end
     
-    measurementNoiseCovariance = measurement.R;
+    measurementNoiseCovariance = measurement.covariance;
     
     % Innovation gate threshold
     gateThreshold = params.gateThreshold;

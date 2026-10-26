@@ -9,10 +9,11 @@
 % Inputs:
 %   trueState       - True vehicle state (20x1)
 %   simtime         - Simulation time (s)
-% 
+%   gpsFrameBus     - Struct with antenna placement from COM
+%
 % Outputs:
 %   gpsBus          - struct defined in the Navigation Dictionary
-function gpsBus = gps_model(trueState, simtime)
+function gpsBus = gps_model(trueState, simtime, gpsFrameBus)
 
     % Build an empty output struct from the dictionary definition
     persistent gpsBusData;
@@ -27,14 +28,12 @@ function gpsBus = gps_model(trueState, simtime)
         try
             gps_params = evalin('base', 'gps_params');
         catch
-            gps_params.r1 = [0.5; 0.0; -0.2];              % Antenna 2 vector from COM (3x1) (m)
-            gps_params.r2 = [-0.5; 0.0; -0.2];             % Antenna 2 vector from COM (3x1) (m)
             gps_params.bias = [0; 0; 0];
             gps_params.multipath = [0; 0; 0];
             gps_params.pos_noise_std = [0.02; 0.02; 0.05];
             gps_params.vel_noise_std = [0.1; 0.1; 0.1];
-            gps_params.pos_covariance = eye(3)*[0.02^2; 0.02^2; 0.05^2]; % Filter measurement covariance
-            gps_params.vel_covariance = eye(3)*[0.05^2; 0.05^2; 0.1^2]; % Filter measurement covariance
+            gps_params.pos_covariance = diag([0.02^2; 0.02^2; 0.05^2]); % Filter measurement covariance
+            gps_params.vel_covariance = diag([0.05^2; 0.05^2; 0.1^2]); % Filter measurement covariance
             gps_params.packet_invalid_prob = 0;
         end
     end
@@ -49,8 +48,8 @@ function gpsBus = gps_model(trueState, simtime)
     % Body-to-inertial NED rotation
     C_IB = quaternion_to_DCM(quaternionTrue)';
     
-    % Antenna lever arm in body coordinates
-    r_B = (gps_params.r1(:) + gps_params.r2(:))/2;
+    % Antenna lever arm in body coordinates (point the receiver reports)
+    r_B = gps_lever_arm(gpsFrameBus);
     
     % Ideal antenna position and velocity
     antennaPosition = positionTrue + C_IB * r_B;

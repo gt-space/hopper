@@ -31,8 +31,8 @@ function [accelBus, angvelBus] = imu_model(...
             imu_params.gyro_noise_std = [0; 0; 0];
             imu_params.gravity_scalar = 9.81;
             imu_params.packet_invalid_prob = 0.0;
-            imu_params.acovariance = eye(3)*[0.05; 0.05; 0.05].^2;
-            imu_params.gcovariance = eye(3)*[0.005; 0.005; 0.005].^2;
+            imu_params.acovariance = diag([0.05; 0.05; 0.05].^2);
+            imu_params.gcovariance = diag([0.005; 0.005; 0.005].^2);
         end
     end
     
@@ -67,7 +67,7 @@ function [accelBus, angvelBus] = imu_model(...
     accelBusData.validity = validity;
     accelBus = accelBusData;
 
-    angvelBusData.accel = angularVelocitySimulated;
+    angvelBusData.angvel = angularVelocitySimulated;
     angvelBusData.covariance = imu_params.gcovariance;
     angvelBusData.timestamp = timestamp;
     angvelBusData.validity = validity;

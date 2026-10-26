@@ -43,26 +43,22 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
         mag_timestamp = -1;
     end
 
-    % LIDAR is not implemented yet
-    meas_LID.validity = false;
-    meas_LID.timestamp = -1;
-
     % Magnetometer is not implemented yet
     meas_mag.validity = false;
     meas_mag.timestamp = -1;
-
-    % Unused LIDAR frame data
-    lidar_frames = struct();
 
     % initialize corrected outputs with propagated values
     xnp1_c = xnp1;
     Pnp1_c = Pnp1;
 
-    aux.baroGateThreshold = 6.635;   % 99%, 1 DOF
-    aux.gyroGateThreshold = 11.345;  % 99%, 3 DOF
-    aux.gpsGateThreshold  = 16.812;  % 99%, 6 DOF
+    % Gate thresholds are locals: code generation cannot add fields to the
+    % aux input struct
+    baroGateThreshold = 6.635;   % 99%, 1 DOF
+    gyroGateThreshold = 11.345;  % 99%, 3 DOF
+    gpsGateThreshold  = 16.812;  % 99%, 6 DOF
+    lidarGateThreshold = 6.635;  % 99%, 1 DOF (per beam)
 
-    aux.gpsLeverArmBody = [0.1; 0; -0.2];
+    gpsLeverArmBody = [0.1; 0; -0.2];
 
     % Check if each sensor should be incorporated
     gps_incorp = meas_posvel.validity && meas_posvel.timestamp > gps_timestamp;
@@ -78,7 +74,7 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
     % Barometer correction
     if baro_incorp
 
-        baroParams.gateThreshold = aux.baroGateThreshold;
+        baroParams.gateThreshold = baroGateThreshold;
 
         % Perform complete GMEKF update
         [xnp1_c, Pnp1_c, ~] = update( ...
@@ -93,7 +89,7 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
 
     if gyro_incorp
 
-        gyroParams.gateThreshold = aux.gyroGateThreshold;
+        gyroParams.gateThreshold = gyroGateThreshold;
 
         [xnp1_c, Pnp1_c, ~] = update( ...
             xnp1_c, ...
@@ -108,16 +104,21 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
 
     if gps_incorp
 
-        gpsParams.gateThreshold = aux.gpsGateThreshold;
+        gpsParams.gateThreshold = gpsGateThreshold;
 
         % Antenna lever arm in body coordinates
-        gpsParams.r_b = aux.gpsLeverArmBody;
+        gpsParams.r_b = gpsLeverArmBody;
+
+        % TEMPORARY until the GPS bus refactor: gpsBus carries separate
+        % position/velocity covariances, update() needs one covariance
+        meas_gps = struct('pos', meas_posvel.pos, 'vel', meas_posvel.vel, ...
+            'covariance', blkdiag(meas_posvel.pcovariance, meas_posvel.vcovariance));
 
         [xnp1_c, Pnp1_c, ~] = update( ...
             xnp1_c, ...
             Pnp1_c, ...
             @gps_update_model, ...
-            meas_posvel, ...
+            meas_gps, ...
             gpsParams);
 
         gps_timestamp = meas_posvel.timestamp;
@@ -126,9 +127,11 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
 
     % TODO: LIDAR correction
     lidarParams = lidar_frames;
+    lidarParams.gateThreshold = lidarGateThreshold;
+    lidarParams.lidarIndex = 0;
     if lid1_incorp
 
-        meas_lid1.measurement = meas_LID.measurement(1);
+        meas_lid1.distance = meas_LID.distance(1);
         meas_lid1.covariance = meas_LID.covariance(1);
         lidarParams.lidarIndex = 1;
         
@@ -144,7 +147,7 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
     end
     if lid2_incorp
 
-        meas_lid2.measurement = meas_LID.measurement(2);
+        meas_lid2.distance = meas_LID.distance(2);
         meas_lid2.covariance = meas_LID.covariance(2);
         lidarParams.lidarIndex = 2;
 
@@ -160,7 +163,7 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
     end
     if lid3_incorp
 
-        meas_lid3.measurement = meas_LID.measurement(3);
+        meas_lid3.distance = meas_LID.distance(3);
         meas_lid3.covariance = meas_LID.covariance(3);
         lidarParams.lidarIndex = 3;
 
@@ -176,7 +179,7 @@ function [xnp1_c, Pnp1_c] = gmekf_correct( ...
     end
     if lid4_incorp
 
-        meas_lid4.measurement = meas_LID.measurement(4);
+        meas_lid4.distance = meas_LID.distance(4);
         meas_lid4.covariance = meas_LID.covariance(4);
         lidarParams.lidarIndex = 4;
 

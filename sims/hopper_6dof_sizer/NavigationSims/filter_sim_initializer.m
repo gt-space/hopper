@@ -54,25 +54,26 @@ P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
 imu_st = filter_st;     % sample time (s)
 % --- IMU Sensor Parameters ---
 imu_params.accel_noise_std = [0.05; 0.05; 0.05]; % Accelerometer noise standard deviation
-imu_params.acovariance = eye(3)*[0.05; 0.05; 0.05].^2;
+imu_params.acovariance = diag([0.05; 0.05; 0.05].^2);
 imu_params.gyro_noise_std = [0.005; 0.005; 0.005];% Gyroscope noise standard deviation
-imu_params.gcovariance = eye(3)*[0.005; 0.005; 0.005].^2;
+imu_params.gcovariance = diag([0.005; 0.005; 0.005].^2);
 imu_params.gravity_scalar = 9.81;                % Gravity acceleration
 imu_params.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
 
 % GPS parameters
 gps_st = 0.1;           % sample time (s)
 % --- GPS Sensor Parameters (u-blox ZED-F9P) ---
-% PLACEHOLDER antenna spacing: |r1 - r2| = vehicle max diameter from CAD
-% (1 m until the CAD number is in). Keep the baseline horizontal (body x-y,
-% the N-E plane when vertical) so DGPS observes roll about the vertical axis.
-gps_params.r1 = [0.5; 0.0; -0.2];              % Antenna 1 vector from COM (3x1) (m)
-gps_params.r2 = [-0.5; 0.0; -0.2];             % Antenna 2 vector from COM (3x1) (m)
+% PLACEHOLDER antenna spacing: 0.5 m separation per David; tune with CAD
+% later. Keep the baseline horizontal (body x-y, the N-E plane when
+% vertical) so DGPS observes roll about the vertical axis.
+gps_params.r1 = [0.25; 0.0; -0.2];             % Antenna 1 vector from COM (3x1) (m)
+gps_params.r2 = [-0.25; 0.0; -0.2];            % Antenna 2 vector from COM (3x1) (m)
+gps_params.bias = [0; 0; 0];                   % Constant position bias (m)
 gps_params.multipath = [0.002; 0.001; -0.003]; % Pad bounce error (b_mp,k) (m)[cite: 1]
 gps_params.pos_noise_std = [0.02; 0.02; 0.05]; % Position jitter standard deviation (eta_p) (m)[cite: 1]
 gps_params.vel_noise_std = [0.05, 0.05, 0.01]; % Velocity jitter standard deviation
-gps_params.pos_covariance = eye(3)*[0.02^2; 0.02^2; 0.05^2]; % Filter measurement covariance
-gps_params.vel_covariance = eye(3)*[0.05^2; 0.05^2; 0.1^2]; % Filter measurement covariance
+gps_params.pos_covariance = diag([0.02^2; 0.02^2; 0.05^2]); % Filter measurement covariance
+gps_params.vel_covariance = diag([0.05^2; 0.05^2; 0.1^2]); % Filter measurement covariance
 gps_params.packet_invalid_prob = 0.0;          % Set to 0 for now
 % Provisional GPS velocity noise standard deviations (m/s).
 % Replace with receiver specifications.
@@ -83,8 +84,8 @@ diffGps_st = 0.1;       % sample time (s), PLACEHOLDER: same as gps_st until rec
 % --- Differential GPS Sensor Parameters (antenna 1 -> antenna 2 baseline in NED) ---
 % Antenna placement comes from gps_params.r1 / gps_params.r2 (gps_frame).
 % PLACEHOLDER noise: carrier-phase baseline error is roughly constant in
-% metres, so heading error ~ noise_std/baseline. 7 mm horizontal on a 1 m
-% baseline is ~0.4 deg. Replace with receiver specs and CAD spacing.
+% metres, so heading error ~ noise_std/baseline. 7 mm horizontal on the
+% 0.5 m baseline is ~0.8 deg. Replace with receiver specs and CAD spacing.
 diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m)
 diffGps_params.covariance = diag(diffGps_params.noise_std.^2); % Filter measurement covariance
 diffGps_params.packet_invalid_prob = 0.0;                  % Set to 0 for now
