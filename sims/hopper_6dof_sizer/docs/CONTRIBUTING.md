@@ -66,6 +66,9 @@ How we work on this sim together without breaking each other's models. The [READ
 Blocks that more than one model uses live in their own files under `subsystems/<area>/`, for example `subsystems/propulsion/Thrust_to_Mdot_LUT.slx`. The models hold **Subsystem Reference** blocks that point at those files. The reference block shows the file name under its icon.
 
 - **To change a shared block, open its file:** double-click the reference block, then edit and save. Every model that references the file picks up the change. Prefer this to editing a copy inside one model.
+- **One file can serve several blocks.** `Slosh_Axis.slx` is all six slosh pendulums (ox/fuel × axial/pitch/yaw). Each instance gets its tank and axis only from its wiring, so keep tank- or axis-specific names out of the file.
+- **Files can nest.** `Slosh.slx` references `Slosh_Axis.slx`, and `Actuators_TVC_RCS.slx` references `EDF_Dynamics.slx`.
+- **Tests that tweak a shared block work on a copy.** `set_param` on a block inside a reference edits the shared file. Copy the file's contents into a plain subsystem first, as `validation/slosh_openloop/sloshOpenLoopTest.m` does with `Simulink.BlockDiagram.copyContentsToSubsystem`.
 - **Keep the ports stable.** Port names and order are the interface every referencing model is wired to. If you must add or reorder a port, update every model that uses the file in the same PR. CI's model tests load them all.
 - **Read parameters from workspace variables** (for example `IN.*` or `thrust_data`), not from the parent model. The file has no workspace of its own, and `buildSimInput` sets the variables per run.
 - **To share another block,** add it to the list in `tools/refactor/convertToSubsystemReferences.m` and run it. It converts the block in v2, and models built from v2 (such as the fluid-integration model) pick it up when rebuilt. Check that the nominal flight is unchanged: `buildtool sim`.

@@ -25,8 +25,10 @@ top = {
     sprintf('Control Inputs -> Fxyz & Mxyz'), 'Actuators_TVC_RCS'     % TVC/RCS actuator models -> body F, M
     'Fluid Network2',                  'Fluid_Network'                % Simscape feed system + engine (off in v2)
     'Ground ',                         'Ground_Contact_Unwired'       % old leg model; outputs only reach scopes
+    'Wind Forces',                     'Wind_Forces'                  % drag from wind-relative airspeed -> body F, M
     };
 inner = {
+    'Actuators_TVC_RCS/EDF Dynamics',    'EDF_Dynamics'               % RCS fans: torque cmd -> rate-limited, lagged, saturated torque
     'Mass_Properties/MATLAB Function',   'Ox_Slosh_Inertia'           % zeroed: propellant inertia is in the LUTs
     'Mass_Properties/MATLAB Function1',  'Fu_Slosh_Inertia'
     'Mass_Properties/MATLAB Function2',  'TVC_Skew_Matrix'            % [0 -dz dy; dz 0 0; -dy 0 0]

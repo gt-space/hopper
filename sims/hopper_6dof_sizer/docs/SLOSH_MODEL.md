@@ -62,7 +62,7 @@ flowchart LR
 | Parameters | `Slosh/Ox_Slosh_Parameters` (LOx), `Fu_Slosh_Parameters` (RP-1) | m₁, L₁, ω₁ for the lateral and axisymmetric modes |
 | Tank acceleration | `Slosh/Ox_Effective_Accel`, `Fu_Effective_Accel` | f at the slosh-mass point: f_cg + ω̇ × r + ω × (ω × r) |
 | Rest point | `Slosh/Ox Slosh Mass Location`, `Fu Slosh Mass Location` | r₁ = tank floor + H₁(fill) |
-| Pendulums | `Slosh/Oxidizer|Fuel Pitch|Yaw|Axial Force` (6 channels) | Integrate φ, output ΔF = −m₁L₁φ̈ and displacement y = L₁φ |
+| Pendulums | `Slosh/Oxidizer|Fuel Pitch|Yaw|Axial Force` (6 channels, each a reference to `subsystems/slosh/Slosh_Axis.slx`) | Integrate φ, output ΔF = −m₁L₁φ̈ and displacement y = L₁φ |
 | Moments | `Cross Product1/2`, `Ox/Fu Slosh Offset Moment`, `Sum5` | r₁ × ΔF and −m₁ y × f, summed into `Slosh_M` |
 | Outputs | `Slosh_F`, `Slosh_M` → 6DOF; slosh pos/mass → `Mass_Properties` | Loads on the vehicle; positions/masses only for the diagnostic `cg_with_slosh` / `MOI_with_slosh` |
 
@@ -119,7 +119,11 @@ Each tank has three channels with the same structure. **Pitch** and **yaw** are 
 φ̈ = −f_lat / L − ω² φ − 2 ζ ω φ̇
 ```
 
-and outputs the force on the vehicle ΔF = −m·L·φ̈ = −m·ÿ, the displacement y = L·φ, and the mass. Damping ζ comes from the damping table at the current tank mass. The per-pendulum torque blocks (`MATLAB Function4`) output zero: a pendulum analog is a point mass on a frictionless hinge and transmits no moment of its own, and the liquid's rigid-body inertia is already in the vehicle inertia.
+and outputs the force on the vehicle ΔF = −m·L·φ̈ = −m·ÿ, the displacement y = L·φ, and the mass. Damping ζ comes from the damping table at the current tank mass.
+
+All six channels are one shared file, `subsystems/slosh/Slosh_Axis.slx`. Its ports are `accel`, `damping`, `pendulum_l`, `natural_freq`, `slosh_mass` and `omega_dot` in, and `force`, `bob_position`, `bob_mass` and `hinge_torque` out. The tank and axis come only from what each instance is wired to, so a fix to the file reaches all six. (The old per-channel copies named the fuel pitch channel's signals `fu_yaw_*` and the yaw channel's `fu_pitch_*`, the reverse of the block names; the wiring was right and the generic names remove the mix-up.)
+
+The torque block (`Pendulum_Torque`) outputs zero: a pendulum analog is a point mass on a frictionless hinge and transmits no moment of its own, and the liquid's rigid-body inertia is already in the vehicle inertia.
 
 ### 4.3 Load application
 

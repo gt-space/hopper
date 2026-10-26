@@ -31,7 +31,17 @@ m_ox = ox_frac * 16; m_fu = fu_frac * 13;   % unused tank: 0 (saturation lowered
 h = 'sloshHarness';
 if bdIsLoaded(h), close_system(h, 0); end
 new_system(h);
-add_block([src '/Slosh'], [h '/Slosh'], 'Position', [400 100 560 300]);
+sloshFile = get_param([src '/Slosh'], 'ReferencedSubsystem');
+if isempty(sloshFile)
+    add_block([src '/Slosh'], [h '/Slosh'], 'Position', [400 100 560 300]);
+else
+    % Shared subsystem file: copy its contents into a plain subsystem, so the
+    % saturation edits below change the harness and not subsystems/slosh/
+    add_block('simulink/Ports & Subsystems/Subsystem', [h '/Slosh'], 'Position', [400 100 560 300]);
+    Simulink.SubSystem.deleteContents([h '/Slosh']);
+    load_system(sloshFile);
+    Simulink.BlockDiagram.copyContentsToSubsystem(sloshFile, [h '/Slosh']);
+end
 set_param([h '/Slosh/Saturation'], 'LowerLimit', '0'); set_param([h '/Slosh/Saturation1'], 'LowerLimit', '0');
 add_block('simulink/Sources/Constant', [h '/mox'], 'Value', num2str(m_ox, 17), 'Position', [250 100 280 120]);
 add_block('simulink/Sources/Constant', [h '/mfu'], 'Value', num2str(m_fu, 17), 'Position', [250 130 280 150]);
