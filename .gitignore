@@ -1,2 +1,20 @@
-# Ignore all asv files
+# ---- MATLAB / Simulink generated files ----
+
+# Simulink build and cache folders (JIT, Stateflow/EML, model reference)
+slprj/
+sccprj/
+codegen/
+*_ert_rtw/
+*_grt_rtw/
+*_rsim_rtw/
+*_sfun.mex*
+*.slxc
+
+# MATLAB / Simulink autosave and backups
 *.asv
+*.autosave
+*.slx.bak
+*.mdl.bak
+*.slx.r20[0-9][0-9][ab]
+*.mdl.r20[0-9][0-9][ab]
+*.slmx.bak
