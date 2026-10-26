@@ -11,7 +11,8 @@ Use the MATLAB release named in [`TEAM_RELEASE`](TEAM_RELEASE). CI installs that
 1. Open the project: double-click `HopperSim.prj`, or run `openProject('sims/hopper_6dof_sizer')`.
    This puts every source folder on the path and sends Simulink caches to `work/`. No `addpath` or `cd` is needed.
 2. Nominal flight: `out = sim(buildSimInput())`. `buildSimInput(model, scenario)` returns a `Simulink.SimulationInput` carrying every variable the model reads, so nothing has to be in the base workspace. The old way (`sim_setup`, then simulate `hopper_6dof_NED_v2`) still works.
-3. Monte Carlo: `R = runMonteCarlo(10)`; add `UseParallel=true` to use `parsim`. `R.summary` has one row per run. `mc_runner` and the batched/checkpointed `mc_parallelization` (for thousands of runs) use the same pieces. Every run calls CoolProp through Python (`pip install CoolProp`).
+3. Other configurations: `out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('SLOSH', 'off')))` runs the variant harness with slosh off. Axes so far: SLOSH, PROPULSION, GROUND, MASS_PROPS; see [docs/VARIANTS.md](docs/VARIANTS.md).
+4. Monte Carlo: `R = runMonteCarlo(10)`; add `UseParallel=true` to use `parsim`. `R.summary` has one row per run. `mc_runner` and the batched/checkpointed `mc_parallelization` (for thousands of runs) use the same pieces. Every run calls CoolProp through Python (`pip install CoolProp`).
 
 ## Testing
 
@@ -52,7 +53,7 @@ Save models in the **team release** (`TEAM_RELEASE`) or older. A model saved in 
 
 | Folder | Contents |
 |---|---|
-| `models/` | Top-level models (`hopper_6dof_NED_v2.slx` is the master). `dev/` holds work in progress (LQI); `standalone/` holds component models. |
+| `models/` | Top-level models (`hopper_6dof_NED_v2.slx` is the master; `hopper_6dof.slx` is the variant harness built from it, see `docs/VARIANTS.md`). `dev/` holds work in progress (LQI); `standalone/` holds component models. |
 | `subsystems/` | Shared subsystem files the models reference: slosh (`Slosh` and the `Slosh_Axis` pendulum used six times), mass_properties, actuators (TVC/RCS, EDF fans), environment (wind), ground (#27's strut ground contact), gnc (LQR gain scheduler), propulsion (mdot lookup, propellant mass, sensors, throttle valve controller), flight_logic (engine cutoffs, touchdown stop), FDIR, navigation filters. Edit a block here once and every model using it changes; see CONTRIBUTING, *Shared subsystems*. |
 | `src/` | MATLAB code: `setup`, `sizing`, `dynamics`, `gnc`, `propulsion`, `slosh`, `fdir`, `monte_carlo`, `analysis`, `util`. |
 | `inputs/` | `mission_inputs.m` and `mc_params.json`. |

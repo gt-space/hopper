@@ -1,10 +1,15 @@
-function [in, W] = buildSimInput(model, scenario, W)
+function [in, W] = buildSimInput(model, scenario, W, variants)
 %BUILDSIMINPUT  Simulink.SimulationInput with every variable a model reads.
 %   in = buildSimInput()                    nominal run of hopper_6dof_NED_v2
 %   in = buildSimInput(model)               nominal run of another model
 %   in = buildSimInput(model, scenario)     one Monte Carlo scenario
 %   in = buildSimInput(model, scenario, W)  reuse a hopperWorkspace result
 %                                           (add extra variables to W first)
+%   in = buildSimInput(model, scenario, W, variants)
+%                                           variant choices for
+%                                           models/hopper_6dof.slx, from
+%                                           variantConfig (default: all
+%                                           defaults, same as v2)
 %   [in, W] = buildSimInput(...)            also return the workspace struct
 %
 %   model can also be an existing Simulink.SimulationInput (for example
@@ -18,6 +23,10 @@ function [in, W] = buildSimInput(model, scenario, W)
 if nargin < 1 || isempty(model), model = 'hopper_6dof_NED_v2'; end
 if nargin < 2, scenario = []; end
 if nargin < 3 || isempty(W), W = hopperWorkspace(scenario); end
+if nargin < 4 || isempty(variants), variants = variantConfig(); end
+for f = fieldnames(variants)'
+    W.(f{1}) = variants.(f{1});   % only models with variants read these
+end
 
 if isa(model, 'Simulink.SimulationInput')
     in = model;

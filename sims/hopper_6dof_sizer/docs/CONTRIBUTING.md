@@ -25,7 +25,7 @@ How we work on this sim together without breaking each other's models. The [READ
 - **Never copy the top-level model to add a feature.** Every `_ground`, `_fluid_integration` or `_fault_injection` copy so far drifted from the master within weeks.
   - Put the new piece in its own subsystem file under `subsystems/<area>/`.
   - Wire it into the master model behind a switch.
-  - The shared-subsystem/variant work is turning these switches into proper variant choices; ask if unsure where yours goes.
+  - Features that replace a piece of the vehicle become a choice in the variant harness `models/hopper_6dof.slx`; see [VARIANTS.md](VARIANTS.md). Ask if unsure where yours goes.
 - **Open a pull request early** (draft is fine). CI runs on every push, and the PR template asks for the Monte Carlo numbers.
 - **Code owners** (`.github/CODEOWNERS`) are GitHub teams. A pull request automatically requests review from the team that owns each file it touches:
   - `hopper-gca`: guidance and control
