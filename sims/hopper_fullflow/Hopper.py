@@ -1,4 +1,4 @@
-"""Run the Hopper vehicle fluids model (driver script, like Vespula.py).
+"""Run the Hopper vehicle fluids model.
 
 Every input, including these run settings, is in HOPPER_DATA.py.
 
