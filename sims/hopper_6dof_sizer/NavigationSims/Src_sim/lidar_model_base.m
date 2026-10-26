@@ -14,7 +14,7 @@
 % 
 % Outputs:
 %   dist_meas: measured distances with noise (m) (4x1)
-%   covariance: covariance for the filter to use (4x4)
+%   covariance: variance of each beam for the filter to use (4x1)
 %   validity: false if sensor misbehaves
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -36,22 +36,22 @@ end
 % 4. Validity Flag Assignment
 validity = rand(4,1) > lidar_params.packet_invalid_prob;
 
-% Handle noise and validity according to the true distance
+% Handle noise and validity according to the true distance of each beam
 num_sensors = size(dist_true,1);
-if dist_true < 0.2
-    validity = zeros(num_sensors,1);
-    covariance = eye(num_sensors);
-    dist_noise = zeros(num_sensors,1);
-elseif dist_true <= 3
-    covariance = lidar_params.noise_std_1^2*eye(num_sensors);
-    dist_noise = lidar_params.noise_std_1*randn(num_sensors,1);
-else
-    validity = dist_true <= 8;
-    dist_noise = lidar_params.noise_std_2*dist_true.*randn(num_sensors,1);
-    covariance = eye(num_sensors)*lidar_params.noise_std_2*(dist_true+dist_noise).^2;
-end
+noise_std = lidar_params.noise_std_1*ones(num_sensors,1);   % 0.2-3m
+far = dist_true > 3;
+noise_std(far) = lidar_params.noise_std_2*dist_true(far);   % 3-8m
+inRange = dist_true >= 0.2 & dist_true <= 8;
+validity = validity & inRange;
+
+dist_noise = noise_std.*randn(num_sensors,1);
 
 % Compute the measured distance
 dist_meas = dist_true + dist_noise;
+
+% Reported variance uses the measured distance, as the adaptor would
+reported_std = lidar_params.noise_std_1*ones(num_sensors,1);
+reported_std(far) = lidar_params.noise_std_2*dist_meas(far);
+covariance = reported_std.^2;
 
 end

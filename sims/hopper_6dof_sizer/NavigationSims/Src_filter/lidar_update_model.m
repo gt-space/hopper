@@ -37,7 +37,7 @@ D = n*A(:,1);
 distanceEstimate = -(n*r + h)/D;
 
 % Unusable geometry: beam (nearly) parallel to ground, or no hit ahead of sensor
-if abs(D) < 1e-3 || d <= 0
+if abs(D) < 1e-3 || distanceEstimate <= 0
     innovation                 = [];
     measurementJacobian        = zeros(0,19);
     return;
@@ -47,7 +47,7 @@ end
 innovation = distanceEstimate - measurement.distance;
 
 % Calculate measurement Jacobian using the GMEKF conventions
-u = R*(r + distanceEstimate*A(:,1));                    % inertial COM -> ground-hit vector
+u = R'*(r + distanceEstimate*A(:,1));                   % inertial COM -> ground-hit vector (R is C_BI)
 measurementJacobian = zeros(1,19);
 measurementJacobian(3)     = -1/D;                      % position z
 measurementJacobian(10:12) = (cross([0 0 1]',u)/D)';    % attitude error (inertial frame)

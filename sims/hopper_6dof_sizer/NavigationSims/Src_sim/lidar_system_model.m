@@ -38,9 +38,10 @@ function lidarBus = lidar_system_model(x, time, lidar_frames)
     h = x(3) - lidar_frames.heightCOM;
     q_BI = x(10:13);
 
-    % Compute the rotation matrix 3rd col (n) from q components
-    q0 = q_BI(1); q1 = q_BI(2); q2 = q_BI(3); q3 = q_BI(4);
-    n = [2*(q1*q3-q2*q0) 2*(q2*q3+q1*q0) -q1^2-q2^2+q3^2+q0^2];
+    % Inertial down axis in body coordinates (3rd column of C_BI), so
+    % n*v is the NED down component of a body vector v
+    C_BI = quaternion_to_DCM(q_BI);
+    n = C_BI(:,3)';
 
     % Compute all the LIDAR true distances
     d_vec = [-(n*r1 + h)/(n*A1(:,1));
