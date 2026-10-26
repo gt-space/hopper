@@ -14,7 +14,11 @@ function build_v2_fluid_integration()
 %       fluid network spools up (~1 s to build thrust). v2's own
 %       Ground_Contact_Unwired only drives scopes and stays commented out.
 %     - renameV2Blocks gives the copied fluid network the same block names
-%       as v2's.
+%       as v2's, and convertToSubsystemReferences turns its two throttle
+%       valve controllers into one shared file.
+%   Run convertToSubsystemReferences('hopper_6dof_NED_v2_ground') first, so
+%   the copied ground contact is already a reference to
+%   subsystems/ground/Ground_Contact.slx.
 %   Writes models/hopper_6dof_NED_v2_fluid_integration.slx. Run with the
 %   HopperSim project open.
 
@@ -80,6 +84,7 @@ connect(m, 'Ground_Contact', 2, 'Sum5', 2);   % body moment
 set_param(m, 'InitFcn', 'load(''FuelPropsData.mat'');');
 save_system(m);
 renameV2Blocks(m);   % #26's fluid network still has the old inner names
+convertToSubsystemReferences(m);   % its valve controllers become a shared file
 close_system(m, 0);
 close_system(src, 0);
 fprintf('Built %s\n', out);

@@ -26,6 +26,7 @@
 # Guidance and control
 /sims/hopper_6dof_sizer/src/gnc/                                    @gt-space/hopper-gca
 /sims/hopper_6dof_sizer/models/dev/                                 @gt-space/hopper-gca
+/sims/hopper_6dof_sizer/subsystems/gnc/                             @gt-space/hopper-gca
 
 # Navigation filters (GMEKF / MEKF)
 /sims/hopper_6dof_sizer/subsystems/navigation/                      @gt-space/hopper-nav

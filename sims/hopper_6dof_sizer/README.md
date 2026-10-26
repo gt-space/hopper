@@ -53,7 +53,7 @@ Save models in the **team release** (`TEAM_RELEASE`) or older. A model saved in 
 | Folder | Contents |
 |---|---|
 | `models/` | Top-level models (`hopper_6dof_NED_v2.slx` is the master). `dev/` holds work in progress (LQI); `standalone/` holds component models. |
-| `subsystems/` | Shared subsystem files the models reference: slosh (`Slosh` and the `Slosh_Axis` pendulum used six times), mass_properties, actuators (TVC/RCS, EDF fans), environment (wind), propulsion (mdot lookup, propellant mass, sensors, valves), flight_logic (engine cutoffs, touchdown stop), FDIR, navigation filters. Edit a block here once and every model using it changes; see CONTRIBUTING, *Shared subsystems*. |
+| `subsystems/` | Shared subsystem files the models reference: slosh (`Slosh` and the `Slosh_Axis` pendulum used six times), mass_properties, actuators (TVC/RCS, EDF fans), environment (wind), ground (#27's strut ground contact), gnc (LQR gain scheduler), propulsion (mdot lookup, propellant mass, sensors, throttle valve controller), flight_logic (engine cutoffs, touchdown stop), FDIR, navigation filters. Edit a block here once and every model using it changes; see CONTRIBUTING, *Shared subsystems*. |
 | `src/` | MATLAB code: `setup`, `sizing`, `dynamics`, `gnc`, `propulsion`, `slosh`, `fdir`, `monte_carlo`, `analysis`, `util`. |
 | `inputs/` | `mission_inputs.m` and `mc_params.json`. |
 | `data/` | Lookup tables the sims read (`mdot_lookup.xlsx`, `wind_vectors2.mat`, `cg_I_LUT.mat`, `baffle_lut.*`, `engine_contour.xlsx`). |

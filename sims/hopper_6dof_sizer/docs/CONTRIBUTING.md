@@ -67,6 +67,7 @@ Blocks that more than one model uses live in their own files under `subsystems/<
 
 - **To change a shared block, open its file:** double-click the reference block, then edit and save. Every model that references the file picks up the change. Prefer this to editing a copy inside one model.
 - **One file can serve several blocks.** `Slosh_Axis.slx` is all six slosh pendulums (ox/fuel × axial/pitch/yaw). Each instance gets its tank and axis only from its wiring, so keep tank- or axis-specific names out of the file.
+- **Settings that differ per use are mask parameters.** The fuel and ox valves share `propulsion/valves/Throttle_Valve_Controller.slx`; each instance sets its own `ramp_slope` in the block's mask dialog. Add a mask parameter rather than a second copy of the file.
 - **Files can nest.** `Slosh.slx` references `Slosh_Axis.slx`, and `Actuators_TVC_RCS.slx` references `EDF_Dynamics.slx`.
 - **Tests that tweak a shared block work on a copy.** `set_param` on a block inside a reference edits the shared file. Copy the file's contents into a plain subsystem first, as `validation/slosh_openloop/sloshOpenLoopTest.m` does with `Simulink.BlockDiagram.copyContentsToSubsystem`.
 - **Keep the ports stable.** Port names and order are the interface every referencing model is wired to. If you must add or reorder a port, update every model that uses the file in the same PR. CI's model tests load them all.

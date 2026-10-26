@@ -29,6 +29,10 @@ top = {
     };
 inner = {
     'Actuators_TVC_RCS/EDF Dynamics',    'EDF_Dynamics'               % RCS fans: torque cmd -> rate-limited, lagged, saturated torque
+    'Ground_Contact_Unwired/Leg 1 Force',  'Leg_1_Force'              % four copies of one spring/damper leg
+    'Ground_Contact_Unwired/Leg 1 Force1', 'Leg_2_Force'
+    'Ground_Contact_Unwired/Leg 1 Force2', 'Leg_3_Force'
+    'Ground_Contact_Unwired/Leg 1 Force3', 'Leg_4_Force'
     'Mass_Properties/MATLAB Function',   'Ox_Slosh_Inertia'           % zeroed: propellant inertia is in the LUTs
     'Mass_Properties/MATLAB Function1',  'Fu_Slosh_Inertia'
     'Mass_Properties/MATLAB Function2',  'TVC_Skew_Matrix'            % [0 -dz dy; dz 0 0; -dy 0 0]
