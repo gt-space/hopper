@@ -1,24 +1,8 @@
-"""Every input of the Hopper vehicle fluids model, in one place.
+"""ALL THE INPUTS FOR THE HOPPER FULLFLOW MODEL ARE HERE.
 
 Edit this file to change the vehicle, the thrust curve, the start-up sequence,
 or how the model is run and plotted. No other file holds a vehicle number.
-Then run:
-
-    python Hopper.py
-
-The P&ID is written as ordered lists of elements (see Hopper_Elements.py for
-every element type and what native FullFlow component it builds). To add a
-valve, orifice, line or any other FullFlow component, add it to the list where
-it sits on the P&ID; the junctions between elements, the network and the plots
-follow automatically.
-
-Units are SI underneath. scipy.constants supplies the conversions used below
-(psi, inch, liter, milli), so "500.0 * psi" is 500 psi in Pa and
-"18.68 * milli**2" is 18.68 mm^2 in m^2.
-
-Sources: values come from vehicle_sim.py (hopper/sims/general_fluid_network,
-commit dd2534b) unless the comment says otherwise. "GUESS" marks a value
-nobody has measured yet.
+Then run python Hopper.py
 """
 
 from scipy.constants import *
@@ -90,14 +74,11 @@ PROP_THRUST_CURVE = THRUST_CURVES[PROP_THRUST_CURVE_NAME]
 # =========================================================================== #
 # ---- FLUIDS ---- #
 # =========================================================================== #
-# One name per fluid. The propellant names are ThermoProp Propellants: the same
-# object gives the liquid properties in the tanks and feed lines and is the
-# reactant in the combustion map (rebuild the map after changing them).
 OXIDIZER = "LOX"
 FUEL = "RP-1"
-PRESSURANT = "Nitrogen"   # ThermoProp Fluid (COPV, pressurant lines, ullages)
+PRESSURANT = "Nitrogen"  
 
-AMBIENT_PRESSURE = 14.8 * psi   # engine back pressure (vehicle_sim.py Engine(Pa = 14.8 psi))
+AMBIENT_PRESSURE = 14.8 * psi
 
 
 
@@ -105,11 +86,11 @@ AMBIENT_PRESSURE = 14.8 * psi   # engine back pressure (vehicle_sim.py Engine(Pa
 # =========================================================================== #
 # ---- PRESSURANT: COPVs ---- #
 # =========================================================================== #
-# P&ID: COPV-1/2/3, 9 L each, on one manifold; one shared gas state.
+
 COPV_COUNT = 3
 COPV_UNIT_VOLUME = 9.0 * liter
 COPV_VOLUME = COPV_COUNT * COPV_UNIT_VOLUME
-PRESSURANT_INITIAL_PRESSURE = 4503.2 * psi   # vehicle_sim.py fill (310.3 kg/m^3 of N2 at 293 K)
+PRESSURANT_INITIAL_PRESSURE = 4503.2 * psi   # [psi]
 PRESSURANT_INITIAL_TEMPERATURE = 293.0       # [K]
 
 
@@ -118,12 +99,14 @@ PRESSURANT_INITIAL_TEMPERATURE = 293.0       # [K]
 # =========================================================================== #
 # ---- TANKS ---- #
 # =========================================================================== #
-# Each tank carries its bang-bang controller: the solenoid in its pressurant
-# leg closes above set + upper and opens below set - lower (vehicle_sim.py
-# BangBang(500 psi, hysteresis 5 psi), starting open).
+# volume [m^3], liquid_mass [kg], liquid_temperature [K]
+# pressure [Pa] starting ullage pressure
+# ullage_temperature [K]
+# radius [m] sets the liquid free-surface area for ullage heat transfer
+# ullage_htc [W/m^2/K] 
 LOX_TANK = Tank(
     "LOX Tank", propellant=OXIDIZER,
-    volume=20.0 * liter, liquid_mass=19.43, liquid_temperature=90.0,
+    volume=20.0 * liter, liquid_mass=19.43 , liquid_temperature=90.0,
     pressure=500.0 * psi, ullage_temperature=150.0,
     radius=0.2, ullage_htc=500.0,
     set_pressure=500.0 * psi, upper_limit=5.0 * psi, lower_limit=5.0 * psi,
@@ -143,27 +126,22 @@ FUEL_TANK = Tank(
 # =========================================================================== #
 # ---- PRESSURANT LEGS (COPV -> ... -> tank ullage) ---- #
 # =========================================================================== #
-# In P&ID order. Neighbouring restrictions (including a GasLine, as its
-# equivalent CdA) are combined with FullFlow SeriesCdA into one
-# CompressibleOrifice; GasLine(..., inertia=True) instead builds a FullFlow
-# FlowTube with its own node (needs a few-ms time step). Each leg needs one
-# BangBangValve (driven by its tank's controller).
 TUBE_ROUGHNESS = 1.5e-5   # [m] vehicle_sim.py Line roughness, all tubes
 
 LOX_PRESSURANT_LEG = [
-    GasLine("LOX Pressurant Line", inner_diameter=4.92 * milli, length=1.0, roughness=TUBE_ROUGHNESS,
-            outlet_node="OBB Inlet"),                       # vehicle_sim.py Line(4.92 mm, 1 m)
-    BangBangValve("OBB", cda=18.68 * milli**2),             # user-supplied
-    Orifice("OR-1", cda=2 * 1.02 * milli**2),               # vehicle_sim.py ox bang-bang CdA
-    CheckValve("PROCK", cda=12.0 * milli**2),               # GUESS (~Cv 0.5), zero cracking pressure
+    GasLine("LOX Pressurant Line", inner_diameter=4.92 * milli, length=1.0, #meter, EDIT
+            roughness=TUBE_ROUGHNESS, outlet_node="OBB Inlet"),
+    BangBangValve("OBB", cda=18.68 * milli**2),
+    Orifice("OR-1", cda=2 * 1.02 * milli**2),              #EDIT
+    CheckValve("PROCK", cda=12.0 * milli**2),              #EDIT
 ]
 
 FUEL_PRESSURANT_LEG = [
-    GasLine("Fuel Pressurant Line", inner_diameter=4.92 * milli, length=1.0, roughness=TUBE_ROUGHNESS,
-            outlet_node="FBB Inlet"),
-    BangBangValve("FBB", cda=18.68 * milli**2),             # user-supplied
-    Orifice("OR-2", cda=1.02 * milli**2),                   # vehicle_sim.py fuel bang-bang CdA
-    CheckValve("PRFCK", cda=12.0 * milli**2),               # GUESS
+    GasLine("Fuel Pressurant Line", inner_diameter=4.92 * milli, length=1.0, #meter, EDIT
+            roughness=TUBE_ROUGHNESS, outlet_node="FBB Inlet"),
+    BangBangValve("FBB", cda=18.68 * milli**2),             
+    Orifice("OR-2", cda=1.02 * milli**2),                   #EDIT
+    CheckValve("PRFCK", cda=12.0 * milli**2),               #EDIT
 ]
 
 
@@ -172,23 +150,17 @@ FUEL_PRESSURANT_LEG = [
 # =========================================================================== #
 # ---- FEED LINES (tank liquid -> ... -> main chamber) ---- #
 # =========================================================================== #
-# In P&ID order. Each feed needs exactly one ThrottleValve (it follows the
-# thrust curve) and ends with an Injector. outlet_node names the junction after
-# an element (used in the plots). vehicle_sim.py tubes: 3/8" x 0.028" (LOX),
-# 1/4" x 0.028" (fuel); valve-to-injector runs include the flex hoses.
-LOX_TUBE_ID = tube_id(3 / 8 * inch, 0.028 * inch)    # 8.10 mm
-FUEL_TUBE_ID = tube_id(1 / 4 * inch, 0.028 * inch)   # 4.93 mm
+LOX_TUBE_ID = tube_id(3 / 8 * inch, 0.028 * inch)    # EDIT mm
+FUEL_TUBE_ID = tube_id(1 / 4 * inch, 0.028 * inch)   # EDIT mm
 
-# Passage lengths give the injectors and regen jacket a little flow inertia,
-# which keeps the solver well behaved at zero flow; no effect on steady dP.
-INJECTOR_PASSAGE_LENGTH = 0.01   # GUESS [m]
-REGEN_PASSAGE_LENGTH = 0.30      # GUESS [m]
+INJECTOR_PASSAGE_LENGTH = 0.01   # EDIT [m]
+REGEN_PASSAGE_LENGTH = 0.30      # EDIT [m]
 
 LOX_FEED = [
     Line("LOX Tank to OTV Line", inner_diameter=LOX_TUBE_ID, length=1.0, roughness=TUBE_ROUGHNESS,
          outlet_node="OTV Inlet"),
-    ThrottleValve("OTV", max_cda=0.9 * tube_area(LOX_TUBE_ID),          # GUESS: 90 % of tube area (46.4 mm^2)
-                  full_scale_mass_flow=0.777, outlet_node="OTV Outlet"),  # full scale: vehicle_sim.py otv_max
+    ThrottleValve("OTV", max_cda=0.9 * tube_area(LOX_TUBE_ID),          #EDIT
+                  full_scale_mass_flow=0.777, outlet_node="OTV Outlet"),  
     Line("OTV to LOX Injector Line", inner_diameter=LOX_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
          outlet_node="LOX Injector Manifold"),
     Injector("OINJ", cda=15.3 * milli**2, length=INJECTOR_PASSAGE_LENGTH),
@@ -197,7 +169,7 @@ LOX_FEED = [
 FUEL_FEED = [
     Line("Fuel Tank to FTV Line", inner_diameter=FUEL_TUBE_ID, length=0.3048, roughness=TUBE_ROUGHNESS,
          outlet_node="FTV Inlet"),
-    ThrottleValve("FTV", max_cda=0.9 * tube_area(FUEL_TUBE_ID),         # GUESS: 90 % of tube area (17.2 mm^2)
+    ThrottleValve("FTV", max_cda=0.9 * tube_area(FUEL_TUBE_ID),         # EDIT: 90 % of tube area (17.2 mm^2)
                   full_scale_mass_flow=0.388, outlet_node="FTV Outlet"),
     Line("FTV to Regen Line", inner_diameter=FUEL_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
          outlet_node="Regen Inlet Manifold"),
@@ -222,7 +194,7 @@ THROAT_AREA = 0.00067226          # [m^2]
 EXIT_AREA = 0.00235559904         # [m^2]
 EXPANSION_RATIO = EXIT_AREA / THROAT_AREA   # 3.504
 
-# Efficiency vs chamber pressure, written exactly as vehicle_sim.py does:
+# Efficiency vs chamber pressure. Same parameters as Luca's previous sim.
 #   eta = LOW + (HIGH - LOW) * max(1, (Pc_psia - PC_LOW) / PC_SPAN)
 # (max(1, ...) holds eta_c* at 0.85 up to 300 psia and eta_cf at 0.97 up to
 # 250 psia; above those they keep rising with Pc.)
@@ -235,8 +207,7 @@ CF_EFFICIENCY_HIGH = 0.97
 CF_EFFICIENCY_PC_LOW = 100.0        # [psia]
 CF_EFFICIENCY_PC_SPAN = 150.0       # [psi]
 
-# Nominal chamber pressure (user-supplied). Only used by the exit-pressure
-# plot, where throttle = Pc / nominal Pc.
+
 NOMINAL_CHAMBER_PRESSURE = 300.0 * psi
 
 # Combustion map grid (rebuild with PROP_GENERATE_CHAMBER_MAP = True after a

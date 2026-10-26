@@ -1,21 +1,4 @@
 """Custom FullFlow components and the shared engine-performance block.
-
-Why custom components are needed
---------------------------------
-FullFlow's IsentropicNozzle uses the textbook ideal-gas flow law. Near zero
-pressure difference, flow goes as sqrt(dP), whose slope is infinite at
-dP = 0. Hopper's main chamber sits at exactly that point before start-up and
-after shutdown, and the solver stalls there (it cannot form a usable
-Jacobian). LinearizedNozzle below is the same FullFlow relation, with the flow
-made linear in dP inside a small band around zero. The flow is continuous at
-the band edge, and outside the band the result is identical to the stock
-component.
-
-Engine performance
-------------------
-EnginePerformance() builds the chamber gas, nozzle and thrust from (Pc, MR).
-The thrust targeter and the prop system both call it, so the flows the targeter
-asks for are exactly what the transient engine needs to make that thrust.
 """
 
 import math
@@ -27,12 +10,7 @@ from HOPPER_DATA import *
 
 
 class LinearizedNozzle(IsentropicNozzle):
-    """FullFlow's IsentropicNozzle with its mass flow linearised near ambient.
-
-    While the chamber is within NOZZLE_LINEAR_PRESSURE_DROP of ambient (before
-    ignition and after tail-off), the nozzle flow is the band-edge flow scaled
-    linearly with (Pc - ambient). Everything else (choking, exit Mach, exit
-    pressure and velocity, shock checks) is the parent component unchanged.
+    """Used to make the runtime acceptable for unchoked flow at the band edge (Pc = Pa + 1 psi).
     """
 
     def evaluate_states(self):
@@ -58,20 +36,6 @@ class LinearizedNozzle(IsentropicNozzle):
 def EnginePerformance(name, network, chamber_pressure, mixture_ratio,
                       chamber_map_filename=CHAMBER_MAP_FILENAME,
                       ambient_pressure=AMBIENT_PRESSURE):
-    """Chamber gas, nozzle flow and thrust at (Pc, MR).
-
-    chamber_pressure and mixture_ratio are States (or live State expressions);
-    everything returned stays connected to them.
-
-    Physics, matching vehicle_sim.Engine and its targeter:
-      gas          equilibrium RP-1/LOX products at (Pc, MR) from the chamber map
-      mdot_ideal   isentropic-nozzle flow for that gas (= Pc At / c*_ideal when choked)
-      mdot         mdot_ideal / eta_c*                (c* efficiency, as in Vespula)
-      thrust       eta_cf * (mdot_ideal * Ve + (Pe - Pa) * Ae)
-                   = eta_cf * Cf_ambient * Pc * At    (vehicle_sim: Isp_amb * eta_c* * eta_cf * g * mdot)
-
-    Returns a dict of the map, nozzle, both efficiencies, mdot and thrust.
-    """
     # Equilibrium chamber products: temperature, gamma, gas constant, density.
     gas = Map.from_hdf5(
         f"{name} Gas",
