@@ -173,7 +173,7 @@ FUEL_FEED = [
                   full_scale_mass_flow=0.388, outlet_node="FTV Outlet"),
     Line("FTV to Regen Line", inner_diameter=FUEL_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
          outlet_node="Regen Inlet Manifold"),
-    Orifice("Regen Jacket", cda=25.0 * milli**2, length=REGEN_PASSAGE_LENGTH,   # pressure drop only, no heat pickup
+    Orifice("Regen Jacket", cda=25.0 * milli**2, length=REGEN_PASSAGE_LENGTH,   # EDIT
             outlet_node="Fuel Injector Manifold"),
     Injector("FINJ", cda=10.6 * milli**2, length=INJECTOR_PASSAGE_LENGTH),
 ]
