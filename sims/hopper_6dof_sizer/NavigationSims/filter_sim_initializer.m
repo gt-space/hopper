@@ -63,7 +63,10 @@ imu_params.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
 % GPS parameters
 gps_st = 0.1;           % sample time (s)
 % --- GPS Sensor Parameters (u-blox ZED-F9P) ---
-gps_params.r1 = [0.5; 0.0; -0.2];              % Antenna 2 vector from COM (3x1) (m)
+% PLACEHOLDER antenna spacing: |r1 - r2| = vehicle max diameter from CAD
+% (1 m until the CAD number is in). Keep the baseline horizontal (body x-y,
+% the N-E plane when vertical) so DGPS observes roll about the vertical axis.
+gps_params.r1 = [0.5; 0.0; -0.2];              % Antenna 1 vector from COM (3x1) (m)
 gps_params.r2 = [-0.5; 0.0; -0.2];             % Antenna 2 vector from COM (3x1) (m)
 gps_params.multipath = [0.002; 0.001; -0.003]; % Pad bounce error (b_mp,k) (m)[cite: 1]
 gps_params.pos_noise_std = [0.02; 0.02; 0.05]; % Position jitter standard deviation (eta_p) (m)[cite: 1]
@@ -74,6 +77,17 @@ gps_params.packet_invalid_prob = 0.0;          % Set to 0 for now
 % Provisional GPS velocity noise standard deviations (m/s).
 % Replace with receiver specifications.
 gps_params.vel_noise_std = [0.1; 0.1; 0.1];
+
+% Differential GPS parameters
+diffGps_st = 0.1;       % sample time (s), PLACEHOLDER: same as gps_st until receiver is chosen
+% --- Differential GPS Sensor Parameters (antenna 1 -> antenna 2 baseline in NED) ---
+% Antenna placement comes from gps_params.r1 / gps_params.r2 (gps_frame).
+% PLACEHOLDER noise: carrier-phase baseline error is roughly constant in
+% metres, so heading error ~ noise_std/baseline. 7 mm horizontal on a 1 m
+% baseline is ~0.4 deg. Replace with receiver specs and CAD spacing.
+diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m)
+diffGps_params.covariance = diag(diffGps_params.noise_std.^2); % Filter measurement covariance
+diffGps_params.packet_invalid_prob = 0.0;                  % Set to 0 for now
 
 % Barometer parameters
 barometer_st = 0.05;    % sample time (s)
