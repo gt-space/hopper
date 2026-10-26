@@ -18,16 +18,8 @@ startDir = cd(fileparts(testDir));
 filter_sim_initializer;
 rng(2);
 
-% gps_model reads gps_params.bias, which the initializer does not set yet
-gps_params.bias = zeros(3,1);
-
-% The initializer builds these as eye(3)*vector, which is 3x1, not 3x3
-imu_params.acovariance = diag([0.05; 0.05; 0.05].^2);
-imu_params.gcovariance = diag([0.005; 0.005; 0.005].^2);
-gps_params.pos_covariance = diag([0.02^2; 0.02^2; 0.05^2]);
-gps_params.vel_covariance = diag([0.05^2; 0.05^2; 0.1^2]);
-
-% Noise off for every sensor
+% Noise off for every sensor except LIDAR, whose reported covariance comes
+% from its noise level (it cannot observe roll about the vertical axis)
 gps_params.pos_noise_std = zeros(3,1);
 gps_params.vel_noise_std = zeros(3,1);
 gps_params.multipath = zeros(3,1);
@@ -35,7 +27,7 @@ imu_params.accel_noise_std = zeros(3,1);
 imu_params.gyro_noise_std = zeros(3,1);
 baro_params.noise_std = 0;
 diffGps_params.noise_std = zeros(3,1);
-clear gps_model imu_model barometer_model diffGps_model
+clear gps_model imu_model barometer_model diffGps_model lidar_model_base
 
 % Nominal: vertical at the origin. Truth: 2 deg roll about the vertical
 % axis plus a small tilt, everything else equal.
@@ -47,9 +39,8 @@ xTrue = state_injection(xNominal, trueError);
 
 % Measurements from the sim models at truth
 t = 0.1;
-meas_posvel = gps_model(xTrue, t);
+meas_posvel = gps_model(xTrue, t, gps_frame);
 [~, meas_angvel] = imu_model(xTrue, zeros(3,1), zeros(3,1), zeros(3,1), t);
-meas_angvel.angvel = meas_angvel.accel;   % imu_model writes the gyro output to .accel
 meas_baro = barometer_model(xTrue, 0, t);
 meas_LID = lidar_system_model(xTrue, t, lidar_frames);
 meas_diffGps = diffGps_model(xTrue, t, gps_frame);
@@ -91,6 +82,7 @@ cd(startDir);
 
 %% Pass/fail
 checks = { ...
+    'all LIDAR beams valid (LIDAR path exercised)', all(meas_LID.validity);
     'output sizes', isequal(size(xWith), [20 1]) && isequal(size(PWith), [19 19]);
     'covariance symmetric', max(abs(PWith - PWith'), [], 'all') < 1e-12;
     'covariance positive definite', notPD == 0;

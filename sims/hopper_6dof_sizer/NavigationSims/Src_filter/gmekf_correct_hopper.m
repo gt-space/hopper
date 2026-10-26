@@ -5,6 +5,9 @@
 % Hopper version of gmekf_correct.m: differential GPS instead of the
 % magnetometer, and the GPS lever arm taken from the antenna frame.
 %
+% KEEP IN SYNC WITH gmekf_correct.m: pull regularly and copy any new
+% sensor handling from gmekf_correct.m into this file.
+%
 % Based on gmekf_correct.m (David Meisinger, 10/18/26)
 %
 % Inputs:
@@ -45,55 +48,43 @@ function [xnp1_c, Pnp1_c] = gmekf_correct_hopper( ...
         diffGps_timestamp = -1;
     end
 
-    % LIDAR is not implemented yet (lidar_frames unused until then).
-    % Keep the 4x1 validity size so the bus type doesn't change.
-    meas_LID.validity(:) = false;
-    meas_LID.timestamp = -1;
-
     % initialize corrected outputs with propagated values
     xnp1_c = xnp1;
     Pnp1_c = Pnp1;
 
-    aux.baroGateThreshold = 6.635;      % 99%, 1 DOF
-    aux.gyroGateThreshold = 11.345;     % 99%, 3 DOF
-    aux.gpsGateThreshold  = 16.812;     % 99%, 6 DOF
-    aux.diffGpsGateThreshold = 11.345;  % 99%, 3 DOF
+    % Gate thresholds are locals: code generation cannot add fields to the
+    % aux input struct
+    baroGateThreshold = 6.635;      % 99%, 1 DOF
+    gyroGateThreshold = 11.345;     % 99%, 3 DOF
+    gpsGateThreshold  = 16.812;     % 99%, 6 DOF
+    lidarGateThreshold = 6.635;     % 99%, 1 DOF (per beam)
+    diffGpsGateThreshold = 11.345;  % 99%, 3 DOF
 
-    % GPS position is the antenna midpoint, matching gps_model.m
-    aux.gpsLeverArmBody = (gps_frame.r1(:) + gps_frame.r2(:))/2;
-
-    %{
-        Measurement adapters: the *_update_model functions and update.m
-        expect different field names than the dictionary buses (update.m
-        reads R, the buses carry covariance; gyro_update_model reads
-        angularVelocity, the bus carries angvel). Build the structs they
-        expect here. Remove once the names are reconciled.
-    %}
-    baroMeas = struct('height', meas_baro.height, 'R', meas_baro.covariance);
-    gyroMeas = struct('angularVelocity', meas_angvel.angvel, 'R', meas_angvel.covariance);
-    gpsMeas = struct('pos', meas_posvel.pos, 'vel', meas_posvel.vel, ...
-        'R', blkdiag(meas_posvel.pcovariance, meas_posvel.vcovariance));
-    diffGpsMeas = struct('basisVec', meas_diffGps.basisVec, 'R', meas_diffGps.covariance);
+    % Point the GPS receiver reports, from the antenna frame
+    gpsLeverArmBody = gps_lever_arm(gps_frame);
 
     % Check if each sensor should be incorporated
     gps_incorp = meas_posvel.validity && meas_posvel.timestamp > gps_timestamp;
     gyro_incorp = meas_angvel.validity && meas_angvel.timestamp > gyro_timestamp;
     baro_incorp = meas_baro.validity && meas_baro.timestamp > baro_timestamp;
-    lid_incorp = all(meas_LID.validity) && meas_LID.timestamp > lid_timestamp;
+    lid1_incorp = meas_LID.validity(1) && meas_LID.timestamp > lid_timestamp;
+    lid2_incorp = meas_LID.validity(2) && meas_LID.timestamp > lid_timestamp;
+    lid3_incorp = meas_LID.validity(3) && meas_LID.timestamp > lid_timestamp;
+    lid4_incorp = meas_LID.validity(4) && meas_LID.timestamp > lid_timestamp;
     diffGps_incorp = meas_diffGps.validity && meas_diffGps.timestamp > diffGps_timestamp;
 
 
     % Barometer correction
     if baro_incorp
 
-        baroParams.gateThreshold = aux.baroGateThreshold;
+        baroParams.gateThreshold = baroGateThreshold;
 
         % Perform complete GMEKF update
         [xnp1_c, Pnp1_c, ~] = update( ...
             xnp1_c, ...
             Pnp1_c, ...
             @baro_update_model, ...
-            baroMeas, ...
+            meas_baro, ...
             baroParams);
 
         baro_timestamp = meas_baro.timestamp; % consume measurement even if gated out
@@ -101,13 +92,13 @@ function [xnp1_c, Pnp1_c] = gmekf_correct_hopper( ...
 
     if gyro_incorp
 
-        gyroParams.gateThreshold = aux.gyroGateThreshold;
+        gyroParams.gateThreshold = gyroGateThreshold;
 
         [xnp1_c, Pnp1_c, ~] = update( ...
             xnp1_c, ...
             Pnp1_c, ...
             @gyro_update_model, ...
-            gyroMeas, ...
+            meas_angvel, ...
             gyroParams);
 
         gyro_timestamp = meas_angvel.timestamp;
@@ -116,26 +107,100 @@ function [xnp1_c, Pnp1_c] = gmekf_correct_hopper( ...
 
     if gps_incorp
 
-        gpsParams.gateThreshold = aux.gpsGateThreshold;
+        gpsParams.gateThreshold = gpsGateThreshold;
 
         % Antenna lever arm in body coordinates
-        gpsParams.r_b = aux.gpsLeverArmBody;
+        gpsParams.r_b = gpsLeverArmBody;
+
+        % TEMPORARY until the GPS bus refactor: gpsBus carries separate
+        % position/velocity covariances, update() needs one covariance
+        meas_gps = struct('pos', meas_posvel.pos, 'vel', meas_posvel.vel, ...
+            'covariance', blkdiag(meas_posvel.pcovariance, meas_posvel.vcovariance));
 
         [xnp1_c, Pnp1_c, ~] = update( ...
             xnp1_c, ...
             Pnp1_c, ...
             @gps_update_model, ...
-            gpsMeas, ...
+            meas_gps, ...
             gpsParams);
 
         gps_timestamp = meas_posvel.timestamp;
 
     end
 
-    % Differential GPS correction (antenna baseline in NED)
+    % LIDAR correction
+    lidarParams = lidar_frames;
+    lidarParams.gateThreshold = lidarGateThreshold;
+    lidarParams.lidarIndex = 0;
+    if lid1_incorp
+
+        meas_lid1.distance = meas_LID.distance(1);
+        meas_lid1.covariance = meas_LID.covariance(1);
+        lidarParams.lidarIndex = 1;
+
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @lidar_update_model, ...
+            meas_lid1, ...
+            lidarParams);
+
+        lid_timestamp = meas_LID.timestamp;
+
+    end
+    if lid2_incorp
+
+        meas_lid2.distance = meas_LID.distance(2);
+        meas_lid2.covariance = meas_LID.covariance(2);
+        lidarParams.lidarIndex = 2;
+
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @lidar_update_model, ...
+            meas_lid2, ...
+            lidarParams);
+
+        lid_timestamp = meas_LID.timestamp;
+
+    end
+    if lid3_incorp
+
+        meas_lid3.distance = meas_LID.distance(3);
+        meas_lid3.covariance = meas_LID.covariance(3);
+        lidarParams.lidarIndex = 3;
+
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @lidar_update_model, ...
+            meas_lid3, ...
+            lidarParams);
+
+        lid_timestamp = meas_LID.timestamp;
+
+    end
+    if lid4_incorp
+
+        meas_lid4.distance = meas_LID.distance(4);
+        meas_lid4.covariance = meas_LID.covariance(4);
+        lidarParams.lidarIndex = 4;
+
+        [xnp1_c, Pnp1_c, ~] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @lidar_update_model, ...
+            meas_lid4, ...
+            lidarParams);
+
+        lid_timestamp = meas_LID.timestamp;
+
+    end
+
+    % Differential GPS correction (antenna 1 -> antenna 2 baseline in NED)
     if diffGps_incorp
 
-        diffGpsParams.gateThreshold = aux.diffGpsGateThreshold;
+        diffGpsParams.gateThreshold = diffGpsGateThreshold;
 
         % Antenna positions in body coordinates
         diffGpsParams.r1 = gps_frame.r1;
@@ -145,13 +210,11 @@ function [xnp1_c, Pnp1_c] = gmekf_correct_hopper( ...
             xnp1_c, ...
             Pnp1_c, ...
             @diffGps_update_model, ...
-            diffGpsMeas, ...
+            meas_diffGps, ...
             diffGpsParams);
 
         diffGps_timestamp = meas_diffGps.timestamp;
 
     end
-
-    % TODO: LIDAR correction
 
 end

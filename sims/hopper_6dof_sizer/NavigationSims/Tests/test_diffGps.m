@@ -119,7 +119,6 @@ xTrue = state_injection(xNominal, trueError);
 diffGps_params.noise_std = zeros(3,1);
 clear diffGps_model
 meas = diffGps_model(xTrue, 1, frame);
-meas.R = meas.covariance;       % update.m reads measurement.R
 
 [xPost, PPost, accepted] = update(xNominal, P0, @diffGps_update_model, meas, updateParams);
 
