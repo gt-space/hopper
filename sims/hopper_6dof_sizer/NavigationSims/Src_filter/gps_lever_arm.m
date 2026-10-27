@@ -11,9 +11,10 @@ function leverArmBody = gps_lever_arm(gpsFrame)
 %
 %   leverArmBody - Lever arm in body coordinates (3x1) (m)
 %
-% NOTE: Assumes the receiver reports the midpoint between the two antennas.
-% If it reports antenna 1 instead, change this to gpsFrame.r1(:).
+% NOTE: Dual-antenna (moving base) receivers report the position of the
+% primary antenna, antenna 1, plus the baseline to antenna 2. If the chosen
+% receiver reports the midpoint instead, use (gpsFrame.r1 + gpsFrame.r2)/2.
 
-    leverArmBody = (gpsFrame.r1(:) + gpsFrame.r2(:)) / 2;
+    leverArmBody = gpsFrame.r1(:);
 
 end

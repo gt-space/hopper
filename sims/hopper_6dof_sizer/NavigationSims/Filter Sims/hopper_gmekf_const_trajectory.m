@@ -14,7 +14,7 @@ run('./filter_sim_initializer.m');
 tf = 100;       % stop time in seconds
 Ts = 1/500;     % time increment in seconds
 timespan = (0:Ts:tf)';
-N = numel(t); % number of sample points
+N = numel(timespan); % number of sample points
 
 % Make sure the model is on the MATLAB path
 load_system("Hopper_GMEKF_Simulation");

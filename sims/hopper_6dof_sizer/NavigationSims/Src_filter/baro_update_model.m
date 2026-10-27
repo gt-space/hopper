@@ -19,7 +19,8 @@ function [innovation, measurementJacobian] = baro_update_model(nominalState, mea
     predictedMeasurement = -positionEstimate(3) + baroBiasEstimate; % NED frame
 
     innovation = predictedMeasurement - measurement.height;
-    
+
+    measurementJacobian = zeros(1,19);
     measurementJacobian(3) = -1;
     measurementJacobian(19) = 1;
 

@@ -16,8 +16,9 @@ addpath("Src_filter\");
 addpath("Filters\");
 
 %% Filter parameters
-filter_st = 1/480;      % Filter sample time (seconds)
-% NOTE: This comes from IMU sample rate.
+filter_st = 1/500;      % Filter sample time (seconds)
+% NOTE: This comes from IMU sample rate. ADIS16500 output rate is
+% 2000/(DEC_RATE+1) Hz, so 500 Hz needs DEC_RATE = 3 in the FSW driver.
 % IT IS ASSUMED THE FILTER ITERATES (PROPAGATES) AT THE IMU SENSE RATE.
 % Initial conditions
 
