@@ -27,31 +27,33 @@
 function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity, J, g, dt, Qc)
     
     % Generate some shared quantities
+    % NOTE: aux is built in one go at each stage, since code generation
+    % cannot add fields to a struct after it has been used
     g_vec = [0; 0; g];
-    w = xn(10); x = xn(11); y = xn(12); z = xn(13);
-    aux.A_IB = quaternion_to_rotation(xn(10:13))';
+    A_IB = quaternion_to_rotation(xn(10:13))';
+    auxProp = struct('A_IB', A_IB);
 
     % Propagate the state
-    xnp1 = propagate_state(xn, aux, accel_meas, torque, validity, J, g, dt);
-    xnp05 = propagate_state(xn, aux, accel_meas, torque, validity, J, g, dt*0.5);
+    xnp1 = propagate_state(xn, auxProp, accel_meas, torque, validity, J, g, dt);
+    xnp05 = propagate_state(xn, auxProp, accel_meas, torque, validity, J, g, dt*0.5);
     % ^xnp05 is the propagation to time step 0.5 which allows better STM
     % estimation
 
     % Calculate rotation matrix at the one-half time step
-    w = xnp05(10); x = xnp05(11); y = xnp05(12); z = xnp05(13);
-    aux.A_IB05 = quaternion_to_rotation(xnp05(10:13))';
+    A_IB05 = quaternion_to_rotation(xnp05(10:13))';
 
     % fill aux params
     if validity
-        aux.a_I = aux.A_IB05*(accel_meas - xnp05(14:16));
+        a_I = A_IB05*(accel_meas - xnp05(14:16));
     else
-        aux.a_I = aux.A_IB05*(-g_vec-xnp05(14:16)); % Assume vehicle is unaccelerated
+        a_I = A_IB05*(-g_vec-xnp05(14:16)); % Assume vehicle is unaccelerated
     end
-    aux.w_I = aux.A_IB05*xnp05(7:9);
+    w_I = A_IB05*xnp05(7:9);
 
     % Get the error state Jacobians
-    [F05, G05] = error_state_jacobian(xnp05, aux, J);
-    aux.F = F05; aux.G = G05;
+    auxJac = struct('A_IB', A_IB, 'A_IB05', A_IB05, 'a_I', a_I, 'w_I', w_I);
+    [F05, G05] = error_state_jacobian(xnp05, auxJac, J);
+    aux = struct('A_IB', A_IB, 'A_IB05', A_IB05, 'a_I', a_I, 'w_I', w_I, 'F', F05, 'G', G05);
 
     % Propagate the covariance
     Pnp1 = propagate_covariance(Pn, F05, G05, Qc, dt);
