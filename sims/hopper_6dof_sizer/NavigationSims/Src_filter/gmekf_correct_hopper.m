@@ -13,7 +13,6 @@
 % Inputs:
 %   xnp1: np1 propagated state vector (20x1)
 %   Pnp1: np1 propagated covariance (19x19)
-%   aux: Struct for passing common Navigation params
 %   meas_posvel: GPS measurement struct
 %   meas_angvel: gyro measurement struct
 %   meas_baro: barometer measurement struct
@@ -29,7 +28,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [xnp1_c, Pnp1_c] = gmekf_correct_hopper( ...
-    xnp1, Pnp1, aux, meas_posvel, ...
+    xnp1, Pnp1, meas_posvel, ...
     meas_angvel, meas_baro, meas_LID, lidar_frames, meas_diffGps, gps_frame)
 
     % Declare persistent timestamps for last sensor read
@@ -52,8 +51,7 @@ function [xnp1_c, Pnp1_c] = gmekf_correct_hopper( ...
     xnp1_c = xnp1;
     Pnp1_c = Pnp1;
 
-    % Gate thresholds are locals: code generation cannot add fields to the
-    % aux input struct
+    % Innovation gate thresholds
     baroGateThreshold = 6.635;      % 99%, 1 DOF
     gyroGateThreshold = 11.345;     % 99%, 3 DOF
     gpsGateThreshold  = 16.812;     % 99%, 6 DOF

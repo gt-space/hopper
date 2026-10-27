@@ -44,18 +44,17 @@ meas_posvel = gps_model(xTrue, t, gps_frame);
 meas_baro = barometer_model(xTrue, 0, t);
 meas_LID = lidar_system_model(xTrue, t, lidar_frames);
 meas_diffGps = diffGps_model(xTrue, t, gps_frame);
-aux = struct();
 
 % Step with DGPS
 clear gmekf_correct_hopper
-[xWith, PWith] = gmekf_correct_hopper(xNominal, P0, aux, meas_posvel, ...
+[xWith, PWith] = gmekf_correct_hopper(xNominal, P0, meas_posvel, ...
     meas_angvel, meas_baro, meas_LID, lidar_frames, meas_diffGps, gps_frame);
 
 % Same step with DGPS marked invalid
 meas_noDiffGps = meas_diffGps;
 meas_noDiffGps.validity = false;
 clear gmekf_correct_hopper
-[xWithout, PWithout] = gmekf_correct_hopper(xNominal, P0, aux, meas_posvel, ...
+[xWithout, PWithout] = gmekf_correct_hopper(xNominal, P0, meas_posvel, ...
     meas_angvel, meas_baro, meas_LID, lidar_frames, meas_noDiffGps, gps_frame);
 clear gmekf_correct_hopper
 
