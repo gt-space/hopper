@@ -53,11 +53,16 @@ P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
 
 % IMU parameters
 imu_st = filter_st;     % sample time (s)
-% --- IMU Sensor Parameters ---
-imu_params.accel_noise_std = [0.05; 0.05; 0.05]; % Accelerometer noise standard deviation
-imu_params.acovariance = diag([0.05; 0.05; 0.05].^2);
-imu_params.gyro_noise_std = [0.005; 0.005; 0.005];% Gyroscope noise standard deviation
-imu_params.gcovariance = diag([0.005; 0.005; 0.005].^2);
+% --- IMU Sensor Parameters (ADIS16500, data sheet Rev. A, Table 1) ---
+% Per-sample white noise at the output rate: std = density * sqrt(rate/2)
+imu_params.accel_noise_density = [880e-6; 880e-6; 732e-6];   % (m/s^2)/sqrt(Hz), x y z
+imu_params.gyro_noise_density = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]); % (rad/s)/sqrt(Hz), x y z
+imu_params.accel_bias_stability = [125e-6; 125e-6; 134e-6];  % In-run bias stability (m/s^2)
+imu_params.gyro_bias_stability = deg2rad([7.5; 8.1; 4.9])/3600; % In-run bias stability (rad/s)
+imu_params.accel_noise_std = imu_params.accel_noise_density * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
+imu_params.acovariance = diag(imu_params.accel_noise_std.^2);
+imu_params.gyro_noise_std = imu_params.gyro_noise_density * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
+imu_params.gcovariance = diag(imu_params.gyro_noise_std.^2);
 imu_params.gravity_scalar = 9.81;                % Gravity acceleration
 imu_params.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
 
@@ -109,14 +114,22 @@ lidar_params.packet_invalid_prob = 0.0; % set to zero for now
 
 %% GMEKF continuous-time process-noise spectral densities
 
+% Accel noise and the bias errors are expressed in the inertial frame in the
+% filter, so use the largest body-axis value on all three channels.
+
 % Translational acceleration disturbance: 3 channels
-accelerationNoisePSD = imu_params.accel_noise_std.^2 * imu_st;
+accelerationNoisePSD = max(imu_params.accel_noise_std)^2 * imu_st * ones(3,1);
 imu_params.gyro_R = diag(imu_params.gyro_noise_std.^2);
+
+% Bias random walks from the in-run bias stability. TUNING STARTING POINT:
+% the data sheet gives no rate random walk, so assume the bias wanders by
+% about its in-run stability over biasCorrelationTime.
+biasCorrelationTime = 100;  % (s)
+accelBiasNoisePSD = max(imu_params.accel_bias_stability)^2 / biasCorrelationTime * ones(3,1);
+gyroBiasNoisePSD = max(imu_params.gyro_bias_stability)^2 / biasCorrelationTime * ones(3,1);
 
 % requires calibration
 torqueNoisePSD = zeros(3,1);
-accelBiasNoisePSD = zeros(3,1);
-gyroBiasNoisePSD = zeros(3,1);
 baroBiasNoisePSD = 0;
 
 qc = blkdiag( ...
