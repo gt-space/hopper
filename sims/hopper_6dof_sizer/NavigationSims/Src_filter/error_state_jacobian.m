@@ -9,11 +9,12 @@
 % 
 % Inputs:
 %   x: estimated state (20x1)
-%   accel_meas: measured acceleration in body frame (m/s^2)
-%   validity: validity of accel measurement
-%   torque: control torque applied by controller (N*m)
+%   aux: struct with various params
+%   J: moment of inertia tensor (kg*m^2)
 % 
 % Outputs:
+%   F: State Jacobian
+%   G: Process noise Jacobian
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [F, G] = error_state_jacobian(x, aux, J)
@@ -50,11 +51,11 @@ function [F, G] = error_state_jacobian(x, aux, J)
 
     % Populate the G matrix
 
-    G(4:6,   1:3)   = eye(3);     % accel noise  -> nu
-    % G(7:9,   4:6)   = C/J;        % torque noise -> eps  (C*inv(J))
+    G(4:6,   1:3)   = C;          % accel noise  -> nu
+    G(7:9,   4:6)   = C/J;        % torque noise -> eps  (C*inv(J))
     G(7:9,4:6) = J \ eye(3);
-    G(13:15, 7:9)   = eye(3);     % accel-bias random walk
-    G(16:18, 10:12) = eye(3);     % gyro-bias random walk
+    G(13:15, 7:9)   = C;          % accel-bias random walk
+    G(16:18, 10:12) = C;          % gyro-bias random walk
     G(19,    13)    = 1;          % baro-bias random walk
 
 end

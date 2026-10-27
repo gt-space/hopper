@@ -46,7 +46,7 @@ function gpsBus = gps_model(trueState, simtime, gpsFrameBus)
     quaternionTrue = trueState(10:13);
     
     % Body-to-inertial NED rotation
-    C_IB = quaternion_to_DCM(quaternionTrue)';
+    C_IB = quaternion_to_DCM(quaternionTrue);
     
     % Antenna lever arm in body coordinates (point the receiver reports)
     r_B = gps_lever_arm(gpsFrameBus);

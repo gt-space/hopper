@@ -30,7 +30,7 @@ q_BI = nominalState(10:13);
 
 % Compute the rotation matrix from q
 R = quaternion_to_rotation(q_BI);
-n = R(:,3)';
+n = R(3,:);
 
 % Compute the LIDAR distance estimate
 D = n*A(:,1);
@@ -47,7 +47,7 @@ end
 innovation = distanceEstimate - measurement.distance;
 
 % Calculate measurement Jacobian using the GMEKF conventions
-u = R'*(r + distanceEstimate*A(:,1));                   % inertial COM -> ground-hit vector (R is C_BI)
+u = R*(r + distanceEstimate*A(:,1));                    % inertial COM -> ground-hit vector (R is C_IB)
 measurementJacobian = zeros(1,19);
 measurementJacobian(3)     = -1/D;                      % position z
 measurementJacobian(10:12) = (cross([0 0 1]',u)/D)';    % attitude error (inertial frame)

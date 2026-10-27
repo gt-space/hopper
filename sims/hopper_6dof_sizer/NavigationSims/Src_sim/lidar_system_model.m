@@ -40,8 +40,8 @@ function lidarBus = lidar_system_model(x, time, lidar_frames)
 
     % Inertial down axis in body coordinates (3rd column of C_BI), so
     % n*v is the NED down component of a body vector v
-    C_BI = quaternion_to_DCM(q_BI);
-    n = C_BI(:,3)';
+    C_IB = quaternion_to_DCM(q_BI);
+    n = C_IB(3,:);
 
     % Compute all the LIDAR true distances
     d_vec = [-(n*r1 + h)/(n*A1(:,1));

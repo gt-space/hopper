@@ -28,7 +28,7 @@ function [innovation, measurementJacobian] = gyro_update_model(nominalState, mea
     innovation = predictedMeasurement - measurement.angvel(:);
 
     % Inertial-to-body rotation
-    C_BI = quaternion_to_rotation(quaternionEstimate);
+    C_BI = quaternion_to_rotation(quaternionEstimate)';
 
     measurementJacobian = zeros(3,19);
 

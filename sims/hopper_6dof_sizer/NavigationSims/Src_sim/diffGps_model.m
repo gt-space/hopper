@@ -51,7 +51,7 @@ function diffGpsBus = diffGps_model(trueState, simtime, gpsFrameBus)
     quaternionTrue = trueState(10:13);
 
     % Body-to-inertial NED rotation
-    C_IB = quaternion_to_DCM(quaternionTrue)';
+    C_IB = quaternion_to_DCM(quaternionTrue);
 
     % Antenna 1 -> antenna 2 baseline in body coordinates
     baselineBody = gpsFrameBus.r2(:) - gpsFrameBus.r1(:);

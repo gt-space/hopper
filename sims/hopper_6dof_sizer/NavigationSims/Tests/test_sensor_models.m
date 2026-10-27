@@ -123,7 +123,7 @@ end
 function d = ray_to_ground(x, frames, i)
 % Distance along beam i from its tip to the ground plane, which is
 % frames.heightCOM below the NED origin (positive down)
-    C_IB = quaternion_to_rotation(x(10:13))';
+    C_IB = quaternion_to_rotation(x(10:13));
     A = frames.(sprintf('A%d', i));
     r = frames.(sprintf('r%d', i));
     tip = x(1:3) + C_IB * r;

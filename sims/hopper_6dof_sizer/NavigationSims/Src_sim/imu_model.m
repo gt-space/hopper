@@ -41,7 +41,7 @@ function [accelBus, angvelBus] = imu_model(...
     angularVelocityTrue = trueState(7:9);
     quaternionTrue = trueState(10:13);
 
-    rotationInertialToBody = quaternion_to_rotation(quaternionTrue);
+    rotationInertialToBody = quaternion_to_rotation(quaternionTrue)';
     
     % Gravity in inertial NED coordinates
     gravityInertial = [0; 0; imu_params.gravity_scalar];

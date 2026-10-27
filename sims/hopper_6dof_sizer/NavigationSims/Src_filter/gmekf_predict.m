@@ -30,7 +30,7 @@ function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity,
     % NOTE: aux is built in one go at each stage, since code generation
     % cannot add fields to a struct after it has been used
     g_vec = [0; 0; g];
-    A_IB = quaternion_to_rotation(xn(10:13))';
+    A_IB = quaternion_to_rotation(xn(10:13));
     auxProp = struct('A_IB', A_IB);
 
     % Propagate the state
@@ -40,13 +40,13 @@ function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity,
     % estimation
 
     % Calculate rotation matrix at the one-half time step
-    A_IB05 = quaternion_to_rotation(xnp05(10:13))';
+    A_IB05 = quaternion_to_rotation(xnp05(10:13));
 
     % fill aux params
     if validity
         a_I = A_IB05*(accel_meas - xnp05(14:16));
     else
-        a_I = A_IB05*(-g_vec-xnp05(14:16)); % Assume vehicle is unaccelerated
+        a_I = g_vec; % Assume vehicle is unaccelerated
     end
     w_I = A_IB05*xnp05(7:9);
 

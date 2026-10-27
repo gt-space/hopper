@@ -31,7 +31,7 @@ function [innovation, measurementJacobian] = ...
     quaternionEstimate = nominalState(10:13);
 
     % Body-to-inertial rotation
-    C_IB = quaternion_to_rotation(quaternionEstimate)';
+    C_IB = quaternion_to_rotation(quaternionEstimate);
 
     % Antenna 1 -> antenna 2 baseline in body coordinates
     baselineBody = params.r2(:) - params.r1(:);
