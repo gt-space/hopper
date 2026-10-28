@@ -16,14 +16,15 @@ function [accelBus, angvelBus] = imu_model(...
     % Retrieve simulation parameters
     persistent imu_params;
     if isempty(imu_params)
+        imu_st = 1/500;
         imu_params.accel_noise_density = [880e-6; 880e-6; 732e-6];   % (m/s^2)/sqrt(Hz), x y z
         imu_params.gyro_noise_density = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]); % (rad/s)/sqrt(Hz), x y z
         imu_params.accel_bias_stability = [125e-6; 125e-6; 134e-6];  % In-run bias stability (m/s^2)
         imu_params.gyro_bias_stability = deg2rad([7.5; 8.1; 4.9])/3600; % In-run bias stability (rad/s)
-        imu_params.accel_noise_std = imu_params.accel_noise_density * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
-        imu_params.acovariance = diag(imu_params.accel_noise_std.^2);
-        imu_params.gyro_noise_std = imu_params.gyro_noise_density * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
-        imu_params.gcovariance = diag(imu_params.gyro_noise_std.^2);
+        imu_params.accel_noise_std = [880e-6; 880e-6; 732e-6] * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
+        imu_params.acovariance = diag([880e-6; 880e-6; 732e-6].^2 * (1/(2*imu_st)));
+        imu_params.gyro_noise_std = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]) * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
+        imu_params.gcovariance = diag(deg2rad([6.1e-3; 6.1e-3; 7.0e-3].^2) * (1/(2*imu_st)));
         imu_params.gravity_scalar = 9.81;                % Gravity acceleration
         imu_params.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
     end
@@ -47,6 +48,7 @@ function [accelBus, angvelBus] = imu_model(...
     
     accelerationSimulated = specificForceBodyTrue + accelerometerBiasTrue(:) + accelerometerNoise;
     angularVelocitySimulated = angularVelocityTrue + gyroBiasTrue(:) + gyroNoise;
+    angularVelocitySimulated = angularVelocitySimulated(1:3,1); % Simulink gets touchy about dims
     
     
     % Packet validity

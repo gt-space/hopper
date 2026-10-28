@@ -17,6 +17,7 @@ timespan = (0:Ts:tf)';
 N = numel(timespan); % number of sample points
 
 % Make sure the model is on the MATLAB path
+load_system("Hopper_GMEKF");
 load_system("Hopper_GMEKF_Simulation");
 
 % Open the data dictionary connection

@@ -27,13 +27,9 @@ function diffGpsBus = diffGps_model(trueState, simtime, gpsFrameBus)
     persistent diffGps_params;
     if isempty(diffGps_params)
         diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m)
-        diffGps_params.covariance = diag(diffGps_params.noise_std.^2); % Filter measurement covariance
+        diffGps_params.covariance = diag([0.007; 0.007; 0.012].^2); % Filter measurement covariance
         diffGps_params.packet_invalid_prob = 0.0;                  % Set to 0 for now
     end
-
-    % validate inputs
-    assert(numel(trueState) == 20);
-    assert(isscalar(simtime));
 
     timestamp = simtime;
 

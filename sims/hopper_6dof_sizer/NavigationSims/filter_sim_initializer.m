@@ -55,16 +55,16 @@ P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
 imu_st = filter_st;     % sample time (s)
 % --- IMU Sensor Parameters (ADIS16500, data sheet Rev. A, Table 1) ---
 % Per-sample white noise at the output rate: std = density * sqrt(rate/2)
-imu_params.accel_noise_density = [880e-6; 880e-6; 732e-6];   % (m/s^2)/sqrt(Hz), x y z
-imu_params.gyro_noise_density = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]); % (rad/s)/sqrt(Hz), x y z
-imu_params.accel_bias_stability = [125e-6; 125e-6; 134e-6];  % In-run bias stability (m/s^2)
-imu_params.gyro_bias_stability = deg2rad([7.5; 8.1; 4.9])/3600; % In-run bias stability (rad/s)
-imu_params.accel_noise_std = imu_params.accel_noise_density * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
-imu_params.acovariance = diag(imu_params.accel_noise_std.^2);
-imu_params.gyro_noise_std = imu_params.gyro_noise_density * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
-imu_params.gcovariance = diag(imu_params.gyro_noise_std.^2);
-imu_params.gravity_scalar = 9.81;                % Gravity acceleration
-imu_params.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
+imu_params_init.accel_noise_density = [880e-6; 880e-6; 732e-6];   % (m/s^2)/sqrt(Hz), x y z
+imu_params_init.gyro_noise_density = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]); % (rad/s)/sqrt(Hz), x y z
+imu_params_init.accel_bias_stability = [125e-6; 125e-6; 134e-6];  % In-run bias stability (m/s^2)
+imu_params_init.gyro_bias_stability = deg2rad([7.5; 8.1; 4.9])/3600; % In-run bias stability (rad/s)
+imu_params_init.accel_noise_std = imu_params_init.accel_noise_density * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
+imu_params_init.acovariance = diag(imu_params_init.accel_noise_std.^2);
+imu_params_init.gyro_noise_std = imu_params_init.gyro_noise_density * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
+imu_params_init.gcovariance = diag(imu_params_init.gyro_noise_std.^2);
+imu_params_init.gravity_scalar = 9.81;                % Gravity acceleration
+imu_params_init.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
 
 % GPS parameters
 gps_st = 0.1;           % sample time (s)
@@ -72,8 +72,8 @@ gps_st = 0.1;           % sample time (s)
 % PLACEHOLDER antenna spacing: 0.5 m separation per David; tune with CAD
 % later. Keep the baseline horizontal (body x-y, the N-E plane when
 % vertical) so DGPS observes roll about the vertical axis.
-gps_params.r1 = [0.25; 0.0; -0.2];             % Antenna 1 vector from COM (3x1) (m)
-gps_params.r2 = [-0.25; 0.0; -0.2];            % Antenna 2 vector from COM (3x1) (m)
+gps_params_init.r1 = [0.25; 0.0; -0.2];             % Antenna 1 vector from COM (3x1) (m)
+gps_params_init.r2 = [-0.25; 0.0; -0.2];            % Antenna 2 vector from COM (3x1) (m)
 % gps_params.bias = [0; 0; 0];                   % Constant position bias (m)
 % gps_params.multipath = [0.002; 0.001; -0.003]; % Pad bounce error (b_mp,k) (m)[cite: 1]
 % gps_params.pos_noise_std = [0.02; 0.02; 0.05]; % Position jitter standard deviation (eta_p) (m)[cite: 1]
@@ -118,15 +118,15 @@ lidar_st = 0.01;        % sample time (s)
 % filter, so use the largest body-axis value on all three channels.
 
 % Translational acceleration disturbance: 3 channels
-accelerationNoisePSD = max(imu_params.accel_noise_std)^2 * imu_st * ones(3,1);
-imu_params.gyro_R = diag(imu_params.gyro_noise_std.^2);
+accelerationNoisePSD = max(imu_params_init.accel_noise_std)^2 * imu_st * ones(3,1);
+imu_params_init.gyro_R = diag(imu_params_init.gyro_noise_std.^2);
 
 % Bias random walks from the in-run bias stability. TUNING STARTING POINT:
 % the data sheet gives no rate random walk, so assume the bias wanders by
 % about its in-run stability over biasCorrelationTime.
 biasCorrelationTime = 100;  % (s)
-accelBiasNoisePSD = max(imu_params.accel_bias_stability)^2 / biasCorrelationTime * ones(3,1);
-gyroBiasNoisePSD = max(imu_params.gyro_bias_stability)^2 / biasCorrelationTime * ones(3,1);
+accelBiasNoisePSD = max(imu_params_init.accel_bias_stability)^2 / biasCorrelationTime * ones(3,1);
+gyroBiasNoisePSD = max(imu_params_init.gyro_bias_stability)^2 / biasCorrelationTime * ones(3,1);
 
 % requires calibration
 torqueNoisePSD = zeros(3,1);
@@ -154,8 +154,8 @@ lidar_frames.r4 = [0 -0.25 0]';
 lidar_frames.heightCOM = 1;
 
 % GPS mounting parameters
-gps_frame.r1 = gps_params.r1;
-gps_frame.r2 = gps_params.r2;
+gps_frame.r1 = gps_params_init.r1;
+gps_frame.r2 = gps_params_init.r2;
 
 %% Function to build rotation matrix for each LIDAR unit vector
 % phi: angle from x about z-axis of body frame (deg)

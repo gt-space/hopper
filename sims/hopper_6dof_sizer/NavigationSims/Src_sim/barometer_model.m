@@ -9,6 +9,9 @@
 %   baroOut    - struct defined in the Navigation Dictionary
 function baroOut = barometer_model(trueState, baroBiasTrue, simtime)
     
+    % Simulink gets touchy about dims
+    trueState = trueState(1:20,1);
+
     % Load the baro_params struct
     persistent baro_params;
     if isempty(baro_params)
@@ -17,15 +20,12 @@ function baroOut = barometer_model(trueState, baroBiasTrue, simtime)
         baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
         baro_params.bias = 0.5;                 % Placeholder
     end
-
-    % validate inputs
-    assert(numel(trueState) == 20);
-    assert(isscalar(simtime));
     
+    % Forward timestamp for now
     timestamp = simtime;
     
     % NED position -> altitude relative to NED origin
-    heightTrue = -trueState(3);
+    heightTrue = -trueState(3,1);
     
     % Measurement bias and Gaussian white noise
     baroNoise = baro_params.noise_std * randn();

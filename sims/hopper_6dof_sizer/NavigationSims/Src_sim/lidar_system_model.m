@@ -17,6 +17,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function lidarBus = lidar_system_model(x, time, lidar_frames)
 
+    % Simulink gets touchy about dims
+    x = x(1:20,1);
+
     % Load the LIDAR frame variables
     A1 = lidar_frames.A1;
     A2 = lidar_frames.A2;

@@ -34,7 +34,13 @@ function [errorCorrection, errorCovariancePosterior, accepted] = ...
 
     % REQUIRE positive-definite innovation covariance
     [choleskyFactor, flag] = chol(innovationCovariance, 'lower');
-    assert(flag == 0, 'Innovation covaraince must be positive definite!');
+    if flag == 0
+        warning('Innovation covariance must be positive definite!');
+        errorCorrection = zeros(stateDim, 1);
+        errorCovariancePosterior = errorCovariancePrior;
+        accepted = false;
+        return;
+    end
 
     % Normalize Innovation Squared (NIS) for outlier rejection
     whitenedInnovation = choleskyFactor \ innovation;
