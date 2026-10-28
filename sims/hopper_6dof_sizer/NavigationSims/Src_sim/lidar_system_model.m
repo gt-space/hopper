@@ -17,13 +17,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function lidarBus = lidar_system_model(x, time, lidar_frames)
 
-    % Build an empty output struct from the dictionary definition
-    persistent lidarBusData;
-    if isempty(lidarBusData)
-        dictionary = Simulink.data.dictionary.open('NavigationDictionary.sldd');
-        lidarBusData = Simulink.Bus.createMATLABStruct('lidarBus',[],1,dictionary);
-    end
-
     % Load the LIDAR frame variables
     A1 = lidar_frames.A1;
     A2 = lidar_frames.A2;
@@ -53,10 +46,9 @@ function lidarBus = lidar_system_model(x, time, lidar_frames)
     [d_vec, covariance, validity] = lidar_model_base(d_vec);
 
     % Build the output struct
-    lidarBusData.distance = d_vec;
-    lidarBusData.covariance = covariance;
-    lidarBusData.timestamp = time;
-    lidarBusData.validity = validity;
-    lidarBus = lidarBusData;
+    lidarBus.distance = d_vec;
+    lidarBus.covariance = covariance;
+    lidarBus.timestamp = time;
+    lidarBus.validity = validity;
 
 end

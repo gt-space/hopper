@@ -23,24 +23,13 @@
 %   diffGpsBus      - struct defined in the Navigation Dictionary
 function diffGpsBus = diffGps_model(trueState, simtime, gpsFrameBus)
 
-    % Build an empty output struct from the dictionary definition
-    persistent diffGpsBusData;
-    if isempty(diffGpsBusData)
-        dictionary = Simulink.data.dictionary.open('NavigationDictionary.sldd');
-        diffGpsBusData = Simulink.Bus.createMATLABStruct('diffGpsBus',[],1,dictionary);
-    end
-
     % Load in the diffGps_params struct
-    % persistent diffGps_params;
-    % if isempty(diffGps_params)
-    %     try
-    %         diffGps_params = evalin('base', 'diffGps_params');
-    %     catch
-    %         diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m), PLACEHOLDER
-    %         diffGps_params.covariance = diag([0.007; 0.007; 0.012].^2); % Filter measurement covariance
-    %         diffGps_params.packet_invalid_prob = 0;
-    %     end
-    % end
+    persistent diffGps_params;
+    if isempty(diffGps_params)
+        diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m)
+        diffGps_params.covariance = diag(diffGps_params.noise_std.^2); % Filter measurement covariance
+        diffGps_params.packet_invalid_prob = 0.0;                  % Set to 0 for now
+    end
 
     % validate inputs
     assert(numel(trueState) == 20);
@@ -67,10 +56,9 @@ function diffGpsBus = diffGps_model(trueState, simtime, gpsFrameBus)
     validity = rand() >= diffGps_params.packet_invalid_prob;
 
     % Load the output struct
-    diffGpsBusData.basisVec = basisVec;
-    diffGpsBusData.covariance = diffGps_params.covariance;
-    diffGpsBusData.timestamp = timestamp;
-    diffGpsBusData.validity = validity;
-    diffGpsBus = diffGpsBusData;
+    diffGpsBus.basisVec = basisVec;
+    diffGpsBus.covariance = diffGps_params.covariance;
+    diffGpsBus.timestamp = timestamp;
+    diffGpsBus.validity = validity;
 
 end

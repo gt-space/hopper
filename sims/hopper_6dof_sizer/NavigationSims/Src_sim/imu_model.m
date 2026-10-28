@@ -13,28 +13,20 @@
 function [accelBus, angvelBus] = imu_model(...
     trueState, accelerationTrue, accelerometerBiasTrue, gyroBiasTrue, simtime)
     
-    % Build empty output structs
-    persistent accelBusData angvelBusData;
-    if isempty(accelBusData) || isempty(angvelBusData)
-        dictionary = Simulink.data.dictionary.open('NavigationDictionary.sldd');
-        accelBusData = Simulink.Bus.createMATLABStruct('accelBus',[],1,dictionary);
-        angvelBusData = Simulink.Bus.createMATLABStruct('angvelBus',[],1,dictionary);
-    end
-    
     % Retrieve simulation parameters
-    % persistent imu_params;
-    % if isempty(imu_params)
-    %     try
-    %         imu_params = evalin('base', 'imu_params');
-    %     catch
-    %         imu_params.accel_noise_std = [0; 0; 0];
-    %         imu_params.gyro_noise_std = [0; 0; 0];
-    %         imu_params.gravity_scalar = 9.81;
-    %         imu_params.packet_invalid_prob = 0.0;
-    %         imu_params.acovariance = diag([0.05; 0.05; 0.05].^2);
-    %         imu_params.gcovariance = diag([0.005; 0.005; 0.005].^2);
-    %     end
-    % end
+    persistent imu_params;
+    if isempty(imu_params)
+        imu_params.accel_noise_density = [880e-6; 880e-6; 732e-6];   % (m/s^2)/sqrt(Hz), x y z
+        imu_params.gyro_noise_density = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]); % (rad/s)/sqrt(Hz), x y z
+        imu_params.accel_bias_stability = [125e-6; 125e-6; 134e-6];  % In-run bias stability (m/s^2)
+        imu_params.gyro_bias_stability = deg2rad([7.5; 8.1; 4.9])/3600; % In-run bias stability (rad/s)
+        imu_params.accel_noise_std = imu_params.accel_noise_density * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
+        imu_params.acovariance = diag(imu_params.accel_noise_std.^2);
+        imu_params.gyro_noise_std = imu_params.gyro_noise_density * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
+        imu_params.gcovariance = diag(imu_params.gyro_noise_std.^2);
+        imu_params.gravity_scalar = 9.81;                % Gravity acceleration
+        imu_params.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
+    end
     
     timestamp = simtime;
 
@@ -61,16 +53,14 @@ function [accelBus, angvelBus] = imu_model(...
     validity = rand() >= imu_params.packet_invalid_prob;
 
     % Build the output structs
-    accelBusData.accel = accelerationSimulated;
-    accelBusData.covariance = imu_params.acovariance;
-    accelBusData.timestamp = timestamp;
-    accelBusData.validity = validity;
-    accelBus = accelBusData;
+    accelBus.accel = accelerationSimulated;
+    accelBus.covariance = imu_params.acovariance;
+    accelBus.timestamp = timestamp;
+    accelBus.validity = validity;
 
-    angvelBusData.angvel = angularVelocitySimulated;
-    angvelBusData.covariance = imu_params.gcovariance;
-    angvelBusData.timestamp = timestamp;
-    angvelBusData.validity = validity;
-    angvelBus = angvelBusData;
+    angvelBus.angvel = angularVelocitySimulated;
+    angvelBus.covariance = imu_params.gcovariance;
+    angvelBus.timestamp = timestamp;
+    angvelBus.validity = validity;
 
 end

@@ -15,28 +15,22 @@
 %   gpsBus          - struct defined in the Navigation Dictionary
 function gpsBus = gps_model(trueState, simtime, gpsFrameBus)
 
-    % Build an empty output struct from the dictionary definition
-    persistent gpsBusData;
-    if isempty(gpsBusData)
-        dictionary = Simulink.data.dictionary.open('NavigationDictionary.sldd');
-        gpsBusData = Simulink.Bus.createMATLABStruct('gpsBus',[],1,dictionary);
-    end
-
     % Load in the gps_params struct
-    % persistent gps_params;
-    % if isempty(gps_params)
-    %     try
-    %         gps_params = evalin('base', 'gps_params');
-    %     catch
-    %         gps_params.bias = [0; 0; 0];
-    %         gps_params.multipath = [0; 0; 0];
-    %         gps_params.pos_noise_std = [0.02; 0.02; 0.05];
-    %         gps_params.vel_noise_std = [0.1; 0.1; 0.1];
-    %         gps_params.pos_covariance = diag([0.02^2; 0.02^2; 0.05^2]); % Filter measurement covariance
-    %         gps_params.vel_covariance = diag([0.05^2; 0.05^2; 0.1^2]); % Filter measurement covariance
-    %         gps_params.packet_invalid_prob = 0;
-    %     end
-    % end
+    persistent gps_params;
+    if isempty(gps_params)
+        gps_params.r1 = [0.25; 0.0; -0.2];             % Antenna 1 vector from COM (3x1) (m)
+        gps_params.r2 = [-0.25; 0.0; -0.2];            % Antenna 2 vector from COM (3x1) (m)
+        gps_params.bias = [0; 0; 0];                   % Constant position bias (m)
+        gps_params.multipath = [0.002; 0.001; -0.003]; % Pad bounce error (b_mp,k) (m)[cite: 1]
+        gps_params.pos_noise_std = [0.02; 0.02; 0.05]; % Position jitter standard deviation (eta_p) (m)[cite: 1]
+        gps_params.vel_noise_std = [0.05, 0.05, 0.01]; % Velocity jitter standard deviation
+        gps_params.pos_covariance = diag([0.02^2; 0.02^2; 0.05^2]); % Filter measurement covariance
+        gps_params.vel_covariance = diag([0.05^2; 0.05^2; 0.1^2]); % Filter measurement covariance
+        gps_params.packet_invalid_prob = 0.0;          % Set to 0 for now
+        % Provisional GPS velocity noise standard deviations (m/s).
+        % Replace with receiver specifications.
+        gps_params.vel_noise_std = [0.1; 0.1; 0.1];
+    end
     
     timestamp = simtime;
     
@@ -65,12 +59,11 @@ function gpsBus = gps_model(trueState, simtime, gpsFrameBus)
     validity = rand() >= gps_params.packet_invalid_prob;
 
     % Load the output struct
-    gpsBusData.pos = position;
-    gpsBusData.vel = velocity;
-    gpsBusData.pcovariance = gps_params.pos_covariance;
-    gpsBusData.vcovariance = gps_params.vel_covariance;
-    gpsBusData.timestamp = timestamp;
-    gpsBusData.validity = validity;
-    gpsBus = gpsBusData;
+    gpsBus.pos = position;
+    gpsBus.vel = velocity;
+    gpsBus.pcovariance = gps_params.pos_covariance;
+    gpsBus.vcovariance = gps_params.vel_covariance;
+    gpsBus.timestamp = timestamp;
+    gpsBus.validity = validity;
 
 end

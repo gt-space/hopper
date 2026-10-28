@@ -74,16 +74,16 @@ gps_st = 0.1;           % sample time (s)
 % vertical) so DGPS observes roll about the vertical axis.
 gps_params.r1 = [0.25; 0.0; -0.2];             % Antenna 1 vector from COM (3x1) (m)
 gps_params.r2 = [-0.25; 0.0; -0.2];            % Antenna 2 vector from COM (3x1) (m)
-gps_params.bias = [0; 0; 0];                   % Constant position bias (m)
-gps_params.multipath = [0.002; 0.001; -0.003]; % Pad bounce error (b_mp,k) (m)[cite: 1]
-gps_params.pos_noise_std = [0.02; 0.02; 0.05]; % Position jitter standard deviation (eta_p) (m)[cite: 1]
-gps_params.vel_noise_std = [0.05, 0.05, 0.01]; % Velocity jitter standard deviation
-gps_params.pos_covariance = diag([0.02^2; 0.02^2; 0.05^2]); % Filter measurement covariance
-gps_params.vel_covariance = diag([0.05^2; 0.05^2; 0.1^2]); % Filter measurement covariance
-gps_params.packet_invalid_prob = 0.0;          % Set to 0 for now
-% Provisional GPS velocity noise standard deviations (m/s).
-% Replace with receiver specifications.
-gps_params.vel_noise_std = [0.1; 0.1; 0.1];
+% gps_params.bias = [0; 0; 0];                   % Constant position bias (m)
+% gps_params.multipath = [0.002; 0.001; -0.003]; % Pad bounce error (b_mp,k) (m)[cite: 1]
+% gps_params.pos_noise_std = [0.02; 0.02; 0.05]; % Position jitter standard deviation (eta_p) (m)[cite: 1]
+% gps_params.vel_noise_std = [0.05, 0.05, 0.01]; % Velocity jitter standard deviation
+% gps_params.pos_covariance = diag([0.02^2; 0.02^2; 0.05^2]); % Filter measurement covariance
+% gps_params.vel_covariance = diag([0.05^2; 0.05^2; 0.1^2]); % Filter measurement covariance
+% gps_params.packet_invalid_prob = 0.0;          % Set to 0 for now
+% % Provisional GPS velocity noise standard deviations (m/s).
+% % Replace with receiver specifications.
+% gps_params.vel_noise_std = [0.1; 0.1; 0.1];
 
 % Differential GPS parameters
 diffGps_st = 0.1;       % sample time (s), PLACEHOLDER: same as gps_st until receiver is chosen
@@ -92,24 +92,24 @@ diffGps_st = 0.1;       % sample time (s), PLACEHOLDER: same as gps_st until rec
 % PLACEHOLDER noise: carrier-phase baseline error is roughly constant in
 % metres, so heading error ~ noise_std/baseline. 7 mm horizontal on the
 % 0.5 m baseline is ~0.8 deg. Replace with receiver specs and CAD spacing.
-diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m)
-diffGps_params.covariance = diag(diffGps_params.noise_std.^2); % Filter measurement covariance
-diffGps_params.packet_invalid_prob = 0.0;                  % Set to 0 for now
+% diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m)
+% diffGps_params.covariance = diag(diffGps_params.noise_std.^2); % Filter measurement covariance
+% diffGps_params.packet_invalid_prob = 0.0;                  % Set to 0 for now
 
 % Barometer parameters
 barometer_st = 0.05;    % sample time (s)
 % --- Barometer Sensor Parameters ---
-baro_params.noise_std = 0.1;            % Noise standard deviation (m)
-baro_params.covariance = 0.1^2;         % Filter measurement covariance
-baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
-baro_params.bias = 0.5;                 % Placeholder
+% baro_params.noise_std = 0.1;            % Noise standard deviation (m)
+% baro_params.covariance = 0.1^2;         % Filter measurement covariance
+% baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
+% baro_params.bias = 0.5;                 % Placeholder
 
 % LIDAR parameters
 lidar_st = 0.01;        % sample time (s)
 % --- Barometer Sensor Parameters (SJ-GU-TF-Luna A03)---
-lidar_params.noise_std_1 = 0.06; % Distance measurement jitter (cm) for 0.2-3m
-lidar_params.noise_std_2 = 0.02; % Distance measurement jitter (proportion distance) for 3-8m
-lidar_params.packet_invalid_prob = 0.0; % set to zero for now
+% lidar_params.noise_std_1 = 0.06; % Distance measurement jitter (cm) for 0.2-3m
+% lidar_params.noise_std_2 = 0.02; % Distance measurement jitter (proportion distance) for 3-8m
+% lidar_params.packet_invalid_prob = 0.0; % set to zero for now
 % Note- any distances over 8m will be not valid it appears
 
 %% GMEKF continuous-time process-noise spectral densities
