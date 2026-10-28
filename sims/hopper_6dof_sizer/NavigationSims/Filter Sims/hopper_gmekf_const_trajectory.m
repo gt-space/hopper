@@ -54,6 +54,7 @@ simIn = simIn.setVariable('P0', P0);
 simIn = simIn.setVariable('timestep', Ts);
 simIn = simIn.setVariable('gravity', gravity);
 
+% Run
 out = sim(simIn);
 
 %% Make plots
