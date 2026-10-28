@@ -135,6 +135,88 @@ end
 
 
 
+
+
+%% Nyquist stability analysis of the LQI feedback loop
+
+% Open-loop return ratio:
+% L(s) = K * (sI - Atilde)^(-1) * Btilde
+%
+% Negative feedback gives:
+% Acl = Atilde - Btilde*K
+
+K = KlqI;
+
+% Construct the 4-input, 4-output return-ratio system.
+% Its output is K*x_aug, and its input is the control input.
+L = ss(Atilde, Btilde, K, zeros(size(K,1), size(Btilde,2)));
+
+%% 1. Conventional Nyquist plot
+figure('Name', 'LQI Nyquist Plot');
+nyquist(L);
+grid on;
+title('Nyquist Plot of LQI Return Ratio');
+
+
+
+%% Generalized MIMO Nyquist eigenloci
+
+w = logspace(-4, 2, 3000);
+Ljw = freqresp(L, w);
+
+eigL = zeros(size(L,1), length(w));
+
+for k = 1:length(w)
+    eigL(:,k) = eig(Ljw(:,:,k));
+end
+
+% Explicitly create a new figure and axes
+figNyq = figure( ...
+    'Name', 'Generalized MIMO Nyquist Plot', ...
+    'NumberTitle', 'off');
+
+axNyq = axes('Parent', figNyq);
+hold(axNyq, 'on');
+grid(axNyq, 'on');
+
+% Plot each eigenvalue locus
+for k = 1:size(eigL,1)
+    plot(axNyq, real(eigL(k,:)), imag(eigL(k,:)), ...
+        'LineWidth', 1.2);
+    plot(axNyq, real(eigL(k,:)), -imag(eigL(k,:)), ...
+        '--', 'HandleVisibility', 'off');
+end
+
+% Critical point
+plot(axNyq, -1, 0, 'rx', ...
+    'MarkerSize', 12, 'LineWidth', 2);
+
+xlabel(axNyq, 'Real');
+ylabel(axNyq, 'Imaginary');
+title(axNyq, 'Generalized MIMO Nyquist Eigenloci');
+legend(axNyq, {'Eigenlocus 1', 'Eigenlocus 2', ...
+    'Eigenlocus 3', 'Eigenlocus 4', 'Critical point -1'}, ...
+    'Location', 'best');
+
+hold(axNyq, 'off');
+drawnow;
+
+
+
+%% 3. MIMO disk margins (if supported by your MATLAB version)
+try
+    DM = diskmargin(L);
+    disp('MIMO disk-margin analysis:');
+    disp(DM);
+    figure('Name', 'Disk Margin');
+    diskmargin(L);
+catch ME
+    warning('Disk-margin analysis unavailable: %s', ME.message);
+end
+
+
+
+
 CL = Atilde - Btilde*KlqI;
 poles = eig(CL);
 [V,D] = eig(CL);
@@ -142,10 +224,52 @@ poles = eig(CL);
 poles
 %plot(real(poles), imag(poles),'rx')
 
+%plot(real(poles), imag(poles),'rx')
+
+
+tolerance = 1e-5; % Tune this
 
 tolerance = 1e-5; % Tune this
 
 
+names = {'x','y','z','vx','vy','vz','P','Q','R', ...
+         'p1','p2','p3','ex','ey','ez'};
+
+for k = 1:15
+    lambda = D(k,k);
+
+    % Normalize eigenvector magnitudes for comparison
+    participation = abs(V(:,k));
+    participation = participation / max(participation);
+
+    [sortedValues, idx] = sort(participation, 'descend');
+
+    if real(lambda) < -1e-8
+        stability = 'Stable';
+    elseif real(lambda) > 1e-8
+        stability = 'UNSTABLE';
+    else
+        stability = 'Marginal';
+    end
+
+    fprintf('\nMode %2d: lambda = %+.5f %+.5fi (%s)\n', ...
+        k, real(lambda), imag(lambda), stability);
+
+    if abs(imag(lambda)) > 1e-8
+        fprintf('  Frequency: %.4f Hz, Period: %.4f s\n', ...
+            abs(imag(lambda))/(2*pi), ...
+            2*pi/abs(imag(lambda)));
+    end
+
+    fprintf('  Dominant states:\n');
+    for j = 1:5
+        fprintf('    %-3s  %.3f\n', ...
+            names{idx(j)}, sortedValues(j));
+    end
+end
+
+
+% Print eigenvalue and eigenvector phase information
 names = {'x','y','z','vx','vy','vz','P','Q','R', ...
          'p1','p2','p3','ex','ey','ez'};
 
