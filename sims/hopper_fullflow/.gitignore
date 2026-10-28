@@ -1,0 +1,12 @@
+# Full transient history (~340-540 MB), rewritten by every python Hopper.py run
+Outputs/Hopper_Prop_System.h5
+
+# Monte Carlo per-run results (MC_KEEP_FILES = True); the CSV summaries and plot are kept
+Outputs/MonteCarlo/*.h5
+
+# Scratch files the vent and drain calculators delete after a normal run
+Outputs/_vent.h5
+Outputs/_drain.h5
+
+# Python bytecode caches
+__pycache__/

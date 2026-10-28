@@ -1,0 +1,5 @@
+Vent,Tank,Case,Gas volume [L],CdA [mm2],From [psia],To [psia],Vent time [s],Requirement [s],Meets
+OVNT Vent,LOX Tank,full,3.09,9.4,505.0,15.8,10.0,60.0,yes
+OVNT Vent,LOX Tank,empty,20.0,9.4,505.0,15.8,63.9,60.0,NO
+FVNT Vent,Fuel Tank,full,4.06,15.0,505.0,15.8,4.7,30.0,yes
+FVNT Vent,Fuel Tank,empty,16.0,15.0,505.0,15.8,17.8,30.0,yes

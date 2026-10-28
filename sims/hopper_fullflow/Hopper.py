@@ -8,12 +8,18 @@ Steps, each switchable in HOPPER_DATA.py:
   3. Prop system: the FullFlow transient of the whole vehicle P&ID.
   4. Results: CSVs (vehicle_sim.py formats) and the plots listed in PROP_PLOTS
      in PROP_RESULTS_DIRECTORY.
+  5. Report (PROP_REPORT): run_summary.csv (burn time, residuals, COPV use,
+     margins, thrust checks), cda_table.csv (OTV/FTV CdA per thrust point),
+     vent_times.csv, lox_drain_times.csv, component_table.csv/.md, schematic.png and
+     Hopper_Parameters.xlsx.
+
+Monte Carlo (many runs in parallel): python Hopper_MonteCarlo.py
 
 Run from this folder:  python Hopper.py
 Plots can also be made later from the saved results without re-running:
-  python Hopper_Plots.py list                      (everything that can be plotted)
-  python Hopper_Plots.py plot ox_ladder engine     (named plots)
-  python Hopper_Plots.py nodes "LOX Tank" COPV     (any nodes, elements, tracks...)
+  python Backend/Hopper_Plots.py list                      (everything that can be plotted)
+  python Backend/Hopper_Plots.py plot ox_ladder engine     (named plots)
+  python Backend/Hopper_Plots.py nodes "LOX Tank" COPV     (any nodes, elements, tracks...)
 """
 
 import os
@@ -22,10 +28,10 @@ import time
 import matplotlib
 
 from HOPPER_DATA import *
-from Hopper_Chamber_Map import HopperChamberMap
-from Hopper_Thrust_Targeter import HopperThrustTargets
-from Hopper_Prop_System import HopperPropSystem
-from Hopper_Export import ExportEngineTargets, ExportActualPerformance
+from Backend.Hopper_Chamber_Map import HopperChamberMap
+from Backend.Hopper_Thrust_Targeter import HopperThrustTargets
+from Backend.Hopper_Prop_System import HopperPropSystem
+from Backend.Hopper_Export import ExportEngineTargets, ExportActualPerformance
 
 
 
@@ -34,7 +40,7 @@ from Hopper_Export import ExportEngineTargets, ExportActualPerformance
 if not PROP_SHOW_PLOTS:
     matplotlib.use("Agg")
 
-from Hopper_Plots import HopperRun, make_plots
+from Backend.Hopper_Plots import HopperRun, make_plots
 
 
 
@@ -105,3 +111,25 @@ if PROP_EXPORT_RESULTS:
     )
 
     print(f"Results written to {PROP_RESULTS_DIRECTORY}/")
+
+
+
+
+# ---- Report ---- #
+if PROP_REPORT:
+
+    print("Writing report...")
+
+    from Backend.Hopper_Report import write_report
+    from Backend.Hopper_Hardware import write_table
+    from Backend.Hopper_Schematic import draw
+    from Backend.Hopper_Parameters import write_workbook
+
+    summary = write_report(PROP_FILENAME, targets, PROP_RESULTS_DIRECTORY)
+    write_table(PROP_RESULTS_DIRECTORY)
+    draw(os.path.join(PROP_RESULTS_DIRECTORY, "schematic.png"))
+    write_workbook(PROP_RESULTS_DIRECTORY)
+
+    width = max(map(len, summary))
+    for key, value in summary.items():
+        print(f"  {key:<{width}}  {value}")
