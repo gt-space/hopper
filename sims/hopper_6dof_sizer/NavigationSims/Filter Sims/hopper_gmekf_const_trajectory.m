@@ -19,6 +19,13 @@ N = numel(timespan); % number of sample points
 % Make sure the model is on the MATLAB path
 load_system("Hopper_GMEKF_Simulation");
 
+% Open the data dictionary connection
+sldd_name = 'NavigationDictionary.sldd';
+dictObj = Simulink.data.dictionary.open(sldd_name);
+
+% Access the Design Data section where ValueTypes live
+designData = getSection(dictObj, 'Design Data');
+
 %% Configure simulation timing
 set_param("Hopper_GMEKF_Simulation", ...
     'StartTime',       num2str(0), ...
@@ -26,6 +33,7 @@ set_param("Hopper_GMEKF_Simulation", ...
     'SolverType',      'Fixed-step', ...
     'FixedStep',       num2str(Ts));
 set_param("Hopper_GMEKF_Simulation", 'Solver', 'FixedStepDiscrete');
+set_param('Hopper_GMEKF', 'SolverType', 'Fixed-step')
 
 %% Define filter initialization (override filter_initialization if desired)
 % hovering at 1m above ground with zero attitude and no biases.
@@ -67,8 +75,6 @@ for idx = 1:N
 end
 
 % Convert to Simulink time-series inputs
-accelTruth_ts = timeseries(accelTruth, timespan);
-torqueTruth_ts = timeseries(torqueTruth, timespan);
 stateTruth_ts = timeseries(state_truth_data, timespan);
 mass_ts = timeseries(mass, timespan);
 inertiaTensor_ts = timeseries(inertia_tensor_data, timespan);
@@ -82,18 +88,18 @@ baroBias_ts = timeseries(baro_bias, timespan);
 simIn = Simulink.SimulationInput("Hopper_GMEKF_Simulation");
 
 % Pass constant workspace variables explicitly to the simulation
+simIn = simIn.setVariable('state_truth', stateTruth_ts);
+simIn = simIn.setVariable('acceleration_truth', accelerationTruth_ts);
+simIn = simIn.setVariable('gravity_in', g);
 simIn = simIn.setVariable('x0', x0);
 simIn = simIn.setVariable('P0', P0);
-simIn = simIn.setVariable('timestep', Ts);
-simIn = simIn.setVariable('gravity', g);
-simIn = simIn.setVariable('mass', mass_ts);
+simIn = simIn.setVariable('timestep_in', Ts);
+simIn = simIn.setVariable('torque_in', torque_ts);
 simIn = simIn.setVariable('inertia_tensor', inertiaTensor_ts);
-simIn = simIn.setVariable('torque', torque_ts);
-simIn = simIn.setVariable('acceleration_truth', accelerationTruth_ts);
+simIn = simIn.setVariable('mass', mass_ts);
 simIn = simIn.setVariable('accel_bias', accelBias_ts);
 simIn = simIn.setVariable('gyro_bias', gyroBias_ts);
 simIn = simIn.setVariable('baro_bias', baroBias_ts);
-simIn = simIn.setVariable('state_truth', stateTruth_ts);
 
 % Run
 out = sim(simIn);
