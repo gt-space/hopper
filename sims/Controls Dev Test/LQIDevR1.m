@@ -60,6 +60,7 @@ KlqI = lqr(Atilde,Btilde,QI,R,CrossTerm)
 %KlqI(3,12) = -KlqI(2,11);%Klqi = lqi(sys,Q,R,CrossTerm);
 % %KlqI(:,10:12)
 
+%KlqI(:,10:12)
 
 
 %% Nyquist stability analysis of the LQI feedback loop
