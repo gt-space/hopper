@@ -50,9 +50,16 @@ CrossTerm = zeros(15,4);
 %sysI = sys(Atilde,Btilde,CI,DI);
 
 KlqI = lqr(Atilde,Btilde,QI,R,CrossTerm)
-%Klqi = lqi(sys,Q,R,CrossTerm);
-% KlqI(:,10:12)
+% KlqI(3,:) = KlqI(2,:);
+% KlqI(3,2)= KlqI(2,1);
+% KlqI(3,5)= KlqI(2,4);
+% KlqI(3,9) = KlqI(2,8);
+% KlqI(3,10) = KlqI(2,11);
+% KlqI(3,14) = KlqI(2,13);
+%KlqI(3,12) = -KlqI(2,11);
+ %Klqi = lqi(sys,Q,R,CrossTerm);
 
+%KlqI(:,10:12)
 
 
 %% Nyquist stability analysis of the LQI feedback loop
