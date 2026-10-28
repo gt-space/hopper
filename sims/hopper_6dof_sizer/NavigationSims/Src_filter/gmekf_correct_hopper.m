@@ -71,7 +71,6 @@ function [xnp1_c, Pnp1_c] = gmekf_correct_hopper( ...
     lid4_incorp = meas_LID.validity(4) && meas_LID.timestamp > lid_timestamp;
     diffGps_incorp = meas_diffGps.validity && meas_diffGps.timestamp > diffGps_timestamp;
 
-
     % Barometer correction
     if baro_incorp
 

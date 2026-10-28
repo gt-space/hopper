@@ -11,7 +11,7 @@
 run('./filter_sim_initializer.m');
 
 % Set up time span
-tf = 100;       % stop time in seconds
+tf = 10;        % stop time in seconds
 Ts = 1/500;     % time increment in seconds
 timespan = (0:Ts:tf)';
 N = numel(timespan); % number of sample points
