@@ -129,8 +129,8 @@ accelBiasNoisePSD = max(imu_params_init.accel_bias_stability)^2 / biasCorrelatio
 gyroBiasNoisePSD = max(imu_params_init.gyro_bias_stability)^2 / biasCorrelationTime * ones(3,1);
 
 % requires calibration
-torqueNoisePSD = zeros(3,1);
-baroBiasNoisePSD = 0;
+torqueNoisePSD = [0.0001; 0.0001; 0.0001];
+baroBiasNoisePSD = 0.001;
 
 qc = blkdiag( ...
     diag(accelerationNoisePSD), ...
