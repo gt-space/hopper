@@ -31,16 +31,16 @@ function diffGpsBus = diffGps_model(trueState, simtime, gpsFrameBus)
     end
 
     % Load in the diffGps_params struct
-    persistent diffGps_params;
-    if isempty(diffGps_params)
-        try
-            diffGps_params = evalin('base', 'diffGps_params');
-        catch
-            diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m), PLACEHOLDER
-            diffGps_params.covariance = diag([0.007; 0.007; 0.012].^2); % Filter measurement covariance
-            diffGps_params.packet_invalid_prob = 0;
-        end
-    end
+    % persistent diffGps_params;
+    % if isempty(diffGps_params)
+    %     try
+    %         diffGps_params = evalin('base', 'diffGps_params');
+    %     catch
+    %         diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m), PLACEHOLDER
+    %         diffGps_params.covariance = diag([0.007; 0.007; 0.012].^2); % Filter measurement covariance
+    %         diffGps_params.packet_invalid_prob = 0;
+    %     end
+    % end
 
     % validate inputs
     assert(numel(trueState) == 20);

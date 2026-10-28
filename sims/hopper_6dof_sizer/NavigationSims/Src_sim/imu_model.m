@@ -22,19 +22,19 @@ function [accelBus, angvelBus] = imu_model(...
     end
     
     % Retrieve simulation parameters
-    persistent imu_params;
-    if isempty(imu_params)
-        try
-            imu_params = evalin('base', 'imu_params');
-        catch
-            imu_params.accel_noise_std = [0; 0; 0];
-            imu_params.gyro_noise_std = [0; 0; 0];
-            imu_params.gravity_scalar = 9.81;
-            imu_params.packet_invalid_prob = 0.0;
-            imu_params.acovariance = diag([0.05; 0.05; 0.05].^2);
-            imu_params.gcovariance = diag([0.005; 0.005; 0.005].^2);
-        end
-    end
+    % persistent imu_params;
+    % if isempty(imu_params)
+    %     try
+    %         imu_params = evalin('base', 'imu_params');
+    %     catch
+    %         imu_params.accel_noise_std = [0; 0; 0];
+    %         imu_params.gyro_noise_std = [0; 0; 0];
+    %         imu_params.gravity_scalar = 9.81;
+    %         imu_params.packet_invalid_prob = 0.0;
+    %         imu_params.acovariance = diag([0.05; 0.05; 0.05].^2);
+    %         imu_params.gcovariance = diag([0.005; 0.005; 0.005].^2);
+    %     end
+    % end
     
     timestamp = simtime;
 

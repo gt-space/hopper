@@ -6,8 +6,8 @@
 %   simtime    - Simulation time (s)
 %
 % Outputs:
-%   baroBus    - struct defined in the Navigation Dictionary
-function baroBus = barometer_model(trueState, baroBiasTrue, simtime)
+%   baroOut    - struct defined in the Navigation Dictionary
+function baroOut = barometer_model(trueState, baroBiasTrue, simtime)
 
     % Build an empty output struct from the dictionary definition
     persistent baroBusData;
@@ -17,17 +17,17 @@ function baroBus = barometer_model(trueState, baroBiasTrue, simtime)
     end
     
     % Load the baro_params struct
-    persistent baro_params;
-    if isempty(baro_params)
-        try
-            baro_params = evalin('base', 'baro_params');
-        catch
-            baro_params.noise_std = 0.1;
-            baro_params.covariance = 0.1^2;         % Filter measurement covariance
-            baro_params.bias = 0.5; % placeholder
-            baro_params.packet_invalid_prob = 0.0;
-        end
-    end
+    % persistent baro_params;
+    % if isempty(baro_params)
+    %     try
+    %         baro_params = evalin('base', 'baro_params');
+    %     catch
+    %         baro_params.noise_std = 0.1;
+    %         baro_params.covariance = 0.1^2;         % Filter measurement covariance
+    %         baro_params.bias = 0.5; % placeholder
+    %         baro_params.packet_invalid_prob = 0.0;
+    %     end
+    % end
 
     % validate inputs
     assert(numel(trueState) == 20);
@@ -50,6 +50,6 @@ function baroBus = barometer_model(trueState, baroBiasTrue, simtime)
     baroBusData.covariance = baro_params.covariance;
     baroBusData.timestamp = timestamp;
     baroBusData.validity = validity;
-    baroBus = baroBusData;
+    baroOut = baroBusData;
 
 end

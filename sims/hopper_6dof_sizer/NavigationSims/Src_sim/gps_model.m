@@ -23,20 +23,20 @@ function gpsBus = gps_model(trueState, simtime, gpsFrameBus)
     end
 
     % Load in the gps_params struct
-    persistent gps_params;
-    if isempty(gps_params)
-        try
-            gps_params = evalin('base', 'gps_params');
-        catch
-            gps_params.bias = [0; 0; 0];
-            gps_params.multipath = [0; 0; 0];
-            gps_params.pos_noise_std = [0.02; 0.02; 0.05];
-            gps_params.vel_noise_std = [0.1; 0.1; 0.1];
-            gps_params.pos_covariance = diag([0.02^2; 0.02^2; 0.05^2]); % Filter measurement covariance
-            gps_params.vel_covariance = diag([0.05^2; 0.05^2; 0.1^2]); % Filter measurement covariance
-            gps_params.packet_invalid_prob = 0;
-        end
-    end
+    % persistent gps_params;
+    % if isempty(gps_params)
+    %     try
+    %         gps_params = evalin('base', 'gps_params');
+    %     catch
+    %         gps_params.bias = [0; 0; 0];
+    %         gps_params.multipath = [0; 0; 0];
+    %         gps_params.pos_noise_std = [0.02; 0.02; 0.05];
+    %         gps_params.vel_noise_std = [0.1; 0.1; 0.1];
+    %         gps_params.pos_covariance = diag([0.02^2; 0.02^2; 0.05^2]); % Filter measurement covariance
+    %         gps_params.vel_covariance = diag([0.05^2; 0.05^2; 0.1^2]); % Filter measurement covariance
+    %         gps_params.packet_invalid_prob = 0;
+    %     end
+    % end
     
     timestamp = simtime;
     
