@@ -1,0 +1,70 @@
+% State order:
+% [X Y Z Vx Vy Vz P Q R p1 p2 p3]'
+%
+% Input order:
+% [T delta_p delta_y Tor_rcs]'
+%
+% Integral error convention:
+% xi_dot = position_command - position
+
+Qdiags  = [0 0 0 10 10 100 10 10 10 1e6 1e6 1e6];
+QIdiags = [100 100 500];
+
+Q  = diag(Qdiags);
+QI = diag([Qdiags QIdiags]);
+
+Rdiags = [1 1e8 1e8 1e8];
+R = diag(Rdiags);
+
+%% Parameters
+
+params = struct();
+params.g = 9.81;
+params.d = cg_init - engine_cg;
+params.r_m = 0.125;
+params.n_rcs = 1;
+
+% MoI_init must be the ORIGINAL inertia in the OLD body axes.
+% Do not apply this transformation twice.
+S = [ 0  0  1;
+      0  1  0;
+     -1  0  0];
+
+params.I = S * MoI_init * S.';
+
+% Use this same transformed inertia in the Simulink 6DOF block.
+I_sim = params.I;
+
+m_profile = linspace(OUT.Vehicle.WetMass, ...
+                     OUT.Vehicle.DryMass, length(t));
+m = m_profile(1);
+
+%% Hover equilibrium
+
+p = zeros(3,1);
+
+x = [zeros(9,1); p];
+u = [m*params.g; 0; 0; 0];
+
+[A,B] = HopperLinearization_lqi(x,u,params,m);
+
+%% Integral augmentation: xi_dot = r - y
+
+Cpos = [eye(3), zeros(3,9)];
+
+Atilde = [ A,     zeros(12,3);
+          -Cpos,  zeros(3,3)];
+
+Btilde = [B; zeros(3,4)];
+
+% Aliases for your linear-response code.
+Aa = Atilde;
+Ba = Btilde;
+
+CrossTerm = zeros(15,4);
+
+% RAW MATLAB gains:
+% u = ubar - Klqi*[x-xbar; xi]
+[Klqi,~,~] = lqr(Atilde,Btilde,QI,R,CrossTerm)
+
+

@@ -1,15 +1,15 @@
-function [Atilde,Btilde] = extendedDynamics(A,B)
+function [Aa,Ba,Cpos,Dpos] = extendedDynamics(A,B)
 
-Atilde = zeros(15,15);
-Btilde = zeros(15,4);
+    nx = size(A,1);
+    nu = size(B,2);
 
-Atilde(1:12,1:12) = A;
-Atilde(13:15,:) = [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0;
-                   0,1,0,0,0,0,0,0,0,0,0,0,0,0,0;
-                   0,0,1,0,0,0,0,0,0,0,0,0,0,0,0];
-Btilde(1:12,1:4) =B;
-Btilde(13:15,:) = [0,0,0,0;
-                   0,0,0,0;
-                   0,0,0,0];
+    Cpos = [eye(3), zeros(3,nx-3)];
+    Dpos = zeros(3,nu);
 
+    % xi_dot = r - y
+    Aa = [ A,     zeros(nx,3);
+          -Cpos,  zeros(3,3)];
+
+    Ba = [ B;
+          -Dpos];
 end

@@ -49,12 +49,15 @@ function f = hopper_f(x,u,par,mass)
     d = par.d; 
 
     % thrust in body
-    Fx_T =  T * cos(delta_p) * cos(delta_y);
-    Fy_T = T*sin(delta_y);
-    Fz_T = -T * sin(delta_p)*cos(delta_y);   
-    % Fx_T =  -T * sin(delta_y);
-    % Fy_T = T * sin(delta_p) * cos(delta_y);
-    % Fz_T = -T * cos(delta_p)*cos(delta_y);   
+    % Fx_T = T*cos(delta_p)*cos(delta_y);
+    % Fy_T = -T*cos(delta_p)*sin(delta_y);
+    % Fz_T = -T*sin(delta_p);
+    % Fx_T =  T * cos(delta_p) * cos(delta_y);
+    % Fy_T = T*sin(delta_y);
+    % Fz_T = -T * sin(delta_p)*cos(delta_y);   
+    Fx_T =  -T * sin(delta_y);
+    Fy_T = T * sin(delta_p) * cos(delta_y);
+    Fz_T = -T * cos(delta_p)*cos(delta_y);   
     F_Tb = [Fx_T; Fy_T; Fz_T];
 
     % inertial translational dynamics
@@ -64,26 +67,34 @@ function f = hopper_f(x,u,par,mass)
     posdot = [Vx;Vy;Vz];
     
     % rotational dynamics
-    r_tvc = [-d;0;0];
+    r_tvc = [0;0;d];
     %r_tvc = [0;0;d];
     M_tvc = cross(r_tvc, F_Tb);
-    M_body = [M_tvc(1)+Tor_rcs;
+    M_body = [M_tvc(1);
               M_tvc(2);
-              M_tvc(3)];
+              M_tvc(3)-Tor_rcs];
     
     omega = [P;Q;R];
     omegadot = I \ (M_body - cross(omega, I*omega));
     
    
-    pdot = ((1+(p.'*p)^2)/4)*(eye(3)+2*( (hat(p)^2+hat(p))/(1+(p.'*p)^2 )))*omega;
+    %pdot = ((1+(p.'*p)^2)/4)*(eye(3)+2*( (hat(p)^2+hat(p))/(1+(p.'*p)^2 )))*omega;
+    s = p.'*p;
+    S = hat(p);
+
+    pdot = 0.25*((1-s)*eye(3) + 2*S + 2*(p*p.'))*omega;
     f = [posdot;
          Vdot;
          omegadot;
          pdot];
 end
 
-function R = Rbody2NED(p)
-   R=((eye(3)-hat(p))/(eye(3)+hat(p)))^2;
+% function R = Rbody2NED(p)
+%    R=((eye(3)-hat(p))/(eye(3)+hat(p)))^2;
+% end
+function Rbn = Rbody2NED(p)
+S = hat(p);
+Rbn = ((eye(3)+S)/(eye(3)-S))^2;
 end
 
 
