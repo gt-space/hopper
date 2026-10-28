@@ -29,21 +29,54 @@ set_param("Hopper_GMEKF_Simulation", 'Solver', 'FixedStepDiscrete');
 
 %% Define filter initialization (override filter_initialization if desired)
 % hovering at 1m above ground with zero attitude and no biases.
-x0 = [0 0 -1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0]';
+x0 = [0 0 -0.9 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0]';
 % P0 = ...
 % Qc = ...
 % massProps0 = ...
-gravity = 9.81;
+g = 9.81;
 
 %% Generate input time signals
-accelTruth = zeros(N, 3);   % [ax ay az]
-torqueTruth = zeros(N, 3);  % [Tx Ty Tz]
-stateTruth = zeros(N, 20);  % 20-state vector
+mass = 130;
+inertia_tensor = [62.28 0 0;
+                  0 62.28 0;
+                  0 0 1.048];
+torques = [0; 0; 0];
+acceleration_truth = [0; 0; 0];
+accel_bias = [0.01; -0.01; 0];
+gyro_bias = [-0.02; 0; 0.01];
+baro_bias = 0;
+state_truth = [0 0 -1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0]';
+
+% Empty variables for populating
+inertia_tensor_data = zeros(3,3,N);
+torque_data = zeros(3,N);
+acceleration_data = zeros(3,N);
+accel_bias_data = zeros(3,N);
+gyro_bias_data = zeros(3,N);
+baro_bias = zeros(1,N);
+state_truth_data = zeros(20,N);
+
+% Populate vector and matrix variables
+for idx = 1:N
+    inertia_tensor_data(:,:,idx) = inertia_tensor;
+    torque_data(:,idx) = torques;
+    acceleration_data(:,idx) = acceleration_truth;
+    accel_bias_data(:,idx) = accel_bias;
+    gyro_bias_data(:,idx) = gyro_bias;
+    state_truth_data(:,idx) = state_truth;
+end
 
 % Convert to Simulink time-series inputs
 accelTruth_ts = timeseries(accelTruth, timespan);
 torqueTruth_ts = timeseries(torqueTruth, timespan);
-stateTruth_ts = timeseries(stateTruth, timespan);
+stateTruth_ts = timeseries(state_truth_data, timespan);
+mass_ts = timeseries(mass, timespan);
+inertiaTensor_ts = timeseries(inertia_tensor_data, timespan);
+torque_ts = timeseries(torque_data, timespan);
+accelerationTruth_ts = timeseries(acceleration_data, timespan);
+accelBias_ts = timeseries(accel_bias_data, timespan);
+gyroBias_ts = timeseries(gyro_bias_data, timespan);
+baroBias_ts = timeseries(baro_bias, timespan);
 
 %% Run simulation
 simIn = Simulink.SimulationInput("Hopper_GMEKF_Simulation");
@@ -52,7 +85,15 @@ simIn = Simulink.SimulationInput("Hopper_GMEKF_Simulation");
 simIn = simIn.setVariable('x0', x0);
 simIn = simIn.setVariable('P0', P0);
 simIn = simIn.setVariable('timestep', Ts);
-simIn = simIn.setVariable('gravity', gravity);
+simIn = simIn.setVariable('gravity', g);
+simIn = simIn.setVariable('mass', mass_ts);
+simIn = simIn.setVariable('inertia_tensor', inertiaTensor_ts);
+simIn = simIn.setVariable('torque', torque_ts);
+simIn = simIn.setVariable('acceleration_truth', accelerationTruth_ts);
+simIn = simIn.setVariable('accel_bias', accelBias_ts);
+simIn = simIn.setVariable('gyro_bias', gyroBias_ts);
+simIn = simIn.setVariable('baro_bias', baroBias_ts);
+simIn = simIn.setVariable('state_truth', stateTruth_ts);
 
 % Run
 out = sim(simIn);
