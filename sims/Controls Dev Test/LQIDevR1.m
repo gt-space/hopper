@@ -63,85 +63,249 @@ KlqI = lqr(Atilde,Btilde,QI,R,CrossTerm)
 %KlqI(:,10:12)
 
 
-%% Nyquist stability analysis of the LQI feedback loop
+
+%% Nyquist and Disk Margin Analysis of LQI Feedback
+
+K = KlqI;
 
 % Open-loop return ratio:
 % L(s) = K * (sI - Atilde)^(-1) * Btilde
 %
-% Negative feedback gives:
+% Negative feedback:
 % Acl = Atilde - Btilde*K
 
-K = KlqI;
+L = ss(Atilde, Btilde, K, ...
+    zeros(size(K,1), size(Btilde,2)));
 
-% Construct the 4-input, 4-output return-ratio system.
-% Its output is K*x_aug, and its input is the control input.
-L = ss(Atilde, Btilde, K, zeros(size(K,1), size(Btilde,2)));
+n = size(L,1);
 
-%% 1. Conventional Nyquist plot
-figure('Name', 'LQI Nyquist Plot');
-nyquist(L);
-grid on;
-title('Nyquist Plot of LQI Return Ratio');
+assert(size(L,2) == n, 'Return ratio must be square.');
 
+%% 1. Conventional MIMO Nyquist plot
 
-
-%% Generalized MIMO Nyquist eigenloci
-
-w = logspace(-4, 2, 3000);
-Ljw = freqresp(L, w);
-
-eigL = zeros(size(L,1), length(w));
-
-for k = 1:length(w)
-    eigL(:,k) = eig(Ljw(:,:,k));
-end
-
-% Explicitly create a new figure and axes
-figNyq = figure( ...
-    'Name', 'Generalized MIMO Nyquist Plot', ...
+figure('Name', 'Conventional MIMO Nyquist', ...
     'NumberTitle', 'off');
 
-axNyq = axes('Parent', figNyq);
-hold(axNyq, 'on');
-grid(axNyq, 'on');
+nyquist(L);
+grid on;
+sgtitle('LQI Return Ratio - Individual I/O Channels');
 
-% Plot each eigenvalue locus
-for k = 1:size(eigL,1)
-    plot(axNyq, real(eigL(k,:)), imag(eigL(k,:)), ...
-        'LineWidth', 1.2);
-    plot(axNyq, real(eigL(k,:)), -imag(eigL(k,:)), ...
-        '--', 'HandleVisibility', 'off');
+
+%% 2. Generalized MIMO Nyquist eigenloci
+%% Generalized MIMO Nyquist visualization
+
+% Use a more moderate initial frequency range
+w = logspace(-3, 4, 5000);
+
+Ljw = freqresp(L, w);
+n = size(L,1);
+N = numel(w);
+
+eigL = zeros(n,N);
+eigL(:,1) = eig(Ljw(:,:,1));
+
+% Track eigenvalues by continuity
+assignments = perms(1:n);
+
+for k = 2:N
+    currentEig = eig(Ljw(:,:,k));
+    previousEig = eigL(:,k-1);
+
+    bestCost = inf;
+
+    for p = 1:size(assignments,1)
+        candidate = currentEig(assignments(p,:));
+        cost = sum(abs(candidate-previousEig).^2);
+
+        if cost < bestCost
+            bestCost = cost;
+            bestEig = candidate;
+        end
+    end
+
+    eigL(:,k) = bestEig;
 end
 
-% Critical point
-plot(axNyq, -1, 0, 'rx', ...
-    'MarkerSize', 12, 'LineWidth', 2);
+% Diagnostics
+fprintf('Maximum eigenvalue magnitude: %.3e\n', ...
+    max(abs(eigL(:))));
 
-xlabel(axNyq, 'Real');
-ylabel(axNyq, 'Imaginary');
-title(axNyq, 'Generalized MIMO Nyquist Eigenloci');
-legend(axNyq, {'Eigenlocus 1', 'Eigenlocus 2', ...
-    'Eigenlocus 3', 'Eigenlocus 4', 'Critical point -1'}, ...
-    'Location', 'best');
+fprintf('Minimum sampled distance from -1: %.3e\n', ...
+    min(abs(eigL(:)+1)));
 
-hold(axNyq, 'off');
-drawnow;
+colors = lines(n);
 
+figure('Name','Generalized MIMO Nyquist');
 
+tiledlayout(1,2);
 
-%% 3. MIMO disk margins (if supported by your MATLAB version)
-try
-    DM = diskmargin(L);
-    disp('MIMO disk-margin analysis:');
-    disp(DM);
-    figure('Name', 'Disk Margin');
-    diskmargin(L);
-catch ME
-    warning('Disk-margin analysis unavailable: %s', ME.message);
+% Plot 1: Full frequency response
+nexttile;
+hold on; grid on;
+
+for i = 1:n
+    plot(real(eigL(i,:)), imag(eigL(i,:)), ...
+        'Color',colors(i,:));
+    plot(real(eigL(i,:)), -imag(eigL(i,:)), ...
+        '--','Color',colors(i,:));
 end
 
+plot(-1,0,'rx','MarkerSize',12,'LineWidth',2);
+title('Full Eigenvalue Response');
+xlabel('Real');
+ylabel('Imaginary');
+axis equal;
+
+% Plot 2: Critical region
+nexttile;
+hold on; grid on;
+
+for i = 1:n
+    plot(real(eigL(i,:)), imag(eigL(i,:)), ...
+        'Color',colors(i,:), 'LineWidth',1.3);
+    plot(real(eigL(i,:)), -imag(eigL(i,:)), ...
+        '--','Color',colors(i,:));
+end
+
+plot(-1,0,'rx','MarkerSize',12,'LineWidth',2);
+
+xlim([-5 3]);
+ylim([-4 4]);
+axis equal;
+
+title('Zoom Near Critical Point');
+xlabel('Real');
+ylabel('Imaginary');
 
 
+
+%% MIMO Disk Margin and Complex Gain Stability Map
+
+K = KlqI;
+A = Atilde;
+B = Btilde;
+
+% Open-loop return ratio
+L = ss(A, B, K, zeros(size(K,1), size(B,2)));
+
+%% 1. Calculate actual simultaneous MIMO disk margin
+
+[DM, MM] = diskmargin(L);
+
+alpha = MM.DiskMargin;
+sigma = 0;  % Default balanced disk margin
+
+disp('Simultaneous MIMO Disk Margin:');
+disp(MM);
+
+fprintf('Disk margin alpha: %.6f\n', alpha);
+fprintf('Gain margin: [%.4f, %.4f]\n', MM.GainMargin);
+fprintf('Phase margin: [%.2f, %.2f] deg\n', MM.PhaseMargin);
+
+%% 2. Calculate the complex-gain stability map
+
+realVals = linspace(-1.5, 3, 201);
+imagVals = linspace(-2, 2, 201);
+
+[Re, Im] = meshgrid(realVals, imagVals);
+
+maxRealPole = zeros(size(Re));
+
+BK = B*K;
+
+for idx = 1:numel(Re)
+
+    F = Re(idx) + 1i*Im(idx);
+
+    % Apply common complex gain perturbation
+    Acl = A - F*BK;
+
+    polesCL = eig(Acl);
+
+    maxRealPole(idx) = max(real(polesCL));
+end
+
+tol = 1e-9;
+
+stable = maxRealPole < -tol;
+unstable = maxRealPole > tol;
+
+%% 3. Generate the actual MIMO uncertainty disk
+
+theta = linspace(0, 2*pi, 1000);
+delta = exp(1i*theta);
+
+% Balanced disk from the actual multiloop margin
+diskBoundary = ...
+    (1 + alpha/2*delta) ./ ...
+    (1 - alpha/2*delta);
+
+%% 4. Plot the stability map and uncertainty disk
+
+figure('Name','MIMO LQI Stability Region', ...
+    'NumberTitle','off','Color','w');
+
+hold on;
+grid on;
+box on;
+
+% Stable points
+scatter(Re(stable), Im(stable), 8, ...
+    [0.1 0.65 0.25], 'filled', ...
+    'DisplayName','Stable');
+
+% Unstable points
+scatter(Re(unstable), Im(unstable), 8, ...
+    [0.85 0.1 0.15], 'filled', ...
+    'DisplayName','Unstable');
+
+% Marginal stability boundary
+contour(Re, Im, maxRealPole, [0 0], ...
+    'LineColor','m', ...
+    'LineWidth',2, ...
+    'HandleVisibility','off');
+
+% Actual simultaneous MIMO disk
+plot(real(diskBoundary), imag(diskBoundary), ...
+    'k-', 'LineWidth',2.5, ...
+    'DisplayName','MIMO Disk Margin');
+
+% Nominal system
+plot(1,0,'kx','MarkerSize',10, ...
+    'LineWidth',2, ...
+    'DisplayName','Nominal System');
+
+xlabel('Real(F)');
+ylabel('Imag(F)');
+
+title(sprintf( ...
+    'LQI Complex Gain Stability | MIMO Disk Margin = %.4f', ...
+    alpha));
+
+axis equal;
+xlim([min(realVals),max(realVals)]);
+ylim([min(imagVals),max(imagVals)]);
+
+legend('Location','best');
+hold off;
+
+%% 5. MATLAB native disk margin visualizations
+
+% Gain-phase tradeoff
+figure('Name','MIMO Gain-Phase Margin');
+diskmarginplot(MM.GainMargin);
+
+% Actual uncertainty disk
+figure('Name','MIMO Uncertainty Disk');
+diskmarginplot(MM.GainMargin,'disk');
+
+%% Figure 3: Margins vs Frequency
+figure('Name','Disk Margins vs Frequency');
+
+diskmarginplot(L);
+grid on;
+
+%% Pole Calculations
 
 CL = Atilde - Btilde*KlqI;
 poles = eig(CL);
