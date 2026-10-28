@@ -53,11 +53,21 @@ out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('VEHICLE', 'ctv')))
 - **Placeholders:** the propellant model carries 1 g placeholders inside the CAD mass, because the depletion cutoff stops thrust when a tank is empty.
 - **Constant mass:** `LinerizationMaster` holds the mass constant along the reference (`IN.propulsion.burns_propellant = false`).
 
-**How the CTV flies today.** It uses the hopper's LQR weights and the assumptions below:
-- **Calm air:** climbs to 4.54 m and lands at 15.8 s, but drifts 8.5 m sideways, tilts up to 20° and touches down at 0.96 m/s, above the 0.5 m/s requirement.
-- **Wind:** the default CTV wind is calm. With the hopper's 10 m/s wind, the side force is about 40% of its weight and it drifts 27 m.
+**How the CTV flies today** (hopper LQR weights, the assumptions below):
+- **Nominal, calm air: meets every requirement.** Apex 4.53 m, peak ascent and descent 1.64 and 1.59 m/s, impact 0.31 m/s, 0 m offset, 0° tilt.
+- **Monte Carlo (10 seeded runs, `inputs/mc_params_ctv.json`): none meet requirements.** Eight land 1.5–11.5 m off the pad, tilting 3–28°; two diverge. The dispersions are ±3% mass and CG, ±10% inertia, ±5% EDF thrust, 150–250°/s gimbal, 5–20 ms latency, ±2 mm thrust offset and ±1.5 m/s wind.
 
-The plumbing works, but the CTV needs its own LQR tuning and measured geometry before the numbers mean much.
+**What changed from the first CTV setup**, which drifted 8.5 m and landed at 0.96 m/s even in calm air:
+- **Engine cutoff on contact.** `Landing_Engine_Cutoff` now cuts at `IN.mission.engine_cutoff_alt`: 5 cm for the hopper as before, 5 mm for the CTV. A 5 cm drop alone lands at ~1 m/s, so the hopper's 0.5 m/s impact requirement can't be met at that cutoff either.
+- **EDF throttle steps of 0.05 N.** The hopper's throttle valve moves in 5 N steps, 20% of the CTV's weight, which made its thrust bang-bang.
+- **A faster gimbal:** 200°/s, my estimate for a hobby servo, against the hopper's 15°/s.
+- **Principal inertia only.** The CAD products of inertia (up to 9% of the 0.012 kg·m² roll inertia) alone made it drift 8.5 m and tilt 20° in calm air. The full tensor is kept in `IN.ctv.I_body`.
+
+**Why the dispersed CTV runs fail.** These are open problems for GNC, roughly in order of suspicion:
+1. **`Wind_Forces` has two frame bugs**, which also affect the hopper. It computes the wind force in the inertial frame but applies it as a body-frame force, and it forms the moment element by element (`F .* (cp − cg)`) instead of as a cross product. A north wind therefore pushes along the thrust axis and produces a *roll* torque. Its drag also scales as |V|·V instead of V².
+2. **Roll authority.** With the current controller the CTV needs hopper-sized roll fans. At 16 N, the placeholder from the old CTV inputs, it survives disturbances; at 2 N or less it tumbles in 1.5 m/s wind, and typical 65 mm props give about 0.4 N. The real props' thrust decides whether the CTV is controllable as modeled.
+3. **The products-of-inertia coupling** above: something in the LQR (likely the K2 feedforward from the linearization) reacts to them.
+4. **Tuning.** No LQR weight set I tried is robust. Raising the lateral weights fixed one windy case but did worse across the Monte Carlo. The `IN.gnc.lqr` hook takes CTV weights without touching the hopper's.
 
 **Values marked `ASSUMPTION` in `ctv_inputs.m` still need checking** before a CTV result means anything:
 - EDF and gimbal pivot heights, EDF mass, vehicle height
@@ -65,9 +75,20 @@ The plumbing works, but the CTV needs its own LQR tuning and measured geometry b
 - aero area, Cd and centre of pressure
 - ascent and descent limits
 
-**Two more limits:**
-- The sim uses only the axial CG. The CAD's lateral offset (−42 mm, 6 mm) is kept in `IN.ctv.cg_lateral` but not flown.
-- Monte Carlo scenarios (`mc_sim_setup`) model only the hopper so far, so `hopperWorkspace` rejects a CTV scenario.
+**Lateral CG.** The sim uses only the axial CG. The CAD's lateral offset (−42 mm, 6 mm) is kept in `IN.ctv.cg_lateral` but not flown.
+
+### CTV Monte Carlo
+
+```matlab
+R = runMonteCarlo(10, Variants=variantConfig('VEHICLE', 'ctv'));
+```
+
+`runMonteCarlo` picks the harness and `inputs/mc_params_ctv.json` for the CTV. Each scenario is built like this:
+1. **Dispersions:** `sim_setup` runs with the scenario's dispersions. `hopperScenario` passes them to `mission_inputs`, and `ctv_inputs` applies them.
+2. **Nominal controller:** the run flies the reference trajectory and gains designed for the nominal CTV, cached per session, so the dispersions are something the controller has to reject. `mc_sim_setup` does the same for the hopper.
+3. **Scoring:** `mc_main` and `checkConstraints` score the run against the CTV's requirements.
+
+`tests/montecarlo/CtvMonteCarloTest` runs 5 seeded scenarios in `buildtool mc`. It requires the nominal flight to meet requirements and every dispersed run to get through setup and simulation (diverging is allowed). The hopper's Monte Carlo path (`mc_sim_setup`) is unchanged.
 
 ## How it works
 

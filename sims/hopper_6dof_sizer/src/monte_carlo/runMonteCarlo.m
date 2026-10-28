@@ -3,9 +3,16 @@ function R = runMonteCarlo(n, opts)
 %   R = runMonteCarlo(10)
 %   R = runMonteCarlo(100, UseParallel=true, OutputFile=hopperRoot('results','mc_100.mat'))
 %
+%   R = runMonteCarlo(100, Variants=variantConfig('VEHICLE', 'ctv'))
+%
 %   Options
-%     Model        model name (default hopper_6dof_NED_v2)
-%     ParamsFile   dispersion bounds (default mc_params.json)
+%     Variants     variantConfig choices (default: all defaults). Any
+%                  choice other than the defaults runs the variant harness
+%                  hopper_6dof unless Model is given.
+%     Model        model name (default hopper_6dof_NED_v2, or hopper_6dof
+%                  with Variants)
+%     ParamsFile   dispersion bounds (default mc_params.json; the CTV's
+%                  is mc_params_ctv.json)
 %     Variables    struct of extra model variables, e.g. struct('enable_slosh', 0)
 %     UseParallel  run with parsim. Uses the open pool if there is one;
 %                  otherwise starts one sized to fit in free RAM (each
@@ -24,8 +31,9 @@ function R = runMonteCarlo(n, opts)
 
 arguments
     n (1,1) double {mustBeInteger, mustBePositive} = 10
-    opts.Model (1,:) char = 'hopper_6dof_NED_v2'
-    opts.ParamsFile (1,:) char = 'mc_params.json'
+    opts.Variants (1,1) struct = variantConfig()
+    opts.Model (1,:) char = ''
+    opts.ParamsFile (1,:) char = ''
     opts.Variables (1,1) struct = struct()
     opts.UseParallel (1,1) logical = false
     opts.Workers (1,1) double = NaN
@@ -33,6 +41,20 @@ arguments
     opts.Limits (1,1) struct = struct()
     opts.OutputFile (1,1) string = ""
 end
+
+A = variantAxes();
+vehicle = char(A.VEHICLE(opts.Variants.VARIANT_VEHICLE));
+if isempty(opts.Model)
+    opts.Model = 'hopper_6dof_NED_v2';
+    if ~isequal(opts.Variants, variantConfig()), opts.Model = 'hopper_6dof'; end
+end
+if isempty(opts.ParamsFile)
+    opts.ParamsFile = 'mc_params.json';
+    if ~strcmp(vehicle, 'hopper'), opts.ParamsFile = ['mc_params_' vehicle '.json']; end
+end
+% mc_main and checkConstraints read mission_inputs: the vehicle's
+oldVehicle = hopperVehicle(vehicle);
+restoreVehicle = onCleanup(@() hopperVehicle(oldVehicle));
 
 scenarios = generateScenarios(opts.ParamsFile, n);
 runs = num2cell(scenarios);
@@ -50,7 +72,7 @@ else
     for k = 1:numel(runs)
         fprintf('  run %d / %d\n', k, numel(runs));
         try
-            outs{k} = sim(prepareInput(Simulink.SimulationInput(opts.Model), runs{k}, opts.Variables));
+            outs{k} = sim(prepareInput(Simulink.SimulationInput(opts.Model), runs{k}, opts.Variables, opts.Variants));
         catch err
             outs{k} = err;
         end
@@ -72,6 +94,7 @@ R.scenarios = scenarios;
 R.summary = summaryTable(R.results);
 R.elapsed = toc(t0);
 R.model = opts.Model;
+R.variants = opts.Variants;
 
 fprintf('\n%s\n', repmat('=', 1, 60));
 disp(R.summary);
@@ -83,12 +106,12 @@ if strlength(opts.OutputFile) > 0
 end
 end
 
-function in = prepareInput(in, scenario, extra)
-W = hopperWorkspace(scenario);
+function in = prepareInput(in, scenario, extra, variants)
+W = hopperWorkspace(scenario, variants);
 for f = fieldnames(extra)'
     W.(f{1}) = extra.(f{1});
 end
-in = buildSimInput(in, [], W);
+in = buildSimInput(in, [], W, variants);
 end
 
 function outs = runParallel(runs, opts)
@@ -102,7 +125,7 @@ end
 ins = repmat(Simulink.SimulationInput(opts.Model), size(runs));
 for k = 1:numel(runs)
     s = runs{k};
-    ins(k) = ins(k).setPreSimFcn(@(in) prepareInput(in, s, opts.Variables));
+    ins(k) = ins(k).setPreSimFcn(@(in) prepareInput(in, s, opts.Variables, opts.Variants));
 end
 so = parsim(ins, 'ShowProgress', 'on', 'TransferBaseWorkspaceVariables', 'off');
 outs = num2cell(so);

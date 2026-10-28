@@ -24,6 +24,7 @@ IN.mission.min_twr = 1.0;           % -          [req] initial TWR at full throt
 IN.mission.hover_time_1m = 1;       % s
 IN.mission.landing_vel = 0;         % m/s at 1 m
 IN.mission.landing_alt = 1;         % m
+IN.mission.engine_cutoff_alt = 0.05; % m, engine off below this height while descending (Landing_Engine_Cutoff)
 IN.mission.TWR_hover_landing = 1;
 IN.mission.max_vehicle_height = 2.44; % m
 % Reference trajectory (Trajectory2): minimum-jerk climb to apex, hover,
@@ -212,6 +213,6 @@ end
 
 % Other vehicles: their overrides win over the hopper values above
 switch hopperVehicle()
-    case 'ctv', IN = ctv_inputs(IN);
+    case 'ctv', IN = ctv_inputs(IN, scenario_params);
 end
 end

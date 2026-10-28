@@ -5,7 +5,8 @@ function plan = buildfile
 %                        (TEAM_RELEASE file)
 %   buildtool test       unit, model-file and FDIR tests (fast)
 %   buildtool sim        nominal flight and slosh open-loop tests
-%   buildtool mc         seeded 10-run Monte Carlo against tests/montecarlo/mcLimits
+%   buildtool mc         seeded 10-run Monte Carlo against tests/montecarlo/mcLimits,
+%                        plus a 5-run CTV Monte Carlo (CtvMonteCarloTest)
 %   buildtool            check + test
 %   CI runs: buildtool check test sim mc
 %

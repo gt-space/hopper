@@ -50,6 +50,13 @@ R = [3e7 0 0 0;
    0 0 8e6 0
    0 0 0 10000]./10000;
 
+% Another vehicle sets its own diagonal weights (IN.gnc.lqr in
+% inputs/<vehicle>_inputs.m, e.g. the CTV); the hopper uses the above
+if isfield(IN, 'gnc') && isfield(IN.gnc, 'lqr')
+    if isfield(IN.gnc.lqr, 'Sf_diag'), Sf = diag(IN.gnc.lqr.Sf_diag); end
+    if isfield(IN.gnc.lqr, 'Q_diag'),  Q  = diag(IN.gnc.lqr.Q_diag);  end
+    if isfield(IN.gnc.lqr, 'R_diag'),  R  = diag(IN.gnc.lqr.R_diag);  end
+end
 
 
 t= z_ts.Time(:,1);
@@ -97,6 +104,7 @@ params.g = 9.80665;     % m/s^2  (Down is +Z in NED)
 % geometry / actuator
 params.d  = cg_init - IN.mount_cg;     % m   thrust line through the gimbal pivot, x-offset in BODY frame (r = [-d;0;0])
 params.r_m = 0.125;     % m   moment arm for RCS term (your r_m)
+if isfield(IN, 'gnc') && isfield(IN.gnc, 'rcs_arm'), params.r_m = IN.gnc.rcs_arm; end
 params.n_rcs = 1;       % unitless (if you keep it)
 % Propellant along the reference trajectory: ox/fuel flow from the
 % reference thrust (mdot_lookup), so mass, CG and inertia follow the

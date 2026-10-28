@@ -1,7 +1,7 @@
 
 % Main Vehicle Sizing Section
 % --- Tank, AVI, and Engine Sized prior to primary structure calculations
-IN = mission_inputs();
+IN = mission_inputs(hopperScenario());   % [] = nominal
 
 TANKS = size_tanks(IN);
 AVI = size_avionics(IN);

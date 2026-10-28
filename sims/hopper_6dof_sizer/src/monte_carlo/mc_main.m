@@ -19,7 +19,7 @@ VEH.mass.avi = AVI.mass;
 VEH.mass.press = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
 % VEH.mass.dry = IN.mass_factor * VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
 % PROP = size_propellant(IN, VEH, ENGINE); need engine code to rum this
-VEH.mass.dry = 116.86;
+VEH.mass.dry = IN.mass.dry_override;
 VEH.mass.wet = VEH.mass.dry + ...
     IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass ;
 
