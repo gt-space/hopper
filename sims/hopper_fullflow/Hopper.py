@@ -2,8 +2,8 @@
 
 Every input, including these run settings, is in HOPPER_DATA.py.
 
-Steps, each switchable in HOPPER_DATA.py:
-  1. Chamber map: build Hopper_Chamber_Map.h5 if asked to or if it is missing.
+How it runs:
+  1. Builds a property lookup table for the propellants and their mixtures (HopperChamberMap).
   2. Thrust targets: Pc and propellant flows for every thrust-profile point.
   3. Prop system: the FullFlow transient of the whole vehicle P&ID.
   4. Results: CSVs (vehicle_sim.py formats) and the plots listed in PROP_PLOTS
@@ -13,13 +13,6 @@ Steps, each switchable in HOPPER_DATA.py:
      vent_times.csv, lox_drain_times.csv, component_table.csv/.md, schematic.png and
      Hopper_Parameters.xlsx.
 
-Monte Carlo (many runs in parallel): python Hopper_MonteCarlo.py
-
-Run from this folder:  python Hopper.py
-Plots can also be made later from the saved results without re-running:
-  python Backend/Hopper_Plots.py list                      (everything that can be plotted)
-  python Backend/Hopper_Plots.py plot ox_ladder engine     (named plots)
-  python Backend/Hopper_Plots.py nodes "LOX Tank" COPV     (any nodes, elements, tracks...)
 """
 
 import os
