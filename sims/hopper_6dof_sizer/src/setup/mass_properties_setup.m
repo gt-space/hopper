@@ -40,6 +40,13 @@ DRY.mass   = dry_mass;
 DRY.cg     = [cg_factor * cg_empty; 0; 0];
 DRY.I      = inertia_factor * I_empty * (dry_mass / m_comp);
 DRY.source = sprintf('cg_moi_init components (%.2f kg) scaled to %.2f kg', m_comp, dry_mass);
+if isfield(IN.mass, 'dry_cg')
+    % CAD mass properties (e.g. the CTV, inputs/ctv_inputs.m): axial CG
+    % from the base and inertia about the CG, body axes
+    DRY.cg = [cg_factor * IN.mass.dry_cg; 0; 0];
+    DRY.I  = inertia_factor * IN.mass.dry_I;
+    DRY.source = sprintf('CAD, %.3f kg', dry_mass);
+end
 if cg_factor ~= 1 || inertia_factor ~= 1
     DRY.source = sprintf('%s; dispersed cg x%.4f, I x%.4f', DRY.source, cg_factor, inertia_factor);
 end

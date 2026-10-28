@@ -22,8 +22,8 @@ function [in, W] = buildSimInput(model, scenario, W, variants)
 
 if nargin < 1 || isempty(model), model = 'hopper_6dof_NED_v2'; end
 if nargin < 2, scenario = []; end
-if nargin < 3 || isempty(W), W = hopperWorkspace(scenario); end
 if nargin < 4 || isempty(variants), variants = variantConfig(); end
+if nargin < 3 || isempty(W), W = hopperWorkspace(scenario, variants); end
 for f = fieldnames(variants)'
     W.(f{1}) = variants.(f{1});   % only models with variants read these
 end

@@ -9,7 +9,7 @@ ENGINE = size_engine(IN);
 
 % Dry mass override: the vehicle mass budget until the CAD mass-properties
 % export exists. Includes the legs and intertank.
-dry_mass_override = 116.86;
+dry_mass_override = IN.mass.dry_override;   % inputs/mission_inputs.m (or the vehicle's overrides)
 VEH.mass.dry = dry_mass_override;
 
 VEH.mass.wet = VEH.mass.dry + ...

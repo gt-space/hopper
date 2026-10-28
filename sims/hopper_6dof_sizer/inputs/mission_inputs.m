@@ -1,4 +1,6 @@
 function IN = mission_inputs(scenario_params)
+% Hopper inputs. Another vehicle (hopperVehicle, e.g. 'ctv') is these plus
+% the overrides in inputs/<vehicle>_inputs.m, applied last.
 if nargin < 1; scenario_params = []; end
 
 %  GLOBAL CONSTANTS
@@ -24,6 +26,21 @@ IN.mission.landing_vel = 0;         % m/s at 1 m
 IN.mission.landing_alt = 1;         % m
 IN.mission.TWR_hover_landing = 1;
 IN.mission.max_vehicle_height = 2.44; % m
+% Reference trajectory (Trajectory2): minimum-jerk climb to apex, hover,
+% minimum-jerk descent to z_td, then a constant-sink segment to touchdown
+IN.mission.trajectory.apex = 52;    % m
+IN.mission.trajectory.t_up = 12;    % s
+IN.mission.trajectory.t_hover = 2;  % s
+IN.mission.trajectory.t_down = 13;  % s
+IN.mission.trajectory.t_term = 2.5; % s, constant-sink terminal segment
+IN.mission.trajectory.z_td = 0.4;   % m, where the constant-sink segment starts
+IN.mission.trajectory.v_td = 0.3;   % m/s, touchdown sink rate
+IN.mission.trajectory.burn_mass = 21; % kg, propellant the thrust reference assumes is burned
+
+%  MASS BUDGET
+% Dry mass until the CAD mass-properties export exists (legs and intertank
+% included); main.m and mc_sim_setup use it in place of the sizer's sum
+IN.mass.dry_override = 116.86;      % kg
 
 %  STRUCTURES
 IN.structures.payload_mass = 15;    % kg, CPLC Requirement
@@ -154,9 +171,15 @@ IN.vehicle_damping_ratio = 0.01;
 IN.vehicle_natural_frequency = 10;  % Hz
 
 % WIND DEFAULTS
-IN.wind.mode = 2; 
-IN.wind.uwind = 10; 
+IN.wind.mode = 2;
+IN.wind.uwind = 10;
 IN.wind.vwind = 10;
+
+% AERODYNAMICS (Wind_Forces)
+IN.aero.area = 0.5216;              % m^2, side area
+IN.aero.cd = 8.494;                 % -
+IN.aero.rho = 1.223;                % kg/m^3
+IN.aero.cp = 0.9;                   % m, centre of pressure from the base
 
 % MASS FACTOR
 IN.mass_factor = 1.0;               % default / nominal case
@@ -185,5 +208,10 @@ if ~isempty(scenario_params) && isfield(scenario_params, 'ox_mass')
     IN.wind.mode                      = 1; 
     if isfield(scenario_params, 'cg_factor'),      IN.cg_factor      = scenario_params.cg_factor;      end
     if isfield(scenario_params, 'inertia_factor'), IN.inertia_factor = scenario_params.inertia_factor; end
+end
+
+% Other vehicles: their overrides win over the hopper values above
+switch hopperVehicle()
+    case 'ctv', IN = ctv_inputs(IN);
 end
 end

@@ -16,6 +16,13 @@ function build_hopper_6dof()
 %     Ground_Contact   GROUND      none: zero force and moment (as v2)
 %                                  strut: subsystems/ground/Ground_Contact.slx
 %                                       into Sum4/Sum5, v2's unused inputs
+%     Controller       CONTROLLER  lqr_sched: LQR_Gain_Scheduler with v2's
+%                                       clock and gain tables
+%                                  lqi: LQI-DEV's regulator from
+%                                       models/dev/hopper_6dof_NED_v4.slx
+%                                  lqr_sched_legacy: the March scheduler code
+%
+%   VEHICLE has no block: it picks the parameter set (hopperWorkspace).
 %
 %   Choice k of axis X is active when VARIANT_X == k (variantConfig sets
 %   them). With every axis at its default the harness is v2. Also removes
@@ -103,6 +110,32 @@ end
 connect(m, 'Ground_Contact', 1, 'Sum4', 2);   % body force
 connect(m, 'Ground_Contact', 2, 'Sum5', 2);   % body moment
 
+% CONTROLLER: between the 13-state vector (Mux) and the actuator split --
+sched = [m '/LQR_Gain_Scheduler'];
+[schedIn, schedOut] = recordLines(sched);
+gainSrc = cellfun(@(h) get_param(get_param(h, 'Parent'), 'Name'), schedIn([1 3:7]), 'uni', 0);  % Clock, tgrid, xref, K1flat, K2grid, unom
+xSrc = schedIn{2};
+cpos = get_param(sched, 'Position');
+delete_block(sched);
+add_block('built-in/Subsystem', [m '/Controller'], 'Position', cpos);
+v4 = 'hopper_6dof_NED_v4';
+load_system(v4);
+closeV4 = onCleanup(@() close_system(v4, 0));
+makeVariant(m, 'Controller', 'CONTROLLER', {
+    'Controller_LQR_Sched', @(c) schedChoice(c, m, gainSrc, 'current')
+    'Controller_LQI', @(c) lqiChoice(c, v4)
+    'Controller_LQR_Sched_Legacy', @(c) schedChoice(c, m, gainSrc, 'legacy')
+    });
+for g = gainSrc   % the gain tables and clock now live in the scheduler choices
+    lh = get_param([m '/' g{1}], 'LineHandles');
+    if all(lh.Outport < 0), delete_block([m '/' g{1}]); end   % keep one that feeds something else
+end
+ph = get_param([m '/Controller'], 'PortHandles');
+add_line(m, xSrc, ph.Inport(1), 'autorouting', 'smart');
+for d = schedOut{1}{1}(:)'
+    add_line(m, ph.Outport(1), d, 'autorouting', 'smart');
+end
+
 set_param(m, 'InitFcn', '');   % FuelProps comes from buildSimInput when the fluid network is active
 save_system(m);
 close_system(m, 0);
@@ -144,6 +177,107 @@ delete_block(tmp);
 set_param(blk, 'VariantControlMode', 'expression', 'VariantActivationTime', 'update diagram', ...
     'PropagateVariantConditions', 'off', 'AllowZeroVariantControls', 'off');
 redrawLines(blk, ins, outs);
+end
+
+function c = schedChoice(c, m, gainSrc, kind)
+% Time-scheduled LQR: clock and gain tables from v2's top level, and the
+% scheduler (the shared file, or the March code inline for 'legacy')
+emptyChoice(c, {'x'}, {'u'});
+for g = gainSrc
+    add_block([m '/' g{1}], [c '/' g{1}]);
+end
+switch kind
+    case 'current'
+        s = 'LQR_Gain_Scheduler';
+        add_block('simulink/Ports & Subsystems/Subsystem Reference', [c '/' s], ...
+            'ReferencedSubsystem', s, 'Position', [250 40 400 240]);
+    case 'legacy'
+        s = 'Gain_Selector_Legacy';
+        add_block('simulink/User-Defined Functions/MATLAB Function', [c '/' s], 'Position', [250 40 400 240]);
+        ch = sfroot().find('-isa', 'Stateflow.EMChart', 'Path', [c '/' s]);
+        ch.Script = legacyGainSelector();
+end
+% scheduler inputs: t, x, tgrid, xref, K1flat, K2grid, unom
+add_line(c, [gainSrc{1} '/1'], [s '/1']);
+add_line(c, 'x/1', [s '/2']);
+for k = 2:numel(gainSrc)
+    add_line(c, [gainSrc{k} '/1'], sprintf('%s/%d', s, k + 1));
+end
+add_line(c, [s '/1'], 'u/1');
+end
+
+function c = lqiChoice(c, v4)
+% LQI-DEV's regulator (models/dev/hopper_6dof_NED_v4.slx):
+%   u = -Klqi * [pos - cmd; vel; rates; MRP; integral(pos - cmd)]
+% with the attitude as MRPs (v4's 'q to MRP' and 'MRP Correction') and a
+% zero XYZ command. v4's own 'Apply Gains' block computes these terms but
+% joins them with Mux blocks (16 elements into the 4 actuator inputs), so
+% it doesn't compile; the law is built here directly with one gain block.
+emptyChoice(c, {'x'}, {'u'});
+add_block('built-in/Selector', [c '/Position'], 'InputPortWidth', '13', 'Indices', '1:3', 'Position', [100 30 140 60]);
+add_block('built-in/Selector', [c '/Vel_Rates'], 'InputPortWidth', '13', 'Indices', '4:9', 'Position', [100 90 140 120]);
+add_block('built-in/Selector', [c '/Quaternion'], 'InputPortWidth', '13', 'Indices', '10:13', 'Position', [100 150 140 180]);
+for b = {'q to MRP', 'MRP Correction'}
+    add_block([v4 '/' b{1}], [c '/' b{1}]);
+end
+add_block('built-in/Constant', [c '/Position_Command'], 'Value', '[0 0 0]', 'Position', [100 230 160 250]);
+add_block('built-in/Sum', [c '/Position_Error'], 'Inputs', '+-', 'Position', [220 30 250 60]);
+add_block('built-in/Integrator', [c '/Position_Error_Integral'], 'InitialCondition', '[0 0 0]', 'Position', [300 230 330 260]);
+add_block('built-in/Mux', [c '/LQI_State'], 'Inputs', '4', 'Position', [400 30 405 260]);
+add_block('built-in/Gain', [c '/LQI_Gain'], 'Gain', '-Klqi', 'Multiplication', 'Matrix(K*u)', 'Position', [450 125 510 165]);
+add_line(c, 'x/1', 'Position/1');
+add_line(c, 'x/1', 'Vel_Rates/1');
+add_line(c, 'x/1', 'Quaternion/1');
+add_line(c, 'Quaternion/1', 'q to MRP/1');
+add_line(c, 'q to MRP/1', 'MRP Correction/1');
+add_line(c, 'Position/1', 'Position_Error/1');
+add_line(c, 'Position_Command/1', 'Position_Error/2');
+add_line(c, 'Position_Error/1', 'Position_Error_Integral/1');
+add_line(c, 'Position_Error/1', 'LQI_State/1');
+add_line(c, 'Vel_Rates/1', 'LQI_State/2');
+add_line(c, 'MRP Correction/1', 'LQI_State/3');
+add_line(c, 'Position_Error_Integral/1', 'LQI_State/4');
+add_line(c, 'LQI_State/1', 'LQI_Gain/1');
+add_line(c, 'LQI_Gain/1', 'u/1');
+end
+
+function s = legacyGainSelector()
+% Gain_Selector from archive/models/hopper_6dof_lqr.slx and LQ_6DOF_V3.slx
+% (March): v2's scheduler without the quaternion sign fix
+s = strjoin({
+    'function u = Gain_Selector(t, x, tgrid, xref, K1flat, K2grid, unom)'
+    '%#codegen'
+    '% Legacy (March) scheduler: no quaternion hemisphere check'
+    'u = zeros(4,1);'
+    'x = x(:);'
+    'N = length(tgrid);'
+    'if t <= tgrid(1)'
+    '    idx = 1;'
+    '    w = 0.0;'
+    'elseif t >= tgrid(end)'
+    '    idx = N-1;'
+    '    w = 1.0;'
+    'else'
+    '    idx = 1;'
+    '    for k = 1:(N-1)'
+    '        if tgrid(k) <= t && t < tgrid(k+1)'
+    '            idx = k;'
+    '            break;'
+    '        end'
+    '    end'
+    '    t1 = tgrid(idx);'
+    '    t2 = tgrid(idx+1);'
+    '    w  = (t - t1) / (t2 - t1);'
+    'end'
+    'xref_t = (1-w)*xref(idx,:)'' + w*xref(idx+1,:)'';'
+    'Kflat = (1-w)*K1flat(idx,:) + w*K1flat(idx+1,:);'
+    'K1 = reshape(Kflat, 13, 4)'';'
+    'K2 = (1-w)*K2grid(idx,:)'' + w*K2grid(idx+1,:)'';'
+    'u_nom = (1-w)*unom(idx,:)'' + w*unom(idx+1,:)'';'
+    'dx = (x - xref_t);'
+    'u  = u_nom - K1*dx - K2;'
+    'end'
+    }, newline);
 end
 
 function c = lutChoice(c, props)

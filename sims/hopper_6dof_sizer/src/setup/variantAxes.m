@@ -10,6 +10,10 @@ function A = variantAxes()
 %   read this list). See docs/VARIANTS.md.
 %
 %   Axis        Choices
+%   VEHICLE     hopper        the hopper (inputs/mission_inputs.m)
+%               ctv           controls test vehicle (inputs/ctv_inputs.m);
+%                             a parameter set, not a model block. Defaults
+%                             SLOSH to off and MASS_PROPS to constant.
 %   SLOSH       full          slosh pendulums (subsystems/slosh/Slosh.slx)
 %               off           no slosh forces, moments or CG shift
 %   PROPULSION  lut           thrust command -> mdot lookup (Thrust_to_Mdot_LUT)
@@ -20,9 +24,16 @@ function A = variantAxes()
 %               constant      no propellant flow: mass, CG and MOI stay at
 %                             their initial values, dI/dt = 0 (the engine
 %                             gimbal still shifts the CG by < 1 mm)
+%   CONTROLLER  lqr_sched     time-scheduled LQR along the reference (v2)
+%               lqi           LQI-DEV's fixed-gain LQI hover regulator
+%                             (experimental: toy plant, not tuned)
+%               lqr_sched_legacy  the March lqr/LQ_6DOF_V3 scheduler, without
+%                             the quaternion sign fix
 
+A.VEHICLE    = ["hopper", "ctv"];
 A.SLOSH      = ["full", "off"];
 A.PROPULSION = ["lut", "fluid_network"];
 A.GROUND     = ["none", "strut"];
 A.MASS_PROPS = ["varying", "constant"];
+A.CONTROLLER = ["lqr_sched", "lqi", "lqr_sched_legacy"];
 end

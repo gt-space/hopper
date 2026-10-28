@@ -14,7 +14,7 @@ function mc_sim_setup(scenario)
     VEH.mass.avi     = AVI.mass;
     VEH.mass.press   = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
     % Dry mass: main.m override (legs/intertank included), dispersed by mass_factor
-    dry_mass_nominal = 116.86;
+    dry_mass_nominal = IN.mass.dry_override;
     VEH.mass.dry     = IN.mass_factor * dry_mass_nominal;
     VEH.mass.wet     = VEH.mass.dry + IN.propulsion.oxidizer_mass + IN.propulsion.fuel_mass;
     

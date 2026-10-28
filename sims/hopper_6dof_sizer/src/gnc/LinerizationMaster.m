@@ -109,6 +109,11 @@ ox_mdot_ref = interp1(thrust_data, fu_mdot_data, T_profile, 'linear', 'extrap');
 fu_mdot_ref = interp1(thrust_data, ox_mdot_data, T_profile, 'linear', 'extrap');
 m_ox_ref = max(IN.propulsion.oxidizer_mass - cumtrapz(t, ox_mdot_ref), 0);
 m_fu_ref = max(IN.propulsion.fuel_mass     - cumtrapz(t, fu_mdot_ref), 0);
+if isfield(IN.propulsion, 'burns_propellant') && ~IN.propulsion.burns_propellant
+    % e.g. the CTV: nothing burns, so mass, CG and inertia stay constant
+    m_ox_ref(:) = IN.propulsion.oxidizer_mass;
+    m_fu_ref(:) = IN.propulsion.fuel_mass;
+end
 m_profile = (OUT.Vehicle.DryMass + m_ox_ref + m_fu_ref).';
 
 % inertia (constant, BODY frame about CG)

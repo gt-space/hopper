@@ -5,11 +5,15 @@ function V = variantConfig(varargin)
 %   V = variantConfig(S)                       S.SLOSH = "off", ...
 %
 %   Returns VARIANT_<AXIS> = choice number for every axis in variantAxes.
-%   Pass V to buildSimInput, which sets the variables on the
-%   SimulationInput:
+%   Pass V to buildSimInput, which builds the vehicle's workspace and sets
+%   the variables on the SimulationInput:
 %       out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('SLOSH', 'off')))
 %   Unknown axes or choices are errors, so a typo can't silently run the
 %   default.
+%
+%   VEHICLE='ctv' changes two defaults, since the CTV carries no
+%   propellant: SLOSH='off' and MASS_PROPS='constant'. Axes you name
+%   explicitly always win.
 
 A = variantAxes();
 if nargin == 1 && isstruct(varargin{1})
@@ -25,6 +29,12 @@ for f = fieldnames(S)'
     if ~isfield(A, f{1})
         error('variantConfig:axis', 'Unknown variant axis %s. Axes: %s.', f{1}, strjoin(fieldnames(A), ', '));
     end
+end
+
+% Vehicle-dependent defaults for the axes not named
+if isfield(S, 'VEHICLE') && string(S.VEHICLE) == "ctv"
+    if ~isfield(S, 'SLOSH'), S.SLOSH = "off"; end
+    if ~isfield(S, 'MASS_PROPS'), S.MASS_PROPS = "constant"; end
 end
 
 V = struct();

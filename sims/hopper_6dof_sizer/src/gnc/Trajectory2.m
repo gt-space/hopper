@@ -1,11 +1,11 @@
 %% Trajectory settings
-zf     = 52;     % m
-Tup    = 12;     % s
-Thover = 2;      % s
-Tdown  = 13;     % s
-Tterm  = 2.5;    % s, constant-sink terminal segment
-z_td   = 0.4;    % m, altitude where the constant-sink segment starts
-v_td   = 0.3;    % m/s, touchdown sink rate
+zf     = IN.mission.trajectory.apex;     % m
+Tup    = IN.mission.trajectory.t_up;     % s
+Thover = IN.mission.trajectory.t_hover;      % s
+Tdown  = IN.mission.trajectory.t_down;     % s
+Tterm  = IN.mission.trajectory.t_term;    % s, constant-sink terminal segment
+z_td   = IN.mission.trajectory.z_td;    % m, altitude where the constant-sink segment starts
+v_td   = IN.mission.trajectory.v_td;    % m/s, touchdown sink rate
 dt     = 0.01;   % 100 Hz
 % The reference keeps sinking through ground contact so the engine cutoff
 % (feet < 0.1 m while descending) always fires and touchdown happens well
@@ -21,7 +21,7 @@ t = (0:dt:t_end)';
 
 %% Mass profile
 m0 = OUT.Vehicle.WetMass;        % initial mass
-mf = m0-21;        % final mass
+mf = m0 - IN.mission.trajectory.burn_mass;        % final mass
 
 m = m0 + (mf-m0)*(t/t_end);   % linear burn
 
