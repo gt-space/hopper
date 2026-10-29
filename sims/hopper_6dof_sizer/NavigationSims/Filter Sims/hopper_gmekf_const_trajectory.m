@@ -10,6 +10,13 @@
 % Note that tuning Qc lives inside the initializer.
 run('./filter_sim_initializer.m');
 
+% Set global defaults for all plots
+set(groot, 'defaultTextInterpreter', 'latex');
+set(groot, 'defaultAxesTickLabelInterpreter', 'latex');
+set(groot, 'defaultLegendInterpreter', 'latex');
+set(groot, 'defaultAxesFontSize', 14);      % Increases global tick size
+set(groot, 'defaultAxesFontName', 'cmr10');  % Computer Modern (LaTeX font)
+
 % Set up time span
 tf = 10;        % stop time in seconds
 Ts = 1/500;     % time increment in seconds
@@ -137,8 +144,33 @@ q1 = squeeze(xout(11,1,:));
 q2 = squeeze(xout(12,1,:));
 q3 = squeeze(xout(13,1,:));
 
+% Plot position
 figure(1)
-plot(tout, posx, tout, posy, tout, posz);
+plot(tout, posx, tout, posy, tout, posz, 'LineWidth',1);
+hold on;
+plot([0,tf], [0 0], [0 tf], [0 0], [0 tf], [-1 -1], '--', 'LineWidth',1);
+hold off;
+grid on;
 xlabel('Time (s)')
 ylabel('Position (m)');
-legend('X', 'Y', 'Z');
+title('Position Estimate for Constant Position Trajectory')
+legend('N Estimated', 'E Estimated', 'D Estimated', 'N Truth', 'E Truth', 'D Truth');
+
+% Plot velocity
+figure(2)
+plot(tout, velx, tout, vely, tout, velz, 'LineWidth',1);
+grid on;
+xlabel('Time (s)')
+ylabel('Velocity (m/s)');
+title('Velocity Estimate for Constant Position Trajectory')
+legend('N Estimated', 'E Estimated', 'D Estimated');
+
+% Plot quaternion
+figure(3)
+plot(tout, q0, tout, q1, tout, q2, tout, q3, 'LineWidth',1);
+hold on;
+plot([0,tf], [1 1], [0 tf], [0 0], [0 tf], [0 0], [0 tf], [0 0], '--', 'LineWidth',1);
+hold off;
+xlabel('Time (s)')
+ylabel('Position (m)');
+legend('q0 Estimated', 'q1 Estimated', 'q2 Estimated', 'q3 Estimated', 'q0 Truth', 'q1 Truth', 'q2 Truth', 'q3 Truth');
