@@ -64,7 +64,7 @@ out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('VEHICLE', 'ctv')))
 - **Principal inertia only.** The CAD products of inertia (up to 9% of the 0.012 kg·m² roll inertia) alone made it drift 8.5 m and tilt 20° in calm air. The full tensor is kept in `IN.ctv.I_body`.
 
 **Why the dispersed CTV runs fail.** These are open problems for GNC, roughly in order of suspicion:
-1. **`Wind_Forces` has two frame bugs**, which also affect the hopper. It computes the wind force in the inertial frame but applies it as a body-frame force, and it forms the moment element by element (`F .* (cp − cg)`) instead of as a cross product. A north wind therefore pushes along the thrust axis and produces a *roll* torque. Its drag also scales as |V|·V instead of V².
+1. **`Wind_Forces` got the wind moment wrong** (fixed, see [Wind moment](#wind-moment)). The force was always right: drag ½ρCdA·|V|·V in inertial axes, rotated into body axes by the model.
 2. **Roll authority.** With the current controller the CTV needs hopper-sized roll fans. At 16 N, the placeholder from the old CTV inputs, it survives disturbances; at 2 N or less it tumbles in 1.5 m/s wind, and typical 65 mm props give about 0.4 N. The real props' thrust decides whether the CTV is controllable as modeled.
 3. **The products-of-inertia coupling** above: something in the LQR (likely the K2 feedforward from the linearization) reacts to them.
 4. **Tuning.** No LQR weight set I tried is robust. Raising the lateral weights fixed one windy case but did worse across the Monte Carlo. The `IN.gnc.lqr` hook takes CTV weights without touching the hopper's.
@@ -89,6 +89,16 @@ R = runMonteCarlo(10, Variants=variantConfig('VEHICLE', 'ctv'));
 3. **Scoring:** `mc_main` and `checkConstraints` score the run against the CTV's requirements.
 
 `tests/montecarlo/CtvMonteCarloTest` runs 5 seeded scenarios in `buildtool mc`. It requires the nominal flight to meet requirements and every dispersed run to get through setup and simulation (diverging is allowed). The hopper's Monte Carlo path (`mc_sim_setup`) is unchanged.
+
+## Wind moment
+
+`subsystems/environment/Wind_Forces.slx` computes the drag of the wind relative to the vehicle in inertial axes. v2 and every model built from it then rotate the force and moment into body axes with the 6DOF block's DCM (`MatrixMultiply1`/`2`).
+
+**The bug.** Until 2026-10-28 the moment was `F .* (cp − cg)`, element by element:
+- A north force made a moment about north, when it belongs about east.
+- The east force's arm was `cp` itself instead of the CP's height above the CG.
+
+**The fix.** It is now `cross(r, F)`, where `r` is the centre of pressure relative to the CG: `cp − cg_x` along the body x axis, rotated to inertial axes with the DCM's transpose. `tools/refactor/fixWindMoment.m` made the change, and gave the block a third input, `Inertial to Body` (the DCM).
 
 ## How it works
 
