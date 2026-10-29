@@ -2,6 +2,7 @@ function [damping_ratios] = lateralDampingCalc( ...
     prop_mass_profile, prop_density, nu, tank_r, baffle_w, Nb, tank_h)
 
 g = 9.81;
+% TODO: reconcile with IN.const.g0 (9.80665) - physics change, not done yet
 eig_1 = 1.841; % 1st mode of oscillation for cylindrical tanks
 
 prop_heights = (prop_mass_profile / prop_density) / (pi * tank_r^2);

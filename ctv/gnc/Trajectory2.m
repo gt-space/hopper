@@ -1,8 +1,8 @@
-%% Trajectory settings
-zf     = 52;     % m
-Tup    = 12;     % s
-Thover = 2;      % s
-Tdown  = 13;     % s
+%% Trajectory settings (from mission_inputs, so the mission lives in one file)
+zf     = IN.mission.target_altitude;  % m
+Tup    = IN.mission.ascent_time;      % s
+Thover = IN.mission.hover_time;       % s
+Tdown  = IN.mission.descent_time;     % s
 Tterm  = 0.1;      % terminal descent extension
 dt     = 0.01;   % 100 Hz
 
@@ -17,20 +17,15 @@ term_initialized = false;
 t_end = Tup + Thover + Tdown + Tterm;
 t = (0:dt:t_end)';
 
-%% Mass profile
-m0 = OUT.Vehicle.WetMass;        % initial mass
-mf = m0-21;        % final mass
-
-m = m0 + (mf-m0)*(t/t_end);   % linear burn
-
 g = 9.81;
+% TODO: reconcile with IN.const.g0 (9.80665) - physics change, not done yet
 
 %% Minimum jerk profile
 mjerk = @(s) (10*s.^3 - 15*s.^4 + 6*s.^5);
 
 %% Build z(t)
 z = zeros(size(t));
-T_cmd = zeros(size(t));
+acc_cmd = zeros(size(t));   % commanded vertical acceleration; thrust comes later
 
 for k = 1:length(t)
 
@@ -45,13 +40,13 @@ for k = 1:length(t)
         % upward acceleration
         acc = zf*(60*s - 180*s^2 + 120*s^3)/Tup^2;
 
-        T_cmd(k) = m(k)*(g + acc);
+        acc_cmd(k) = acc;
 
     elseif tk < Tup + Thover
 
         % HOVER
         z(k) = zf;
-        T_cmd(k) = m(k)*g;
+        acc_cmd(k) = 0;
 
     elseif tk < Tup + Thover + Tdown
 
@@ -63,7 +58,7 @@ for k = 1:length(t)
 
         acc = -zf*(60*s - 180*s^2 + 120*s^3)/Tdown^2;
 
-        T_cmd(k) = m(k)*(g + acc);
+        acc_cmd(k) = acc;
 
     else
 
@@ -111,13 +106,46 @@ for k = 1:length(t)
         zdot_term  = a1 + 2*a2*tau + 3*a3*tau^2 + 4*a4*tau^3 + 5*a5*tau^4;
         zddot_term = 2*a2 + 6*a3*tau + 12*a4*tau^2 + 20*a5*tau^3;
 
-        T_cmd(k) = m(k)*(g + zddot_term);
+        acc_cmd(k) = zddot_term;
 
     end
     zdot  = gradient(z,dt);
     zddot = gradient(zdot,dt);
 
 end
+
+%% Mass profile
+% The propellant burned over the profile, from the commanded thrust and the
+% engine mdot lookup, replacing a hardcoded figure. Thrust depends on the mass,
+% which depends on the burn, so this iterates; it settles in a few passes.
+m0 = OUT.Vehicle.WetMass;        % initial mass
+
+if exist('thrust_data', 'var') && exist('ox_mdot_data', 'var') && exist('fu_mdot_data', 'var')
+    mdot_bp  = thrust_data;
+    mdot_sum = ox_mdot_data + fu_mdot_data;
+else
+    mdot_lut = readmatrix('mdot_lookup.xlsx');
+    mdot_bp  = mdot_lut(:,1);
+    mdot_sum = mdot_lut(:,2) + mdot_lut(:,3);
+end
+
+burned = 0;
+for iter = 1:20
+    m     = m0 - burned*(t/t_end);          % linear burn
+    T_try = min(max(m.*(g + acc_cmd), Tmin), Tmax);
+    mdot  = interp1(mdot_bp, mdot_sum, ...
+        min(max(T_try, mdot_bp(1)), mdot_bp(end)), 'linear');
+    burned_new = trapz(t, mdot);
+    if abs(burned_new - burned) < 1e-10
+        burned = burned_new;
+        break
+    end
+    burned = burned_new;
+end
+
+mf = m0 - burned;                % final mass
+m  = m0 + (mf-m0)*(t/t_end);     % linear burn
+T_cmd = m.*(g + acc_cmd);
 
 %% Saturate thrust
 %% Compute velocity and acceleration

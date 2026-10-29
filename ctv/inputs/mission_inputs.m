@@ -8,18 +8,25 @@ IN.const.FS_struct = 2;           % structural factor of safety
 
 
 %  MISSION CONSTRAINTS (checked after flight simulation)
-IN.mission.target_altitude = 51;    % m
-IN.mission.hover_time_55m = 2;      % s
+IN.mission.target_altitude = 5;     % m, CTV max hop altitude
+IN.mission.altitude_tolerance = 0.5; % m, pass band either side of the target
+IN.mission.ascent_time = 5;         % s, climb to target_altitude
+IN.mission.hover_time = 2;          % s, hold at target_altitude
+IN.mission.descent_time = 6;        % s, target_altitude back to the pad
 IN.mission.max_ascent_vel = 7;     % m/s
 IN.mission.max_descent_vel = 7;    % m/s
+IN.mission.max_landing_vel = 0.5;   % m/s, touchdown limit
 IN.mission.hover_time_1m = 1;       %s
-IN.mission.landing_vel = 0;         % m/s at 1 m
+IN.mission.landing_vel = 0;         % m/s at 1 m (target, not the limit above)
 IN.mission.landing_alt = 1;         % m
 IN.mission.TWR_hover_landing = 1;
 IN.mission.max_vehicle_height = 2.44; % m
 
 %  MASS GROWTH MARGIN
 % IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
+
+%  VEHICLE MASS
+IN.mass.dry = 116.86; % kg, dry mass before legs/intertank (MC scales by mass_factor)
 
 %  STRUCTURES
 IN.structures.payload_mass = 15; % kg, CPLC Requirement
@@ -108,6 +115,8 @@ IN.tanks.material = 'Al6061';
 IN.tanks.max_radius = 4.25*0.0254; % in -> m
 % IN.tanks.lateral_damping = 0.08;
 % IN.tanks.axial_damping = 0.3;
+IN.tanks.damping_factor_ox = 1.0;  % MC: scale on the baffle damping table (LOx)
+IN.tanks.damping_factor_fu = 1.0;  % MC: scale on the baffle damping table (fuel)
 
 %  TVC
 IN.tvc.max_gimbal_angle = deg2rad(15); % deg
@@ -120,6 +129,8 @@ IN.tvc.resolution = deg2rad(0.1); % deg
 IN.tvc.damping_ratio = 0.5; 
 
 % RCS
+IN.rcs.moment_arm = 0.125; % m, RCS moment arm
+IN.rcs.count = 1;
 IN.rcs.max_thrust = 16; % N
 IN.rcs.throttle_rate = 50; % N/s
 IN.rcs_time_constant = 0.1;
@@ -168,15 +179,20 @@ IN.wind.vwind = 5;
 
 % MASS FACTOR
 IN.mass_factor = 1.0; %default / nominal case
+IN.cg_factor = 1.0; % dry CG axial position factor (MC)
+IN.inertia_factor = 1.0; % dry inertia factor (MC)
 
-% MONTE CARLO SCENARIO STRUCT CREATION
-if  ~isempty(scenario_params)
+% MONTE CARLO SCENARIO STRUCT CREATION (SAFEGUARDED)
+if ~isempty(scenario_params) && isfield(scenario_params, 'ox_mass')
     IN.propulsion.oxidizer_mass       = scenario_params.ox_mass;
     IN.propulsion.fuel_mass           = scenario_params.fuel_mass;
-    IN.propulsion.eta_cstar           = scenario_params.cstar;
+    if isfield(scenario_params, 'cstar'), IN.propulsion.eta_cstar = scenario_params.cstar; end
     IN.mass_factor                    = scenario_params.mass_factor;
-    IN.tanks.lateral_damping          = scenario_params.slosh_lateral_damping;
-    IN.tanks.axial_damping            = scenario_params.slosh_axial_damping;
+    if isfield(scenario_params, 'slosh_lateral_damping'), IN.tanks.lateral_damping = scenario_params.slosh_lateral_damping; end
+    if isfield(scenario_params, 'slosh_axial_damping'),   IN.tanks.axial_damping   = scenario_params.slosh_axial_damping;   end
+    % slosh damping dispersion: log-uniform scale on the baffle damping table
+    if isfield(scenario_params, 'log2_slosh_damping_ox'), IN.tanks.damping_factor_ox = 2^scenario_params.log2_slosh_damping_ox; end
+    if isfield(scenario_params, 'log2_slosh_damping_fu'), IN.tanks.damping_factor_fu = 2^scenario_params.log2_slosh_damping_fu; end
     IN.throttle_valve.rate_limit      = scenario_params.throttle_rate_limit * 4.44822;
     IN.throttle_valve_latency         = scenario_params.throttle_latency;
     IN.tvc.max_gimbal_rate            = deg2rad(scenario_params.tvc_actuator_rate_limit);
@@ -186,7 +202,9 @@ if  ~isempty(scenario_params)
     IN.wind.uwind                     = scenario_params.uwind;
     IN.wind.vwind                     = scenario_params.vwind;
     IN.wind.mode                      = 1; 
+    if isfield(scenario_params, 'cg_factor'),      IN.cg_factor      = scenario_params.cg_factor;      end
+    if isfield(scenario_params, 'inertia_factor'), IN.inertia_factor = scenario_params.inertia_factor; end
+end
 end
 
-end
 

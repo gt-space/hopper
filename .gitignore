@@ -18,3 +18,8 @@ codegen/
 *.slx.r20[0-9][0-9][ab]
 *.mdl.r20[0-9][0-9][ab]
 *.slmx.bak
+
+# ---- CTV Monte Carlo outputs ----
+ctv/mc_checkpoints/
+ctv/mc_results_ctv_*.mat
+ctv/mc_scenarios*.csv
