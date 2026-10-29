@@ -43,11 +43,6 @@ function [errorCorrection, errorCovariancePosterior, accepted] = ...
     end
 
     % Normalize Innovation Squared (NIS) for outlier rejection
-    disp(size(innovation));
-    disp(size(innovationCovariance));
-    disp(size(choleskyFactor));
-    disp(size(measurementJacobian));
-    disp(size(measurementNoiseCovariance));
     whitenedInnovation = choleskyFactor \ innovation;
     nis = whitenedInnovation' * whitenedInnovation; % computes inner product (norm-squared)
 

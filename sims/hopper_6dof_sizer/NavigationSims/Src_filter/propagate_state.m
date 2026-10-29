@@ -33,6 +33,8 @@ function xnp1 = propagate_state(xn, aux, accel_meas, torque, validity, J, g, dt)
     gbn = xn(17:19);
     bbn = xn(20);
 
+    J = J(1:3,1:3);
+
     % Predict state based on validity
     if validity
         % Acceleration of gravity vector in NED
