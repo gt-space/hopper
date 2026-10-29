@@ -28,15 +28,9 @@ nominal = runNominal(params_file);
 for mc_iter = 1:n_scenarios
     fprintf('Running scenario %d / %d\n', mc_iter, n_scenarios);
     try
-        mc_sim_setup(scenarios(mc_iter));
-        IN        = evalin('base', 'IN');
-        VEH       = evalin('base', 'VEH');
-        TANKS     = evalin('base', 'TANKS');
-        STRUCT    = evalin('base', 'STRUCT');
-        cg_init   = evalin('base', 'cg_init');
-        engine_cg = evalin('base', 'engine_cg');
-        OUT       = Outputs(IN, VEH, TANKS, STRUCT);
-        LinerizationMaster();
+        % mc_sim_setup runs LinerizationMaster itself, around the
+        % nominal/dispersed controller swap, so the old
+        % pull-into-this-workspace-and-rerun dance is gone.
         mc_sim_setup(scenarios(mc_iter));
         sim_out = sim('hopper_6dof_NED_v2');
         r = mc_main(scenarios(mc_iter), sim_out);
@@ -178,17 +172,6 @@ function nominal = runNominal(params_file)
         scenario.(fields{k}) = params.(fields{k}).nominal;
     end
     
-    mc_sim_setup(scenario);
-    IN        = evalin('base', 'IN');
-    VEH       = evalin('base', 'VEH');
-    TANKS     = evalin('base', 'TANKS');
-    STRUCT    = evalin('base', 'STRUCT');
-    cg_init   = evalin('base', 'cg_init');
-    engine_cg = evalin('base', 'engine_cg');
-    OUT       = Outputs(IN, VEH, TANKS, STRUCT);
-    saved_scenario = scenario;
-    LinerizationMaster();
-    scenario  = saved_scenario;
     mc_sim_setup(scenario);
     sim_out   = sim('hopper_6dof_NED_v2');
     nominal   = mc_main(scenario, sim_out);
