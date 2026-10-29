@@ -1,0 +1,34 @@
+Metric,Value
+Burn time [s],29.9
+Total impulse [N s],31281.0
+LOX residual [kg],8.126
+LOX residual [%],41.82
+Fuel residual [kg],3.42
+Fuel residual [%],35.26
+LOX used [kg],11.304
+Fuel used [kg],6.28
+COPV end pressure [psia],3005.7
+COPV gas used [kg],1.371
+COPV gas left [kg],7.006
+LOX tank min in profile [psia],491.1
+Fuel tank min in profile [psia],492.5
+LOX tank max [psia],520.5
+Fuel tank max [psia],514.1
+Min LOX injector stiffness [% Pc],18.7
+Min fuel injector stiffness [% Pc],17.0
+Max |thrust error| at profile points [%],0.04
+RMS thrust error at profile points [%],0.01
+Profile points judged,35 of 36
+Max OTV % of max CdA,18.4
+Max FTV % of max CdA,35.9
+Relief mass vented [kg],0.0
+All thrust points reachable,yes
+Thrust within tolerance,yes
+"OVNT Vent time, full tank [s]",10.0
+"OVNT Vent time, empty tank [s]",63.9
+"FVNT Vent time, full tank [s]",4.7
+"FVNT Vent time, empty tank [s]",17.8
+LOX drain time at 0 psig [s],1019.1
+LOX drain time at 10 psig [s],159.8
+LOX drain time at 25 psig [s],102.3
+LOX drain time at 50 psig [s],72.6

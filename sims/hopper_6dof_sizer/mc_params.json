@@ -24,15 +24,20 @@
     "upper": 1.01,
     "nominal": 1.0
   },
-  "slosh_lateral_damping": {
-    "lower": 0.02,
-    "upper": 0.06,
-    "nominal": 0.04
+  "inertia_factor": {
+    "lower": 0.95,
+    "upper": 1.05,
+    "nominal": 1.0
   },
-  "slosh_axial_damping": {
-    "lower": 0.3,
-    "upper": 0.3,
-    "nominal": 0.3
+  "log2_slosh_damping_ox": {
+    "lower": -1,
+    "upper": 1,
+    "nominal": 0
+  },
+  "log2_slosh_damping_fu": {
+    "lower": -1,
+    "upper": 1,
+    "nominal": 0
   },
   "throttle_rate_limit": {
     "lower": 90,

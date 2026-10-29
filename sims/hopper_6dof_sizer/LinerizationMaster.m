@@ -29,15 +29,20 @@ Q =  [1e3 0 0 0 0 0 0 0 0 0 0 0 0; % x
     0 0 0 0 0 0 1e6 0 0 0 0 0 0; % P
     0 0 0 0 0 0 0 1e6 0 0 0 0 0; % Q
     0 0 0 0 0 0 0 0 1e6 0 0 0 0; % R
-    0 0 0 0 0 0 0 0 0 100 0 0 0; % q0
-    0 0 0 0 0 0 0 0 0 0 100 0 0; % q1
-    0 0 0 0 0 0 0 0 0 0 0 100 0; % q2
-    0 0 0 0 0 0 0 0 0 0 0 0 100]./10000; % q3
+    0 0 0 0 0 0 0 0 0 1e4 0 0 0; % q0
+    0 0 0 0 0 0 0 0 0 0 1e4 0 0; % q1
+    0 0 0 0 0 0 0 0 0 0 0 1e4 0; % q2
+    0 0 0 0 0 0 0 0 0 0 0 0 1e4]./10000; % q3
+% Retuned 2026-10-20 on the rigid (slosh-off) vehicle: quaternion weights
+% raised from 100 and TVC input weights (R below) raised 10x. The old gains
+% drove the gimbal into its 15 deg/s rate limit and only flew with
+% double-counted slosh inertia in the plant. These
+% fly with the plant inertia scaled 0.8x-1.2x.
 
 % T delta rcs
 R = [3e7 0 0 0;
-   0 8e5 0 0;
-   0 0 8e5 0
+   0 8e6 0 0;
+   0 0 8e6 0
    0 0 0 10000]./10000;
 
 
@@ -85,10 +90,21 @@ params = struct();
 params.g = 9.80665;     % m/s^2  (Down is +Z in NED)
 % params.m = linspace(OUT.Vehicle.WetMass,100, length(t));         % kg     (constant mass for now)
 % geometry / actuator
-params.d  = cg_init - engine_cg;       % m   thrust application x-offset in BODY frame (r = [-d;0;0])
+params.d  = cg_init - IN.mount_cg;     % m   thrust line through the gimbal pivot, x-offset in BODY frame (r = [-d;0;0])
 params.r_m = 0.125;     % m   moment arm for RCS term (your r_m)
 params.n_rcs = 1;       % unitless (if you keep it)
-m_profile = linspace(OUT.Vehicle.WetMass,OUT.Vehicle.DryMass, length(t));
+% Propellant along the reference trajectory: ox/fuel flow from the
+% reference thrust (mdot_lookup), so mass, CG and inertia follow the
+% propellant actually burned rather than a straight line to dry mass.
+% mdot_lookup.xlsx holds ox in column 2 and fuel in column 3
+% (mdot_table_generation), but load_lookup names them the other way round
+% and the sim's mdot Subsystem swaps its outports back: in the workspace,
+% fu_mdot_data is the oxidizer flow and ox_mdot_data the fuel flow.
+ox_mdot_ref = interp1(thrust_data, fu_mdot_data, T_profile, 'linear', 'extrap');
+fu_mdot_ref = interp1(thrust_data, ox_mdot_data, T_profile, 'linear', 'extrap');
+m_ox_ref = max(IN.propulsion.oxidizer_mass - cumtrapz(t, ox_mdot_ref), 0);
+m_fu_ref = max(IN.propulsion.fuel_mass     - cumtrapz(t, fu_mdot_ref), 0);
+m_profile = (OUT.Vehicle.DryMass + m_ox_ref + m_fu_ref).';
 
 % inertia (constant, BODY frame about CG)
 params.I = MoI_init;
@@ -100,11 +116,21 @@ N  = length(t);
 A  = zeros(nx,nx,N);
 B  = zeros(nx,nu,N);
 
+% Schedule inertia and thrust moment arm with the propellant left along
+% the reference (mass_properties_setup dry block + propellant columns);
+% false -> constant full-tank values
+if ~exist('lqr_schedule_inertia', 'var'), lqr_schedule_inertia = true; end
+
 % Linearize along the full target trajectory
 for i = 1:N
    x_i = Target_Trajectory(i,:).';   % 13x1
    u_i = unom(i,:).';               % 4x1
-   [A(:,:,i), B(:,:,i),f_i] = HopperLinearization_6DOF_inertial(x_i, u_i, params, m_profile(i));
+   params_i = params;
+   if lqr_schedule_inertia
+       [cg_i, params_i.I] = vehicle_mass_props(MP.DRY, MP.TG, m_ox_ref(i), m_fu_ref(i));
+       params_i.d = cg_i(1) - IN.mount_cg;
+   end
+   [A(:,:,i), B(:,:,i),f_i] = HopperLinearization_6DOF_inertial(x_i, u_i, params_i, m_profile(i));
    Fref(i,:) = f_i.';
 
 end
@@ -137,3 +163,20 @@ z_ref_ts = timeseries(z_trajectory', t);
 T_ref_ts = timeseries(T_profile, t);
 vz_ref_ts = timeseries(vz_trajectory', t);
 
+% --- EXPORT EVERYTHING TO BASE WORKSPACE FOR SIMULINK ---
+assignin('base', 'tgrid',                 tgrid);
+assignin('base', 'unom',                  unom);
+assignin('base', 'Target_Trajectory',     Target_Trajectory);
+assignin('base', 'z_ref_ts',              z_ref_ts);
+assignin('base', 'vz_ref_ts',             vz_ref_ts);
+assignin('base', 'K1flat',                K1flat);
+assignin('base', 'K2grid',                K2grid);
+assignin('base', 'K2grid_mod',            K2grid_mod);
+
+% Check if your model uses T_ts or T_ref_ts (pushing both covers all bases)
+if exist('T_ts', 'var')
+    assignin('base', 'T_ts',              T_ts);
+end
+if exist('T_ref_ts', 'var')
+    assignin('base', 'T_ref_ts',          T_ref_ts);
+end

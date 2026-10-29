@@ -12,12 +12,16 @@ TANKS = size_tanks(IN);
 AVI = size_avionics(IN);
 ENGINE = size_engine(IN);
 
-VEH.mass.dry = 116.86;
+% Dry mass override: the vehicle mass budget until the CAD mass-properties
+% export exists. Includes the legs and intertank.
+dry_mass_override = 116.86;
+VEH.mass.dry = dry_mass_override;
 
 VEH.mass.wet = VEH.mass.dry + ...
     IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass;
 
 [STRUCT, VEH] = size_structures(IN, VEH);
+VEH.mass.dry = dry_mass_override;   % size_structures adds legs/intertank; already in the override
 
 
 r_leg_1 = [0 IN.legs.feet_radial_dist 0];

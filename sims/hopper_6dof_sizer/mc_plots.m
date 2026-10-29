@@ -1,6 +1,6 @@
 function mc_plots(results_file)
 
-if nargin < 1; results_file = 'mc_results.mat'; end
+if nargin < 1; results_file = 'mc_results_parallel.mat'; end
 
 load(results_file, 'results');
 load(results_file, 'results', 'nominal');
@@ -26,7 +26,22 @@ c_mean= [1.00 0.20 0.20];
 % =========================================================================
 % Interpolate all timeseries onto a common time grid for statistics
 % =========================================================================
-t_max  = min(arrayfun(@(r) r.timeseries.t(end), results));
+% =========================================================================
+% Interpolate all timeseries onto a common time grid for statistics
+% =========================================================================
+t_ends = zeros(1, n_ok);
+for i = 1:n_ok
+    if isfield(results(i), 'timeseries') && isfield(results(i).timeseries, 't') && ~isempty(results(i).timeseries.t)
+        t_ends(i) = results(i).timeseries.t(end);
+    else
+        t_ends(i) = NaN;
+    end
+end
+t_max = min(t_ends(~isnan(t_ends)));
+if isempty(t_max) || isnan(t_max)
+    t_max = 10; % Fallback duration if data is missing
+end
+t_grid = linspace(0, t_max, 500)';
 t_grid = linspace(0, t_max, 500)';
 
 alt_mat   = zeros(n_ok, 500);
@@ -435,7 +450,19 @@ legend([h_mc h_mean h_nom], {'MC Runs','Mean','Nominal'},'Location','best','Font
 % =========================================================================
 % Figure 10 — Wind per MC Run (constant values as horizontal lines)
 % =========================================================================
+% =========================================================================
+% Figure 10 — Wind per MC Run (constant values as horizontal lines)
+% =========================================================================
 figure('Name','Wind MC Values','Position',[500 150 900 500]);
+
+% Safely extract nominal wind values (fallback to 5 if not stored in nominal struct)
+if exist('nominal', 'var') && isfield(nominal, 'scenario') && isfield(nominal.scenario, 'uwind')
+    nom_uw = nominal.scenario.uwind;
+    nom_vw = nominal.scenario.vwind;
+else
+    nom_uw = 5; % Default nominal uwind
+    nom_vw = 5; % Default nominal vwind
+end
 
 subplot(2,1,1); hold on; grid on;
 for i = 1:n_ok
@@ -443,8 +470,8 @@ for i = 1:n_ok
     h_mc = plot([results(i).timeseries.t(1) results(i).timeseries.t(end)], ...
         [uw uw], 'Color', [c_mc 0.4], 'LineWidth', 1.5);
 end
-h_nom = plot([nominal.timeseries.t(1) nominal.timeseries.t(end)], ...
-    [nominal.scenario.uwind nominal.scenario.uwind], 'Color', c_nom, 'LineWidth', 3.0);
+h_nom = plot([results(1).timeseries.t(1) results(1).timeseries.t(end)], ...
+    [nom_uw nom_uw], 'Color', c_nom, 'LineWidth', 3.0);
 ylabel('uwind (m/s)','FontSize',10);
 title('Wind Values per MC Run','FontSize',13);
 legend([h_mc h_nom], {'MC Runs','Nominal'},'Location','best','FontSize',9);
@@ -455,8 +482,8 @@ for i = 1:n_ok
     h_mc = plot([results(i).timeseries.t(1) results(i).timeseries.t(end)], ...
         [vw vw], 'Color', [c_mc 0.4], 'LineWidth', 1.5);
 end
-h_nom = plot([nominal.timeseries.t(1) nominal.timeseries.t(end)], ...
-    [nominal.scenario.vwind nominal.scenario.vwind], 'Color', c_nom, 'LineWidth', 3.0);
+h_nom = plot([results(1).timeseries.t(1) results(1).timeseries.t(end)], ...
+    [nom_vw nom_vw], 'Color', c_nom, 'LineWidth', 3.0);
 ylabel('vwind (m/s)','FontSize',10);
 xlabel('Time (s)','FontSize',12);
 legend([h_mc h_nom], {'MC Runs','Nominal'},'Location','best','FontSize',9);
@@ -465,15 +492,30 @@ legend([h_mc h_nom], {'MC Runs','Nominal'},'Location','best','FontSize',9);
 % =========================================================================
 % Figure 11 — Ox Mass Histogram (sampled input values)
 % =========================================================================
+% =========================================================================
+% Figure 11 — Ox Mass Distribution (sampled input values)
+% =========================================================================
 figure('Name','Ox Mass Distribution','Position',[550 200 700 450]);
 hold on; grid on;
-
 ox_sampled = arrayfun(@(r) r.scenario.ox_mass, results);
+histogram(ox_sampled, 15, 'FaceColor', c_mc, 'EdgeColor', 'w', 'DisplayName', 'MC Samples');
 
-histogram(ox_sampled, 15, 'FaceColor', c_mc, 'EdgeColor', 'w');
-%xline(mean(ox_sampled),   'r-', 'LineWidth', 2.5, 'Label', 'Mean');
-%xline(median(ox_sampled), 'g-', 'LineWidth', 2.5, 'Label', 'Median');
-xline(nominal.scenario.ox_mass, 'k--', 'LineWidth', 2.0, 'Label', 'Nominal');
+% Safely extract nominal ox mass with fallback options
+nom_ox = [];
+if exist('nominal', 'var')
+    if isfield(nominal, 'scenario') && isfield(nominal.scenario, 'ox_mass')
+        nom_ox = nominal.scenario.ox_mass;
+    elseif isfield(nominal, 'vehicle') && isfield(nominal.vehicle, 'ox_mass')
+        nom_ox = nominal.vehicle.ox_mass;
+    elseif isfield(nominal, 'ox_mass')
+        nom_ox = nominal.ox_mass;
+    end
+end
+if isempty(nom_ox)
+    nom_ox = mean(ox_sampled); % Fallback to mean if not explicitly found
+end
+
+xline(nom_ox, 'k--', 'LineWidth', 2.0, 'Label', 'Nominal');
 
 xlabel('Oxidizer Mass (kg)', 'FontSize', 12);
 ylabel('Count', 'FontSize', 12);

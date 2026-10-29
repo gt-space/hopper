@@ -7,7 +7,10 @@ const LOOP_DELAY_SECONDS := 5.0
 
 var sample_count := 0
 var index := 0
-var is_playing := true
+# Playback stays paused until the visualization workspace is opened.  The
+# dashboard is constructed behind the Main Menu, so starting paused prevents a
+# hidden mission from advancing before the user presses Load Mission.
+var is_playing := false
 var speed := 1.0
 var loop_enabled := false
 var _timestamps := PackedFloat64Array()
@@ -31,11 +34,25 @@ func set_rows(rows: Array[PackedFloat64Array]) -> void:
 		_playhead = clampf(_playhead, _timestamps[0], _timestamps[-1])
 
 func reset() -> void:
+	restart_playing()
+
+
+func rewind_and_pause() -> void:
+	_rewind()
+	is_playing = false
+	emit_current_frame()
+
+
+func restart_playing() -> void:
+	_rewind()
+	is_playing = true
+	emit_current_frame()
+
+
+func _rewind() -> void:
 	index = 0
 	_playhead = _timestamps[0] if not _timestamps.is_empty() else 0.0
 	_loop_delay_remaining = -1.0
-	is_playing = true
-	emit_current_frame()
 
 func toggle_playing() -> void:
 	is_playing = not is_playing

@@ -1,0 +1,542 @@
+HOPPER FULLFLOW MODEL - EVERY ASSUMPTION
+=========================================
+Compiled 2026-10-26 from every file in sims/hopper_fullflow (and from
+general_fluid_network/vehicle_sim.py, "Luca's sim", where numbers came from).
+
+How to read this file
+---------------------
+  #EDIT   the value is an input in HOPPER_DATA.py that carries an #EDIT tag
+          there (the ones already known to be assumptions). Lines tagged
+          "#EDIT GUESS" in HOPPER_DATA.py were added during the 2026-10-26
+          work for values nobody has supplied yet.
+  (none)  an assumption baked into the code, a default, or a modelling
+          choice. Most need no input to change, but they shape the answers.
+
+  Source codes:
+    vsim    copied from vehicle_sim.py (the old model)
+    sheet   Hopper Fluid Components Mastersheet.xlsx
+    info    Extra Component Info.txt (part numbers)
+    user    value you supplied in chat
+    mine    chosen while building this model (no outside source)
+    FF      built into FullFlow / ThermoProp (the backend)
+
+Each item: ID, assumption, value, source, where it lives.
+
+
+=============================================================================
+1. FLUIDS AND PROPERTIES
+=============================================================================
+F-1   Oxidizer is ThermoProp "LOX"; fuel is ThermoProp "RP-1"; pressurant is
+      ThermoProp real-gas "Nitrogen". (user/mine; HOPPER_DATA FLUIDS)
+F-2   RP-1 properties are ThermoProp's RP-1 (812 kg/m3 at 293 K), not the
+      n-Dodecane surrogate (752 kg/m3) vehicle_sim used. Fuel-side dP is
+      ~8 % higher than the old model for the same flow. (mine)
+F-3   Liquids are incompressible: density, viscosity, vapour pressure and
+      enthalpy are evaluated ONCE per tank at the tank SET pressure and the
+      LOADED temperature, and held for the whole run. (mine;
+      Hopper_Prop_System.liquid_properties)
+F-4   The feed-line liquid has the tank liquid's properties all the way to
+      the injector: no heating of LOX in the lines, no fuel temperature rise
+      in the regen jacket, no density change anywhere in a feed. (mine)
+F-5   All states are single phase: no cavitation, flashing or two-phase flow
+      in any line, valve or injector (quality is tracked but never used).
+      (mine)
+F-6   Ambient pressure is a constant 14.8 psia for the whole run (no
+      altitude change during a hop, no weather). (vsim; AMBIENT_PRESSURE)
+F-7   Chamber gas properties come from ThermoProp chemical-equilibrium
+      solves (adiabatic flame, reactants at their tank temperatures: LOX
+      90 K, RP-1 293 K), stored on a Pc x MR grid (10-610 psia x 31 points,
+      MR 0.5-4.0 x 36 points) and interpolated; the old model used
+      RocketCEA "Kerosene". (mine; Hopper_Chamber_Map.py)
+F-8   Off-grid points are extrapolated from the map (solver trial points
+      just outside it). (mine; Map.from_hdf5 extrapolate=True)
+
+
+=============================================================================
+2. PRESSURANT SUPPLY (COPVs)
+=============================================================================
+C-1   3 COPVs x 9.0 L = 27 L, lumped into ONE gas volume (no manifold
+      volume, no line volume, no pressure difference between bottles).
+      (P&ID; COPV_COUNT, COPV_UNIT_VOLUME)
+C-2   Initial COPV pressure 4503.2 psia. This is vehicle_sim's fill DENSITY
+      (4.8 kg N2 in 15.47 L at 293 K) applied to the P&ID's 27 L, so this
+      model starts with ~8.4 kg of N2, not vehicle_sim's 4.8 kg. Not
+      confirmed as the real fill pressure. (vsim; PRESSURANT_INITIAL_PRESSURE)
+C-3   Initial COPV temperature 293 K. (vsim; PRESSURANT_INITIAL_TEMPERATURE)
+C-4   COPV blowdown is adiabatic: no heat from the COPV walls or liner into
+      the gas. Real bottles warm the gas back up, so this under-predicts
+      COPV pressure late in the burn (conservative). (mine)
+C-5   COPV gas is well mixed (one temperature, one pressure). (FF Volume)
+
+
+=============================================================================
+3. TANKS
+=============================================================================
+T-1   LOX tank volume 20.0 L. Sheet says 19.88 L. (vsim; LOX_TANK.volume)
+T-2   Fuel tank volume 16.0 L. Sheet says 15.18 L. (vsim; FUEL_TANK.volume)
+T-3   Loads: 19.43 kg LOX at 90 K, 9.7 kg RP-1 at 293 K. (vsim)
+T-4   Both tanks start at their set pressure, 500 psia (absolute, not
+      gauge), with ullage at 150 K (LOX) and 293 K (fuel). (vsim)
+T-5   Bang-bang band: solenoid closes above set + 5 psi, opens below set -
+      5 psi. (vsim; upper_limit / lower_limit)
+T-6   Bang-bang solenoids start OPEN (bang_bang_initial_state default 1.0)
+      even though the tank is already at set pressure; this causes a
+      ~517-520 psia spike in the first step. (mine; Hopper_Elements.Tank)
+T-7   The bang-bang controller samples tank pressure once per accepted time
+      step (every 0.05 s) and switches instantly (no solenoid response
+      time). The real flight-computer rate and valve timing are unknown.
+      (mine; bang_bang_state)
+T-8   #EDIT  LOX ullage collapse factor 2.0: COPV supplies the full
+      pressurant flow, only 1/2.0 of it stays as ullage gas. Assumed value
+      (user, 2026-10-27); Luca to supply conservative and Vespula-heritage
+      values. Not from test data. (For reference, 2.1 reproduced the COPV
+      draw of vehicle_sim's 500 W/m2K ullage heat transfer.)
+      (user; LOX_TANK.collapse_factor)
+T-9   #EDIT  Fuel collapse factor 1.1 (some collapse even at ambient RP-1).
+      Assumed value (user, 2026-10-27), same source pending as T-8.
+      (user; FUEL_TANK.collapse_factor)
+T-10  Collapse factor is constant over the whole burn (real collapse is
+      strongest early, when the cold liquid surface first sees warm gas).
+      (mine)
+T-11  The "collapsed" pressurant simply disappears: its mass is not added
+      to the liquid and its energy is not tracked. (mine)
+T-12  Ullage gas is well mixed (one temperature), real-gas N2 solved in
+      pressure-enthalpy. No heat transfer with tank walls or the liquid
+      other than through the collapse factor. No stratification. (mine)
+T-13  No propellant boil-off or evaporation into the ullage, no N2
+      dissolving into LOX, no ullage composition other than pure N2. (mine)
+T-14  Tank walls are rigid (no volume change with pressure or temperature).
+      (mine)
+T-15  Liquid is isothermal at its loaded temperature for the whole burn
+      (no heating of LOX by the ullage, walls or environment). (mine)
+T-16  Hydrostatic head and vehicle acceleration are neglected: the tank
+      outlet sees the ullage pressure exactly. (vsim)
+T-17  Tank outflow is drawn from the bottom with no vortexing, no
+      geysering, no gas ingestion near empty. (mine)
+
+
+=============================================================================
+4. PRESSURANT LEGS (COPV -> tank ullage)
+=============================================================================
+P-1   #EDIT  Pressurant line length 1.0 m (each leg). (vsim; GasLine length)
+P-2   Pressurant line ID 4.92 mm (1/4" x 0.028" wall). (vsim)
+P-3   Tube roughness 1.5e-5 m for every tube in the model. (vsim;
+      TUBE_ROUGHNESS)
+P-4   A gas line is a lumped equivalent CdA, A / sqrt(1 + f L / D), using
+      the FULLY ROUGH friction factor (no Reynolds-number dependence), with
+      no volume, no inertia, no wave dynamics. (mine; GasLine inertia=False)
+P-5   No fittings, bends, tees, filters or flex hoses in the pressurant
+      legs except the listed elements (no K-losses). (mine)
+P-6   OBB / FBB solenoid CdA 18.68 mm2 each. Sheet says OBB = 2x PLV34 =
+      2.14 mm2 and FBB = 1x PLV34 = 1.07 mm2. (user)
+P-7   #EDIT  OR-1 (LOX side) CdA 2.04 mm2 = 2 x 1.02 mm2. This is the CdA
+      vehicle_sim gave its "Ox Bang-Bang". (vsim)
+P-8   #EDIT  OR-2 (fuel side) CdA 1.02 mm2. (vsim)
+P-9   #EDIT  PROCK / PRFCK check valve CdA 12.0 mm2 each. No Cv published
+      for the Check-All BUDSSTF.125SS. (mine)
+P-10  Check valves are a fixed CdA in the forward direction and block all
+      reverse flow; their 1/8 psi cracking pressure is ignored. (mine)
+P-11  All restrictions in one leg (line + solenoid + orifice + check) are
+      combined into ONE equivalent area with FullFlow SeriesCdA
+      (1/CdA^2 = sum 1/CdA_i^2) feeding ONE compressible orifice. SeriesCdA
+      is an incompressible series rule; real gas legs choke at the
+      smallest restriction (likely OR-1/OR-2) with pressure recovery
+      between restrictions, which this does not capture. (mine)
+P-12  The compressible orifice uses ideal-gas flow equations with the real
+      gas's local R and gamma at the COPV. At 4500 psi N2 is ~10 % away
+      from ideal, so flow at high COPV pressure is approximate. (FF
+      CompressibleOrifice)
+P-13  Pressurant legs are adiabatic: gas between restrictions keeps the
+      upstream enthalpy (real-gas Joule-Thomson cooling is captured at the
+      junction property lookups; no heat from tube walls). (mine)
+P-14  Solenoids open and close instantly (no stroke time). (mine)
+
+
+=============================================================================
+5. FEED LINES (tank -> injector)
+=============================================================================
+L-1   #EDIT  LOX tube 3/8" OD x 0.028" wall (ID 8.10 mm). (vsim; LOX_TUBE_ID)
+L-2   #EDIT  Fuel tube 1/4" OD x 0.028" wall (ID 4.93 mm). (vsim;
+      FUEL_TUBE_ID)
+L-3   LOX tank -> OTV line 1.0 m. (vsim)
+L-4   OTV -> LOX injector line 0.2032 m (8 in). (vsim)
+L-5   Fuel tank -> FTV line 0.3048 m (1 ft). (vsim)
+L-6   FTV -> regen line 0.2032 m (8 in). (vsim)
+L-7   Every line is horizontal (height_change = 0, no gravity head along
+      any line). (mine)
+L-8   No fittings, tees, bends, flex hoses, filters or QD bodies in the
+      feeds except the listed elements (no K-losses). The P&ID's flex
+      hoses and the OFD/FQD tees are not in the flow path. (mine)
+L-9   Lines are FullFlow DarcyWeisbach: incompressible, with flow inertia,
+      friction from the Churchill correlation (laminar to turbulent),
+      fully developed flow. (FF)
+L-10  Lines hold no propellant mass: junctions between elements have zero
+      volume and the line content is not tracked. Lines start full of
+      liquid at t = 0 (no priming, no chill-down, no gas in the lines).
+      (vsim/mine)
+L-11  Line content is NOT counted in the tank load or the residuals, so the
+      real propellant on board (tank + lines) is higher than modelled, and
+      line hold-up is not subtracted from the reported residual. (mine)
+L-12  Junction nodes below a closed throttle valve start at ambient
+      pressure; the rest start at tank pressure. (mine)
+
+
+=============================================================================
+6. VALVES IN THE FEEDS
+=============================================================================
+V-1   #EDIT  OTV max CdA = 90 % of the 3/8" tube area (46.4 mm2). (mine)
+V-2   #EDIT  FTV max CdA = 90 % of the 1/4" tube area (17.2 mm2). (mine)
+V-3   OTV / FTV are ideal flow controllers: their CdA is solved every step
+      so the valve passes exactly the commanded flow (perfect flow sensing
+      and actuation, no lag, no overshoot), capped at max CdA. vehicle_sim
+      did the same ("mdot" mode). (vsim/mine; ThrottleValve)
+V-4   Throttle valves have no minimum CdA and no leakage when closed. (mine)
+V-5   Throttle step between profile points takes 0.01 s (valve slew rate).
+      (mine; THROTTLE_STEP_TIME)
+V-6   OTV / FTV "State" in the plots is commanded flow / full-scale flow,
+      with full scale 0.777 kg/s (OTV) and 0.388 kg/s (FTV). Plot-only.
+      (vsim; full_scale_mass_flow)
+
+
+=============================================================================
+7. INJECTORS AND REGEN
+=============================================================================
+I-1   OINJ CdA 15.3 mm2 (Cd included). (vsim)
+I-2   FINJ CdA 10.6 mm2 (Cd included). (vsim)
+I-3   #EDIT  Regen jacket = one fixed orifice of CdA 25.0 mm2. (vsim FREGEN)
+I-4   Regen jacket is a pure pressure drop: no heat pickup, no fuel
+      temperature or density change, no coolant boiling. (mine)
+I-5   #EDIT  Injector passage length 0.01 m (adds flow inertia; does not
+      change steady dP). Chosen for solver stability, not measured. (mine;
+      INJECTOR_PASSAGE_LENGTH)
+I-6   #EDIT  Regen passage length 0.30 m (inertia only, as above). (mine;
+      REGEN_PASSAGE_LENGTH)
+I-7   Injector Cd is constant with flow and Pc (incompressible orifice,
+      mdot = CdA sqrt(2 rho dP)). (FF DischargeCoefficient)
+I-8   Fuel order: tank -> line -> FTV -> line -> regen -> FINJ. vehicle_sim
+      lumped them in a different order inside one series block. (mine)
+I-9   Injector stiffness = injector dP / Pc, with injector dP from the
+      manifold node (downstream of the lines / regen) to the chamber.
+      (mine; Hopper_Report, Hopper_Plots)
+I-10  No injector-chamber coupling (no chugging / low-frequency
+      instability). (mine)
+
+
+=============================================================================
+8. ENGINE AND NOZZLE
+=============================================================================
+E-1   Target MR 1.8, held constant at every throttle level. (vsim)
+E-2   Throat area 672.26 mm2, exit area 2355.6 mm2 (expansion ratio 3.504).
+      (vsim)
+E-3   c* efficiency ramps linearly 0.80 at 100 psia -> 0.85 at 300 psia,
+      flat outside. Same numbers as vehicle_sim, but vehicle_sim's formula
+      used max(1, ...) and actually held 0.85 below 300 psia; this model
+      uses the clamped ramp (changed on request). Over the 1dof burn
+      eta_c* = 0.815-0.832. (vsim/user; CSTAR_EFFICIENCY_*)
+E-4   Cf efficiency ramps 0.94 at 100 psia -> 0.97 at 250 psia, flat
+      outside (same note as E-3). Over the burn eta_cf = 0.952-0.966.
+      (vsim/user; CF_EFFICIENCY_*)
+E-5   In the transient each efficiency is taken at the PREVIOUS step's Pc
+      (0.05 s lag, < 0.1 % effect; done for solver robustness). The thrust
+      targeter uses the curve at the exact Pc, with corners rounded over
+      +-2 % of the ramp span. (mine; Hopper_Components.EnginePerformance)
+E-6   Real chamber flow = ideal nozzle flow / eta_c*; real thrust = eta_cf x
+      ideal thrust. All combustion and nozzle losses are in these two
+      numbers. (vsim/mine)
+E-7   The nozzle is ideal-gas, quasi-1D, isentropic, frozen at the chamber
+      gamma and gas constant (no shifting equilibrium in the nozzle), with
+      flow separation and shocks only as diagnostics. (FF IsentropicNozzle)
+E-8   Pc is the nozzle stagnation pressure: no injector-face-to-throat
+      (Rayleigh) pressure loss, no contraction-ratio effects. (mine)
+E-9   The chamber has zero volume (no L*, no fill time, no combustion
+      delay): Pc is whatever balances injector inflow and nozzle outflow
+      at every instant. vehicle_sim instead relaxed Pc 30 % per 0.1 s.
+      (mine)
+E-10  Propellant ignites the moment it reaches the chamber (no ignition
+      delay, no hard start); the torch only adds its propellant flow, it
+      does not decide when the main chamber lights (see section 9a). (mine)
+E-11  Chamber MR is computed from the actual ox and fuel flows and clipped
+      to the map range 0.5-4.0. (mine)
+E-12  Thrust is at sea-level ambient (14.8 psia) back pressure; no
+      altitude compensation, no plume effects. (vsim)
+E-13  No film cooling or other flow split; all propellant goes through the
+      injector into the core. (mine)
+E-14  Nominal Pc = 300 psia; used only to express "throttle %" in plots.
+      (user; NOMINAL_CHAMBER_PRESSURE)
+E-15  Nozzle-separation line on the exit-pressure plot at 0.4 x ambient
+      (Summerfield-type rule of thumb from the old deck). (vsim;
+      NOZZLE_SEPARATION_RATIO)
+
+
+=============================================================================
+9. THRUST PROFILE, TARGETING AND SEQUENCE
+=============================================================================
+S-1   The flown thrust curve is vehicle_sim's 1dof profile (29.7 s,
+      36 points, 890-1382 N), now in thrust_curves/1dof.csv. Not a fresh
+      trajectory-sim export; kept on purpose (user, 2026-10-27) until Luca
+      Zerega or Aniket Singh supply updated curves. (vsim; THRUST_CURVES)
+S-2   Each profile point is held until the next ("step" interpolation, as
+      vehicle_sim did); profile points closer than 0.1 s are resampled
+      onto 0.1 s. A CSV is shifted so its first time is 0. (vsim/mine;
+      PROP_PROFILE_INTERPOLATION, THRUST_CURVE_MIN_SPACING, Hopper_Inputs)
+S-3   Flow commands come from a steady targeter: for each point, the Pc
+      that gives the target thrust at MR 1.8 with the nominal engine, then
+      total flow split at MR 1.8. The engine controller is therefore
+      open-loop on flow: the transient tracks thrust only as well as the
+      nominal engine model is right. (vsim/mine; Hopper_Thrust_Targeter)
+S-4   Start sequence: OTV / FTV closed until 0.30 s, ramp linearly to the
+      first profile point by 0.50 s; profile time 0 = sim time 0.50 s.
+      vehicle_sim started at full flow at t = 0. (mine; MAIN_VALVE_OPEN_TIME,
+      MAIN_VALVE_RAMP_TIME)
+S-5   Shutdown: OTV / FTV ramp linearly to zero over 0.20 s after the last
+      profile point, then 0.30 s of tail-off is simulated. (mine;
+      TAIL_OFF_TIME)
+S-6   The last profile point (29.7 s) has no hold time: shutdown starts the
+      moment it is reached, so it is never judged. (vsim profile / mine)
+S-7   OTV and FTV move together on the same schedule (no ox-lead or
+      fuel-lead). (mine)
+S-8   The torch fires for ~0.2 s (user). It is built (section 9a) but
+      SWITCHED OFF by default (TORCH_ENABLED = False, per the boss: "don't
+      worry about igniter for now"), so a normal run has no torch flow.
+
+
+=============================================================================
+9a. TORCH IGNITER
+=============================================================================
+TI-0  #EDIT  TORCH_ENABLED = False: everything below applies only when
+      the torch is switched on. (user/boss)
+TI-1  Tap points from the P&ID engine page: OIMV taps the LOX feed above
+      OTV ("OTV Inlet"), FIMV the fuel feed above FTV ("FTV Inlet"). (P&ID)
+TI-2  Torch ox path: OIMV -> HX-1 -> torch ox injector; torch fuel path:
+      FIMV -> torch fuel injector; both discharge into the main chamber at
+      Pc. The torch's own chamber pressure, the spark and torch combustion
+      are not modelled. (mine)
+TI-3  Torch propellant is ADDED to the main chamber's ox and fuel flow
+      (counts in chamber MR, Pc and thrust), as if it burned in the main
+      chamber. (mine; Branch into_sink=True)
+TI-4  #EDIT  OIMV and FIMV CdA 2.0 mm2 each. (mine)
+TI-5  #EDIT  HX-1 is modelled as a fixed restriction, CdA 2.0 mm2. Its
+      heat exchange is not modelled: the torch LOX stays liquid at tank
+      conditions (if HX-1 vaporises or warms the LOX, the real torch ox
+      flow and density differ). (mine)
+TI-6  #EDIT  Torch injector CdAs 0.08 mm2 (ox) and 0.06 mm2 (fuel), sized
+      for ~7 g/s LOX + ~4.4 g/s RP-1 (torch MR ~1.6) at 500 psi tank
+      pressure. Pure guesses. (mine)
+TI-7  #EDIT  Firing sequence: OIMV + FIMV open at 0.20 s, stay open 0.20 s
+      (close at 0.40 s), 0.01 s valve stroke; main valves start opening at
+      0.30 s, so the torch overlaps the first 0.1 s of the main ramp.
+      (user ~0.2 s duration / mine for timing; TORCH_OPEN_TIME,
+      TORCH_DURATION, TORCH_VALVE_STROKE)
+TI-8  Both torch valves share one schedule (no ox-lead or fuel-lead). (mine)
+TI-9  The torch lines are incompressible liquid restrictions with no line
+      length, volume or inertia, and start full. (mine)
+
+
+=============================================================================
+10. SIDE PATHS: VENTS, RELIEFS, REGULATOR, PURGES, DRAIN
+=============================================================================
+B-1   #EDIT  PR-REG regulator: set 500 psig, flow capacity CdA 5.0 mm2.
+      Not in the sheet. (mine)
+B-2   PR-REG is ideal: outlet pressure = min(COPV, set), at COPV gas
+      temperature, no droop, no lock-up band, no supply-pressure effect.
+      (mine; build_branches)
+B-3   PRVNT (Marotta PLV34) CdA 1.07 mm2 = one PLV34, read from the sheet's
+      FBB stuck-open case. Closed all run. (sheet/info)
+B-4   #EDIT  PRRV (Swagelok SS-4R3A) crack 4950 psig, CdA 5.0 mm2. Sheet
+      tab empty, no Cv published. (mine)
+B-5   #EDIT  ORV-1 (relief on PR-REG outlet) crack 600 psig, CdA 2.0 mm2.
+      (mine)
+B-6   #EDIT  OPV / FPV / TFPV purge solenoids CdA 2.0 mm2 each, closed all
+      run. (mine)
+B-7   #EDIT  CV-5 / CV-4 / CV-3 purge check valves CdA 5.0 mm2 each. (mine)
+B-8   Purge landing points from the P&ID: OPV/CV-5 joins the LOX line
+      below OTV ("OTV Outlet"), FPV/CV-4 the fuel line below FTV ("FTV
+      Outlet"), TFPV/CV-3 the torch fuel line below FIMV (modelled as
+      landing at the main chamber). Purge gas only sees that back
+      pressure; it is NOT added to the line or chamber flow. (P&ID/mine)
+B-9   All purges are closed during the nominal burn (purge sequence
+      unknown). (mine)
+B-10  OVNT (Jaksa 2/2 cryo solenoid) CdA 9.4 mm2 from the sheet. Closed
+      during the burn. (sheet/info; JAKSA_CRYO_SOLENOID_CDA)
+B-11  OFD (LOX fill/drain) is the same Jaksa valve as OVNT, CdA 9.4 mm2.
+      Closed during the burn; it drains from the tank liquid node (the
+      real tee is at the tank outlet). (user; JAKSA_CRYO_SOLENOID_CDA)
+B-12  ORV (RegO PRV9432T550) crack 550 psig, CdA 30.8 mm2 = the sheet's
+      TARGET CdA. The part's 0.062" orifice is only ~1.95 mm2 geometric,
+      so the part may be far smaller than the CdA used. (sheet/info)
+B-13  FVNT (UNOX 3/8 NO solenoid) CdA 15.0 mm2 = the sheet's TARGET (min
+      10 mm2). (sheet/info)
+B-14  #EDIT  FRV crack 550 psig (part number PRV9432T550); the sheet's FRV
+      tab says 525 psi. CdA 14.67 mm2 = sheet target. (info/sheet)
+B-15  Every relief opens linearly from 0 at crack to fully open at 110 % of
+      crack (dP across the valve); no reseat hysteresis or blowdown.
+      (mine; ReliefValve full_open_pressure default)
+B-16  Every side path flows one way only (out of its source; no back-flow
+      into the COPV or a tank). (mine)
+B-17  Each side path's restrictions are combined with SeriesCdA into one
+      orifice (same caveat as P-11). (mine)
+B-18  Quick disconnects (PRQD, OQD, FQD), the oxygen diffuser (ODiff), the
+      torch spark igniter and sensors (PRPT-1 etc.) are not in the flow
+      model: QDs are disconnected in flight. (mine; NOT_MODELLED)
+
+
+=============================================================================
+11. TANK VENT-TIME CALCULATOR (Hopper_Vent.py)
+=============================================================================
+VT-1  Vent starts at set + upper limit (505 psia). (mine)
+VT-2  #EDIT  "Vented" = 1 psig (ambient + 1 psi). (mine;
+      VENT_END_GAUGE_PRESSURE)
+VT-3  Two cases: full tank (ullage = tank volume - loaded liquid) and empty
+      tank (whole tank volume is gas). (mine)
+VT-4  The gas starts at the tank's initial ullage temperature (LOX 150 K)
+      in both cases, and expands adiabatically (no heat from walls or
+      liquid). (mine)
+VT-5  No LOX boil-off adds gas during the vent (a real LOX tank keeps
+      generating vapour, so the real vent is slower). (mine)
+VT-6  Only commanded vents (OVNT, FVNT) are timed; the vent's own CdA only
+      (diffuser, exhaust plumbing ignored). (mine)
+VT-7  Requirements 60 s (OVNT) and 30 s (FVNT) are the sheet's target vent
+      times; the sheet's own sizing assumptions may differ. (sheet)
+
+
+=============================================================================
+12. LOX DRAIN CALCULATOR (Hopper_Drain.py)
+=============================================================================
+D-1   LOX tank height 0.6167 m from the sheet; the tank is treated as a
+      uniform cylinder of cross-section volume / height (domes ignored).
+      (sheet; LOX_TANK_HEIGHT)
+D-2   #EDIT  Drain path is OFD only; OQD, the GSE drain line and anything
+      downstream are not included yet, so times are optimistic. (mine;
+      LOX_DRAIN_EXTRA_ELEMENTS)
+D-3   #EDIT  Drain exit at the tank bottom (0 m drop). (mine;
+      LOX_DRAIN_OUTLET_DROP)
+D-4   #EDIT  Ullage held at 0, 10, 25 and 50 psig for the whole drain
+      (vented, or a regulated GN2 push). (mine; LOX_DRAIN_ULLAGE_PRESSURES)
+D-5   #EDIT  No drain-time requirement set. (LOX_DRAIN_TIME_REQUIREMENT)
+D-6   "Drained" = 1 % of the load left; the valve opening is faded to zero
+      over that last 1 % so the run settles. (mine; LOX_DRAIN_END_FRACTION)
+D-7   LOX incompressible at 90 K and the drain ullage pressure; no boil-off,
+      no flashing in the valve. At 0 psig the LOX is only ~1.2 psi
+      subcooled, so the vented drain will partly flash and be slower than
+      computed. (mine)
+D-8   Drain exits to constant ambient pressure. (mine)
+
+
+=============================================================================
+13. RUN REPORT DEFINITIONS (Hopper_Report.py)
+=============================================================================
+R-1   Burn time = span over which thrust >= 10 % of the maximum target
+      thrust. (mine; REPORT_THRUST_ON_FRACTION)
+R-2   Propellant residual = liquid left in the TANK at the end of the run
+      (after the 0.3 s tail-off); line hold-up, sump/trapped propellant and
+      unusable propellant are not separated out (see L-11). (mine)
+R-3   Each profile point is judged at the last saved time inside its hold,
+      before the next step starts. (mine)
+R-4   Thrust must be within 2 % of target at every judged point. (mine;
+      REPORT_THRUST_TOLERANCE)
+R-5   A thrust level counts as reachable while OTV and FTV stay below
+      99.9 % of max CdA. (mine)
+R-6   Tank pressure min/max and injector stiffness are taken over the
+      profile window only (start-up and shutdown excluded), except tank
+      max, which covers the whole run. (mine)
+R-7   C* and Isp in actual_performance.csv are reported as 0 unless Pc >
+      1.5 x the starting Pc (chamber considered unlit). (vsim; Hopper_Export)
+R-8   Delivered c* = Pc x At / chamber outflow. (mine)
+
+
+=============================================================================
+14. MONTE CARLO (Hopper_MonteCarlo.py)
+=============================================================================
+M-1   #EDIT  Error bands (user, 2026-10-27), all UNIFORM (every value in
+      the band equally likely):
+        - every CdA that carries flow: +-10 %, each element drawn
+          separately (pressurant legs incl. OBB/FBB, OR-1/OR-2 and the
+          checks; OTV/FTV max CdA; OINJ, FINJ, regen; reliefs; PR-REG).
+          Vents, purges and OFD that stay shut all run are not varied.
+        - initial tank pressure (LOX and fuel, separately): +-2 %
+        - initial COPV pressure: +-2 %
+        - propellant loads (LOX and fuel, separately): +-1 %
+        - collapse factors (LOX and fuel, separately): +-0.3 absolute
+        - c* efficiency: +-2 %, one draw scales the whole c* curve
+        - Cf efficiency: +-1 %, one draw scales the whole Cf curve
+      (MC_DISPERSIONS)
+M-1a  #EDIT GUESS  Kept from the earlier set (no band given): COPV
+      temperature +-10 K and controller MR bias +-3 %, both uniform. (mine)
+M-2   Draws are independent between inputs (no correlations), except
+      that each efficiency curve moves as one. Line lengths, tube IDs and
+      roughness are not varied (lines have no CdA input). (mine)
+M-3   A collapse factor is never drawn below 1.0 (below 1 the ullage would
+      gain gas from nothing): fuel 1.1 +-0.3 spans 0.8-1.4, so about a
+      third of runs sit exactly at 1.0. (mine; MC_INPUT_LIMITS)
+M-4   An MR dispersion is a constant controller MR bias for the whole burn
+      (no drift, no noise). Initial tank pressure only sets the starting
+      ullage; the bang-bang band (set pressure +-5 psi) is not varied. (mine)
+M-5   "thrust" control mode (default): the targeter is re-solved with each
+      run's ACTUAL engine, i.e. the controller knows the true engine and
+      holds thrust perfectly. This is optimistic; "flow" mode flies the
+      nominal flow commands instead. (mine; MC_THRUST_CONTROL)
+M-6   Run 0 is the nominal case; seed 1; 100 runs; error bars are run
+      statistics (mean, std, 5/50/95 %), not a formal uncertainty
+      analysis. (mine)
+M-7   No time-varying disturbances (sensor noise, valve hysteresis,
+      vibration) in any run. (mine)
+
+
+=============================================================================
+15. SOLVER AND BACKEND (numerical assumptions)
+=============================================================================
+N-1   Implicit backward-Euler time integration, 0.05 s step, residual
+      tolerance 1e-6, 2-point finite-difference Jacobian; a step that fails
+      is retried at half the step. 0.05 s matches 0.01 s on engine results;
+      tank pressure overshoots ~10 psi more. (mine; PROP_DT, PROP_RTOL,
+      PROP_JACOBIAN_METHOD)
+N-2   Through the opening and closing ramps the solver is forced to 0.01 s
+      steps (breakpoints on the ramp) so ignition and shutdown converge.
+      (mine; RAMP_BREAKPOINT_SPACING)
+N-3   Mixture ratio uses a 1e-4 kg/s flow floor so it stays defined at zero
+      flow ((ox + 1.8 x floor) / (fuel + floor)). (mine;
+      MIXTURE_RATIO_FLOW_FLOOR)
+N-4   Within 0.5 psi of ambient the nozzle flow is linear in (Pc - ambient)
+      so the solver has a slope at zero flow. (mine;
+      NOZZLE_LINEAR_PRESSURE_DROP; the LinearizedNozzle docstring still
+      says 1 psi)
+N-5   Throttle-valve balance: max((mdot - target) / 0.01 kg/s, (CdA - max
+      CdA) / 1 mm2); tank surface balance in psi; targeter residual is
+      thrust error / 100 N, accepted at 1e-4 (0.01 N). (mine)
+N-6   Isp and delivered c* use a 1e-6 kg/s flow floor before ignition.
+      (mine)
+N-7   Liquid properties are memoised per (propellant, pressure,
+      temperature) (consequence of F-3). (mine)
+N-8   FullFlow junctions are zero-volume nodes (mass in = mass out every
+      instant). (FF Volume with no volume)
+N-9   Results are saved every 0.05 s (0.25 s in Monte Carlo runs); reports
+      read the saved points only. (mine; PROP_SAVE_DT, MC_SAVE_DT)
+N-10  Vent runs use a 0.1 s step up to 300 s; drain runs use 400 steps over
+      2.5 x the constant-flow drain time (capped at 3600 s). (mine)
+N-11  CavitatingVenturi defaults (only used if you add one): pressure
+      recovery 0.85, cavitating Cd 0.94, non-cavitating Cd 0.6. (mine;
+      Hopper_Elements)
+
+
+=============================================================================
+16. COMPARISON WITH vehicle_sim.py (Old_sims_comparison/)
+=============================================================================
+X-1   vehicle_sim is run unchanged except: the 1dof profile is selected
+      instead of the throttle-test profile, and plots are saved instead of
+      shown. (mine; run_vehicle_sim.py)
+X-2   Statistics are taken over profile time 1.0-29.5 s, skipping start-up
+      and shutdown. (mine; compare_models.WINDOW)
+X-3   The two models' clocks are aligned at profile time 0 (this model's
+      sim time 0.50 s). (mine)
+
+
+=============================================================================
+17. OPEN CONFLICTS (assumptions that contradict a source)
+=============================================================================
+  - OBB / FBB CdA: model 18.68 mm2 (user) vs sheet 2.14 / 1.07 mm2 (P-6).
+  - Tank volumes: model 20 / 16 L (vsim) vs sheet 19.88 / 15.18 L (T-1, T-2).
+  - ORV: CdA used 30.8 mm2 vs the chosen part's ~1.95 mm2 orifice (B-12).
+  - FRV crack: 550 psig (part) vs 525 psi (sheet) (B-14).
+  - COPV fill: 4503 psia over 27 L = ~8.4 kg N2 vs vehicle_sim's 4.8 kg (C-2).
+  - Nozzle linear band: 0.5 psi in HOPPER_DATA vs "1 psi" in the
+    LinearizedNozzle docstring (N-4).

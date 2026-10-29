@@ -1,0 +1,5 @@
+Ullage [psig],LOX [kg],Drain CdA [mm2],Liquid height [m],Start flow [kg/s],Drain time [s],Drain time [min],Start subcooling [psi],Requirement [s],Meets
+0.0,19.43,9.4,0.525,0.0344,1019.1,16.99,1.24,,
+10.0,19.43,9.4,0.525,0.1229,159.8,2.66,11.24,,
+25.0,19.43,9.4,0.524,0.1897,102.3,1.7,26.24,,
+50.0,19.43,9.4,0.524,0.2661,72.6,1.21,51.24,,
