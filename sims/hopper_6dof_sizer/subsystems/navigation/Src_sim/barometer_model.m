@@ -1,52 +1,43 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% barometer_model.m
-%
-% Function to output the baro measurement data with noise and bias applied.
-% Depends on filter_sim_initializer being ran first, which has bias/noise
-% params.
-%
-% Author: Aditiya Babbar
-% Date: 10/11/26
+% Barometer measurement simulation.
 %
 % Inputs:
-%   x: state vector (20x1)
-%   baroBias: barometer measurement bias (m)
-%   simtime: time elapsed (s)
+%   trueState  - True vehicle state (20x1)
+%   baroBiasTrue - True barometer height bias (m)
+%   simtime    - Simulation time (s)
 %
 % Outputs:
-%   height: height from ground (m)
-%   timestamp: time elapsed (s)
-%   validity: boolean (true if valid measurement)
-%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [height, timestamp, validity] = barometer_model(x, baroBias, time)
+%   baroOut    - struct defined in the Navigation Dictionary
+function baroOut = barometer_model(trueState, baroBiasTrue, simtime)
+    
+    % Simulink gets touchy about dims
+    trueState = trueState(1:20,1);
 
-% Retrieve parameters from the workspace (set by filter_sim_initializer)
-persistent baro_params;
-if isempty(baro_params)
-    try
-        baro_params = evalin('base', 'baro_params');
-    catch
-        % Fallback defaults if initializer hasn't populated workspace yet
-        baro_params.noise_std = 0.1;            % Height noise std deviation (m)
+    % Load the baro_params struct
+    persistent baro_params;
+    if isempty(baro_params)
+        baro_params.noise_std = 0.1;            % Noise standard deviation (m)
+        baro_params.covariance = 0.1^2;         % Filter measurement covariance
         baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
+        baro_params.bias = 0.5;                 % Placeholder
     end
-end
+    
+    % Forward timestamp for now
+    timestamp = simtime;
+    
+    % NED position -> altitude relative to NED origin
+    heightTrue = -trueState(3,1);
+    
+    % Measurement bias and Gaussian white noise
+    baroNoise = baro_params.noise_std * randn();
+    
+    % Compute the measured height and assign validity
+    height = heightTrue + baroBiasTrue + baroNoise;
+    validity = rand() >= baro_params.packet_invalid_prob;
 
-% 1. Forward Timestamp
-timestamp = time;
+    % Build the output struct
+    baroOut.height = height;
+    baroOut.covariance = baro_params.covariance;
+    baroOut.timestamp = timestamp;
+    baroOut.validity = validity;
 
-% 2. Compute Height Measurement with Bias and Noise
-
-% Adjust index x(3) to match whatever index represents your true height/altitude in the 20x1 state vector
-true_height = x(3);
-baro_noise = baro_params.noise_std * randn();
-height = true_height + baroBias + baro_noise;
-
-% 3. Validity Flag Assignment
-if rand() < baro_params.packet_invalid_prob
-    validity = false;
-else
-    validity = true;
-end
 end

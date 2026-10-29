@@ -1,65 +1,68 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% imu_model.m
-%
-% Function to output the IMU measurement data with noise and bias applied.
-% Depends on filter_sim_initializer being ran first, which has bias/noise
-% params.
-%
-% Author: Aditiya Babbar
-% Date: 10/11/26
+% IMU measurement simulation.
 %
 % Inputs:
-%   x: state vector (20x1)
-%   a: acceleration vector (3x1)
-%   accelBias: accelerometer measurement bias in body frame (m/s^2)
-%   gyroBias: gyroscope measurement bias in body frame (rad/s)
-%   simtime: time elapsed (s)
+%   x          - True vehicle state (20x1)
+%   a          - True inertial acceleration in NED (3x1)
+%   accelBias  - True accelerometer bias, body frame (3x1)
+%   gyroBias   - True gyroscope bias, body frame (3x1)
+%   simtime    - Simulation time (s)
 %
 % Outputs:
-%   accel: acceleration vector (3x1) (m/s^2)
-%   angvel: angular velocity vector (3x1) (radians/s)
-%   timestamp: time elapsed (s)
-%   validity: boolean (true if valid measurement)
-%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [accel, angvel, timestamp, validity] ...
-            = imu_model(x, a, accelBias, gyroBias, simtime)
-
-% Retrieve parameters from the workspace (set by filter_sim_initializer)
-persistent imu_params;
-if isempty(imu_params)
-    try
-        imu_params = evalin('base', 'imu_params');
-    catch
-        % Fallback defaults if initializer hasn't populated workspace yet
-        imu_params.accel_noise_std = [0; 0; 0];
-        imu_params.gyro_noise_std = [0; 0; 0];
-        imu_params.gravity_scalar = 9.81; % Example body frame gravity component
-        imu_params.packet_invalid_prob = 0.0;
+%   accelBus   - struct defined in the Navigation Dictionary
+%   angvelBus  - struct defined in the Navigation Dictionary
+function [accelBus, angvelBus] = imu_model(...
+    trueState, accelerationTrue, accelerometerBiasTrue, gyroBiasTrue, simtime)
+    
+    % Retrieve simulation parameters
+    persistent imu_params;
+    if isempty(imu_params)
+        imu_st = 1/500;
+        imu_params.accel_noise_density = [880e-6; 880e-6; 732e-6];   % (m/s^2)/sqrt(Hz), x y z
+        imu_params.gyro_noise_density = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]); % (rad/s)/sqrt(Hz), x y z
+        imu_params.accel_bias_stability = [125e-6; 125e-6; 134e-6];  % In-run bias stability (m/s^2)
+        imu_params.gyro_bias_stability = deg2rad([7.5; 8.1; 4.9])/3600; % In-run bias stability (rad/s)
+        imu_params.accel_noise_std = [880e-6; 880e-6; 732e-6] * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
+        imu_params.acovariance = diag([880e-6; 880e-6; 732e-6].^2 * (1/(2*imu_st)));
+        imu_params.gyro_noise_std = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]) * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
+        imu_params.gcovariance = diag(deg2rad([6.1e-3; 6.1e-3; 7.0e-3].^2) * (1/(2*imu_st)));
+        imu_params.gravity_scalar = 9.81;                % Gravity acceleration
+        imu_params.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
     end
-end
+    
+    timestamp = simtime;
 
-% 1. Forward Timestamp
-timestamp = simtime;
+    angularVelocityTrue = trueState(7:9);
+    quaternionTrue = trueState(10:13);
 
-% 2. Accelerometer Measurement: A(q)*(a_true + ba + na) - g_vec
-% Adjust gravity subtraction based on your coordinate convention/body frame definition
-g_vec = [0; 0; -g]; % accel reading in NED frame when IMU is still relative to ground
+    rotationInertialToBody = quaternion_to_rotation(quaternionTrue)';
+    
+    % Gravity in inertial NED coordinates
+    gravityInertial = [0; 0; imu_params.gravity_scalar];
+    
+    % True specific force in body coordinates
+    specificForceBodyTrue = rotationInertialToBody * (accelerationTrue(:) - gravityInertial);
+    
 
-accel_ideal = a - g_radial;
-accel_noise = imu_params.accel_noise_std .* randn(3, 1);
-accel = accel_ideal + accelBias + accel_noise;
+    accelerometerNoise = imu_params.accel_noise_std .* randn(3, 1);
+    gyroNoise = imu_params.gyro_noise_std .* randn(3,1);
+    
+    accelerationSimulated = specificForceBodyTrue + accelerometerBiasTrue(:) + accelerometerNoise;
+    angularVelocitySimulated = angularVelocityTrue + gyroBiasTrue(:) + gyroNoise;
+    angularVelocitySimulated = angularVelocitySimulated(1:3,1); % Simulink gets touchy about dims
+    
+    
+    % Packet validity
+    validity = rand() >= imu_params.packet_invalid_prob;
 
-% 3. Gyroscope Measurement: w_true + bg + ng
-% NOTE: Update indices (e.g., x(10:12)) to match your specific 20x1 state vector layout for angular velocity
-omega_true = x(7:9);
-gyro_noise = imu_params.gyro_noise_std .* randn(3, 1);
-angvel = omega_true + gyroBias + gyro_noise;
+    % Build the output structs
+    accelBus.accel = accelerationSimulated;
+    accelBus.covariance = imu_params.acovariance;
+    accelBus.timestamp = timestamp;
+    accelBus.validity = validity;
 
-% 4. Validity Flag Assignment
-if rand() < imu_params.packet_invalid_prob
-    validity = false;
-else
-    validity = true;
-end
+    angvelBus.angvel = angularVelocitySimulated;
+    angvelBus.covariance = imu_params.gcovariance;
+    angvelBus.timestamp = timestamp;
+    angvelBus.validity = validity;
+
 end
