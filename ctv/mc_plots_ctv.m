@@ -343,47 +343,36 @@ end
 % Figure 7 - Attitude plot vs. Time
 % ==================================
 
-figure('Name','Attitude vs Time','Position',[350 150 900 600]);
+% Roll and yaw are degenerate for an upright vehicle (body x up means pitch
+% logs 90 deg by construction), so this plots tilt off the DCM instead of the
+% three Euler channels. The logged angles are already in degrees.
+figure('Name','Tilt vs Time','Position',[350 150 900 600]);
+hold on; grid on;
 
-att_fields = {'roll','pitch','yaw'};
-att_labels = {'Roll (deg)','Pitch (deg)','Yaw (deg)'};
+tilt_mat = zeros(n_ok, 500);
 
-for s = 1:3
-    subplot(3,1,s); hold on; grid on;
+for i = 1:n_ok
+    ts = results(i).timeseries;
+    tilt_deg = run_tilt(ts);
 
-    att_mat = zeros(n_ok, 500);
-
-    for i = 1:n_ok
-        ts = results(i).timeseries;
-        data_deg = rad2deg(ts.(att_fields{s}));
-
-        if i == 1
-            h_mc = plot(ts.t, data_deg, 'Color', [c_mc 0.4], 'LineWidth', 0.8);
-        else
-            plot(ts.t, data_deg, 'Color', [c_mc 0.4], 'LineWidth', 0.8);
-        end
-
-        att_mat(i,:) = interp1(ts.t, data_deg, t_grid, 'linear', 'extrap');
+    if i == 1
+        h_mc = plot(ts.t, tilt_deg, 'Color', [c_mc 0.4], 'LineWidth', 0.8);
+    else
+        plot(ts.t, tilt_deg, 'Color', [c_mc 0.4], 'LineWidth', 0.8);
     end
 
-    h_mean = plot(t_grid, mean(att_mat,1), 'Color', c_mean, 'LineWidth', 3.0);
-
-    h_nom = plot(nominal.timeseries.t, ...
-        rad2deg(nominal.timeseries.(att_fields{s})), ...
-        'Color', c_nom, 'LineWidth', 3.0);
-
-    ylabel(att_labels{s},'FontSize',10);
-
-    if s == 1
-        legend([h_mc h_mean h_nom], {'MC Runs','Mean','Nominal'}, ...
-               'Location','best','FontSize',9);
-        title('Attitude vs Time','FontSize',13);
-    end
-
-    if s == 3
-        xlabel('Time (s)','FontSize',12);
-    end
+    tilt_mat(i,:) = interp1(ts.t, tilt_deg, t_grid, 'linear', 'extrap');
 end
+
+h_mean = plot(t_grid, mean(tilt_mat,1), 'Color', c_mean, 'LineWidth', 3.0);
+h_nom  = plot(nominal.timeseries.t, run_tilt(nominal.timeseries), ...
+    'Color', c_nom, 'LineWidth', 3.0);
+
+ylabel('Tilt from vertical (deg)','FontSize',10);
+xlabel('Time (s)','FontSize',12);
+legend([h_mc h_mean h_nom], {'MC Runs','Mean','Nominal'}, ...
+       'Location','best','FontSize',9);
+title('Tilt vs Time','FontSize',13);
 
 % ================================
 % Figure 8 - 2d trajectory with pad
@@ -524,4 +513,12 @@ title(sprintf('Ox Mass Distribution — %d MC Runs   \\mu=%.2f   \\sigma=%.2f', 
 legend('Location', 'best', 'FontSize', 10);
 
 
+end
+function tilt_deg = run_tilt(ts)
+%RUN_TILT Tilt for one run, recomputed if the results predate the tilt field.
+if isfield(ts, 'tilt')
+    tilt_deg = ts.tilt;
+else
+    tilt_deg = attitude_tilt(ts.pitch, ts.yaw);
+end
 end

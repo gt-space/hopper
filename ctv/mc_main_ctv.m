@@ -87,6 +87,9 @@ vel_data = sim_out.velocity.Data;
 pitch_data = sim_out.pitch.Data;
 roll_data = sim_out.roll.Data;
 yaw_data = sim_out.yaw.Data;
+% Body x points up, so an upright vehicle logs pitch = 90 deg and the roll and
+% yaw channels are degenerate. Tilt comes off the DCM and stays well defined.
+tilt_data = attitude_tilt(pitch_data, yaw_data);
 
 
 result.flight.max_altitude    = max(altitude);
@@ -98,6 +101,8 @@ result.flight.final_ox_mass   = ox_mass(end);
 result.flight.final_fu_mass   = fu_mass(end);
 result.flight.cg_init         = cg(1);
 result.flight.cg_final        = cg(end);
+result.flight.max_tilt        = max(tilt_data);
+result.flight.final_tilt      = tilt_data(end);
 
 % Full time series for plotting
 result.timeseries.t        = t;
@@ -116,6 +121,7 @@ result.timeseries.vz_raw   = vel_data(:,3);
 result.timeseries.roll     = roll_data;
 result.timeseries.pitch    = pitch_data;
 result.timeseries.yaw      = yaw_data;
+result.timeseries.tilt     = tilt_data;
 
 
 
