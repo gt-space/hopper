@@ -139,16 +139,31 @@ velz = squeeze(xout(6,1,:));
 omegax = squeeze(xout(7,1,:));
 omegay = squeeze(xout(8,1,:));
 omegaz = squeeze(xout(9,1,:));
-q0 = squeeze(xout(10,1,:));
-q1 = squeeze(xout(11,1,:));
-q2 = squeeze(xout(12,1,:));
-q3 = squeeze(xout(13,1,:));
+q_est = squeeze(xout(10:13,1,:))';
+q_truth = state_truth_data(10:13,:)';
+q_est = q_est ./ sqrt(sum(q_est.^2, 2));
+q_truth = q_truth ./ sqrt(sum(q_truth.^2, 2));
+q_error_scalar = sum(q_truth .* q_est, 2);
+q_error_vector = q_truth(:,1) .* q_est(:,2:4) ...
+    - q_est(:,1) .* q_truth(:,2:4) ...
+    - cross(q_truth(:,2:4), q_est(:,2:4), 2);
+attitude_error_deg = 2 * atan2d(sqrt(sum(q_error_vector.^2, 2)), ...
+    abs(q_error_scalar));
+v_norm = sqrt(sum(q_error_vector.^2, 2));
+q_error_vector_short = q_error_vector;
+q_error_vector_short(q_error_scalar < 0, :) = ...
+    -q_error_vector_short(q_error_scalar < 0, :);
+
+angle_deg = 2 * atan2d(v_norm, abs(q_error_scalar));
+scale = angle_deg ./ max(v_norm, eps);
+attitude_error_axes_deg = q_error_vector_short .* scale;
+
 
 % Plot position
 figure(1)
 plot(tout, posx, tout, posy, tout, posz, 'LineWidth',1);
 hold on;
-plot([0,tf], [0 0], [0 tf], [0 0], [0 tf], [-1 -1], '--', 'LineWidth',1);
+plot([0,tf], [0 0], '--', [0 tf], [0 0], '--', [0 tf], [-1 -1], '--', 'LineWidth',1);
 hold off;
 grid on;
 xlabel('Time (s)')
@@ -165,12 +180,28 @@ ylabel('Velocity (m/s)');
 title('Velocity Estimate for Constant Position Trajectory')
 legend('N Estimated', 'E Estimated', 'D Estimated');
 
-% Plot quaternion
+% Plot attitude error magnitude
 figure(3)
-plot(tout, q0, tout, q1, tout, q2, tout, q3, 'LineWidth',1);
-hold on;
-plot([0,tf], [1 1], [0 tf], [0 0], [0 tf], [0 0], [0 tf], [0 0], '--', 'LineWidth',1);
-hold off;
+plot(tout, attitude_error_deg, 'LineWidth',1);
+grid on;
 xlabel('Time (s)')
-ylabel('Position (m)');
-legend('q0 Estimated', 'q1 Estimated', 'q2 Estimated', 'q3 Estimated', 'q0 Truth', 'q1 Truth', 'q2 Truth', 'q3 Truth');
+ylabel('Attitude Error Magnitude (deg)');
+title('Attitude Error for Constant Position Trajectory')
+
+% Attitude error on each axis
+figure(4)
+plot(tout, attitude_error_axes_deg, 'LineWidth', 1);
+grid on;
+xlabel('Time (s)');
+ylabel('Attitude Error (deg)');
+legend('About x', 'About y', 'About z');
+title('Attitude Error Components');
+
+% Plot angular velocity
+figure(5)
+plot(tout, omegax*180/pi, tout, omegay*180/pi, tout, omegaz*180/pi, 'LineWidth', 1);
+grid on;
+xlabel('Time (s)');
+ylabel('Angular Velocity (deg/s)');
+title('Angular Velocity Estimate for Constant Position Trajectory')
+legend('N Estimated', 'E Estimated', 'D Estimated');
