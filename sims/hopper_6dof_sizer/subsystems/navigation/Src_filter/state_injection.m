@@ -45,7 +45,7 @@ function nominalStatePosterior = state_injection(nominalStatePrior, errorCorrect
 
         FOR FUTURE: May consider finite rotation formula with exponential-maps attitude correction
     %}
-    quaternionPosterior = quaternionPrior - 0.5 * xi_left(quaternionPrior) * attitudeError;
+    quaternionPosterior = quaternionPrior - 0.5 * Psi_helper(quaternionPrior) * attitudeError;
 
     % Re-normalize the quaternion
     quaternionPosterior = quaternionPosterior / norm(quaternionPosterior);

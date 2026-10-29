@@ -62,8 +62,7 @@ function xnp1 = propagate_state(xn, aux, accel_meas, torque, validity, J, g, dt)
     else
         dq = [cos(ang/2); sin(ang/2)*theta/ang];
     end
-    dq_conj = [dq(1); -dq(2:4)];
-    qnp1 = qmult(dq_conj, qn);
+    qnp1 = qmult(qn, dq);
     qnp1 = qnp1/norm(qnp1); % normalize the in case of numerical drift
     
     % Rebuild the propagated state vector
