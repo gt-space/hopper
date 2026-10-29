@@ -8,7 +8,7 @@ IN.const.FS_struct = 2;           % structural factor of safety
 
 
 %  MISSION CONSTRAINTS (checked after flight simulation)
-IN.mission.target_altitude = 51;    % m
+IN.mission.target_altitude = 4;    % m
 IN.mission.hover_time_55m = 2;      % s
 IN.mission.max_ascent_vel = 7;     % m/s
 IN.mission.max_descent_vel = 7;    % m/s
@@ -51,6 +51,7 @@ IN.avionics.boards.current = 0.5; % A
 IN.avionics.avi_mass = 11.52; % kg from CAD
 
 %  PROPULSION
+IN.ctv.thrust = 7.875 * 4.44822;
 IN.propulsion.oxidizer = 'O2'; %Oxygen - coolprop
 IN.propulsion.fuel = 'Dodecane'; %AKA KEROSENE - coolprop
 IN.propulsion.oxidizer_mass = 16; % kg -> internal
@@ -189,4 +190,3 @@ if  ~isempty(scenario_params)
 end
 
 end
-
