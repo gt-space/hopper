@@ -177,7 +177,7 @@ IN.inertia_factor = 1.0; % dry inertia factor (MC)
 if ~isempty(scenario_params) && isfield(scenario_params, 'ox_mass')
     IN.propulsion.oxidizer_mass       = scenario_params.ox_mass;
     IN.propulsion.fuel_mass           = scenario_params.fuel_mass;
-    IN.propulsion.eta_cstar           = scenario_params.cstar;
+    if isfield(scenario_params, 'cstar'), IN.propulsion.eta_cstar = scenario_params.cstar; end
     IN.mass_factor                    = scenario_params.mass_factor;
     if isfield(scenario_params, 'slosh_lateral_damping'), IN.tanks.lateral_damping = scenario_params.slosh_lateral_damping; end
     if isfield(scenario_params, 'slosh_axial_damping'),   IN.tanks.axial_damping   = scenario_params.slosh_axial_damping;   end
