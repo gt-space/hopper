@@ -8,11 +8,11 @@ function R = sloshOpenLoopTest(slxFile, ox_frac, fu_frac, inputMode, floorSet)
 %   inputMode 'specific'  : pendulum driven by specific force (fixed wiring)
 %             'kinematic' : driven by dVb/dt incl. gravity (old wiring)
 %   floorSet  'asbuilt' | 'sizer' : tank floor used by the truth model
-% Run sim_setup first (uses OUT, MoI_init, cg_init, TANKS from the base
-% workspace).
+% Run sim_setup first (uses IN, OUT, MoI_init, cg_init, TANKS from the base
+% workspace). Tank geometry comes from the vehicle config (IN.vehicle).
 %
 %   R = sloshOpenLoopTest('hopper_6dof_NED_v2.slx', 1, 0, 'specific', 'asbuilt')
-for v = {'OUT', 'MoI_init', 'cg_init', 'TANKS'}, W.(v{1}) = evalin('base', v{1}); end
+for v = {'IN', 'OUT', 'MoI_init', 'cg_init', 'TANKS'}, W.(v{1}) = evalin('base', v{1}); end
 [~, src] = fileparts(slxFile);
 load_system(slxFile);
 
@@ -21,12 +21,14 @@ Mv = W.OUT.Vehicle.WetMass; Izz = W.MoI_init(3,3); cg = W.cg_init;
 F0 = 50; tp = 0.05; Tend = 6; dt = 1e-4;
 
 assignin('base', 'TANKS', W.TANKS);
-assignin('base', 'ox_mass_profile', linspace(0.1, 16, 200));
-assignin('base', 'fu_mass_profile', linspace(0.1, 13, 200));
+assignin('base', 'IN', W.IN);   % Slosh reads the tank geometry from IN.vehicle
+VT = W.IN.vehicle.tanks;
+assignin('base', 'ox_mass_profile', linspace(0.1, VT.ox.prop_mass, 200));
+assignin('base', 'fu_mass_profile', linspace(0.1, VT.fu.prop_mass, 200));
 for v = {'ox_lateral_damping_ratios', 'ox_axial_damping_ratios', 'fu_lateral_damping_ratios', 'fu_axial_damping_ratios'}
     assignin('base', v{1}, zeros(1, 200));
 end
-m_ox = ox_frac * 16; m_fu = fu_frac * 13;   % unused tank: 0 (saturation lowered below)
+m_ox = ox_frac * VT.ox.prop_mass; m_fu = fu_frac * VT.fu.prop_mass;   % unused tank: 0 (saturation lowered below)
 
 h = 'sloshHarness';
 if bdIsLoaded(h), close_system(h, 0); end
@@ -89,9 +91,11 @@ Y = sig.twX(1:n, 1); th = sig.twX(1:n, 3);
 if ox_frac >= fu_frac, ysl = sig.twPox(1:n, 2); else, ysl = sig.twPfu(1:n, 2); end
 
 %% Truth: dry body + one pendulum (the excited tank), Newton-Euler, linear
-if ox_frac >= fu_frac, rho = 1141; m = m_ox; Hc = 29.18; Hs = W.TANKS.singular.oxidizer.h; zc = 1.854;
-else,                  rho = 800;  m = m_fu; Hc = 18.91; Hs = W.TANKS.singular.fuel.h;     zc = 1.0668; end
-if strcmp(floorSet, 'asbuilt'), floor_ = zc - Hc*0.0254/2; else, floor_ = zc - Hs/2; end
+if ox_frac >= fu_frac, T = W.IN.vehicle.tanks.ox; m = m_ox;
+else,                  T = W.IN.vehicle.tanks.fu; m = m_fu; end
+rho = T.density;
+% 'sizer': the conceptual sizer's tank, as long as its volume needs (V / pi r^2)
+if strcmp(floorSet, 'asbuilt'), floor_ = T.floor_x; else, floor_ = T.cg_x - T.volume / (pi * R_t^2) / 2; end
 hl = m / rho / (pi * R_t^2);
 m1 = m * 2 * R_t * tanh(xi*hl/R_t) / (xi * (xi^2 - 1) * hl);
 L  = R_t / (xi * tanh(xi*hl/R_t));

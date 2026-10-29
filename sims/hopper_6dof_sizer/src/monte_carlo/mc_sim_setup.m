@@ -1,34 +1,11 @@
 function mc_sim_setup(scenario)
-    % ---- Sizing ----
+    % ---- Vehicle (vehicles/<vehicle>/<vehicle>_config.m; no sizing) ----
     IN = mission_inputs(scenario);
-    TANKS  = size_tanks(IN);
-    AVI    = size_avionics(IN);
-    ENGINE = size_engine(IN);
-    
-    VEH.mass.tanks   = TANKS.singular.total_mass;
-    VEH.mass.ox_tank = TANKS.singular.oxidizer.mass;
-    VEH.mass.fu_tank = TANKS.singular.fuel.mass;
-    VEH.h.ox_tank    = TANKS.singular.oxidizer.h;
-    VEH.h.fu_tank    = TANKS.singular.fuel.h;
-    VEH.mass.engine  = ENGINE.mass;
-    VEH.mass.avi     = AVI.mass;
-    VEH.mass.press   = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
-    % Dry mass: main.m override (legs/intertank included), dispersed by mass_factor
+    V = vehicleSetup(IN);              % dry mass dispersed by IN.mass_factor
+    TANKS = V.TANKS; STRUCT = V.STRUCT; ENGINE = V.ENGINE; VEH = V.VEH; OUT = V.OUT;
+    r_leg = V.r_leg;
+    r_leg_1 = V.r_leg_1; r_leg_2 = V.r_leg_2; r_leg_3 = V.r_leg_3; r_leg_4 = V.r_leg_4;
     dry_mass_nominal = IN.mass.dry_override;
-    VEH.mass.dry     = IN.mass_factor * dry_mass_nominal;
-    VEH.mass.wet     = VEH.mass.dry + IN.propulsion.oxidizer_mass + IN.propulsion.fuel_mass;
-    
-    [STRUCT, VEH] = size_structures(IN, VEH);
-    VEH.mass.dry = IN.mass_factor * dry_mass_nominal;   % size_structures adds legs; already included
-    VEH.mass.wet = VEH.mass.dry + IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass;
-    
-    OUT = Outputs(IN, VEH, TANKS, STRUCT);
-
-    r_leg_1 = [0  IN.legs.feet_radial_dist  0];
-    r_leg_2 = [0 -IN.legs.feet_radial_dist  0];
-    r_leg_3 = [0  0  IN.legs.feet_radial_dist];
-    r_leg_4 = [0  0 -IN.legs.feet_radial_dist];
-    VEH.k_engine = (IN.engine_cg/1.62)^2;
 
     % ---- Propulsion ----
     thrust_target = IN.propulsion.nominal_thrust;
@@ -70,37 +47,13 @@ function mc_sim_setup(scenario)
         assignin('base', cg_fields{i}, cg_data.(cg_fields{i}));
     end
 
-    % ---- CG / MOI Init ----
-    engine_cg          = 0.3556;
-    ox_tank_cg         = 1.854;
-    ox_tank_wall_thick = 0.003175;
-    fu_tank_cg         = 1.0668;
-    fu_tank_wall_thick = 0.003175;
-    structures_cg      = 1.193;
-    avi_cg             = 1.4224;
-    fluids_cg          = 1.0668;
-    payload_cg         = 2;
-    mount_cg           = IN.mount_cg;   % gimbal pivot (was the engine CG, 0.3556)
-    copv_r             = 0.18;
-    copv_t             = 13.21/1000;
-    copv_h             = 0.56;
-    copv_zcg           = 1.21;
-    copv_ycg           = 0.23;
-
-    ox_mass         = IN.propulsion.oxidizer_mass;
-    fu_mass         = IN.propulsion.fuel_mass;
-    engine_mass     = 37.83;
-    ox_tank_mass    = TANKS.singular.oxidizer.mass;
-    ox_tank_h       = IN.tanks.ox_h_as_built;   % as-built, not sizer TANKS.singular.oxidizer.h
-    fu_tank_mass    = TANKS.singular.fuel.mass;
-    fu_tank_h       = IN.tanks.fu_h_as_built;   % as-built, not sizer TANKS.singular.fuel.h
-    structures_mass = 34.26;
-    avi_mass        = 11.52;
-    fluids_mass     = 28.41;
-    payload_mass    = IN.structures.payload_mass;
-    tank_r          = TANKS.singular.radius;
-    copv_mass       = IN.press.copv.mass + 6;
-    it_h            = TANKS.singular.radius;
+    % ---- CG / MOI Init (flat variables the models read) ----
+    engine_cg   = IN.engine_cg;
+    mount_cg    = IN.mount_cg;      % gimbal pivot
+    ox_mass     = IN.propulsion.oxidizer_mass;
+    fu_mass     = IN.propulsion.fuel_mass;
+    engine_mass = IN.engine_mass;
+    tank_r      = TANKS.singular.radius;
 
     % Dry block plus propellant columns. The plant gets this scenario's
     % dispersed dry mass, CG and inertia; the controller is designed on the
@@ -167,7 +120,7 @@ function mc_sim_setup(scenario)
     assignin('base', 'STRUCT',                STRUCT);
     assignin('base', 'OUT',                   OUT);
     assignin('base', 'ENGINE',                ENGINE);
-    assignin('base', 'AVI',                   AVI);
+    assignin('base', 'r_leg',                 r_leg);
     assignin('base', 'r_leg_1',               r_leg_1);
     assignin('base', 'r_leg_2',               r_leg_2);
     assignin('base', 'r_leg_3',               r_leg_3);

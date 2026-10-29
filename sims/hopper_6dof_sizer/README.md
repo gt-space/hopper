@@ -55,14 +55,15 @@ Save models in the **team release** (`TEAM_RELEASE`) or older. A model saved in 
 |---|---|
 | `models/` | Top-level models (`hopper_6dof_NED_v2.slx` is the master; `hopper_6dof.slx` is the variant harness built from it, see `docs/VARIANTS.md`). `dev/` holds work in progress (LQI); `standalone/` holds component models. |
 | `subsystems/` | Shared subsystem files the models reference: slosh (`Slosh` and the `Slosh_Axis` pendulum used six times), mass_properties, actuators (TVC/RCS, EDF fans), environment (wind), ground (#27's strut ground contact), gnc (LQR gain scheduler), propulsion (mdot lookup, propellant mass, sensors, throttle valve controller), flight_logic (engine cutoffs, touchdown stop), FDIR, navigation filters. Edit a block here once and every model using it changes; see CONTRIBUTING, *Shared subsystems*. |
-| `src/` | MATLAB code: `setup`, `sizing`, `dynamics`, `gnc`, `propulsion`, `slosh`, `fdir`, `monte_carlo`, `analysis`, `util`. |
-| `inputs/` | `mission_inputs.m` and `mc_params.json`. |
+| `src/` | MATLAB code: `setup`, `sizing` (design trades with `sizeVehicle`; not run in sim setup), `dynamics`, `gnc`, `propulsion`, `slosh`, `fdir`, `monte_carlo`, `analysis`, `util`. |
+| `vehicles/` | One config file per vehicle (`hopper/hopper_config.m`, `ctv/ctv_config.m`): geometry, masses and hardware, the sim's source of truth for the vehicle. See `docs/VEHICLE_CONFIG.md`. |
+| `inputs/` | `mission_inputs.m` (requirements, trajectory, environment, dispersions), `ctv_inputs.m` and `mc_params.json`. |
 | `data/` | Lookup tables the sims read (`mdot_lookup.xlsx`, `wind_vectors2.mat`, `cg_I_LUT.mat`, `baffle_lut.*`, `engine_contour.xlsx`). |
 | `results/` | Tracked Monte Carlo and sweep results (`.mat`). |
 | `tests/`, `validation/` | Automated tests and validation studies. |
 | `fsw_bridge/` | C codegen and Rust SIL bridge to flight software. |
 | `tools/refactor/` | Scripts that build or convert models reproducibly (for example `build_v2_fluid_integration`). |
-| `docs/` | Model notes (`SLOSH_MODEL.md`). |
+| `docs/` | Model notes: `VEHICLE_CONFIG.md`, `VARIANTS.md`, `FDIR_ARCHITECTURE.md`, `SLOSH_MODEL.md`. |
 | `archive/` | Superseded models and scripts, kept for reference and **not** on the path. |
 | `outputs/`, `work/` | Generated figures, videos, CSVs and build caches. Gitignored. |
 

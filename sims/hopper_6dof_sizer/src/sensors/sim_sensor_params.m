@@ -9,9 +9,9 @@ function S = sim_sensor_params(IN)
 % the stuck checks. Rates follow the GNC PDR (slide 87) where it gives
 % them, capped at the 100 Hz FDIR frame.
 %
-% Geometry is in the sim's body axes (x up the thrust axis): navigation
-% mounts four lidars 0.25 m off-axis at azimuths 0/90/180/270 deg, canted
-% 20 deg from the long axis.
+% Mounting geometry (lidar azimuth, cant, radius, mount_x) is vehicle data:
+% it comes from the vehicle config's sensors section through IN.sensors
+% (vehicles/<vehicle>/<vehicle>_config.m), in the sim's body axes.
 
 S.frame = 0.01;                                % s, FDIR / sensor frame (100 Hz)
 
@@ -28,10 +28,6 @@ S.lidar.period   = 0.01;                       % s
 S.lidar.sigma    = 0.02;                       % m
 S.lidar.r_min    = 0.05;                       % m, blind zone (masked on the pad)
 S.lidar.r_max    = 40;                         % m
-S.lidar.azimuth  = [0 90 180 270];             % deg, about body x
-S.lidar.cant     = 20;                         % deg from the long axis
-S.lidar.radius   = 0.25;                       % m off-axis
-S.lidar.mount_x  = 0.1;                        % m above the base (ASSUMPTION)
 
 S.gps.period = 0.2;                            % s (GNSS 5 Hz)
 S.gps.sigma  = [0.02; 0.02; 0.05];             % m
@@ -46,6 +42,9 @@ S.seed = 42;                                   % noise seed; Monte Carlo can var
 
 if isfield(IN, 'sensors')
     S = mergeStruct(S, IN.sensors);
+end
+if ~all(isfield(S.lidar, {'azimuth', 'cant', 'radius', 'mount_x'}))
+    error('sim_sensor_params:geometry', 'Lidar mounting comes from the vehicle config (VC.sensors.lidar); IN.sensors has none.');
 end
 end
 

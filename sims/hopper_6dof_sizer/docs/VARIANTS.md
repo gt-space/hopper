@@ -15,7 +15,7 @@ out = sim(buildSimInput('hopper_6dof', [], [], V));
 
 | Axis | Block | Choices (first is the default) |
 |---|---|---|
-| `VEHICLE` | *(setup only)* | `hopper`: `inputs/mission_inputs.m`. `ctv`: the controls test vehicle, the hopper inputs plus the overrides in `inputs/ctv_inputs.m`. See [The CTV](#the-ctv). |
+| `VEHICLE` | *(setup only)* | Picks the vehicle config file ([VEHICLE_CONFIG.md](VEHICLE_CONFIG.md)) and its mission. `hopper`: `vehicles/hopper/hopper_config.m` with `inputs/mission_inputs.m`. `ctv`: the controls test vehicle, `vehicles/ctv/ctv_config.m`, flying the mission overrides in `inputs/ctv_inputs.m`. See [The CTV](#the-ctv). |
 | `CONTROLLER` | `Controller` | `lqr_sched`: time-scheduled LQR along the reference trajectory (`subsystems/gnc/LQR_Gain_Scheduler.slx` plus its gain tables). `lqi`: LQI-DEV's fixed-gain LQI hover regulator, which is experimental. `lqr_sched_legacy`: the March scheduler from the archived lqr/LQ_6DOF_V3 models, which lacks the quaternion sign fix. |
 | `SLOSH` | `Slosh` | `full`: slosh pendulums, `subsystems/slosh/Slosh.slx`. `off`: zero slosh force, moment and CG offsets. |
 | `PROPULSION` | `Propulsion` | `lut`: thrust command passes through; `Thrust_to_Mdot_LUT` gives ox and fuel mdot. `fluid_network`: #26's Simscape feed system and engine give thrust and mdot. |
@@ -38,7 +38,7 @@ Combinations to know:
 - **`FAULT_INJECTION=on` with `FDIR=off`** shows the unmitigated response. Sensor faults then reach no one, because only FDIR reads the sensor model and the controller flies on truth state. Actuator faults still act.
 - **`FDIR=on` with no fault** flies exactly like `FDIR=off`.
 
-Still to come: `NAVIGATION` (estimator checks and R3), `ENV`. Tank and leg geometry will come from a vehicle config file rather than a variant.
+Still to come: `NAVIGATION` (estimator checks and R3), `ENV`. Tank and leg geometry is not a variant: change it in the vehicle config file ([VEHICLE_CONFIG.md](VEHICLE_CONFIG.md)).
 
 ## The CTV
 
@@ -48,7 +48,7 @@ The old CTV model (`ctv/hopper_6dof_NED_v2_ctv.slx`) turned out to be block-for-
 out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('VEHICLE', 'ctv')));
 ```
 
-`inputs/ctv_inputs.m` holds the overrides:
+`vehicles/ctv/ctv_config.m` holds the vehicle, and `inputs/ctv_inputs.m` its mission:
 - **CAD mass properties:** 2.61 kg. The CAD Y axis (the long axis) becomes body x, so the axial CG is 0.349 m and the inertia is rotated into body axes.
 - **Thrust:** one ~35 N gimbaled EDF (8° gimbal) and the four roll props.
 - **Mission:** a 4 m hop with 2 m/s ascent and descent limits.
@@ -66,7 +66,7 @@ out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('VEHICLE', 'ctv')))
 - **Engine cutoff on contact.** `Landing_Engine_Cutoff` now cuts at `IN.mission.engine_cutoff_alt`: 5 cm for the hopper as before, 5 mm for the CTV. A 5 cm drop alone lands at ~1 m/s, so the hopper's 0.5 m/s impact requirement can't be met at that cutoff either.
 - **EDF throttle steps of 0.05 N.** The hopper's throttle valve moves in 5 N steps, 20% of the CTV's weight, which made its thrust bang-bang.
 - **A faster gimbal:** 200°/s, my estimate for a hobby servo, against the hopper's 15°/s.
-- **Principal inertia only.** The CAD products of inertia (up to 9% of the 0.012 kg·m² roll inertia) alone made it drift 8.5 m and tilt 20° in calm air. The full tensor is kept in `IN.ctv.I_body`.
+- **Principal inertia only.** The CAD products of inertia (up to 9% of the 0.012 kg·m² roll inertia) alone made it drift 8.5 m and tilt 20° in calm air. The full tensor is kept in `IN.vehicle.mass.I_full`.
 
 **Why the dispersed CTV runs fail.** These are open problems for GNC, roughly in order of suspicion:
 1. **`Wind_Forces` got the wind moment wrong** (fixed, see [Wind moment](#wind-moment)). The force was always right: drag ½ρCdA·|V|·V in inertial axes, rotated into body axes by the model.
@@ -74,13 +74,13 @@ out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('VEHICLE', 'ctv')))
 3. **The products-of-inertia coupling** above: something in the LQR (likely the K2 feedforward from the linearization) reacts to them.
 4. **Tuning.** No LQR weight set I tried is robust. Raising the lateral weights fixed one windy case but did worse across the Monte Carlo. The `IN.gnc.lqr` hook takes CTV weights without touching the hopper's.
 
-**Values marked `ASSUMPTION` in `ctv_inputs.m` still need checking** before a CTV result means anything:
+**Values marked `ASSUMPTION` in `ctv_config.m` and `ctv_inputs.m` still need checking** before a CTV result means anything:
 - EDF and gimbal pivot heights, EDF mass, vehicle height
-- throttle range, roll-prop thrust, leg spread
+- throttle range, roll-prop thrust and moment arm (still the hopper's tank radius), leg spread
 - aero area, Cd and centre of pressure
 - ascent and descent limits
 
-**Lateral CG.** The sim uses only the axial CG. The CAD's lateral offset (−42 mm, 6 mm) is kept in `IN.ctv.cg_lateral` but not flown.
+**Lateral CG.** The sim uses only the axial CG. The CAD's lateral offset (−42 mm, 6 mm) is kept in `IN.vehicle.mass.cg_lateral` but not flown.
 
 ### CTV Monte Carlo
 

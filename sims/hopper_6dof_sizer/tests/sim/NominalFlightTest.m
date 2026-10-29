@@ -57,7 +57,7 @@ classdef NominalFlightTest < matlab.unittest.TestCase
 
         function sloshOpenLoopMatchesTruth(tc)
             % SLOSH_MODEL.md section 7.3: Slosh subsystem vs Newton-Euler truth
-            for v = {'OUT', 'MoI_init', 'cg_init', 'TANKS'}
+            for v = {'IN', 'OUT', 'MoI_init', 'cg_init', 'TANKS'}
                 assignin('base', v{1}, tc.W.(v{1}));
             end
             tc.addTeardown(@() evalin('base', 'clearvars'));

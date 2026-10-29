@@ -1,39 +1,12 @@
 function result = mc_main(scenario, sim_out)
 
 
-% Main Vehicle Sizing Section
-% --- Tank, AVI, and Engine Sized prior to primary structure calculations
+% Vehicle as flown in this scenario (vehicle config + dispersions; no sizing)
 IN = mission_inputs(scenario);
+V = vehicleSetup(IN);
+TANKS = V.TANKS; ENGINE = V.ENGINE;
 
-TANKS = size_tanks(IN);
-AVI = size_avionics(IN);
-ENGINE = size_engine(IN);
-
-VEH.mass.tanks = TANKS.singular.total_mass;
-VEH.mass.ox_tank = TANKS.singular.oxidizer.mass;
-VEH.mass.fu_tank = TANKS.singular.fuel.mass;
-VEH.h.ox_tank = TANKS.singular.oxidizer.h;
-VEH.h.fu_tank = TANKS.singular.fuel.h;
-VEH.mass.engine = ENGINE.mass;
-VEH.mass.avi = AVI.mass;
-VEH.mass.press = IN.press.copv.mass * IN.press.copv.amount + IN.press.copv.gas_mass;
-% VEH.mass.dry = IN.mass_factor * VEH.mass.engine + VEH.mass.tanks + VEH.mass.avi + IN.structures.payload_mass + IN.structures.extra_payload_mass + VEH.mass.press;
-% PROP = size_propellant(IN, VEH, ENGINE); need engine code to rum this
-VEH.mass.dry = IN.mass.dry_override;
-VEH.mass.wet = VEH.mass.dry + ...
-    IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass ;
-
-[STRUCT, VEH] = size_structures(IN, VEH);
-
-r_leg_1 = [0 IN.legs.feet_radial_dist 0];
-r_leg_2 = [0 -IN.legs.feet_radial_dist 0];
-r_leg_3 = [0 0 IN.legs.feet_radial_dist];
-r_leg_4 = [0 0 -IN.legs.feet_radial_dist];
-
-VEH.k_engine = (IN.engine_cg/1.62)^2;
-
-% VEHICLE SIZING OUTPUTS
-OUT = Outputs(IN, VEH, TANKS, STRUCT);
+OUT = V.OUT;
 % fprintf('\n===== VEHICLE SUMMARY =====\n');
 % fprintf('Dry Mass: %.2f kg\n', OUT.Vehicle.DryMass);
 % fprintf('Wet Mass: %.2f kg\n', OUT.Vehicle.WetMass);
@@ -123,16 +96,11 @@ result.copv.max_press_psi = IN.press.copv.max_pressure / 6894.76;
 
 result.structures.mass = OUT.Vehicle.MassDistribution.Structures;
 
-result.avionics.battery_capacity = AVI.battery_capacity;
-result.avionics.num_cells        = AVI.num_cells;
-result.avionics.mass             = AVI.mass;
+result.avionics.mass             = IN.avionics.avi_mass;
 
 result.engine.eta_cstar   = IN.propulsion.eta_cstar;
 result.engine.throat_area = IN.propulsion.At / 0.00064516;
 result.engine.eps         = IN.propulsion.eps;
-result.engine.inj_mass    = ENGINE.inj_mass;
-result.engine.TCA_mass    = ENGINE.TCA_mass;
-result.engine.TVC_mass    = ENGINE.TVC_mass;
 result.engine.total_mass  = ENGINE.mass;
 
 % altitude    = sim_out.altitude.Data;

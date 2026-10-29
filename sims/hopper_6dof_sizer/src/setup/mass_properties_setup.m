@@ -14,12 +14,13 @@ function MP = mass_properties_setup(IN, TANKS, dry_mass)
 %   MP.dI_dMox_table, MP.dI_dMfu_table       derivative tables for the
 %                                            Mass_Properties block lookups
 
-% ---- Tank geometry (as-built) ----
+% ---- Tank geometry (vehicle config) ----
+VT = IN.vehicle.tanks;
 TG.tank_r   = TANKS.singular.radius;
-TG.ox_rho   = 1141;   % kg/m^3
-TG.fu_rho   = 800;    % kg/m^3
-TG.ox_floor = IN.ox_tank_cg - IN.tanks.ox_h_as_built / 2;
-TG.fu_floor = IN.fu_tank_cg - IN.tanks.fu_h_as_built / 2;
+TG.ox_rho   = VT.ox.density;   % kg/m^3
+TG.fu_rho   = VT.fu.density;   % kg/m^3
+TG.ox_floor = VT.ox.floor_x;   % m, tank bottom
+TG.fu_floor = VT.fu.floor_x;
 
 % ---- Dry block ----
 % Interim, until the CAD mass-properties export exists: dry CG and inertia

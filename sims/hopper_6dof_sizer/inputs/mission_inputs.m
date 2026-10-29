@@ -1,6 +1,9 @@
 function IN = mission_inputs(scenario_params)
-% Hopper inputs. Another vehicle (hopperVehicle, e.g. 'ctv') is these plus
-% the overrides in inputs/<vehicle>_inputs.m, applied last.
+% Mission inputs: requirements, trajectory, environment, sizer settings and
+% Monte Carlo dispersions. The vehicle itself (geometry, masses, hardware)
+% comes from its config file, vehicles/<vehicle>/<vehicle>_config.m, for
+% the vehicle hopperVehicle selects. Another vehicle's mission overrides
+% are in inputs/<vehicle>_inputs.m, applied last.
 if nargin < 1; scenario_params = []; end
 
 %  GLOBAL CONSTANTS
@@ -26,7 +29,6 @@ IN.mission.landing_vel = 0;         % m/s at 1 m
 IN.mission.landing_alt = 1;         % m
 IN.mission.engine_cutoff_alt = 0.05; % m, engine off below this height while descending (Landing_Engine_Cutoff)
 IN.mission.TWR_hover_landing = 1;
-IN.mission.max_vehicle_height = 2.44; % m
 % Reference trajectory (Trajectory2): minimum-jerk climb to apex, hover,
 % minimum-jerk descent to z_td, then a constant-sink segment to touchdown
 IN.mission.trajectory.apex = 52;    % m
@@ -38,15 +40,6 @@ IN.mission.trajectory.z_td = 0.4;   % m, where the constant-sink segment starts
 IN.mission.trajectory.v_td = 0.3;   % m/s, touchdown sink rate
 IN.mission.trajectory.burn_mass = 21; % kg, propellant the thrust reference assumes is burned
 
-%  MASS BUDGET
-% Dry mass until the CAD mass-properties export exists (legs and intertank
-% included); main.m and mc_sim_setup use it in place of the sizer's sum
-IN.mass.dry_override = 116.86;      % kg
-
-%  STRUCTURES
-IN.structures.payload_mass = 15;    % kg, CPLC Requirement
-IN.structures.structures_mass = 34.26; % kg from CAD
-
 %  AVIONICS
 IN.avionics.standby_hours = 2.0;    % hr
 IN.avionics.flight_time = 2 * 30;   % sec
@@ -54,15 +47,10 @@ IN.avionics.lcoms_time = 10 * 60;   % min --> sec
 IN.avionics.battery_voltage = 48;   % V
 IN.avionics.boards.voltage = 12;    % V
 IN.avionics.boards.current = 0.5;   % A
-IN.avionics.avi_mass = 11.52;       % kg from CAD
 
 %  PROPULSION
 IN.propulsion.oxidizer = 'O2';      % Oxygen - coolprop
 IN.propulsion.fuel = 'Dodecane';    % AKA KEROSENE - coolprop
-IN.propulsion.oxidizer_mass = 16;   % kg -> internal
-IN.propulsion.fuel_mass = 13;       % kg -> internal
-IN.propulsion.ox_vol = 0.01638;     % m^3
-IN.propulsion.fu_vol = 0.02034;     % m^3
 IN.propulsion.ox_press = 500 * 6894.76; % Pa
 IN.propulsion.fu_press = 500 * 6894.76; % Pa
 IN.propulsion.fu_temp = 293;        % K
@@ -72,19 +60,13 @@ IN.propulsion.fu_sys_CdA = 1.1E-5;  % m^2
 IN.propulsion.eta_cstar = 0.85;
 IN.propulsion.At = 1.056 * 0.00064516; % in^2 --> m^2
 IN.propulsion.eps = 2.93;
-IN.propulsion.nominal_thrust = 500 * 4.44822; % N
-IN.propulsion.throttle_range = [0.4 1.1];
 IN.solenoid_valve_quantity = 5;
 IN.valves.voltage = 12;             % V
 IN.valves.current = 1;              % A
-IN.fluids_mass = 28.41;             % kg from CAD
 
 % ENGINE
 IN.inj_material = "SS316L";
 IN.TCA_material = "AlSi10Mg";
-IN.off_axis_y = 0;                  % m^2  % Body Frame
-IN.off_axis_x = 0;                  % m^2 
-IN.engine_mass = 37.83;             % kg from CAD
 
 %  PRESSURIZATION MODE
 IN.press.mode = 'copv';             % 'copv' or 'autogenous'
@@ -94,12 +76,6 @@ IN.press.copv.max_pressure = 4500 * 6894.76; % Pa
 IN.press.copv.max_volume = 0.0267;  % m^3
 IN.press.copv.gas = 'GN2';
 IN.press.copv.initial_temperature = 293; % K
-IN.press.copv.mass = 11;            % kg
-IN.press.copv.amount = 3;
-IN.press.copv.gas_mass = 6;         % kg
-IN.press.copv.r = 0.18;             % m
-IN.press.copv.t = 13.21/1000;       % m
-IN.press.copv.h = 0.56;             % m
 
 % --- Autogenous Parameters ---
 IN.press.autogenous.gas = 'N2O';
@@ -107,69 +83,23 @@ IN.press.autogenous.initial_temperature = 300; % K
 IN.press.autogenous.piston_friction = 0; % Pa
 
 %  TANK OPTIONS
-IN.tanks.geometry = 'stacked';      % stacked, concentric, clustered
-IN.tanks.material = 'Al6061';
-IN.tanks.max_radius = 4.25*0.0254;  % in -> m
-% As-built tank lengths. These override the sizer TANKS.singular.*.h for
-% CG/MOI and slosh. The Slosh and Mass_Properties
-% r_*_tank constants in hopper_6dof_NED_v2.slx use the same values.
-IN.tanks.ox_h_as_built = 29.18*0.0254;  % LOx, in -> m
-IN.tanks.fu_h_as_built = 18.91*0.0254;  % RP-1, in -> m
 IN.tanks.lateral_damping = 0.08;   % <-- MUST BE UNCOMMENTED
 IN.tanks.axial_damping = 0.3;      % <-- MUST BE UNCOMMENTED
 IN.tanks.damping_factor_ox = 1.0;  % MC: scale on the baffle damping table (LOx)
 IN.tanks.damping_factor_fu = 1.0;  % MC: scale on the baffle damping table (RP-1)
 
 %  TVC
-IN.tvc.max_gimbal_angle = deg2rad(15); % deg
-IN.tvc.max_gimbal_rate = deg2rad(15);  % deg
 IN.tvc.voltage = 24;                % V
 IN.tvc.current = 3;                 % A
-IN.tvc.actuator_latency = 0.01;     % s
-IN.tvc.rise_time = 0.05;            % s
-IN.tvc.resolution = deg2rad(0.1);   % deg
-IN.tvc.damping_ratio = 0.5; 
-
-% RCS
-IN.rcs.max_thrust = 16;             % N
-IN.rcs.throttle_rate = 50;          % N/s
-IN.rcs_time_constant = 0.1;
-IN.rcs.resolution = 0.1;            % N
 
 % THROTTLE VALVE
 IN.throttle_valve.voltage = 24;     % V
 IN.throttle_valve.current = 1;      % A
 IN.throttle_valve.mass = 2.3;       % kg
-IN.throttle_valve.rate_limit = 180 * 4.44822; % N
-IN.throttle_valve_latency = 0.01;   % s
-IN.throttle_valve.resolution = 5;   % N
 
 %  LANDING LEGS
 IN.legs.material = 'Al6061';
 IN.legs.tip_factor = 2;             % non-symmetric landing factor
-IN.legs.feet_radial_dist = 0.5;     % m
-IN.legs.damping_const = 1.0;        % strut damping
-
-% CG VALUES
-IN.engine_cg = 0.3556;
-IN.mount_cg = 0.45;
-IN.ox_tank_cg = 1.854;
-IN.ox_tank_wall_thick = 0.003175;
-IN.fu_tank_cg = 1.0668;
-IN.fu_tank_wall_thick = 0.003175;
-IN.structures_cg = 1.193;
-IN.avi_cg = 1.4224;
-IN.fluids_cg = 1.0668;
-IN.payload_cg = 2;
-IN.copv_r = 0.18;
-IN.copv_t = 13.21/1000;
-IN.copv_h = 0.56;
-IN.copv_zcg = 1.21;
-IN.copv_ycg = 0.23;
-
-% MODAL PARAMETERS
-IN.vehicle_damping_ratio = 0.01; 
-IN.vehicle_natural_frequency = 10;  % Hz
 
 % WIND DEFAULTS
 IN.wind.mode = 2;
@@ -177,10 +107,11 @@ IN.wind.uwind = 10;
 IN.wind.vwind = 10;
 
 % AERODYNAMICS (Wind_Forces)
-IN.aero.area = 0.5216;              % m^2, side area
-IN.aero.cd = 8.494;                 % -
 IN.aero.rho = 1.223;                % kg/m^3
-IN.aero.cp = 0.9;                   % m, centre of pressure from the base
+
+% VEHICLE: geometry, masses and hardware come from the vehicle's config
+% file (vehicles/<vehicle>/<vehicle>_config.m, docs/VEHICLE_CONFIG.md)
+IN = vehicleInputs(IN, vehicleConfig(hopperVehicle()));
 
 % MASS FACTOR
 IN.mass_factor = 1.0;               % default / nominal case

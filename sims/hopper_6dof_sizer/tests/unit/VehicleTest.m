@@ -1,5 +1,5 @@
 classdef VehicleTest < matlab.unittest.TestCase
-    % Sizing, mass properties, slosh damping and attitude helpers.
+    % Mass properties, slosh damping and attitude helpers.
 
     properties
         IN
@@ -7,9 +7,10 @@ classdef VehicleTest < matlab.unittest.TestCase
     end
 
     methods (TestClassSetup)
-        function size(tc)
+        function setupVehicle(tc)
             tc.IN = mission_inputs();
-            tc.TANKS = size_tanks(tc.IN);
+            V = vehicleSetup(tc.IN);   % from the vehicle config
+            tc.TANKS = V.TANKS;
         end
     end
 

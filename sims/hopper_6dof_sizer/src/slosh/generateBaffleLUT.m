@@ -1,14 +1,14 @@
 
-ox_density = 1141;   % kg/m^3
-fu_density = 800;    % kg/m^3
-
-fu_nu = 1.3e-6;  % m^2/s Fu
-ox_nu = 0.17e-6; % m^2/s OX
-
-tank_r = TANKS.singular.radius;
-% as-built tank lengths (override sizer TANKS.singular.*.h)
-ox_tank_h = IN.tanks.ox_h_as_built;   % LOx, m
-fu_tank_h = IN.tanks.fu_h_as_built;   % RP-1, m
+% Tanks, propellants and the fixed baffle design: the vehicle config
+% (IN.vehicle.tanks, vehicles/<vehicle>/<vehicle>_config.m)
+VT = IN.vehicle.tanks;
+ox_density = VT.ox.density;     % kg/m^3
+fu_density = VT.fu.density;
+ox_nu = VT.ox.viscosity;        % m^2/s
+fu_nu = VT.fu.viscosity;
+tank_r = VT.radius;
+ox_tank_h = VT.ox.height;       % LOx, m
+fu_tank_h = VT.fu.height;       % RP-1, m
 
 % 'fixed': closed-loop verified design below (default)
 % 'sweep': analytic sizing to the damping targets (sweepBaffleDesign)
@@ -32,8 +32,8 @@ baffle_opts.baffle_rho   = 2700;           % Al6061
 % size the ring count (ring count had no measurable closed-loop effect).
 % The previous closed-loop design (17 / 4 rings) relied on the inverted
 % mode shape and gives RP-1 lateral zeta ~0.009 at mid fill.
-ox_fixed = struct('Nb', 15, 'w', 0.5 * tank_r, 't', 0.5e-3, 'span', ox_tank_h);
-fu_fixed = struct('Nb', 11, 'w', 0.5 * tank_r, 't', 0.5e-3, 'span', fu_tank_h);
+ox_fixed = struct('Nb', VT.ox.baffle.rings, 'w', VT.ox.baffle.width, 't', VT.ox.baffle.thickness, 'span', ox_tank_h);
+fu_fixed = struct('Nb', VT.fu.baffle.rings, 'w', VT.fu.baffle.width, 't', VT.fu.baffle.thickness, 'span', fu_tank_h);
 in2m = 0.0254;
 
 ox_mass_profile = linspace(0.1, IN.propulsion.oxidizer_mass, 200);
