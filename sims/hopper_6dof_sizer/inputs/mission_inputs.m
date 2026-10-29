@@ -146,8 +146,8 @@ IN.vehicle_natural_frequency = 10;  % Hz
 
 % WIND DEFAULTS
 IN.wind.mode = 2; 
-IN.wind.uwind = 5; 
-IN.wind.vwind = 5;
+IN.wind.uwind = 10; 
+IN.wind.vwind = 10;
 
 % MASS FACTOR
 IN.mass_factor = 1.0;               % default / nominal case
