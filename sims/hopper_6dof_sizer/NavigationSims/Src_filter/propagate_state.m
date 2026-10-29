@@ -12,7 +12,7 @@
 %   xn: n state vector (20x1)
 %   aux: struct with useful shared variables for the filter
 %   accel_meas: IMU acceleration measured (3x1) (m/s^2) (body frame)
-%   torque: control torque applied (3x1) (N*m) (body frame)
+%   angvel_meas: IMU angular velocity measured (3x1) (deg/s) (body frame)
 %   validity: if IMU measurement is valid
 %   J: Inertia tensor, xyz aligning with body frame (kg*m^2)
 %   g: acceleration of gravity (scalar)
@@ -22,7 +22,7 @@
 %   xnp1: n+1 state vector (20x1)
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function xnp1 = propagate_state(xn, aux, accel_meas, torque, validity, J, g, dt)
+function xnp1 = propagate_state(xn, aux, accel_meas, angvel_meas, validity, J, g, dt)
 
     % First depackage the state vector into useful variables
     posn = xn(1:3);
@@ -44,20 +44,17 @@ function xnp1 = propagate_state(xn, aux, accel_meas, torque, validity, J, g, dt)
         accel_est = aux.A_IB*(accel_meas - abn) + g_vec;
         posnp1 = posn + veln*dt + accel_est/2*dt^2;
         velnp1 = veln + accel_est*dt;
+        angvelnp1 = angvel_meas - abn;
     else
         % If invalid IMU measurement, dead-reckon based on previous state
         posnp1 = posn + veln*dt;
         velnp1 = veln;
+        omegadot = -J \ (cross(angveln, J*angveln));
+        angvelnp1 = angveln + omegadot*dt;
     end
 
-    % Update the rotational velocity using Heun (trapezoidal integration)
-    f = @(om) J \ (torque - cross(om, J*om));
-    k1 = f(angveln);
-    angvelnp1 = angveln + 0.5*dt*(f(angveln) + f(angveln+dt*k1));
-    angvelavg = 0.5*(angveln+angvelnp1);
-
     % Update quaternion using exponential with average angvel
-    theta = angvelavg*dt;
+    theta = (angveln+angvelnp1)/2*dt;
     ang = norm(theta);
     if ang < 10^-8
         dq = [1; 0.5*theta];

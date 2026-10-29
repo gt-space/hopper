@@ -11,7 +11,7 @@
 %   xn: n state vector (20x1)
 %   Pn: n covariance (19x19)
 %   accel_meas: IMU acceleration measured (3x1) (m/s^2) (body frame)
-%   torque: control torque applied (3x1) (N*m) (body frame)
+%   angvel_meas: IMU angular velocity measured (3x1) (deg/s) (body frame)
 %   validity: if IMU measurement is valid
 %   J: Inertia tensor, xyz aligning with body frame (kg*m^2)
 %   g: acceleration of gravity (scalar)
@@ -24,7 +24,7 @@
 %   aux: struct with useful shared variables for the filter
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity, J, g, dt, Qc)
+function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, angvel_meas, validity, J, g, dt, Qc)
     
     % Generate some shared quantities
     % NOTE: aux is built in one go at each stage, since code generation
@@ -34,8 +34,8 @@ function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity,
     auxProp = struct('A_IB', A_IB);
 
     % Propagate the state
-    xnp1 = propagate_state(xn, auxProp, accel_meas, torque, validity, J, g, dt);
-    xnp05 = propagate_state(xn, auxProp, accel_meas, torque, validity, J, g, dt*0.5);
+    xnp1 = propagate_state(xn, auxProp, accel_meas, angvel_meas, validity, J, g, dt);
+    xnp05 = propagate_state(xn, auxProp, accel_meas, angvel_meas, validity, J, g, dt*0.5);
     % ^xnp05 is the propagation to time step 0.5 which allows better STM
     % estimation
 
