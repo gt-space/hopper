@@ -9,11 +9,6 @@
     "upper": 14,
     "nominal": 13
   },
-  "cstar": {
-    "lower": 0.83,
-    "upper": 0.87,
-    "nominal": 0.85
-  },
   "mass_factor": {
     "lower": 0.98,
     "upper": 1.02,
