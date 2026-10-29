@@ -1,6 +1,8 @@
 function mc_plots_ctv(results_file)
+%MC_PLOTS_CTV Plot a CTV Monte Carlo results file.
+%   With no argument, plots the newest mc_results_ctv_*.mat in this folder.
 
-if nargin < 1; results_file = 'mc_results_ctv_parallel.mat'; end
+if nargin < 1; results_file = newest_results(); end
 
 load(results_file, 'results');
 load(results_file, 'results', 'nominal');
@@ -521,4 +523,17 @@ if isfield(ts, 'tilt')
 else
     tilt_deg = attitude_tilt(ts.pitch, ts.yaw);
 end
+end
+
+function f = newest_results()
+%NEWEST_RESULTS Most recently written mc_results_ctv_*.mat beside this file.
+ctvDir = fileparts(mfilename('fullpath'));
+d = dir(fullfile(ctvDir, 'mc_results_ctv_*.mat'));
+if isempty(d)
+    error('mc_plots_ctv:noResults', ...
+        'No mc_results_ctv_*.mat in %s - run mc_parallelization_ctv first.', ctvDir);
+end
+[~, newest] = max([d.datenum]);
+f = fullfile(d(newest).folder, d(newest).name);
+fprintf('mc_plots_ctv: using %s\n', d(newest).name);
 end

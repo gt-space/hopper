@@ -1,10 +1,8 @@
 % --- CTV Monte Carlo Simulation Master Script (Per-Run Checkpointed) ---
 % Port of sims/hopper_6dof_sizer/mc_parallelization.m for the CTV sim.
 %
-% n and runMode are picked up from the caller's workspace if they are already
-% set, so this runs unattended under matlab -batch:
-%   runMode = 'serial'; n = 20; mc_parallelization_ctv
-% Options for runMode: 'serial_isolated', 'parallel', 'serial', 'nominal'.
+% Open this file and press Run. Edit the settings block below to change the
+% run; everything else is automatic.
 %
 % KNOWN ISSUE (fixed here): hopper_6dof_NED_v2_ctv draws from MATLAB's global
 % random stream in MC wind mode, so repeated in-process sims of the SAME
@@ -21,6 +19,17 @@
 % 'serial' is therefore the normal mode. 'serial_isolated' runs every scenario
 % as sim #1 of a fresh MATLAB process; it costs process startup per run and is
 % kept as an independent cross-check of the seeding.
+% --- Defaults. Anything already set in the workspace wins, so run_ctv_mc and
+% --- matlab -batch both override these:
+% ---   runMode = 'serial'; n = 200; mc_parallelization_ctv
+if ~exist('n', 'var')          || isempty(n);          n          = 10;       end
+if ~exist('runMode', 'var')    || isempty(runMode);    runMode    = 'serial'; end
+if ~exist('makePlots', 'var')  || isempty(makePlots);  makePlots  = true;     end
+if ~exist('paramsFile', 'var') || isempty(paramsFile)
+    paramsFile = 'mc_params_ctv.json';
+end
+% runMode: 'serial' | 'serial_isolated' | 'parallel' | 'nominal'
+
 warning('off', 'MATLAB:Python:PyNotFound')
 
 % --- Setup CTV-only paths ---
@@ -28,6 +37,7 @@ warning('off', 'MATLAB:Python:PyNotFound')
 % files (mission_inputs, Outputs, lateralDampingCalc, cg_moi_init, ...) that
 % would shadow CTV's.
 currentDir = fileparts(mfilename('fullpath'));
+cd(currentDir);   % so pressing Run works from whatever folder MATLAB started in
 ctvPaths = ctv_path_list(currentDir);
 addpath(ctvPaths{:});
 fprintf('mc_parallelization_ctv path check:\n');
@@ -36,25 +46,31 @@ fprintf('  lateralDampingCalc -> %s\n', which('lateralDampingCalc'));
 
 mdl = 'hopper_6dof_NED_v2_ctv';
 
-if ~exist('runMode', 'var') || isempty(runMode)
-    runMode = 'parallel';
-end
-if ~exist('n', 'var') || isempty(n)
-    n = 100;
-end
 if ~strcmp(runMode, 'nominal') && (~isnumeric(n) || ~isscalar(n) || n <= 0)
     error('n must be a positive integer number of Monte Carlo scenarios.');
 end
-fprintf('Model: %s | runMode: %s | n: %d\n', mdl, runMode, n);
+if strcmp(runMode, 'parallel') && isempty(ver('parallel'))
+    warning('Parallel Computing Toolbox not found; running serial instead.');
+    runMode = 'serial';
+end
+% A bare filename means "beside this script"; an explicit path is taken as given.
+if isempty(fileparts(paramsFile))
+    paramsFile = fullfile(currentDir, paramsFile);
+end
+if ~exist(paramsFile, 'file')
+    error('Parameter file not found: %s', paramsFile);
+end
+fprintf('Model: %s | runMode: %s | n: %d | params: %s\n', ...
+    mdl, runMode, n, paramsFile);
 
 % The real work runs in a local function, not here. mc_sim_setup_ctv has to
 % run LinerizationMaster_ctv and Trajectory2 in the base workspace (they are
 % scripts that read and write it), and those two assign i, t, m, x, z, A, B,
 % scenario and more. A driver loop living in the base workspace would have its
 % own loop index overwritten mid-iteration; a function workspace is immune.
-run_mc(mdl, runMode, n, currentDir, ctvPaths);
+run_mc(mdl, runMode, n, currentDir, ctvPaths, makePlots, paramsFile);
 
-function run_mc(mdl, runMode, n, currentDir, ctvPaths)
+function run_mc(mdl, runMode, n, currentDir, ctvPaths, makePlots, paramsFile)
 
 if strcmp(runMode, 'parallel')
     % ------------------------------------------------------------
@@ -120,7 +136,7 @@ if strcmp(runMode, 'parallel')
     parfevalOnAll(@addpath, 0, ctvPaths{:});
 end
 
-jsonFile = fullfile(currentDir, 'mc_params_ctv.json');
+jsonFile = paramsFile;
 ckptDir = fullfile(currentDir, 'mc_checkpoints'); % Use absolute path
 
 if ~exist(ckptDir, 'dir')
@@ -128,6 +144,10 @@ if ~exist(ckptDir, 'dir')
 end
 
 if ~strcmp(runMode, 'nominal')
+    % Checkpoints are keyed by index into an n-dependent Latin hypercube, so
+    % they are only reusable while n and the bounds file are unchanged.
+    ensure_checkpoints(ckptDir, jsonFile, n);
+
     [scenarios, mcTable] = generateScenarios_ctv(jsonFile, n, currentDir);
     scenarioStructs = table2struct(mcTable);
 
@@ -195,7 +215,8 @@ switch runMode
         % --- Export Final Results ---
         resultsCell = cellfun(@apply_constraints, resultsCell, 'UniformOutput', false);
         results = [resultsCell{:}];
-        save(fullfile(currentDir, 'mc_results_ctv_parallel.mat'), 'results', 'nominal', 'scenarios');
+        resultsFile = fullfile(currentDir, 'mc_results_ctv_parallel.mat');
+        save(resultsFile, 'results', 'nominal', 'scenarios');
         summarize(results);
         fprintf('Final results and nominal data saved to mc_results_ctv_parallel.mat\n');
 
@@ -240,8 +261,8 @@ switch runMode
 
         resultsCell = cellfun(@apply_constraints, resultsCell, 'UniformOutput', false);
         results = [resultsCell{:}];
-        save(fullfile(currentDir, 'mc_results_ctv_serial_isolated.mat'), ...
-            'results', 'nominal', 'scenarios');
+        resultsFile = fullfile(currentDir, 'mc_results_ctv_serial_isolated.mat');
+        save(resultsFile, 'results', 'nominal', 'scenarios');
         summarize(results);
         fprintf('Final results saved to mc_results_ctv_serial_isolated.mat\n');
 
@@ -288,7 +309,8 @@ switch runMode
 
         resultsCell = cellfun(@apply_constraints, resultsCell, 'UniformOutput', false);
         results = [resultsCell{:}];
-        save(fullfile(currentDir, 'mc_results_ctv_serial.mat'), 'results', 'nominal', 'scenarios');
+        resultsFile = fullfile(currentDir, 'mc_results_ctv_serial.mat');
+        save(resultsFile, 'results', 'nominal', 'scenarios');
         summarize(results);
         fprintf('Final results successfully saved to mc_results_ctv_serial.mat\n');
 
@@ -313,6 +335,45 @@ switch runMode
             '''parallel'', ''serial'' or ''nominal''.']);
 end
 
+% The nominal mode saves no MC cloud, so there is nothing to plot for it.
+if makePlots && exist('resultsFile', 'var')
+    fprintf('Plotting %s ...\n', resultsFile);
+    mc_plots_ctv(resultsFile);
+end
+
+end
+
+function ensure_checkpoints(ckptDir, jsonFile, n)
+    % Drop checkpoints that belong to a different n or a different bounds file,
+    % so a changed setting never silently resumes onto the wrong scenarios.
+    stampFile = fullfile(ckptDir, 'ckpt_stamp.mat');
+    paramHash = Simulink.getFileChecksum(jsonFile);
+
+    reasons = {};
+    if exist(stampFile, 'file')
+        stamp = load(stampFile, 'n', 'paramHash');
+        if ~isequal(stamp.n, n)
+            reasons{end+1} = sprintf('n changed %d -> %d', stamp.n, n);
+        end
+        if ~strcmp(stamp.paramHash, paramHash)
+            reasons{end+1} = 'mc_params_ctv.json changed';
+        end
+    elseif ~isempty(dir(fullfile(ckptDir, 'scenario_*.mat')))
+        reasons{end+1} = 'no stamp file';
+    end
+
+    if ~isempty(reasons)
+        old = dir(fullfile(ckptDir, 'scenario_*.mat'));
+        delete(fullfile(ckptDir, 'scenario_*.mat'));
+        for f = {'nominal.mat', 'scenarios.mat'}
+            stale = fullfile(ckptDir, f{1});
+            if exist(stale, 'file'); delete(stale); end
+        end
+        fprintf('Cleared %d stale checkpoint(s): %s.\n', ...
+            numel(old), strjoin(reasons, ', '));
+    end
+
+    save(stampFile, 'n', 'paramHash');
 end
 
 function run_isolated(idx, scenFile, ckptDir, ctvDir, matlabExe)
@@ -343,6 +404,10 @@ function scenario = nominal_scenario(jsonFile)
     names = fieldnames(bounds);
     scenario = struct();
     for k = 1:length(names)
+        if ~isfield(bounds.(names{k}), 'nominal')
+            error('mc_parallelization_ctv:missingNominal', ...
+                'Parameter "%s" in %s has no "nominal" value.', names{k}, jsonFile);
+        end
         scenario.(names{k}) = bounds.(names{k}).nominal;
     end
 end

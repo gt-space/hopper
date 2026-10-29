@@ -25,6 +25,7 @@ function [scenarios, mcTable] = generateScenarios_ctv(jsonFile, n, outDir)
          else
              distType = "uniform"; 
          end
+         require_fields(name, paramData, distType);
          
         switch char(distType)
             case 'uniform'
@@ -87,4 +88,38 @@ function [scenarios, mcTable] = generateScenarios_ctv(jsonFile, n, outDir)
     
     mcTable = struct2table(scenarios);
     writetable(mcTable, fullfile(outDir, 'mc_scenarios.csv'));
+end
+
+function require_fields(name, paramData, distType)
+%REQUIRE_FIELDS Check one parameter's entry before sampling from it.
+%   Catches a malformed bounds file here, naming the parameter, instead of
+%   letting it surface later as a bare "reference to non-existent field".
+    switch char(distType)
+        case 'uniform',   needed = {'lower', 'upper'};
+        case 'normal',    needed = {'mean', 'std'};
+        case 'lognormal', needed = {'mean', 'std'};
+        case 'weibull',   needed = {'scale', 'shape'};
+        case 'beta',      needed = {'alpha', 'beta', 'lower', 'upper'};
+        case 'discrete',  needed = {'values'};
+        otherwise
+            error('generateScenarios_ctv:badType', ...
+                ['Parameter "%s" has type "%s". Use uniform, normal, ', ...
+                 'lognormal, weibull, beta or discrete.'], name, char(distType));
+    end
+
+    missing = needed(~isfield(paramData, needed));
+    if ~isempty(missing)
+        error('generateScenarios_ctv:missingField', ...
+            'Parameter "%s" (type %s) is missing: %s. It needs: %s.', ...
+            name, char(distType), strjoin(missing, ', '), strjoin(needed, ', '));
+    end
+    if ~isfield(paramData, 'nominal')
+        error('generateScenarios_ctv:missingNominal', ...
+            'Parameter "%s" has no "nominal" value, which the nominal run uses.', name);
+    end
+    if all(isfield(paramData, {'lower', 'upper'})) && paramData.lower > paramData.upper
+        error('generateScenarios_ctv:badBounds', ...
+            'Parameter "%s" has lower (%g) above upper (%g).', ...
+            name, paramData.lower, paramData.upper);
+    end
 end
