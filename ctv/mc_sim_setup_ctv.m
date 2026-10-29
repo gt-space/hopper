@@ -279,4 +279,22 @@ if ~isempty(missing)
         strjoin(missing, ', '));
 end
 
+% ---- Pin the random stream for the sim ----
+% The model draws from MATLAB's global random stream (the wind model, which
+% runs in Monte Carlo mode whenever a scenario is applied). Without this, the
+% stream carries over between runs: repeated sims of the SAME scenario in one
+% MATLAB process drifted by several m/s in landing velocity, and no amount of
+% bdclose / clear functions / clear mex reset it. Seeding here makes each
+% scenario reproducible and gives it its own wind realisation.
+% generateScenarios_ctv already emits Seed = masterSeed + i for this.
+% A nominal setup (empty scenario) deliberately leaves the stream untouched,
+% so mc_sim_setup_ctv([]) still reproduces sim_setup_ctv.m exactly.
+if ~isempty(scenario)
+    if isfield(scenario, 'Seed')
+        rng(scenario.Seed, 'twister');
+    else
+        rng(42, 'twister');   % master seed, for a scenario built from the JSON nominals
+    end
+end
+
 end

@@ -4,7 +4,17 @@
 % n and runMode are picked up from the caller's workspace if they are already
 % set, so this runs unattended under matlab -batch:
 %   runMode = 'serial'; n = 20; mc_parallelization_ctv
-% Options for runMode: 'parallel', 'serial', 'nominal'.
+% Options for runMode: 'serial_isolated', 'parallel', 'serial', 'nominal'.
+%
+% Use 'serial_isolated' for real Monte Carlo runs. hopper_6dof_NED_v2_ctv is
+% only repeatable on the FIRST sim of a MATLAB process: later sims in the same
+% process drift by several m/s in landing velocity for bit-identical inputs,
+% and no reset fixes it (base workspace wipe, bdclose, clear
+% functions/persistent/mex, FastRestart off and Simscape artifact caching off
+% were all tried). 'serial_isolated' runs every scenario as sim #1 of a fresh
+% process, which costs MATLAB startup per run but is reproducible. 'serial'
+% is kept for quick smoke tests only; its results carry an ordinal-dependent
+% offset.
 warning('off', 'MATLAB:Python:PyNotFound')
 
 % --- Setup CTV-only paths ---
@@ -183,6 +193,52 @@ switch runMode
         summarize(results);
         fprintf('Final results and nominal data saved to mc_results_ctv_parallel.mat\n');
 
+    case 'serial_isolated'
+        tic;
+        scenFile = fullfile(ckptDir, 'scenarios.mat');
+        nominalScenario = nominal_scenario(jsonFile);
+        save(scenFile, 'scenarioStructs', 'nominalScenario');
+        matlabExe = fullfile(matlabroot, 'bin', 'matlab');
+
+        missingIdx = find(cellfun(@isempty, resultsCell));
+        fprintf('Running %d scenarios, one MATLAB process each...\n', numel(missingIdx));
+        for k = 1:numel(missingIdx)
+            idx = missingIdx(k);
+            tRun = tic;
+            run_isolated(idx, scenFile, ckptDir, currentDir, matlabExe);
+            ckptFile = fullfile(ckptDir, sprintf('scenario_%05d.mat', idx));
+            if exist(ckptFile, 'file')
+                data = load(ckptFile, 'localResult');
+                resultsCell{idx} = data.localResult;
+                tag = 'ok';
+                if ~data.localResult.status.success
+                    tag = ['ERROR: ' data.localResult.status.error];
+                end
+            else
+                tag = 'NO CHECKPOINT (worker died)';
+            end
+            fprintf('  %d/%d index %d: %s in %.1f s\n', ...
+                k, numel(missingIdx), idx, tag, toc(tRun));
+        end
+
+        elapsedTime = toc;
+        fprintf('Completed isolated execution in %.2f seconds.\n', elapsedTime);
+
+        fprintf('Running nominal case...\n');
+        run_isolated(0, scenFile, ckptDir, currentDir, matlabExe);
+        nomFile = fullfile(ckptDir, 'nominal.mat');
+        if ~exist(nomFile, 'file')
+            error('Nominal run produced no checkpoint.');
+        end
+        nominal = apply_constraints(load(nomFile, 'localResult').localResult);
+
+        resultsCell = cellfun(@apply_constraints, resultsCell, 'UniformOutput', false);
+        results = [resultsCell{:}];
+        save(fullfile(currentDir, 'mc_results_ctv_serial_isolated.mat'), ...
+            'results', 'nominal', 'scenarios');
+        summarize(results);
+        fprintf('Final results saved to mc_results_ctv_serial_isolated.mat\n');
+
     case 'serial'
         tic;
         for i = 1:n
@@ -247,9 +303,25 @@ switch runMode
         fprintf('Nominal run completed in %.2f seconds.\n', elapsedTime);
 
     otherwise
-        error('Invalid runMode specified. Use ''parallel'', ''serial'', or ''nominal''.');
+        error(['Invalid runMode specified. Use ''serial_isolated'', ' ...
+            '''parallel'', ''serial'' or ''nominal''.']);
 end
 
+end
+
+function run_isolated(idx, scenFile, ckptDir, ctvDir, matlabExe)
+    % One scenario in its own MATLAB process. The model prints tens of
+    % thousands of lines per run, so the worker's output goes to a log that is
+    % deleted unless the run fails.
+    logFile = fullfile(ckptDir, sprintf('worker_%05d.log', idx));
+    cmd = sprintf('"%s" -batch "addpath(''%s''); mc_run_one_ctv(%d, ''%s'', ''%s'')" > "%s" 2>&1', ...
+        matlabExe, ctvDir, idx, scenFile, ckptDir, logFile);
+    st = system(cmd);
+    if st == 0 && exist(logFile, 'file')
+        delete(logFile);
+    elseif st ~= 0
+        fprintf('    worker exited %d; log kept at %s\n', st, logFile);
+    end
 end
 
 function paths = ctv_path_list(ctvDir)
