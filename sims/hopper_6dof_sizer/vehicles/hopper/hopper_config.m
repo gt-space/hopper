@@ -111,4 +111,9 @@ VC.sensors.lidar.azimuth = [0 90 180 270];     % deg, about body x
 VC.sensors.lidar.cant    = 20;                 % deg from the long axis
 VC.sensors.lidar.radius  = 0.25;               % m off-axis
 VC.sensors.lidar.mount_x = 0.1;                % m (ASSUMPTION)
+% GPS antennas (dual, for differential GPS heading), columns 1 and 2, from
+% the base. ASSUMPTION: the nav team's placeholder, 0.25 m either side of
+% the axis and 0.2 m above the nominal CG; replace with CAD
+VC.sensors.gps.antenna = [1.343 1.343; 0 0; 0.25 -0.25];   % m, body x y z
+VC.sensors.imu.period  = 1/500;                % s, ADIS16500 at the filter rate (nav team: DEC_RATE = 3)
 end

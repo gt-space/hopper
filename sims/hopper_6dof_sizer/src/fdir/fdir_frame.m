@@ -1,8 +1,11 @@
 function [y, st] = fdir_frame(in, P, st)
-% FDIR_FRAME  One 100 Hz frame: sensors -> gates -> monitors -> executive
-% -> mode manager -> touchdown -> abort reference (GNC PDR slide 78 order).
+% FDIR_FRAME  One 100 Hz frame: monitors -> executive -> mode manager ->
+% touchdown -> abort reference (GNC PDR slide 78 order).
 %
-%   in  .t  .noise (20)  .x (13-state)  .f_b (3)  .dcm_be (3x3)
+%   in  .t  .meas .valid .stamp (sensor_layout: the shared Sensors block,
+%       sensor_frame, sampled at this frame)  .x (13-state the flight
+%       computer has: truth, or the navigation estimate)  .f_b (3)
+%       .dcm_be (3x3)
 %       .thrust  .gimbal_fb (2)  .rcs_torque  .mass  .u_nom (4)
 %       .u_cmd (4) the command FDIR sent (after command select), last frame
 %   P   fdirWorkspace's fdir_params: .S .mon .modes .cat .h_cut .abort
@@ -14,19 +17,17 @@ function [y, st] = fdir_frame(in, P, st)
 %   y.mode .phase .level .first_fault .no_arm .mask   for logging
 %   y.status    fault states (catalog order)
 %   y.raw       this frame's monitor results (catalog order), for tuning
-%   y.meas      sensor measurements after the gates
+%   y.nav_nis   normalized NIS per sensor (baro gyro gps lidar dgps), -1
+%               without NAVIGATION or a new sample
+%   y.meas      the sensor measurements this frame saw
 %
 %#codegen
 
 x = in.x(:);
 t = in.t;
 
-% ---- sensor ingest ----
-xs.pos_ned = x(1:3); xs.dcm_be = in.dcm_be; xs.w_b = x(7:9); xs.f_b = in.f_b(:);
-[meas, ~, valid, stamp, st.sens] = sensor_models(xs, in.noise, t, P.S, st.sens);
-if P.inject
-    [meas, valid, stamp, st.gate] = sensor_gate(meas, valid, stamp, t, P.faults, st.gate);
-end
+% ---- sensor ingest (sensor_frame did the sensors and the sensor faults) ----
+meas = in.meas(:); valid = logical(in.valid(:)); stamp = in.stamp(:);
 
 % ---- G&C and actuator signals ----
 alt = -x(3);
@@ -49,6 +50,13 @@ mode_now = st.modes.mode;
 M = fdir_modes();
 phase = M.MODE_PHASE(mode_now);
 [raw, metric, st.mon] = fdir_gnc_monitors(meas, valid, stamp, t, phase, k, P.mon, st.mon);
+% estimator checks (rows 33-37) on the navigation filter, when it runs
+nav_nis = -ones(5, 1);
+if P.nav_active
+    [rn, mn, nav_nis, st.nav] = fdir_nav_monitors(meas, valid, stamp, in.xn(:), in.P, in.cg(:), P.mon, st.nav);
+    raw = raw | rn;
+    metric = metric + mn;
+end
 
 % ---- executive ----
 eu.t = t; eu.phase = phase; eu.alt = alt; eu.tw = in.thrust / max(in.mass * P.g, 1e-6); eu.reset = false;
@@ -93,6 +101,7 @@ y.no_arm = ex.no_arm;
 y.mask = ex.mask;
 y.status = double(ex.status);
 y.raw = double(raw);
+y.nav_nis = nav_nis;
 y.meas = meas;
 end
 

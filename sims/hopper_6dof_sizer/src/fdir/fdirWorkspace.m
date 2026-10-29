@@ -44,6 +44,14 @@ P.thrust_max = IN.propulsion.nominal_thrust * IN.propulsion.throttle_range(2);
 P.thrust_min = IN.propulsion.nominal_thrust * IN.propulsion.throttle_range(1);
 P.g = 9.80665;
 P.cutoff_alt = IN.mission.engine_cutoff_alt;
+% Estimator checks (rows 33-37) run when NAVIGATION is on; the adapter's
+% frames and geometry are needed either way so the code compiles
+P.nav_active = isfield(variants, 'VARIANT_NAVIGATION') && variants.VARIANT_NAVIGATION > 1;
+if isfield(W, 'nav_params')
+    P.mon.nav = W.nav_params;
+else
+    P.mon.nav = navParams(W, S, W.sensor_params.dt);
+end
 W.fdir_params = P;
 
 ih = find(W.tgrid >= T.t_up + T.t_hover / 2, 1);

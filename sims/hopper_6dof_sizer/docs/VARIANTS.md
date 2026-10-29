@@ -22,7 +22,8 @@ out = sim(buildSimInput('hopper_6dof', [], [], V));
 | `GROUND` | `Ground_Contact` | `none`: no ground reaction, as in v2. `strut`: #27's strut spring/damper per leg (`subsystems/ground/Ground_Contact.slx`), into the body force and moment sums. |
 | `MASS_PROPS` | `Propellant_Flow` | `varying`: propellant drains, so mass, CG, MOI and dI/dt change. `constant`: zero propellant flow, so mass, CG and MOI hold their initial values and dI/dt = 0. Thrust is unaffected. |
 | `FDIR` | `FDIR` | `off`: the controller command goes straight to the actuators, as in v2. `on`: the GNC PDR fault executive runs at 100 Hz on the sensor model in `src/sensors`: monitors, persistence, the R0–R4 response ladder and the PDR mode manager. It can mask a sensor, drop to half-gain (R1), fly an abort-to-land (R2) or cut off and safe (R4). See [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md). |
-| `FAULT_INJECTION` | `Actuator_Faults` | `off`: no faults. `on`: the fault table in `W.faults` (`faultScenario`) corrupts sensor readings inside FDIR's sensor model and gimbal, throttle and RCS commands between the flight computer and the actuators. With an empty table the flight is unchanged. |
+| `FAULT_INJECTION` | `Actuator_Faults`, `Sensors` | `off`: no faults. `on`: the fault table in `W.faults` (`faultScenario`) corrupts sensor readings in the shared `Sensors` block and gimbal, throttle and RCS commands between the flight computer and the actuators. With an empty table the flight is unchanged. |
+| `NAVIGATION` | `Navigation` | `none`: the controller and FDIR read truth state, as in v2. `gmekf_shadow`: the nav team's GMEKF (`subsystems/navigation/Filters/Hopper_GMEKF.slx`) runs on the shared `Sensors` block; its estimate and the error against truth are logged (`nav_estimate`, `nav_error`, `nav_state`, `nav_P_diag`) and FDIR's estimator checks run, but the controller still flies on truth. `gmekf`: the controller and FDIR fly on the estimate. See [Navigation](#navigation). |
 
 Combinations to know:
 - **`fluid_network` needs `GROUND=strut`.** The feed system takes about a second to build thrust, and without a ground the vehicle falls through the pad first.
@@ -38,7 +39,31 @@ Combinations to know:
 - **`FAULT_INJECTION=on` with `FDIR=off`** shows the unmitigated response. Sensor faults then reach no one, because only FDIR reads the sensor model and the controller flies on truth state. Actuator faults still act.
 - **`FDIR=on` with no fault** flies exactly like `FDIR=off`.
 
-Still to come: `NAVIGATION` (estimator checks and R3), `ENV`. Tank and leg geometry is not a variant: change it in the vehicle config file ([VEHICLE_CONFIG.md](VEHICLE_CONFIG.md)).
+Still to come: `ENV`. Tank and leg geometry is not a variant: change it in the vehicle config file ([VEHICLE_CONFIG.md](VEHICLE_CONFIG.md)).
+
+## Navigation
+
+```matlab
+out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('NAVIGATION', 'gmekf_shadow')));
+plot(out.get('nav_error'))   % estimate - truth, in the controller's 13-state
+```
+
+**The filter is the nav team's.** `subsystems/navigation` is their `origin/GMEKF` work, merged as is; `tools/refactor/syncNavigation.m` merges newer commits. The harness references `Hopper_GMEKF.slx` as a Model block and links `config/hopper_harness.sldd`, which references their `NavigationDictionary.sldd` for the bus types. Our side is the adapter in `src/navigation`:
+- `nav_measurements`: one sample of the shared `Sensors` block as their buses, with lever arms from the current CG and each measurement's covariance from the sigmas that made the noise.
+- `nav_state_to_sim` / `nav_state_from_sim`: their 20-state (CG position from its pad rest point, nav body z down the long axis, scalar-first Hamilton quaternion) to and from the controller's 13-state. `nav_frames` holds the mapping: on the pad the nav attitude is the identity and sim +x (up) is nav −z.
+- `navWorkspace`: P0, Qc and the 500 Hz rate come from their `filter_sim_initializer`; the lidar and antenna geometry from the vehicle config.
+
+**One tuning override:** their torque process noise (1e-4 (N·m)²/Hz) lets the commanded torque, which leaves out ~7 N·m of wind and slosh moment, drive the rate estimate; the gyro is gated out within 0.07 s and the filter diverges. `navWorkspace` raises that block of Qc to 1 until they retune. Set `W.nav_Qc` or `W.nav_P0` before `buildSimInput` to try other tuning.
+
+**How it flies** (nominal hopper):
+- `gmekf_shadow`: the flight is v2's; the estimate stays within 0.04 m, 0.13 m/s, 0.05 rad/s and 0.014 in quaternion of truth, and the covariance stays positive definite.
+- `gmekf`: the vehicle flies the mission on the estimate and lands 0.37 m from the pad (0.43 m on truth), 1.6° max tilt.
+
+**With FDIR:** `FDIR=on` with `gmekf_shadow` runs the estimator checks (rows 33–37, [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md)). Quiet they stay clear; a 5 m GPS bias trips the NIS CUSUM (R1) while the filter gates GPS out. With `gmekf` FDIR monitors the estimate, and the quiet flight runs the PDR mode sequence to LANDED. A stuck gyro on `gmekf` crashes: the filter has no sensor-mask input, so it keeps fusing the stuck gyro during the abort.
+
+**The CTV:** `CTV_GMEKF.slx` uses a variable-step solver, and a model referenced from the fixed-step harness must be fixed-step, so NAVIGATION on the CTV is an error for now.
+
+**Checks:** `tests/unit/NavAdapterTest.m` (frames round-trip; with noise off each of their measurement models predicts exactly what our sensor model measured) and `tests/sim/NavigationFlightTest.m` (the flights above). Their own `Tests/` folder isn't in our build: three scripts error on parameters their initializer has commented out.
 
 ## The CTV
 

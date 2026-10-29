@@ -9,13 +9,14 @@ function S = sim_sensor_params(IN)
 % the stuck checks. Rates follow the GNC PDR (slide 87) where it gives
 % them, capped at the 100 Hz FDIR frame.
 %
-% Mounting geometry (lidar azimuth, cant, radius, mount_x) is vehicle data:
+% Mounting geometry (lidar azimuth, cant, radius, mount_x; GPS antennas) and
+% the IMU rate are vehicle data:
 % it comes from the vehicle config's sensors section through IN.sensors
 % (vehicles/<vehicle>/<vehicle>_config.m), in the sim's body axes.
 
 S.frame = 0.01;                                % s, FDIR / sensor frame (100 Hz)
 
-S.imu.period      = 0.01;                      % s (IMU is 1 kHz on the vehicle)
+S.imu.period      = 0.01;                      % s; the vehicle config sets the real rate (VC.sensors.imu)
 S.imu.accel_sigma = [0.05; 0.05; 0.05];        % m/s^2
 S.imu.gyro_sigma  = [0.005; 0.005; 0.005];     % rad/s
 S.imu.accel_fs    = 16 * 9.80665;              % m/s^2, +/-16 g
@@ -31,8 +32,12 @@ S.lidar.r_max    = 40;                         % m
 
 S.gps.period = 0.2;                            % s (GNSS 5 Hz)
 S.gps.sigma  = [0.02; 0.02; 0.05];             % m
+S.gps.vel_sigma = [0.05; 0.05; 0.1];          % m/s (nav team's placeholder, filter_sim_initializer)
 S.gps.fix    = 3;                              % 3D
 S.gps.sats   = 12;
+
+S.dgps.period = 0.1;                           % s, differential GPS (dual antenna) baseline
+S.dgps.sigma  = [0.007; 0.007; 0.012];         % m per NED axis (nav team's placeholder)
 
 S.mag.period = 0.02;                           % s
 S.mag.sigma  = 0.5;                            % uT
@@ -43,8 +48,8 @@ S.seed = 42;                                   % noise seed; Monte Carlo can var
 if isfield(IN, 'sensors')
     S = mergeStruct(S, IN.sensors);
 end
-if ~all(isfield(S.lidar, {'azimuth', 'cant', 'radius', 'mount_x'}))
-    error('sim_sensor_params:geometry', 'Lidar mounting comes from the vehicle config (VC.sensors.lidar); IN.sensors has none.');
+if ~all(isfield(S.lidar, {'azimuth', 'cant', 'radius', 'mount_x'})) || ~isfield(S.gps, 'antenna')
+    error('sim_sensor_params:geometry', 'Lidar and GPS antenna mounting come from the vehicle config (VC.sensors); IN.sensors has none.');
 end
 end
 

@@ -76,16 +76,21 @@ The CoDR places injection in "gates that restrict / modify signals between block
 
 ## Sensors
 
-`subsystems/sensors/Sensors.slx` has these channels:
+The harness's shared `Sensors` block (`src/sensors/sensor_frame.m`: the sensor model, then the sensor fault gate) runs at the IMU rate, 500 Hz on the hopper. It is active when FDIR is on or NAVIGATION isn't `none`. FDIR reads it through rate transitions to its 100 Hz frame, and the navigation filter reads it at 500 Hz, so FDIR, the filter and fault injection all see the same measurements.
+
+Channels (`sensor_layout`):
 - IMU specific force and rates
 - barometric altitude
-- four lidar beam ranges, with navigation's beam geometry
-- GPS position with fix quality, satellite count and age
+- four lidar beam ranges
+- GPS position and velocity of antenna 1, with fix quality, satellite count and age
+- the differential-GPS baseline, antenna 1 to 2 in NED
 - magnetometer
 
-**Validity and timing:** every channel carries a valid flag and a timestamp, which the raw checks need. Each channel samples at its own rate.
+**Geometry:** lidar mounts and beams and the GPS antennas come from the vehicle config (`VC.sensors`), placed from the true CG. The same geometry goes to the filter (`lidar_geometry`, `nav_measurements`).
 
-**Noise:** noise values come from navigation's `filter_sim_initializer`, using seeded noise sources so runs repeat exactly. The block also outputs the noise-free channels, which FDIR uses as its reference until a filter exists.
+**Validity and timing:** every channel carries a valid flag and a timestamp, which the raw checks need. Each sensor samples at its own rate and holds between samples. FDIR's IMU timing check expects one sample per frame, since it sees the 500 Hz IMU at 100 Hz.
+
+**Noise:** seeded noise sources, so runs repeat exactly. The sigmas are `sim_sensor_params`; the navigation adapter hands the same sigmas to the filter as each measurement's covariance.
 
 ## FDIR executive
 
@@ -143,10 +148,19 @@ The GNC rows below are filled in, with thresholds marked provisional. The PDR sa
 | RCS fan health | delivered vs. commanded thrust (stands in for ESC RPM) | R0: zero that fan |
 | Stuck thrust | from the T/W table | below 0.9: hold attitude, dither, land; at 1: dither, slow descent; above 1.1: dither, then R4 |
 
-**Estimator** (CoDR 23–26, PDR 81), reserved:
-- **Port:** an estimator input bus carries the state, covariance, innovations / NIS, the shadow state and validity flags.
-- **Until NAVIGATION:** the port takes the truth state and the estimator monitors are inhibited. The fault table logs them as inhibited.
-- **Waiting for NAVIGATION:** sensor masking, Q/R inflation and R3.
+**Estimator** (CoDR 23–26, PDR 81; `fdir_nav_monitors`), with NAVIGATION on. FDIR gets the filter's 20-state estimate and covariance and checks each new sensor sample against the estimate with the nav team's own measurement models and 99 % gates (NIS = rᵀS⁻¹r, S = HPHᵀ + R):
+
+| Row | Check | Response |
+|---|---|---|
+| 33 | exactly one sensor group (baro, gyro, GPS, lidar, differential GPS) fails its gate | R0 |
+| 34 | two or more fail together | R1, R3 if it persists 2 s |
+| 35 | CUSUM of the mean normalized NIS above 2, per second | R1 |
+| 36 | main vs shadow estimator | inhibited: there is no second estimator yet |
+| 37 | covariance or state not finite, a variance ≤ 0 or beyond its bound, quaternion off unit length, speed or rate beyond physical limits | R3 |
+
+The filter gates on its prior; these checks run on the posterior, so a sample the filter accepted passes and one it rejected, or one that pulled the estimate away, fails. With NAVIGATION `none` the rows never fail. With NAVIGATION `gmekf` the G&C monitors also run on the estimate (what the flight computer knows), not on truth. Still open: sensor masking into the filter and Q/R inflation (the filter has no inputs for them). That limit shows: with NAVIGATION `gmekf`, a stuck gyro latches (row 5) and FDIR flies the abort, but the filter keeps fusing the stuck gyro, the abort flies on a corrupted attitude, and the vehicle crashes. On truth the same fault aborts and lands.
+
+**Limit cycle (row 20) on an estimate:** the check counts sign changes of the tilt-error rate and now also needs the tilt to swing at least 0.5° about its 0.2 s average. Flying on the GMEKF's estimate the vehicle jitters about 0.1°, which gave 22 sign changes in 2 s and a false abort at 0.9 s; real limit cycles swing degrees.
 
 ## Responses
 
@@ -155,7 +169,7 @@ The GNC rows below are filled in, with thresholds marked provisional. The PDR sa
 | R0 Mask | Zero a failed RCS fan in the allocation. Sensor masks go out on the mask bus; they act once NAVIGATION consumes them. |
 | R1 Degrade | Switch the controller to a low-bandwidth gain set (`IN.gnc.degraded`). Q/R inflation waits for NAVIGATION. |
 | R2 Abort to land | Capture the state. Command a vertical velocity ramp from the current v_z to the landing sink rate, zero horizontal velocity, and hold attitude. Control switches to a fixed-gain regulator (hover LQR at the captured mass). Exits only on confirmed touchdown. |
-| R3 Nav-degraded abort | Interface only. NAVIGATION brings the shadow vertical estimator. Until then R3 runs as R2 and is flagged. |
+| R3 Nav-degraded abort | The R2 abort-to-land with no horizontal (N, E) position or velocity feedback, since that comes from the distrusted estimate: it descends on attitude, rates and height (`fdir_command_select`). The PDR's shadow vertical estimator would replace the estimate's height. |
 | R4 Cutoff & safing | Throttle valves closed (thrust 0), gimbal centered, RCS off, first fault logged, final health frame recorded. |
 
 **Touchdown confirmation** (PDR 85) needs two independent signals with N-of-M persistence:
@@ -176,5 +190,6 @@ FDIR logs the active mode, response level, latched-fault bitfield, first-fault I
 |---|---|
 | `FDIR_SensorFault_Subsystem` (#31) | Its monitor, persistence and arbitration code becomes part of the executive above. Its ladder numbering and its four phases change to the PDR's, and `FDIR_Tests` is updated to match. |
 | `hopper_6dof_NED_fault_injection.slx` | Contains no fault injection: it is a stale v2 copy. Retire it. |
-| Navigation sensor models (`Src_sim`) | Their noise values are used. The models themselves aren't, because they read the base workspace and draw unseeded noise. |
+| Navigation sensor models (`Src_sim`) | Not used: the shared `Sensors` block feeds the filter, so FDIR and the filter see the same measurements. |
+| Navigation filter | The nav team's `Hopper_GMEKF` runs in the harness (NAVIGATION axis, docs/VARIANTS.md). The CTV filter can't be referenced yet (variable-step solver). |
 | Open (PDR) | Numeric thresholds and persistence times from Monte Carlo; thrust cut at 0.1 m (PDR) vs. the sim's 0.05 m (`IN.mission.engine_cutoff_alt`); the FMECA catalog for the non-GNC rows. |

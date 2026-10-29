@@ -21,6 +21,17 @@ function build_hopper_6dof()
 %                                  lqi: LQI-DEV's regulator from
 %                                       models/dev/hopper_6dof_NED_v4.slx
 %                                  lqr_sched_legacy: the March scheduler code
+%     Sensors          FDIR on or  the shared sensor model + sensor faults
+%                      NAVIGATION  (src/sensors/sensor_frame.m) at the IMU
+%                                  rate; otherwise zeros
+%     Navigation       NAVIGATION  none: truth to the controller and FDIR
+%                                  gmekf_shadow: the nav team's Hopper_GMEKF
+%                                       (Model block) on the Sensors block,
+%                                       logged; truth still flies
+%                                  gmekf: the controller and FDIR fly on
+%                                       the estimate
+%     FDIR             FDIR        off / on (src/fdir/fdir_frame.m)
+%     Actuator_Faults  FAULT_INJECTION  off / on (src/faults/actuator_gate.m)
 %
 %   VEHICLE has no block: it picks the parameter set (hopperWorkspace).
 %
@@ -131,7 +142,35 @@ for g = gainSrc   % the gain tables and clock now live in the scheduler choices
     if all(lh.Outport < 0), delete_block([m '/' g{1}]); end   % keep one that feeds something else
 end
 ph = get_param([m '/Controller'], 'PortHandles');
-add_line(m, xSrc, ph.Inport(1), 'autorouting', 'smart');
+
+% SENSORS and NAVIGATION: truth -> shared Sensors block (500 Hz) -> nav
+% filter -> the state the controller and FDIR fly on
+add_block('built-in/Subsystem', [m '/Sensors'], 'Position', cpos + [-260 140 -160 220]);
+sensPorts = {{'x'; 'f_b'; 'dcm_be'; 'cg'}; {'meas'; 'valid'; 'stamp'}};
+sensOn = 'VARIANT_FDIR == 2 || VARIANT_NAVIGATION > 1';
+makeVariant(m, 'Sensors', '', {
+    'Sensors_Off', @(c) zeroChoice(c, sensPorts{1}, sensPorts{2}, {'zeros(26,1)', 'zeros(9,1)', 'zeros(9,1)'})
+    'Sensors_On',  @(c) sensorsChoice(c, sensPorts)
+    }, {['~(' sensOn ')'], sensOn});
+sensSrc = {xSrc, port(m, 'Slosh Specific Force', 1), port(m, '6DOF (Quaternion)', 5), port(m, 'Mass_Properties', 1)};
+sph = get_param([m '/Sensors'], 'PortHandles');
+for k = 1:numel(sensSrc)
+    add_line(m, sensSrc{k}, sph.Inport(k), 'autorouting', 'smart');
+end
+add_block('built-in/Subsystem', [m '/Navigation'], 'Position', cpos + [-130 0 -30 120]);
+navPorts = {{'x_true'; 'dcm_true'; 'meas'; 'valid'; 'stamp'; 'cg'; 'mass'; 'MOI'; 'Mxyz'}; {'x'; 'dcm'; 'xn'; 'P'}};
+makeVariant(m, 'Navigation', 'NAVIGATION', {
+    'Navigation_None',   @(c) passChoiceFirst2(c, navPorts)
+    'Navigation_Shadow', @(c) navChoice(c, navPorts, false)
+    'Navigation_GMEKF',  @(c) navChoice(c, navPorts, true)
+    });
+navSrc = {xSrc, port(m, '6DOF (Quaternion)', 5), sph.Outport(1), sph.Outport(2), sph.Outport(3), ...
+    port(m, 'Mass_Properties', 1), port(m, 'Saturation1', 1), port(m, 'Mass_Properties', 2), port(m, 'Actuators_TVC_RCS', 2)};
+nph = get_param([m '/Navigation'], 'PortHandles');
+for k = 1:numel(navSrc)
+    add_line(m, navSrc{k}, nph.Inport(k), 'autorouting', 'smart');
+end
+add_line(m, nph.Outport(1), ph.Inport(1), 'autorouting', 'smart');
 for d = schedOut{1}{1}(:)'
     add_line(m, ph.Outport(1), d, 'autorouting', 'smart');
 end
@@ -142,7 +181,7 @@ uDst = get_param(uLine, 'DstPortHandle');
 delete_line(uLine);
 cpos = get_param([m '/Controller'], 'Position');
 add_block('built-in/Subsystem', [m '/FDIR'], 'Position', cpos + [240 0 300 80]);
-fdirPorts = {{'u_nom'; 'x'; 'f_b'; 'dcm_be'; 'thrust'; 'tvc_pitch'; 'tvc_yaw'; 'Mxyz'; 'mass'}; {'u'}};
+fdirPorts = {{'u_nom'; 'x'; 'f_b'; 'dcm_be'; 'thrust'; 'tvc_pitch'; 'tvc_yaw'; 'Mxyz'; 'mass'; 'meas'; 'valid'; 'stamp'; 'xn'; 'P'; 'cg'}; {'u'}};
 makeVariant(m, 'FDIR', 'FDIR', {
     'FDIR_Off', @(c) passFirst(c, fdirPorts)
     'FDIR_On',  @(c) fdirChoice(c, fdirPorts)
@@ -153,9 +192,10 @@ makeVariant(m, 'Actuator_Faults', 'FAULT_INJECTION', {
     'Actuator_Faults_Off', @(c) passFirst(c, gatePorts)
     'Actuator_Faults_On',  @(c) actuatorGateChoice(c, gatePorts)
     });
-fdirSrc = {ph.Outport(1), xSrc, port(m, 'Slosh Specific Force', 1), port(m, '6DOF (Quaternion)', 5), ...
+fdirSrc = {ph.Outport(1), nph.Outport(1), port(m, 'Slosh Specific Force', 1), nph.Outport(2), ...
     port(m, 'Propulsion', 1), port(m, 'Actuators_TVC_RCS', 3), port(m, 'Actuators_TVC_RCS', 4), ...
-    port(m, 'Actuators_TVC_RCS', 2), port(m, 'Saturation1', 1)};
+    port(m, 'Actuators_TVC_RCS', 2), port(m, 'Saturation1', 1), sph.Outport(1), sph.Outport(2), sph.Outport(3), ...
+    nph.Outport(3), nph.Outport(4), port(m, 'Mass_Properties', 1)};
 fph = get_param([m '/FDIR'], 'PortHandles');
 for k = 1:numel(fdirSrc)
     add_line(m, fdirSrc{k}, fph.Inport(k), 'autorouting', 'smart');
@@ -166,6 +206,7 @@ for d = uDst(uDst > 0)'
     add_line(m, gph.Outport(1), d, 'autorouting', 'smart');
 end
 
+linkNavigationDictionary(m);   % the nav filter's bus types
 set_param(m, 'InitFcn', '');   % FuelProps comes from buildSimInput when the fluid network is active
 save_system(m);
 close_system(m, 0);
@@ -173,13 +214,18 @@ fprintf('Built %s\n', out);
 end
 
 % ------------------------------------------------------------------------
-function makeVariant(m, name, axis, choices)
+function makeVariant(m, name, axis, choices, conds)
 % Turn block m/name (or an empty placeholder) into a Variant Subsystem whose
 % choices are built by the given functions. Wiring of m/name is kept.
+% Choice k is active when VARIANT_<axis> == k, or when conds{k} holds if
+% conditions are given (a block that depends on several axes).
 blk = [m '/' name];
 A = variantAxes();
-if size(choices, 1) ~= numel(A.(axis))
-    error('build_hopper_6dof:choices', '%s has %d choices in variantAxes, %d here.', axis, numel(A.(axis)), size(choices, 1));
+if nargin < 5
+    if size(choices, 1) ~= numel(A.(axis))
+        error('build_hopper_6dof:choices', '%s has %d choices in variantAxes, %d here.', axis, numel(A.(axis)), size(choices, 1));
+    end
+    conds = arrayfun(@(k) sprintf('VARIANT_%s == %d', axis, k), 1:size(choices, 1), 'uni', 0);
 end
 [ins, outs] = recordLines(blk);
 pos = get_param(blk, 'Position');
@@ -201,7 +247,7 @@ end
 for k = 1:size(choices, 1)
     c = [blk '/' choices{k, 1}];
     add_block([tmp '/' choices{k, 1}], c, 'Position', [200, 60 + 120 * (k - 1), 360, 160 + 120 * (k - 1)]);
-    set_param(c, 'VariantControl', sprintf('VARIANT_%s == %d', axis, k));
+    set_param(c, 'VariantControl', conds{k});
 end
 delete_block(tmp);
 set_param(blk, 'VariantControlMode', 'expression', 'VariantActivationTime', 'update diagram', ...
@@ -282,40 +328,54 @@ end
 end
 
 function c = fdirChoice(c, ports)
-% Sensors, gates, monitors, executive and mode manager at 100 Hz
-% (fdir_frame), the R1 low-bandwidth scheduler, and the command select.
+% Monitors, executive and mode manager at 100 Hz (fdir_frame) on the
+% shared Sensors block's measurements (rate transitions from its 500 Hz),
+% the R1 low-bandwidth scheduler, and the command select.
 % The frame's outputs reach the command one frame later (Unit Delays): a
 % mode change takes effect next frame (GNC PDR slide 78), and it keeps the
 % actuator feedback FDIR reads out of an algebraic loop.
 emptyChoice(c, ports{1}, ports{2});
 fr = 'fdir_params.S.frame';
 add_block('built-in/Clock', [c '/Clock'], 'Position', [100 520 120 540]);
-add_block('simulink/Sources/Random Number', [c '/Sensor_Noise'], 'Mean', 'zeros(20,1)', ...
-    'Variance', 'ones(20,1)', 'Seed', 'fdir_params.S.seed + (0:19)''', 'SampleTime', fr, 'Position', [100 580 140 610]);
+rt = {'meas', 'valid', 'stamp', 'xn', 'P'};
+for k = 1:numel(rt)
+    add_block('built-in/RateTransition', [c '/RT_' rt{k}], 'OutPortSampleTime', fr, ...
+        'Position', [180, 600 + 40 * k, 210, 620 + 40 * k]);
+    add_line(c, [rt{k} '/1'], ['RT_' rt{k} '/1']);
+end
 
 f = [c '/FDIR_Frame'];
 add_block('simulink/User-Defined Functions/MATLAB Function', f, 'Position', [300 40 460 460]);
 setScript(f, {
-    'function [abort, safed, degrade, x_ref, mode, level, first_fault, status, raw] = fcn(t, noise, x, f_b, dcm_be, thrust, tvc_pitch, tvc_yaw, Mxyz, mass, u_nom, u_cmd, fdir_params)'
+    'function [abort, safed, degrade, x_ref, mode, level, first_fault, status, raw, nav_abort, nav_nis] = fcn(t, x, f_b, dcm_be, thrust, tvc_pitch, tvc_yaw, Mxyz, mass, u_nom, u_cmd, meas, valid, stamp, xn, P, cg, fdir_params)'
     '% One 100 Hz FDIR frame (src/fdir/fdir_frame.m, docs/FDIR_ARCHITECTURE.md)'
     'persistent st'
     'if isempty(st)'
     '    st = fdir_frame_state(size(fdir_params.cat, 1), size(fdir_params.faults, 1), fdir_params.S.frame);'
     'end'
-    'in.t = t; in.noise = noise(:); in.x = x(:); in.f_b = f_b(:); in.dcm_be = dcm_be;'
+    'in.t = t; in.x = x(:); in.f_b = f_b(:); in.dcm_be = dcm_be;'
+    'in.meas = meas(:); in.valid = valid(:); in.stamp = stamp(:);'
+    'in.xn = xn(:); in.P = P; in.cg = cg(:);'
     'in.thrust = thrust; in.gimbal_fb = [tvc_pitch; tvc_yaw]; in.rcs_torque = Mxyz(1);'
     'in.mass = mass; in.u_nom = u_nom(:); in.u_cmd = u_cmd(:);'
     '[y, st] = fdir_frame(in, fdir_params, st);'
     'abort = double(y.abort); safed = double(y.safed); degrade = double(y.degrade);'
     'x_ref = y.x_ref; mode = y.mode; level = y.level; first_fault = double(y.first_fault);'
-    'status = y.status; raw = y.raw;'
+    'status = y.status; raw = y.raw; nav_abort = double(y.nav_abort); nav_nis = y.nav_nis;'
     'end'}, {'fdir_params'}, '0.01');   % the 100 Hz FDIR frame (sim_sensor_params.frame)
+% FDIR_Frame inputs: t, then x f_b dcm_be thrust tvc_pitch tvc_yaw Mxyz mass
+% (ports 2-9), u_nom (10), u_cmd (11, below), meas valid stamp (12-14)
 add_line(c, 'Clock/1', 'FDIR_Frame/1');
-add_line(c, 'Sensor_Noise/1', 'FDIR_Frame/2');
-for k = 2:numel(ports{1})
-    add_line(c, [ports{1}{k} '/1'], sprintf('FDIR_Frame/%d', k + 1));
+for k = 2:9
+    add_line(c, [ports{1}{k} '/1'], sprintf('FDIR_Frame/%d', k));
 end
-add_line(c, 'u_nom/1', 'FDIR_Frame/11');
+add_line(c, 'u_nom/1', 'FDIR_Frame/10');
+add_line(c, 'RT_meas/1', 'FDIR_Frame/12');
+add_line(c, 'RT_valid/1', 'FDIR_Frame/13');
+add_line(c, 'RT_stamp/1', 'FDIR_Frame/14');
+add_line(c, 'RT_xn/1', 'FDIR_Frame/15');
+add_line(c, 'RT_P/1', 'FDIR_Frame/16');
+add_line(c, 'cg/1', 'FDIR_Frame/17');
 
 % R1: the same scheduler with the low-bandwidth gains
 lo = [c '/LQR_Low_Bandwidth'];
@@ -331,21 +391,21 @@ for k = 1:numel(tables)
 end
 
 % one-frame delays into the command select
-outs = {'abort', 'safed', 'degrade', 'x_ref'};
+outs = {'abort', 'safed', 'degrade', 'x_ref', 'nav_abort'};
 for k = 1:numel(outs)
     d = ['Delay_' outs{k}];
     add_block('built-in/UnitDelay', [c '/' d], 'SampleTime', fr, 'InitialCondition', '0', ...
         'Position', [520, 40 + 50 * k, 550, 70 + 50 * k]);
-    add_line(c, sprintf('FDIR_Frame/%d', k), [d '/1']);
+    add_line(c, sprintf('FDIR_Frame/%d', find(strcmp({'abort', 'safed', 'degrade', 'x_ref', '', '', '', '', '', 'nav_abort'}, outs{k}))), [d '/1']);
 end
 set_param([c '/Delay_x_ref'], 'InitialCondition', 'zeros(13,1)');
 
 s = [c '/Command_Select'];
 add_block('simulink/User-Defined Functions/MATLAB Function', s, 'Position', [640 40 780 320]);
 setScript(s, {
-    'function u = fcn(u_nom, u_lo, x, x_ref, mass, abort, safed, degrade, K_abort)'
+    'function u = fcn(u_nom, u_lo, x, x_ref, mass, abort, safed, degrade, nav_abort, K_abort)'
     '% The response ladder applied to the command (src/fdir/fdir_command_select.m)'
-    'mode.abort = abort > 0.5; mode.safed = safed > 0.5; mode.degrade = degrade > 0.5;'
+    'mode.abort = abort > 0.5; mode.safed = safed > 0.5; mode.degrade = degrade > 0.5; mode.nav_abort = nav_abort > 0.5;'
     'u = fdir_command_select(u_nom, u_lo, x, x_ref, mass, mode, K_abort, 9.80665);'
     'end'}, {'K_abort'}, '-1');
 add_line(c, 'u_nom/1', 'Command_Select/1');
@@ -356,15 +416,16 @@ add_line(c, 'mass/1', 'Command_Select/5');
 add_line(c, 'Delay_abort/1', 'Command_Select/6');
 add_line(c, 'Delay_safed/1', 'Command_Select/7');
 add_line(c, 'Delay_degrade/1', 'Command_Select/8');
+add_line(c, 'Delay_nav_abort/1', 'Command_Select/9');
 add_line(c, 'Command_Select/1', 'u/1');
 % the command actually sent, back to the monitors one frame later
 add_block('built-in/UnitDelay', [c '/Delay_u_cmd'], 'SampleTime', fr, 'InitialCondition', 'zeros(4,1)', 'Position', [820 360 850 390]);
 add_line(c, 'Command_Select/1', 'Delay_u_cmd/1');
-add_line(c, 'Delay_u_cmd/1', 'FDIR_Frame/12');
+add_line(c, 'Delay_u_cmd/1', 'FDIR_Frame/11');
 
 % logged for runs and Monte Carlo summaries
 logs = {1, 'fdir_abort'; 2, 'fdir_safed'; 3, 'fdir_degrade'; 5, 'fdir_mode'; 6, 'fdir_level'; ...
-        7, 'fdir_first_fault'; 8, 'fdir_status'; 9, 'fdir_raw'};
+        7, 'fdir_first_fault'; 8, 'fdir_status'; 9, 'fdir_raw'; 11, 'fdir_nav_nis'};
 for k = 1:size(logs, 1)
     b = ['Log_' logs{k, 2}];
     add_block('built-in/ToWorkspace', [c '/' b], 'VariableName', logs{k, 2}, 'SaveFormat', 'Timeseries', 'MaxDataPoints', 'inf', ...
@@ -409,6 +470,154 @@ add_line(c, 'Clock/1', 'Actuator_Gate/2');
 add_line(c, 'Actuator_Gate_State/1', 'Actuator_Gate/3');
 add_line(c, 'Actuator_Gate_State/2', 'Actuator_Gate/4');
 add_line(c, 'Actuator_Gate/1', 'u/1');
+end
+
+function c = sensorsChoice(c, ports)
+% The shared Sensors block (src/sensors/sensor_frame.m): truth -> sensor
+% model -> sensor faults, at the IMU rate. FDIR and the nav filter read it.
+emptyChoice(c, ports{1}, ports{2});
+add_block('built-in/Clock', [c '/Clock'], 'Position', [100 240 120 260]);
+add_block('simulink/Sources/Random Number', [c '/Sensor_Noise'], 'Mean', 'zeros(26,1)', ...
+    'Variance', 'ones(26,1)', 'Seed', 'sensor_params.S.seed + (0:25)''', 'SampleTime', 'sensor_params.dt', ...
+    'Position', [100 300 140 330]);
+f = [c '/Sensor_Frame'];
+add_block('simulink/User-Defined Functions/MATLAB Function', f, 'Position', [240 40 400 330]);
+setScript(f, {
+    'function [meas, valid, stamp] = fcn(t, noise, x, f_b, dcm_be, cg, sensor_params)'
+    '% Sensors and sensor faults, one step (src/sensors/sensor_frame.m)'
+    'persistent st'
+    'if isempty(st)'
+    '    st = sensor_frame_state(size(sensor_params.faults, 1), sensor_params.dt);'
+    'end'
+    '[meas, v, stamp, ~, st] = sensor_frame(x(:), f_b(:), dcm_be, cg(:), noise(:), t, sensor_params, st);'
+    'valid = double(v);'
+    'end'}, {'sensor_params'}, 'sensor_params.dt');
+add_line(c, 'Clock/1', 'Sensor_Frame/1');
+add_line(c, 'Sensor_Noise/1', 'Sensor_Frame/2');
+for k = 1:numel(ports{1})
+    add_line(c, [ports{1}{k} '/1'], sprintf('Sensor_Frame/%d', k + 2));
+end
+for k = 1:numel(ports{2})
+    add_line(c, sprintf('Sensor_Frame/%d', k), [ports{2}{k} '/1']);
+end
+end
+
+function c = passChoiceFirst2(c, ports)
+% Navigation none: truth state and DCM straight through; no estimate
+emptyChoice(c, ports{1}, ports{2});
+add_line(c, [ports{1}{1} '/1'], [ports{2}{1} '/1']);
+add_line(c, [ports{1}{2} '/1'], [ports{2}{2} '/1']);
+add_block('built-in/Constant', [c '/No_Estimate'], 'Value', 'zeros(20,1)', 'Position', [300 120 360 140]);
+add_block('built-in/Constant', [c '/No_Covariance'], 'Value', 'zeros(19)', 'Position', [300 160 360 180]);
+add_line(c, 'No_Estimate/1', [ports{2}{3} '/1']);
+add_line(c, 'No_Covariance/1', [ports{2}{4} '/1']);
+for k = 3:numel(ports{1})
+    add_block('built-in/Terminator', sprintf('%s/Unused%d', c, k), 'Position', [120, 40 * k, 140, 40 * k + 14]);
+    add_line(c, [ports{1}{k} '/1'], sprintf('Unused%d/1', k));
+end
+end
+
+function c = navChoice(c, ports, closed)
+% The nav team's GMEKF (subsystems/navigation/Filters/Hopper_GMEKF.slx, a
+% Model block: their file, never copied) between our adapter blocks
+% (src/navigation). closed: the controller and FDIR get the estimate;
+% otherwise (shadow) truth, with the estimate logged beside it.
+emptyChoice(c, ports{1}, ports{2});
+add_block('built-in/UnitDelay', [c '/Delay_Mxyz'], 'SampleTime', 'nav_dt', 'InitialCondition', 'zeros(3,1)', ...
+    'Position', [100 420 130 450]);   % the torque the flight computer commanded last step
+add_line(c, 'Mxyz/1', 'Delay_Mxyz/1');
+f = [c '/Nav_Inputs'];
+add_block('simulink/User-Defined Functions/MATLAB Function', f, 'Position', [220 40 380 460]);
+setScript(f, {
+    'function [accel, angvel, baro, gps, lidar, dgps, lidarFrames, gpsFrame, massProps, torque] = fcn(meas, valid, stamp, cg, mass, MOI, Mxyz, nav_params)'
+    '% The Sensors block as the filter''s buses (src/navigation/nav_measurements.m)'
+    '[accel, angvel, baro, gps, lidar, dgps, ~, lidarFrames, gpsFrame, massProps, torque] = nav_measurements( ...'
+    '    meas(:), valid(:) > 0.5, stamp(:), cg(:), mass, reshape(MOI, 3, 3), Mxyz(:), nav_params);'
+    'end'}, {'nav_params'}, 'nav_dt');
+busOut = {'accel', 'accelBus'; 'angvel', 'angvelBus'; 'baro', 'baroBus'; 'gps', 'gpsBus'; 'lidar', 'lidarBus'; ...
+          'dgps', 'diffGpsBus'; 'lidarFrames', 'lidarFrameBus'; 'gpsFrame', 'gpsFrameBus'; 'massProps', 'massProperties'};
+ch = sfroot().find('-isa', 'Stateflow.EMChart', 'Path', f);
+for k = 1:size(busOut, 1)
+    d = ch.find('-isa', 'Stateflow.Data', 'Name', busOut{k, 1});
+    d.DataType = ['Bus: ' busOut{k, 2}];
+end
+for k = 3:7   % meas valid stamp cg mass
+    add_line(c, [ports{1}{k} '/1'], sprintf('Nav_Inputs/%d', k - 2));
+end
+add_line(c, 'MOI/1', 'Nav_Inputs/6');
+add_line(c, 'Delay_Mxyz/1', 'Nav_Inputs/7');
+
+inherit = 'Inherit: Inherit from ''Constant value''';
+consts = {'Init', 'nav_init', 'Bus: InitConditions'; 'Reset', 'nav_reset', inherit; ...
+          'Step', 'nav_dt', inherit; 'Process_Noise', 'nav_Qc', inherit; 'Gravity', 'nav_g', inherit};
+for k = 1:size(consts, 1)
+    add_block('built-in/Constant', [c '/' consts{k, 1}], 'Value', consts{k, 2}, 'OutDataTypeStr', consts{k, 3}, ...
+        'Position', [420, 500 + 30 * k, 480, 515 + 30 * k]);
+end
+add_block('simulink/Ports & Subsystems/Model', [c '/GMEKF'], 'ModelName', 'Hopper_GMEKF', 'Position', [560 40 720 560]);
+% Hopper_GMEKF inputs: init reset dt Qc mass_properties gravity torque
+% meas_posvel meas_accel meas_angvel meas_baro meas_LID lidar_frames
+% meas_diffGPS gps_frame
+wires = {'Init/1', 1; 'Reset/1', 2; 'Step/1', 3; 'Process_Noise/1', 4; 'Nav_Inputs/9', 5; 'Gravity/1', 6; ...
+         'Nav_Inputs/10', 7; 'Nav_Inputs/4', 8; 'Nav_Inputs/1', 9; 'Nav_Inputs/2', 10; 'Nav_Inputs/3', 11; ...
+         'Nav_Inputs/5', 12; 'Nav_Inputs/7', 13; 'Nav_Inputs/6', 14; 'Nav_Inputs/8', 15};
+for k = 1:size(wires, 1)
+    add_line(c, wires{k, 1}, sprintf('GMEKF/%d', wires{k, 2}));
+end
+
+o = [c '/Nav_Outputs'];
+add_block('simulink/User-Defined Functions/MATLAB Function', o, 'Position', [800 40 940 200]);
+setScript(o, {
+    'function [x, dcm, xn, P_diag] = fcn(state_estimate, covariance, cg, nav_params)'
+    '% The estimate in the controller''s convention (src/navigation/nav_state_to_sim.m)'
+    'xn = state_estimate(:);'
+    '[x, dcm] = nav_state_to_sim(xn, cg(:), nav_params.F);'
+    'P_diag = diag(covariance);'
+    'end'}, {'nav_params'}, '-1');
+add_line(c, 'GMEKF/1', 'Nav_Outputs/1');
+add_line(c, 'GMEKF/2', 'Nav_Outputs/2');
+add_line(c, 'cg/1', 'Nav_Outputs/3');
+add_line(c, 'Nav_Outputs/3', 'xn/1');     % the raw estimate and covariance, for FDIR's estimator checks
+add_line(c, 'GMEKF/2', 'P/1');
+
+add_block('built-in/Sum', [c '/Estimate_Error'], 'Inputs', '+-', 'Position', [1000 230 1030 260]);
+add_line(c, 'Nav_Outputs/1', 'Estimate_Error/1');
+add_line(c, 'x_true/1', 'Estimate_Error/2');
+logs = {'Nav_Outputs/1', 'nav_estimate'; 'Estimate_Error/1', 'nav_error'; 'Nav_Outputs/3', 'nav_state'; 'Nav_Outputs/4', 'nav_P_diag'};
+for k = 1:size(logs, 1)
+    b = ['Log_' logs{k, 2}];
+    add_block('built-in/ToWorkspace', [c '/' b], 'VariableName', logs{k, 2}, 'SaveFormat', 'Timeseries', 'MaxDataPoints', 'inf', ...
+        'Position', [1080, 200 + 40 * k, 1160, 220 + 40 * k]);
+    add_line(c, logs{k, 1}, [b '/1']);
+end
+if closed
+    add_line(c, 'Nav_Outputs/1', 'x/1');
+    add_line(c, 'Nav_Outputs/2', 'dcm/1');
+    add_block('built-in/Terminator', [c '/Unused_dcm_true'], 'Position', [120 80 140 94]);
+    add_line(c, 'dcm_true/1', 'Unused_dcm_true/1');
+else
+    add_line(c, 'x_true/1', 'x/1');
+    add_line(c, 'dcm_true/1', 'dcm/1');
+    add_block('built-in/Terminator', [c '/Unused_dcm'], 'Position', [980 100 1000 114]);
+    add_line(c, 'Nav_Outputs/2', 'Unused_dcm/1');
+end
+end
+
+function linkNavigationDictionary(m)
+% The filter's buses live in the nav team's NavigationDictionary.sldd. The
+% harness links our own dictionary (config/hopper_harness.sldd) that
+% references theirs, with base-workspace access on, so buildSimInput's
+% variables still reach the model and their file is never edited.
+dd = fullfile(hopperRoot('config'), 'hopper_harness.sldd');
+if ~isfile(dd)
+    if ~isfolder(fileparts(dd)), mkdir(fileparts(dd)); end
+    d = Simulink.data.dictionary.create(dd);
+    addDataSource(d, 'NavigationDictionary.sldd');
+    d.EnableAccessToBaseWorkspace = true;
+    saveChanges(d);
+    close(d);
+end
+set_param(m, 'DataDictionary', 'hopper_harness.sldd');
 end
 
 function setScript(blk, lines, params, sampleTime)

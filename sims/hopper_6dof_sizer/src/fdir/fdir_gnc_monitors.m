@@ -14,8 +14,8 @@ function [raw, metric, m] = fdir_gnc_monitors(meas, valid, stamp, t, phase, k, c
 %   raw     37 x 1 logical: this frame's check failed (catalog row order)
 %   metric  37 x 1 statistic for CUSUM rows (0 elsewhere)
 %
-% Rows 33-37 (estimator checks) stay false until NAVIGATION provides the
-% innovations, covariance and shadow state; the catalog inhibits them.
+% Rows 33-37 (estimator checks) are fdir_nav_monitors', set by fdir_frame
+% when NAVIGATION is on; false here.
 % Checks from FDIR CoDR slides 20-28 and GNC PDR slides 80-83.
 %
 %#codegen
@@ -113,7 +113,17 @@ raw(17) = any(isnan(bm)) || ~valid(L.S_MAG) || norm(bm) < c.mag_lo || norm(bm) >
 % ---- 18-22 Guidance and control ----
 raw(18) = k.tilt > c.tilt_e1;
 raw(19) = k.tilt > c.tilt_e2 || any(abs(k.rates(2:3)) > c.rate_w2);   % roll rate is fault 22 (R2)
-er = (k.tilt - m.prev_tilt_err) / c.frame;
+% tilt low-passed before differencing: an estimated attitude (NAVIGATION
+% gmekf) carries noise that a raw 100 Hz difference turns into deg/s
+if isnan(m.prev_tilt_err), m.prev_tilt_err = k.tilt; m.tilt_f = k.tilt; m.tilt_slow = k.tilt; end
+tf = m.tilt_f + (c.frame / c.limit_cycle_tau) * (k.tilt - m.tilt_f);
+er = (tf - m.tilt_f) / c.frame;
+m.tilt_f = tf;
+% oscillation amplitude: tilt about its short-term average, over the
+% window. A limit cycle swings degrees; flying on an estimate jitters
+% tenths (22 sign changes in 2 s but < 0.5 deg about a 0.2 s average)
+m.tilt_slow = m.tilt_slow + (c.frame / c.limit_cycle_avg) * (k.tilt - m.tilt_slow);
+m.tilt_osc = [m.tilt_osc(2:end), abs(tf - m.tilt_slow)];
 sgn = 0;
 if er > c.limit_cycle_deadband, sgn = 1; elseif er < -c.limit_cycle_deadband, sgn = -1; end
 m.err_rate_sign = [m.err_rate_sign(2:end), sgn];
@@ -126,7 +136,8 @@ for j = W - c.limit_cycle_window + 1:W
         last = s;
     end
 end
-raw(20) = changes > c.limit_cycle_count;
+raw(20) = changes > c.limit_cycle_count && ...
+    max(m.tilt_osc(end - c.limit_cycle_window + 1:end)) > c.limit_cycle_amp;
 m.prev_tilt_err = k.tilt;
 raw(21) = k.thrust_cmd > c.throttle_frac * k.thrust_max;
 raw(22) = abs(k.rates(1)) > c.roll_rate_max;

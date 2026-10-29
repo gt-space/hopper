@@ -23,6 +23,7 @@ for r = 1:size(faults, 1)
         continue
     end
     [ch, sens] = targetChannels(tg, prm, L, F);
+    vel = false(L.N_MEAS, 1); vel(L.GPS_VEL) = true;   % a GPS position bias or drift leaves its velocity alone
 
     % hold the value (and stamp) seen at onset for stuck / stale
     if ~g.held(r)
@@ -36,9 +37,9 @@ for r = 1:size(faults, 1)
             meas(ch) = NaN;
             valid(sens) = false;
         case F.M_BIAS
-            meas(ch) = meas(ch) + mag;
+            meas(ch & ~vel) = meas(ch & ~vel) + mag;
         case F.M_DRIFT
-            meas(ch) = meas(ch) + mag * (t - t_on);
+            meas(ch & ~vel) = meas(ch & ~vel) + mag * (t - t_on);
         case F.M_SATURATION
             meas(ch) = mag;
         case F.M_STUCK
@@ -77,7 +78,7 @@ switch tg
             ch(L.LIDAR) = true; sens(L.S_LIDAR) = true;
         end
     case F.T_GPS
-        ch(L.GPS_POS) = true; sens(L.S_GPS) = true;
+        ch(L.GPS_POS) = true; ch(L.GPS_VEL) = true; sens(L.S_GPS) = true;
     case F.T_MAG
         ch(L.MAG) = true; sens(L.S_MAG) = true;
     otherwise

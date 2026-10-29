@@ -31,8 +31,8 @@ id,fta_row,name,group,filter,n,m,cusum_limit,clear_policy,phase_mask,response,ta
 30,GNC.SENSOR.IMU_DRIFT,IMU pad sanity (IBIT),ibit,CONSECUTIVE,10,10,0,GROUND_ONLY,PAD,NO_ARM,imu,,,,0,|f| ~ g and |w| near noise on the pad (CoDR 20)
 31,GNC.SENSOR.LIDAR_DROPOUT,Lidar pad geometry (IBIT),ibit,CONSECUTIVE,10,10,0,GROUND_ONLY,PAD,NO_ARM,lidar,,,,0,Each beam reads the expected pad height (CoDR 21)
 32,GNC.SENSOR.GPS_DROPOUT,GPS pad calibration (IBIT),ibit,CONSECUTIVE,10,10,0,GROUND_ONLY,PAD,NO_ARM,gps,,,,0,NED origin calibrated at the pad (CoDR 22)
-33,GNC.EKF.SENSOR_FAULT,One sensor rejecting,estimator,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R0,nav,,,,1,Needs NAVIGATION (PDR 81)
-34,GNC.EKF.DIVERGENCE,Several sensors rejecting,estimator,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R1,nav,,R3,2.0,1,Needs NAVIGATION: IMU clean -> R1; persistent -> R3
-35,GNC.EKF.POOR_TUNING,NIS window / CUSUM,estimator,CUSUM,1,1,5,AUTO_CLEAR,ALL,R1,nav,,,,1,Needs NAVIGATION (CoDR 24)
-36,GNC.EKF.DIVERGENCE,Main vs shadow estimator,estimator,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R3,nav,,,,1,Needs NAVIGATION: reset; repeat -> R3
-37,GNC.EKF.EXTREME_NONLINEARITY,Covariance / state plausibility,estimator,CONSECUTIVE,1,1,0,NEVER_IN_FLIGHT,ALL,R3,nav,,,,1,Needs NAVIGATION (CoDR 25-26)
+33,GNC.EKF.SENSOR_FAULT,One sensor rejecting,estimator,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R0,nav,,,,0,NAVIGATION on: one sensor fails its 99 % gate against the estimate (fdir_nav_monitors; PDR 81)
+34,GNC.EKF.DIVERGENCE,Several sensors rejecting,estimator,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R1,nav,,R3,2.0,0,NAVIGATION on: two or more sensors fail together; persistent -> R3
+35,GNC.EKF.POOR_TUNING,NIS window / CUSUM,estimator,CUSUM,1,1,5,AUTO_CLEAR,ALL,R1,nav,,,,0,NAVIGATION on: CUSUM of mean normalized NIS above 2 per second (CoDR 24)
+36,GNC.EKF.DIVERGENCE,Main vs shadow estimator,estimator,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R3,nav,,,,1,Needs a second (shadow) estimator: not in the GMEKF yet
+37,GNC.EKF.EXTREME_NONLINEARITY,Covariance / state plausibility,estimator,CONSECUTIVE,1,1,0,NEVER_IN_FLIGHT,ALL,R3,nav,,,,0,NAVIGATION on: covariance or state not finite or beyond bounds (CoDR 25-26)

@@ -27,6 +27,7 @@ classdef FdirFrameTest < matlab.unittest.TestCase
             tc.P.thrust_min = IN.propulsion.nominal_thrust * IN.propulsion.throttle_range(1);
             tc.P.g = 9.80665;
             tc.P.cutoff_alt = IN.mission.engine_cutoff_alt;
+            tc.P.nav_active = false;                    % estimator checks: NavigationFlightTest
             tc.M = fdir_modes();
             tc.K = fdir_catalog_cols();
         end
@@ -72,20 +73,26 @@ classdef FdirFrameTest < matlab.unittest.TestCase
     methods
         function [ys, st] = hover(tc, t_end)
             % climb from the pad to the hover altitude, then hold
+            % the shared Sensors block (sensor_frame), run here at the FDIR frame
             st = fdir_frame_state(size(tc.P.cat, 1), size(tc.P.faults, 1), tc.P.S.frame);
+            sp = struct('S', tc.P.S, 'faults', tc.P.faults, 'inject', tc.P.inject);
+            sst = sensor_frame_state(size(tc.P.faults, 1), tc.P.S.frame);
+            L = sensor_layout();
             h = tc.P.modes.hover_alt;
             ts = 0:tc.P.S.frame:t_end;
             ys = cell(1, 0);
             rng(1);
-            noise = randn(20, numel(ts));
+            noise = randn(L.N_MEAS, numel(ts));
             for k = 1:numel(ts)
                 t = ts(k);
                 alt = min(h, h * t / 2);
                 vz_up = (t < 2) * h / 2;
-                in.t = t; in.noise = noise(:, k);
+                in.t = t;
                 in.x = [0; 0; -alt; 0; 0; -vz_up; 0; 0; 0; sqrt(2)/2; 0; sqrt(2)/2; 0];
                 in.dcm_be = [0 0 -1; 0 1 0; 1 0 0];     % body x up
                 in.f_b = [9.80665; 0; 0];
+                [in.meas, in.valid, in.stamp, ~, sst] = sensor_frame(in.x, in.f_b, in.dcm_be, [1.14; 0; 0], ...
+                    noise(:, k), t, sp, sst);
                 in.thrust = 1300; in.gimbal_fb = [0; 0]; in.rcs_torque = 0;
                 in.mass = 130; in.u_nom = [1300; 0; 0; 0]; in.u_cmd = in.u_nom;
                 [y, st] = fdir_frame(in, tc.P, st);

@@ -78,4 +78,7 @@ VC.legs.mass        = 0.44908343062561118;     % kg, all legs: sizer 2026-10
 VC.aero.area = 0.15;                           % m^2, ASSUMPTION: side area
 VC.aero.cd   = 1.2;                            % ASSUMPTION
 VC.aero.cp_x = 0.35;                           % m, ASSUMPTION: centre of pressure
+
+% ---- Sensors: the hopper's lidar layout; GPS antennas near the top ----
+VC.sensors.gps.antenna = [0.6 0.6; 0 0; 0.1 -0.1];   % m, ASSUMPTION: body x y z from the base
 end

@@ -30,8 +30,14 @@ if nargin < 3 || isempty(W), W = hopperWorkspace(scenario, variants); end
 for f = fieldnames(variants)'
     W.(f{1}) = variants.(f{1});   % only models with variants read these
 end
+if variants.VARIANT_FDIR == 2 || variants.VARIANT_NAVIGATION > 1 || variants.VARIANT_FAULT_INJECTION == 2
+    W = sensorWorkspace(W, variants); % the shared Sensors block: FDIR and navigation read it
+end                                   % (keeps a fault table already in W.faults)
+if variants.VARIANT_NAVIGATION > 1
+    W = navWorkspace(W, variants);
+end
 if variants.VARIANT_FDIR == 2 || variants.VARIANT_FAULT_INJECTION == 2
-    W = fdirWorkspace(W, variants);   % keeps a fault table already in W.faults
+    W = fdirWorkspace(W, variants);   % reads the sensor and nav parameters above
 end
 
 if isa(model, 'Simulink.SimulationInput')

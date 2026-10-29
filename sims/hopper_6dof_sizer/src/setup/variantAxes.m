@@ -36,6 +36,11 @@ function A = variantAxes()
 %   FAULT_INJECTION off       no faults
 %               on            the fault table W.faults (faultScenario) drives
 %                             the sensor and actuator gates
+%   NAVIGATION  none          the controller and FDIR read truth state (v2)
+%               gmekf_shadow  the nav team's GMEKF (subsystems/navigation)
+%                             runs on the shared Sensors block; its estimate
+%                             is logged and checked, truth still flies
+%               gmekf         the controller and FDIR fly on the estimate
 
 A.VEHICLE    = ["hopper", "ctv"];
 A.SLOSH      = ["full", "off"];
@@ -45,4 +50,5 @@ A.MASS_PROPS = ["varying", "constant"];
 A.CONTROLLER = ["lqr_sched", "lqi", "lqr_sched_legacy"];
 A.FDIR       = ["off", "on"];
 A.FAULT_INJECTION = ["off", "on"];
+A.NAVIGATION = ["none", "gmekf_shadow", "gmekf"];
 end

@@ -17,7 +17,7 @@ c.stuck_window   = 20;                         % samples for the windowed varian
 c.accel_var_floor = (0.1 * min(S.imu.accel_sigma))^2;
 c.gyro_var_floor  = (0.1 * min(S.imu.gyro_sigma))^2;
 c.accel_jump     = 20;                         % m/s^2 per sample (physical jerk bound)
-c.imu_period     = S.imu.period;
+c.imu_period     = max(S.imu.period, S.frame);   % s: FDIR sees one IMU sample per frame at most (IMU 500 Hz, frame 100 Hz)
 
 % ---- Lidar per beam (CoDR 21) ----
 c.lidar_r_min = S.lidar.r_min;
@@ -47,6 +47,9 @@ c.throttle_frac = 0.9;                         % thrust margin
 c.limit_cycle_window = 200;                    % frames (2 s)
 c.limit_cycle_count  = 12;                     % sign changes in the window
 c.limit_cycle_deadband = 0.5;                  % deg/s
+c.limit_cycle_amp = 0.5;                       % deg, oscillation about the short-term average a limit cycle must reach
+c.limit_cycle_avg = 0.2;                       % s, that average
+c.limit_cycle_tau = 0.05;                      % s, tilt low-pass before the rate (passes the few-Hz cycles it looks for)
 
 % ---- Actuators (CoDR 28, PDR 83) ----
 c.gimbal_max       = IN.tvc.max_gimbal_angle;
@@ -70,6 +73,21 @@ c.pad_gyro_max = 0.05;                         % rad/s
 c.pad_lidar_tol = 0.05;                        % m
 c.pad_gps_tol  = 0.5;                          % m from the NED origin
 c.ref0_tol     = 0.05;                         % m, t = 0 reference vs pad state
+
+% ---- Estimator checks, rows 33-37 (fdir_nav_monitors; NAVIGATION on) ----
+% 99.99 % chi-square gates (the filter gates outliers at 99 %; FDIR looks
+% for persistent faults, and 99 % on five sensor groups at 100 Hz trips
+% the N-of-M by chance)
+c.gate_baro  = 15.137; c.gate_gyro = 21.108; c.gate_gps = 27.856;
+c.gate_lidar = 15.137; c.gate_dgps = 21.108;
+c.lidar_beams_fail = 2;                        % beams failing together before the lidar group counts (one beam is row 9-12)
+c.pos_var_max   = 10^2;                       % m^2: position no longer known to 10 m
+c.vel_var_max   = 5^2;                        % (m/s)^2
+c.att_var_max   = deg2rad(20)^2;              % rad^2 per axis
+c.quat_norm_tol = 1e-3;
+c.speed_max     = 100;                        % m/s, far beyond the hopper's envelope
+c.rate_max      = 5;                          % rad/s
+c.nav = struct();                             % nav_params, set by fdirWorkspace
 
 if isfield(IN, 'fdir') && isfield(IN.fdir, 'monitors')
     for f = fieldnames(IN.fdir.monitors)'
