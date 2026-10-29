@@ -47,11 +47,11 @@ TANKS  = size_tanks(IN);
 AVI    = size_avionics(IN);
 ENGINE = size_engine(IN);
 
-% Dry mass: the CTV hardcode from main_ctv.m, dispersed by mass_factor.
+% Dry mass comes from mission_inputs, dispersed by mass_factor.
 % size_structures then adds the landing legs and intertank on top of it,
 % exactly as main_ctv.m lets it, which is why the nominal case reproduces
 % sim_setup_ctv.m. VEH.mass.wet is the pre-legs value, also as in main_ctv.m.
-dry_mass_nominal = 116.86;
+dry_mass_nominal = IN.mass.dry;
 VEH.mass.dry = IN.mass_factor * dry_mass_nominal;
 VEH.mass.wet = VEH.mass.dry + ...
     IN.propulsion.oxidizer_mass + IN.propulsion.fuel_mass;

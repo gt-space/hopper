@@ -21,6 +21,14 @@ ENGINE = evalin('base', 'ENGINE');
 
 result.scenario = scenario;
 
+% The MC files cannot see IN, so the mission limits travel with the result and
+% check_constraints reads them from here.
+result.mission.target_altitude    = IN.mission.target_altitude;
+result.mission.altitude_tolerance = IN.mission.altitude_tolerance;
+result.mission.max_ascent_vel     = IN.mission.max_ascent_vel;
+result.mission.max_descent_vel    = IN.mission.max_descent_vel;
+result.mission.max_landing_vel    = IN.mission.max_landing_vel;
+
 result.vehicle.dry_mass    = OUT.Vehicle.DryMass;
 result.vehicle.wet_mass    = OUT.Vehicle.WetMass;
 result.vehicle.mass_ratio  = OUT.Vehicle.MassRatio;
@@ -130,7 +138,8 @@ result.status.error   = '';
 
 
 % Sanity check — flag diverged runs
-if any(isinf(altitude)) || any(isnan(altitude)) || max(altitude) > 500
+if any(isinf(altitude)) || any(isnan(altitude)) || ...
+        max(altitude) > 10 * result.mission.target_altitude
     result.status.success = false;
     result.status.error   = 'Simulation diverged - states went to Inf/NaN';
     return

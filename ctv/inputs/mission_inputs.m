@@ -8,18 +8,25 @@ IN.const.FS_struct = 2;           % structural factor of safety
 
 
 %  MISSION CONSTRAINTS (checked after flight simulation)
-IN.mission.target_altitude = 51;    % m
-IN.mission.hover_time_55m = 2;      % s
+IN.mission.target_altitude = 5;     % m, CTV max hop altitude
+IN.mission.altitude_tolerance = 0.5; % m, pass band either side of the target
+IN.mission.ascent_time = 5;         % s, climb to target_altitude
+IN.mission.hover_time = 2;          % s, hold at target_altitude
+IN.mission.descent_time = 6;        % s, target_altitude back to the pad
 IN.mission.max_ascent_vel = 7;     % m/s
 IN.mission.max_descent_vel = 7;    % m/s
+IN.mission.max_landing_vel = 0.5;   % m/s, touchdown limit
 IN.mission.hover_time_1m = 1;       %s
-IN.mission.landing_vel = 0;         % m/s at 1 m
+IN.mission.landing_vel = 0;         % m/s at 1 m (target, not the limit above)
 IN.mission.landing_alt = 1;         % m
 IN.mission.TWR_hover_landing = 1;
 IN.mission.max_vehicle_height = 2.44; % m
 
 %  MASS GROWTH MARGIN
 % IN.margins.mass_growth = 20 * 0.453592;  % lb -> kg
+
+%  VEHICLE MASS
+IN.mass.dry = 116.86; % kg, dry mass before legs/intertank (MC scales by mass_factor)
 
 %  STRUCTURES
 IN.structures.payload_mass = 15; % kg, CPLC Requirement

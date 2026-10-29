@@ -7,6 +7,13 @@ if nargin < 1; results_file = newest_results(); end
 load(results_file, 'results');
 load(results_file, 'results', 'nominal');
 
+% Target altitude travels with the results, so the plots follow the mission.
+if isfield(nominal, 'mission') && isfield(nominal.mission, 'target_altitude')
+    target_alt = nominal.mission.target_altitude;
+else
+    target_alt = 51;   % results from before the mission limits were recorded
+end
+
 % Replace nom_idx references with nominal.timeseries directly
 % e.g. instead of:
 %   nominal.timeseries.altitude
@@ -115,7 +122,8 @@ h_nom = plot(ts_nom.t, ts_nom.altitude, 'Color', c_nominal, 'LineWidth', 2.0);
 h_mean = plot(t_grid, alt_mean, 'Color', c_mean, 'LineWidth', 2.5);
 
 % Target altitude
-yline(51, '--k', '51m Target', 'LabelVerticalAlignment', 'bottom');
+yline(target_alt, '--k', sprintf('%gm Target', target_alt), ...
+    'LabelVerticalAlignment', 'bottom');
 
 xlabel('Time (s)');
 ylabel('Altitude (m)');
@@ -223,7 +231,7 @@ subplot(2,2,1);
 histogram(max_alts, 20, 'FaceColor', c_sigma);
 xline(mean(max_alts),   'Color', c_mean,    'LineWidth', 2, 'Label', 'Mean');
 xline(median(max_alts), 'Color', c_nominal, 'LineWidth', 2, 'Label', 'Median');
-xline(51, '--k', 'LineWidth', 1.5, 'Label', 'Target');
+xline(target_alt, '--k', 'LineWidth', 1.5, 'Label', 'Target');
 xlabel('Max Altitude (m)'); ylabel('Count');
 title(sprintf('Max Altitude  \\mu=%.1fm  \\sigma=%.1fm', mean(max_alts), std(max_alts)));
 
