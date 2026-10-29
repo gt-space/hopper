@@ -6,15 +6,21 @@
 %   runMode = 'serial'; n = 20; mc_parallelization_ctv
 % Options for runMode: 'serial_isolated', 'parallel', 'serial', 'nominal'.
 %
-% Use 'serial_isolated' for real Monte Carlo runs. hopper_6dof_NED_v2_ctv is
-% only repeatable on the FIRST sim of a MATLAB process: later sims in the same
-% process drift by several m/s in landing velocity for bit-identical inputs,
-% and no reset fixes it (base workspace wipe, bdclose, clear
-% functions/persistent/mex, FastRestart off and Simscape artifact caching off
-% were all tried). 'serial_isolated' runs every scenario as sim #1 of a fresh
-% process, which costs MATLAB startup per run but is reproducible. 'serial'
-% is kept for quick smoke tests only; its results carry an ordinal-dependent
-% offset.
+% KNOWN ISSUE (fixed here): hopper_6dof_NED_v2_ctv draws from MATLAB's global
+% random stream in MC wind mode, so repeated in-process sims of the SAME
+% scenario used to differ by several m/s in landing velocity - the stream
+% simply carried on from wherever the previous sim left it. No reset helped
+% (base workspace wipe, bdclose, clear functions/persistent/mex, FastRestart
+% off, Simscape artifact caching off were all tried) because the model, not
+% the workspace, held the state. mc_sim_setup_ctv now calls rng(scenario.Seed)
+% before each sim, which makes 'serial' bit-identical to 'serial_isolated'.
+% sims/hopper_6dof_sizer/mc_parallelization.m generates the same per-scenario
+% Seed field and likewise never applies it, so main's 6DOF MC probably has
+% the same defect.
+%
+% 'serial' is therefore the normal mode. 'serial_isolated' runs every scenario
+% as sim #1 of a fresh MATLAB process; it costs process startup per run and is
+% kept as an independent cross-check of the seeding.
 warning('off', 'MATLAB:Python:PyNotFound')
 
 % --- Setup CTV-only paths ---
