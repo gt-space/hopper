@@ -18,6 +18,7 @@ t_end = Tup + Thover + Tdown + Tterm;
 t = (0:dt:t_end)';
 
 g = 9.81;
+% TODO: reconcile with IN.const.g0 (9.80665) - physics change, not done yet
 
 %% Minimum jerk profile
 mjerk = @(s) (10*s.^3 - 15*s.^4 + 6*s.^5);

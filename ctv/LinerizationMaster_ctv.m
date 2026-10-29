@@ -82,12 +82,12 @@ Target_Trajectory = [x_trajectory;y_trajectory;z_trajectory;...
 
 params = struct();
 % constants
-params.g = 9.80665;     % m/s^2  (Down is +Z in NED)
+params.g = IN.const.g0;  % m/s^2  (Down is +Z in NED)
 % params.m = linspace(OUT.Vehicle.WetMass,100, length(t));         % kg     (constant mass for now)
 % geometry / actuator
 params.d  = cg_init - engine_cg;       % m   thrust application x-offset in BODY frame (r = [-d;0;0])
-params.r_m = 0.125;     % m   moment arm for RCS term (your r_m)
-params.n_rcs = 1;       % unitless (if you keep it)
+params.r_m = IN.rcs.moment_arm;     % m   moment arm for RCS term (your r_m)
+params.n_rcs = IN.rcs.count;       % unitless (if you keep it)
 m_profile = linspace(OUT.Vehicle.WetMass,OUT.Vehicle.DryMass, length(t));
 
 % inertia (constant, BODY frame about CG)

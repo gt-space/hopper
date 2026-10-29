@@ -2,6 +2,7 @@ function [zeta_axial] = axialDampingCalc( ...
     prop_mass_profile, prop_density, nu, tank_r, baffle_w, Nb, tank_h)
 
 g      = 9.81;
+% TODO: reconcile with IN.const.g0 (9.80665) - physics change, not done yet
 A_tank = pi * tank_r^2;
 r_gap  = tank_r - baffle_w;
 A_gap  = pi * r_gap^2;

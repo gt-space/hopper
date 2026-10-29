@@ -129,6 +129,8 @@ IN.tvc.resolution = deg2rad(0.1); % deg
 IN.tvc.damping_ratio = 0.5; 
 
 % RCS
+IN.rcs.moment_arm = 0.125; % m, RCS moment arm
+IN.rcs.count = 1;
 IN.rcs.max_thrust = 16; % N
 IN.rcs.throttle_rate = 50; % N/s
 IN.rcs_time_constant = 0.1;

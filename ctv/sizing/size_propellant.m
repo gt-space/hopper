@@ -1,6 +1,6 @@
 function PROP = size_propellant(IN, engine, vehicle)
 
-g0 = 9.80665;
+g0 = IN.const.g0;
 
 % Hover requirement
 m_guess = vehicle.mass.dry + IN.margins.mass_growth;
