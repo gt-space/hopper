@@ -1,4 +1,4 @@
-function [scenarios, mcTable] = generateScenarios(jsonFile, n, outDir)
+function [scenarios, mcTable] = generateScenarios_ctv(jsonFile, n, outDir)
 %GENERATESCENARIOS Latin-hypercube Monte Carlo scenarios from a bounds file.
 %   Copy of sims/hopper_6dof_sizer/generateScenarios.m. The only change is
 %   outDir: the scenario table is written next to the results rather than to

@@ -112,7 +112,7 @@ if ~exist(ckptDir, 'dir')
 end
 
 if ~strcmp(runMode, 'nominal')
-    [scenarios, mcTable] = generateScenarios(jsonFile, n, currentDir);
+    [scenarios, mcTable] = generateScenarios_ctv(jsonFile, n, currentDir);
     scenarioStructs = table2struct(mcTable);
 
     % --- Load existing checkpoints per scenario ---
@@ -300,27 +300,40 @@ function r = apply_constraints(r)
     end
     if isfield(r, 'status') && isfield(r.status, 'success') && r.status.success
         r = check_constraints(r);
-    elseif ~isfield(r, 'status') || ~isfield(r.status, 'pass')
-        r.status.pass = false;
+    else
+        if ~isfield(r, 'status') || ~isfield(r.status, 'pass')
+            r.status.pass = false;
+        end
+        r.status.pass_flight = false;
+        r.status.failed = {'errored'};
     end
 end
 
 function result = check_constraints(result)
-    % From sims/hopper_6dof_sizer/mc_runner.m
+    % Criteria from sims/hopper_6dof_sizer/mc_runner.m, unchanged. status.pass
+    % keeps the original meaning; status.failed names the criteria that broke
+    % and status.pass_flight drops the two TWR criteria, which CTV cannot meet
+    % at a final TWR of 0.74 and so would otherwise mask every flight result.
     v = result.vehicle;
     f = result.flight;
-    passes = true;
 
-    if v.twr_initial        < 1.0; passes = false; end
-    if v.twr_final          < 1.0; passes = false; end
-    if v.dry_mass           <= 0;  passes = false; end
-    if v.wet_mass           <= 0;  passes = false; end
-    if f.max_altitude       < 51;  passes = false; end
-    if f.max_ascent_vel     > 7;   passes = false; end
-    if f.max_descent_vel    > 7;   passes = false; end
-    if f.landing_vel        > 0.5; passes = false; end
+    % name, violated, counts_towards_pass_flight
+    checks = { ...
+        'twr_initial',  v.twr_initial     < 1.0, false; ...
+        'twr_final',    v.twr_final       < 1.0, false; ...
+        'dry_mass',     v.dry_mass        <= 0,  true;  ...
+        'wet_mass',     v.wet_mass        <= 0,  true;  ...
+        'max_altitude', f.max_altitude    < 51,  true;  ...
+        'max_ascent_vel',  f.max_ascent_vel  > 7,   true;  ...
+        'max_descent_vel', f.max_descent_vel > 7,   true;  ...
+        'landing_vel',  f.landing_vel     > 0.5, true};
 
-    result.status.pass = passes;
+    violated = cell2mat(checks(:, 2));
+    inFlight = cell2mat(checks(:, 3));
+
+    result.status.pass        = ~any(violated);
+    result.status.pass_flight = ~any(violated & inFlight);
+    result.status.failed      = reshape(checks(violated, 1), 1, []);
 end
 
 function summarize(results)
@@ -328,10 +341,28 @@ function summarize(results)
     nr = numel(results);
     ok = arrayfun(@(r) isfield(r, 'status') && r.status.success, results);
     pass = arrayfun(@(r) isfield(r, 'status') && isfield(r.status, 'pass') && r.status.pass, results);
+    passF = arrayfun(@(r) isfield(r, 'status') && isfield(r.status, 'pass_flight') && r.status.pass_flight, results);
     fprintf('\n%s\n', repmat('=', 1, 52));
-    fprintf('Scenarios: %d\n', nr);
-    fprintf('Pass:      %d (%.1f%%)\n', sum(pass), 100*sum(pass)/nr);
-    fprintf('Fail:      %d (%.1f%%)\n', sum(ok & ~pass), 100*sum(ok & ~pass)/nr);
-    fprintf('Errors:    %d (%.1f%%)\n', sum(~ok), 100*sum(~ok)/nr);
+    fprintf('Scenarios:    %d\n', nr);
+    fprintf('Pass:         %d (%.1f%%)\n', sum(pass), 100*sum(pass)/nr);
+    fprintf('Fail:         %d (%.1f%%)\n', sum(ok & ~pass), 100*sum(ok & ~pass)/nr);
+    fprintf('Pass(flight): %d (%.1f%%)   [TWR criteria excluded]\n', sum(passF), 100*sum(passF)/nr);
+    fprintf('Errors:       %d (%.1f%%)\n', sum(~ok), 100*sum(~ok)/nr);
+
+    % per-constraint tally
+    allNames = {};
+    for i = 1:nr
+        if isfield(results(i), 'status') && isfield(results(i).status, 'failed')
+            allNames = [allNames, results(i).status.failed];  %#ok<AGROW>
+        end
+    end
+    if ~isempty(allNames)
+        u = unique(allNames);
+        fprintf('%s\n', repmat('-', 1, 52));
+        for i = 1:numel(u)
+            c = sum(strcmp(allNames, u{i}));
+            fprintf('  broke %-18s %4d (%.1f%%)\n', u{i}, c, 100*c/nr);
+        end
+    end
     fprintf('%s\n', repmat('=', 1, 52));
 end
