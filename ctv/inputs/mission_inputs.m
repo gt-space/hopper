@@ -108,6 +108,8 @@ IN.tanks.material = 'Al6061';
 IN.tanks.max_radius = 4.25*0.0254; % in -> m
 % IN.tanks.lateral_damping = 0.08;
 % IN.tanks.axial_damping = 0.3;
+IN.tanks.damping_factor_ox = 1.0;  % MC: scale on the baffle damping table (LOx)
+IN.tanks.damping_factor_fu = 1.0;  % MC: scale on the baffle damping table (fuel)
 
 %  TVC
 IN.tvc.max_gimbal_angle = deg2rad(15); % deg
@@ -168,15 +170,20 @@ IN.wind.vwind = 5;
 
 % MASS FACTOR
 IN.mass_factor = 1.0; %default / nominal case
+IN.cg_factor = 1.0; % dry CG axial position factor (MC)
+IN.inertia_factor = 1.0; % dry inertia factor (MC)
 
-% MONTE CARLO SCENARIO STRUCT CREATION
-if  ~isempty(scenario_params)
+% MONTE CARLO SCENARIO STRUCT CREATION (SAFEGUARDED)
+if ~isempty(scenario_params) && isfield(scenario_params, 'ox_mass')
     IN.propulsion.oxidizer_mass       = scenario_params.ox_mass;
     IN.propulsion.fuel_mass           = scenario_params.fuel_mass;
     IN.propulsion.eta_cstar           = scenario_params.cstar;
     IN.mass_factor                    = scenario_params.mass_factor;
-    IN.tanks.lateral_damping          = scenario_params.slosh_lateral_damping;
-    IN.tanks.axial_damping            = scenario_params.slosh_axial_damping;
+    if isfield(scenario_params, 'slosh_lateral_damping'), IN.tanks.lateral_damping = scenario_params.slosh_lateral_damping; end
+    if isfield(scenario_params, 'slosh_axial_damping'),   IN.tanks.axial_damping   = scenario_params.slosh_axial_damping;   end
+    % slosh damping dispersion: log-uniform scale on the baffle damping table
+    if isfield(scenario_params, 'log2_slosh_damping_ox'), IN.tanks.damping_factor_ox = 2^scenario_params.log2_slosh_damping_ox; end
+    if isfield(scenario_params, 'log2_slosh_damping_fu'), IN.tanks.damping_factor_fu = 2^scenario_params.log2_slosh_damping_fu; end
     IN.throttle_valve.rate_limit      = scenario_params.throttle_rate_limit * 4.44822;
     IN.throttle_valve_latency         = scenario_params.throttle_latency;
     IN.tvc.max_gimbal_rate            = deg2rad(scenario_params.tvc_actuator_rate_limit);
@@ -186,7 +193,9 @@ if  ~isempty(scenario_params)
     IN.wind.uwind                     = scenario_params.uwind;
     IN.wind.vwind                     = scenario_params.vwind;
     IN.wind.mode                      = 1; 
+    if isfield(scenario_params, 'cg_factor'),      IN.cg_factor      = scenario_params.cg_factor;      end
+    if isfield(scenario_params, 'inertia_factor'), IN.inertia_factor = scenario_params.inertia_factor; end
+end
 end
 
-end
 
