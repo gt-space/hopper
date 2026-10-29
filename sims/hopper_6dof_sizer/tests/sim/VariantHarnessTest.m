@@ -33,6 +33,24 @@ classdef VariantHarnessTest < matlab.unittest.TestCase
             end
         end
 
+        function quietFdirFliesBaseline(tc)
+            % FDIR and fault injection on, no fault in the table: the
+            % flight is v2's, FDIR walks the PDR mode sequence to LANDED
+            % and never raises a response
+            V = variantConfig('FDIR', 'on', 'FAULT_INJECTION', 'on');
+            out = sim(buildSimInput(tc.Model, [], tc.W, V));
+            B = load(NominalFlightTest.BaselineFile);
+            K = NominalFlightTest.keyNumbers(out);
+            for f = fieldnames(B.K)'
+                tc.verifyEqual(K.(f{1}), B.K.(f{1}), 'AbsTol', NominalFlightTest.Tol.(f{1}), f{1});
+            end
+            M = fdir_modes();
+            mode = squeeze(out.get('fdir_mode').Data);
+            tc.verifyEqual(double(mode(end)), double(M.LANDED), 'final mode');
+            % -1: no fault active; 0 would be an R0 mask
+            tc.verifyEqual(max(double(squeeze(out.get('fdir_level').Data))), -1, 'response level');
+        end
+
         function constantMassPropsHoldStill(tc)
             % MASS_PROPS=constant: no propellant flow, so the propellant
             % masses and the axial CG don't move. The CG still shifts

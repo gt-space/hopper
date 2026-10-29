@@ -21,6 +21,8 @@ out = sim(buildSimInput('hopper_6dof', [], [], V));
 | `PROPULSION` | `Propulsion` | `lut`: thrust command passes through; `Thrust_to_Mdot_LUT` gives ox and fuel mdot. `fluid_network`: #26's Simscape feed system and engine give thrust and mdot. |
 | `GROUND` | `Ground_Contact` | `none`: no ground reaction, as in v2. `strut`: #27's strut spring/damper per leg (`subsystems/ground/Ground_Contact.slx`), into the body force and moment sums. |
 | `MASS_PROPS` | `Propellant_Flow` | `varying`: propellant drains, so mass, CG, MOI and dI/dt change. `constant`: zero propellant flow, so mass, CG and MOI hold their initial values and dI/dt = 0. Thrust is unaffected. |
+| `FDIR` | `FDIR` | `off`: the controller command goes straight to the actuators, as in v2. `on`: the GNC PDR fault executive runs at 100 Hz on the sensor model in `src/sensors`: monitors, persistence, the R0–R4 response ladder and the PDR mode manager. It can mask a sensor, drop to half-gain (R1), fly an abort-to-land (R2) or cut off and safe (R4). See [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md). |
+| `FAULT_INJECTION` | `Actuator_Faults` | `off`: no faults. `on`: the fault table in `W.faults` (`faultScenario`) corrupts sensor readings inside FDIR's sensor model and gimbal, throttle and RCS commands between the flight computer and the actuators. With an empty table the flight is unchanged. |
 
 Combinations to know:
 - **`fluid_network` needs `GROUND=strut`.** The feed system takes about a second to build thrust, and without a ground the vehicle falls through the pad first.
@@ -33,7 +35,10 @@ Combinations to know:
   - It has no hover-thrust feedforward, so on the hopper it doesn't hold the vehicle up; it falls from the pad. CI only checks that it compiles and runs.
   - Retune it in `lqiGains.m`, and add the feedforward in the `Controller_LQI` choice.
 
-Still to come: `FDIR`, `FAULT_INJECTION`, `NAVIGATION`, `ENV`, `TANK_GEOM`.
+- **`FAULT_INJECTION=on` with `FDIR=off`** shows the unmitigated response. Sensor faults then reach no one, because only FDIR reads the sensor model and the controller flies on truth state. Actuator faults still act.
+- **`FDIR=on` with no fault** flies exactly like `FDIR=off`.
+
+Still to come: `NAVIGATION` (estimator checks and R3), `ENV`. Tank and leg geometry will come from a vehicle config file rather than a variant.
 
 ## The CTV
 

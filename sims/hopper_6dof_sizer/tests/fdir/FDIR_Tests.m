@@ -294,9 +294,10 @@ verifyFalse(tc, mask);
 verifyEqual(tc, deg, 1.0);
 verifyFalse(tc, abortLand || nav || cutoff || entry);
 
-[~, ~, ~, ~, cutoff3, entry3] = fdir_response_mapping(uint8(3));
-verifyTrue(tc, cutoff3, 'R3 did not command cutoff.');
-verifyFalse(tc, entry3, 'R3 raised the entry trigger.');
+% GNC PDR ladder: R3 is a nav-degraded abort to land, only R4 cuts off
+[~, ~, abort3, nav3, cutoff3, entry3] = fdir_response_mapping(uint8(3));
+verifyTrue(tc, abort3 && nav3, 'R3 did not fly a nav-degraded abort to land.');
+verifyFalse(tc, cutoff3 || entry3, 'R3 commanded cutoff.');
 
 [~, deg4, ~, ~, cutoff4, entry4] = fdir_response_mapping(uint8(4));
 verifyEqual(tc, deg4, 0.0);

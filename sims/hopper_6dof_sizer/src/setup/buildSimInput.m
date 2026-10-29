@@ -12,6 +12,9 @@ function [in, W] = buildSimInput(model, scenario, W, variants)
 %                                           defaults, same as v2)
 %   [in, W] = buildSimInput(...)            also return the workspace struct
 %
+%   With FDIR on, StopTime is the trajectory end + 30 s so an abort to
+%   land can finish.
+%
 %   model can also be an existing Simulink.SimulationInput (for example
 %   inside a parsim PreSimFcn); the variables are added to it.
 %
@@ -27,6 +30,9 @@ if nargin < 3 || isempty(W), W = hopperWorkspace(scenario, variants); end
 for f = fieldnames(variants)'
     W.(f{1}) = variants.(f{1});   % only models with variants read these
 end
+if variants.VARIANT_FDIR == 2 || variants.VARIANT_FAULT_INJECTION == 2
+    W = fdirWorkspace(W, variants);   % keeps a fault table already in W.faults
+end
 
 if isa(model, 'Simulink.SimulationInput')
     in = model;
@@ -40,5 +46,10 @@ for v = modelVariables(model, W)
             '%s reads ''%s'', which the setup did not create.', model, v{1});
     end
     in = in.setVariable(v{1}, W.(v{1}));
+end
+if variants.VARIANT_FDIR == 2 && isfield(W, 'tgrid')
+    % An abort to land can start late and high; leave it time to come
+    % down (the touchdown stop still ends a normal flight on time)
+    in = in.setModelParameter('StopTime', num2str(W.tgrid(end) + 30));
 end
 end

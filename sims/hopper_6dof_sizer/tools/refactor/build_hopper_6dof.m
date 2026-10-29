@@ -136,6 +136,36 @@ for d = schedOut{1}{1}(:)'
     add_line(m, ph.Outport(1), d, 'autorouting', 'smart');
 end
 
+% FDIR and FAULT_INJECTION: controller -> FDIR -> actuator gates -> actuators
+uLine = get_param(ph.Outport(1), 'Line');
+uDst = get_param(uLine, 'DstPortHandle');
+delete_line(uLine);
+cpos = get_param([m '/Controller'], 'Position');
+add_block('built-in/Subsystem', [m '/FDIR'], 'Position', cpos + [240 0 300 80]);
+fdirPorts = {{'u_nom'; 'x'; 'f_b'; 'dcm_be'; 'thrust'; 'tvc_pitch'; 'tvc_yaw'; 'Mxyz'; 'mass'}; {'u'}};
+makeVariant(m, 'FDIR', 'FDIR', {
+    'FDIR_Off', @(c) passFirst(c, fdirPorts)
+    'FDIR_On',  @(c) fdirChoice(c, fdirPorts)
+    });
+add_block('built-in/Subsystem', [m '/Actuator_Faults'], 'Position', cpos + [440 0 520 40]);
+gatePorts = {{'u_in'}; {'u'}};
+makeVariant(m, 'Actuator_Faults', 'FAULT_INJECTION', {
+    'Actuator_Faults_Off', @(c) passFirst(c, gatePorts)
+    'Actuator_Faults_On',  @(c) actuatorGateChoice(c, gatePorts)
+    });
+fdirSrc = {ph.Outport(1), xSrc, port(m, 'Slosh Specific Force', 1), port(m, '6DOF (Quaternion)', 5), ...
+    port(m, 'Propulsion', 1), port(m, 'Actuators_TVC_RCS', 3), port(m, 'Actuators_TVC_RCS', 4), ...
+    port(m, 'Actuators_TVC_RCS', 2), port(m, 'Saturation1', 1)};
+fph = get_param([m '/FDIR'], 'PortHandles');
+for k = 1:numel(fdirSrc)
+    add_line(m, fdirSrc{k}, fph.Inport(k), 'autorouting', 'smart');
+end
+gph = get_param([m '/Actuator_Faults'], 'PortHandles');
+add_line(m, fph.Outport(1), gph.Inport(1), 'autorouting', 'smart');
+for d = uDst(uDst > 0)'
+    add_line(m, gph.Outport(1), d, 'autorouting', 'smart');
+end
+
 set_param(m, 'InitFcn', '');   % FuelProps comes from buildSimInput when the fluid network is active
 save_system(m);
 close_system(m, 0);
@@ -239,6 +269,166 @@ add_line(c, 'MRP Correction/1', 'LQI_State/3');
 add_line(c, 'Position_Error_Integral/1', 'LQI_State/4');
 add_line(c, 'LQI_State/1', 'LQI_Gain/1');
 add_line(c, 'LQI_Gain/1', 'u/1');
+end
+
+function c = passFirst(c, ports)
+% first input straight to the output; the others end in terminators
+emptyChoice(c, ports{1}, ports{2});
+add_line(c, [ports{1}{1} '/1'], [ports{2}{1} '/1']);
+for k = 2:numel(ports{1})
+    add_block('built-in/Terminator', sprintf('%s/Unused%d', c, k), 'Position', [120, 40 * k, 140, 40 * k + 14]);
+    add_line(c, [ports{1}{k} '/1'], sprintf('Unused%d/1', k));
+end
+end
+
+function c = fdirChoice(c, ports)
+% Sensors, gates, monitors, executive and mode manager at 100 Hz
+% (fdir_frame), the R1 low-bandwidth scheduler, and the command select.
+% The frame's outputs reach the command one frame later (Unit Delays): a
+% mode change takes effect next frame (GNC PDR slide 78), and it keeps the
+% actuator feedback FDIR reads out of an algebraic loop.
+emptyChoice(c, ports{1}, ports{2});
+fr = 'fdir_params.S.frame';
+add_block('built-in/Clock', [c '/Clock'], 'Position', [100 520 120 540]);
+add_block('simulink/Sources/Random Number', [c '/Sensor_Noise'], 'Mean', 'zeros(20,1)', ...
+    'Variance', 'ones(20,1)', 'Seed', 'fdir_params.S.seed + (0:19)''', 'SampleTime', fr, 'Position', [100 580 140 610]);
+
+f = [c '/FDIR_Frame'];
+add_block('simulink/User-Defined Functions/MATLAB Function', f, 'Position', [300 40 460 460]);
+setScript(f, {
+    'function [abort, safed, degrade, x_ref, mode, level, first_fault, status, raw] = fcn(t, noise, x, f_b, dcm_be, thrust, tvc_pitch, tvc_yaw, Mxyz, mass, u_nom, u_cmd, fdir_params)'
+    '% One 100 Hz FDIR frame (src/fdir/fdir_frame.m, docs/FDIR_ARCHITECTURE.md)'
+    'persistent st'
+    'if isempty(st)'
+    '    st = fdir_frame_state(size(fdir_params.cat, 1), size(fdir_params.faults, 1), fdir_params.S.frame);'
+    'end'
+    'in.t = t; in.noise = noise(:); in.x = x(:); in.f_b = f_b(:); in.dcm_be = dcm_be;'
+    'in.thrust = thrust; in.gimbal_fb = [tvc_pitch; tvc_yaw]; in.rcs_torque = Mxyz(1);'
+    'in.mass = mass; in.u_nom = u_nom(:); in.u_cmd = u_cmd(:);'
+    '[y, st] = fdir_frame(in, fdir_params, st);'
+    'abort = double(y.abort); safed = double(y.safed); degrade = double(y.degrade);'
+    'x_ref = y.x_ref; mode = y.mode; level = y.level; first_fault = double(y.first_fault);'
+    'status = y.status; raw = y.raw;'
+    'end'}, {'fdir_params'}, '0.01');   % the 100 Hz FDIR frame (sim_sensor_params.frame)
+add_line(c, 'Clock/1', 'FDIR_Frame/1');
+add_line(c, 'Sensor_Noise/1', 'FDIR_Frame/2');
+for k = 2:numel(ports{1})
+    add_line(c, [ports{1}{k} '/1'], sprintf('FDIR_Frame/%d', k + 1));
+end
+add_line(c, 'u_nom/1', 'FDIR_Frame/11');
+
+% R1: the same scheduler with the low-bandwidth gains
+lo = [c '/LQR_Low_Bandwidth'];
+add_block('simulink/Ports & Subsystems/Subsystem Reference', lo, 'ReferencedSubsystem', 'LQR_Gain_Scheduler', ...
+    'Position', [300 520 450 700]);
+add_line(c, 'Clock/1', 'LQR_Low_Bandwidth/1');
+add_line(c, 'x/1', 'LQR_Low_Bandwidth/2');
+tables = {'tgrid', 'Target_Trajectory', 'K1flat_lo', 'K2grid', 'unom'};
+for k = 1:numel(tables)
+    b = ['Table_' tables{k}];
+    add_block('built-in/Constant', [c '/' b], 'Value', tables{k}, 'Position', [180, 500 + 30 * k, 240, 515 + 30 * k]);
+    add_line(c, [b '/1'], sprintf('LQR_Low_Bandwidth/%d', k + 2));
+end
+
+% one-frame delays into the command select
+outs = {'abort', 'safed', 'degrade', 'x_ref'};
+for k = 1:numel(outs)
+    d = ['Delay_' outs{k}];
+    add_block('built-in/UnitDelay', [c '/' d], 'SampleTime', fr, 'InitialCondition', '0', ...
+        'Position', [520, 40 + 50 * k, 550, 70 + 50 * k]);
+    add_line(c, sprintf('FDIR_Frame/%d', k), [d '/1']);
+end
+set_param([c '/Delay_x_ref'], 'InitialCondition', 'zeros(13,1)');
+
+s = [c '/Command_Select'];
+add_block('simulink/User-Defined Functions/MATLAB Function', s, 'Position', [640 40 780 320]);
+setScript(s, {
+    'function u = fcn(u_nom, u_lo, x, x_ref, mass, abort, safed, degrade, K_abort)'
+    '% The response ladder applied to the command (src/fdir/fdir_command_select.m)'
+    'mode.abort = abort > 0.5; mode.safed = safed > 0.5; mode.degrade = degrade > 0.5;'
+    'u = fdir_command_select(u_nom, u_lo, x, x_ref, mass, mode, K_abort, 9.80665);'
+    'end'}, {'K_abort'}, '-1');
+add_line(c, 'u_nom/1', 'Command_Select/1');
+add_line(c, 'LQR_Low_Bandwidth/1', 'Command_Select/2');
+add_line(c, 'x/1', 'Command_Select/3');
+add_line(c, 'Delay_x_ref/1', 'Command_Select/4');
+add_line(c, 'mass/1', 'Command_Select/5');
+add_line(c, 'Delay_abort/1', 'Command_Select/6');
+add_line(c, 'Delay_safed/1', 'Command_Select/7');
+add_line(c, 'Delay_degrade/1', 'Command_Select/8');
+add_line(c, 'Command_Select/1', 'u/1');
+% the command actually sent, back to the monitors one frame later
+add_block('built-in/UnitDelay', [c '/Delay_u_cmd'], 'SampleTime', fr, 'InitialCondition', 'zeros(4,1)', 'Position', [820 360 850 390]);
+add_line(c, 'Command_Select/1', 'Delay_u_cmd/1');
+add_line(c, 'Delay_u_cmd/1', 'FDIR_Frame/12');
+
+% logged for runs and Monte Carlo summaries
+logs = {1, 'fdir_abort'; 2, 'fdir_safed'; 3, 'fdir_degrade'; 5, 'fdir_mode'; 6, 'fdir_level'; ...
+        7, 'fdir_first_fault'; 8, 'fdir_status'; 9, 'fdir_raw'};
+for k = 1:size(logs, 1)
+    b = ['Log_' logs{k, 2}];
+    add_block('built-in/ToWorkspace', [c '/' b], 'VariableName', logs{k, 2}, 'SaveFormat', 'Timeseries', 'MaxDataPoints', 'inf', ...
+        'Position', [880, 40 + 40 * k, 960, 60 + 40 * k]);
+    add_line(c, sprintf('FDIR_Frame/%d', logs{k, 1}), [b '/1']);
+end
+end
+
+function c = actuatorGateChoice(c, ports)
+% Actuator faults from the fault table. The gate that touches the command
+% is stateless and continuous, so with no fault active the flight is
+% untouched; its memory (command at onset, slow-mode rate limit) is a
+% separate block sampled at the solver step. A sampled command changed the
+% thrust path's If/Merge cutoff logic even with no fault.
+emptyChoice(c, ports{1}, ports{2});
+add_block('built-in/Clock', [c '/Clock'], 'Position', [100 160 120 180]);
+s = [c '/Actuator_Gate_State'];
+add_block('simulink/User-Defined Functions/MATLAB Function', s, 'Position', [220 120 360 220]);
+setScript(s, {
+    'function [hold, slow] = fcn(u_in, t, fdir_params)'
+    '% Memory for the actuator gate (src/faults/actuator_gate_state.m)'
+    'persistent g'
+    'if isempty(g)'
+    '    g = gate_state(size(fdir_params.faults, 1), 1e-3);'
+    'end'
+    '[hold, slow, g] = actuator_gate_state(u_in(:), t, fdir_params.faults, g);'
+    'end'}, {'fdir_params'}, '1e-3');
+f = [c '/Actuator_Gate'];
+add_block('simulink/User-Defined Functions/MATLAB Function', f, 'Position', [420 40 560 200]);
+setScript(f, {
+    'function u = fcn(u_in, t, hold, slow, fdir_params)'
+    '% Gimbal, throttle and RCS faults (src/faults/actuator_gate.m)'
+    'u = u_in;'
+    'if fdir_params.inject'
+    '    u(:) = actuator_gate(u_in(:), t, fdir_params.faults, fdir_params.mon.gimbal_max, hold, slow);'
+    'end'
+    'end'}, {'fdir_params'}, '-1');
+add_line(c, 'u_in/1', 'Actuator_Gate_State/1');
+add_line(c, 'Clock/1', 'Actuator_Gate_State/2');
+add_line(c, 'u_in/1', 'Actuator_Gate/1');
+add_line(c, 'Clock/1', 'Actuator_Gate/2');
+add_line(c, 'Actuator_Gate_State/1', 'Actuator_Gate/3');
+add_line(c, 'Actuator_Gate_State/2', 'Actuator_Gate/4');
+add_line(c, 'Actuator_Gate/1', 'u/1');
+end
+
+function setScript(blk, lines, params, sampleTime)
+% MATLAB Function block code, workspace parameters and sample time
+ch = sfroot().find('-isa', 'Stateflow.EMChart', 'Path', blk);
+ch.Script = strjoin(lines, newline);
+for p = params
+    d = ch.find('-isa', 'Stateflow.Data', 'Name', p{1});
+    d.Scope = 'Parameter';
+    try, d.Tunable = false; catch, end   % structs as fixed parameters
+end
+set_param(blk, 'SystemSampleTime', sampleTime);   % the chart's own SampleTime property doesn't stick
+if ~strcmp(get_param(blk, 'SystemSampleTime'), sampleTime)
+    error('build_hopper_6dof:sampleTime', '%s: sample time %s did not take.', blk, sampleTime);
+end
+end
+
+function h = port(m, blk, k)
+ph = get_param([m '/' blk], 'PortHandles');
+h = ph.Outport(k);
 end
 
 function s = legacyGainSelector()

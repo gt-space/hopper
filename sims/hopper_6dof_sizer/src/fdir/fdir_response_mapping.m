@@ -3,6 +3,10 @@ function [Mask_Target, Degrade_Multiplier, Abort_Land_Active, ...
           fdir_response_mapping(active_response)
 % FDIR_RESPONSE_MAPPING  Response tier (0-4) to subsystem command signals.
 %
+% Tiers follow the GNC PDR ladder (fdir_modes): R1 degrade, R2 abort to
+% land, R3 nav-degraded abort to land, R4 cutoff and safing. Only R4 cuts
+% the engine.
+%
 %#codegen
 
 % Initialize outputs to safe nominal defaults
@@ -17,23 +21,22 @@ switch active_response
     case uint8(0) % R0 - Nominal
         % Defaults remain active
 
-    case uint8(1) % R1 - Reconfiguration / Minor Degradation
+    case uint8(1) % R1 - Mask the source, degrade
         Mask_Target = true;
         Degrade_Multiplier = 0.8;
 
-    case uint8(2) % R2 - Safe Mode / Abort Landing
+    case uint8(2) % R2 - Abort to land
         Mask_Target = true;
         Degrade_Multiplier = 0.5;
         Abort_Land_Active = true;
 
-    case uint8(3) % R3 - Navigation Fallback / Engine Cutoff
+    case uint8(3) % R3 - Nav-degraded abort to land (no cutoff)
         Mask_Target = true;
-        Degrade_Multiplier = 0.0;
+        Degrade_Multiplier = 0.5;
         Abort_Land_Active = true;
         Nav_Fallback_Active = true;
-        Cutoff_Active = true;
 
-    case uint8(4) % R4 - Emergency Escape / Abort
+    case uint8(4) % R4 - Cutoff and safing
         Mask_Target = true;
         Degrade_Multiplier = 0.0;
         Abort_Land_Active = true;

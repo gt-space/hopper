@@ -29,6 +29,13 @@ function A = variantAxes()
 %                             (experimental: toy plant, not tuned)
 %               lqr_sched_legacy  the March lqr/LQ_6DOF_V3 scheduler, without
 %                             the quaternion sign fix
+%   FDIR        off           commands pass straight to the actuators (v2)
+%               on            sensors, GNC monitors, FDIR executive, PDR mode
+%                             manager and responses R0/R1/R2/R4
+%                             (docs/FDIR_ARCHITECTURE.md)
+%   FAULT_INJECTION off       no faults
+%               on            the fault table W.faults (faultScenario) drives
+%                             the sensor and actuator gates
 
 A.VEHICLE    = ["hopper", "ctv"];
 A.SLOSH      = ["full", "off"];
@@ -36,4 +43,6 @@ A.PROPULSION = ["lut", "fluid_network"];
 A.GROUND     = ["none", "strut"];
 A.MASS_PROPS = ["varying", "constant"];
 A.CONTROLLER = ["lqr_sched", "lqi", "lqr_sched_legacy"];
+A.FDIR       = ["off", "on"];
+A.FAULT_INJECTION = ["off", "on"];
 end
