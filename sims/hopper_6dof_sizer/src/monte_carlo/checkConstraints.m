@@ -9,9 +9,12 @@ function result = checkConstraints(result, limits)
 %   landing_vel is the vertical impact speed when the sim stops at ground
 %   contact (mc_main), including the drop after engine cutoff.
 %   Adds result.flight.landing_offset (m from the pad center at the end of
-%   the run) and result.flight.max_tilt_deg (body x-axis from vertical,
-%   90 - pitch for this ZYX Euler set), then sets result.status.pass and
-%   result.status.failed (names of the violated limits).
+%   the run), result.flight.landing_lateral_vel (NED horizontal speed at the
+%   end of the run), result.flight.max_tilt_deg and
+%   result.flight.touchdown_tilt_deg (body x-axis from vertical, 90 - pitch
+%   for this ZYX Euler set, over the flight and at the end of the run), then
+%   sets result.status.pass and result.status.failed (names of the violated
+%   limits).
 
 L = defaultLimits();
 if nargin > 1
@@ -22,7 +25,9 @@ end
 
 ts = result.timeseries;
 result.flight.landing_offset = hypot(ts.x(end), ts.y(end));
+result.flight.landing_lateral_vel = hypot(ts.vx(end), ts.vy(end));
 result.flight.max_tilt_deg   = max(abs(90 - ts.pitch));
+result.flight.touchdown_tilt_deg = abs(90 - ts.pitch(end));
 
 v = result.vehicle;
 f = result.flight;
@@ -34,8 +39,10 @@ checks = {
     'max_ascent_vel',   f.max_ascent_vel  <= L.max_ascent_vel
     'max_descent_vel',  f.max_descent_vel <= L.max_descent_vel
     'landing_vel',      f.landing_vel    <= L.max_landing_vel
+    'landing_lateral_vel', f.landing_lateral_vel <= L.max_lateral_vel
     'landing_offset',   f.landing_offset <= L.max_landing_offset
     'max_tilt_deg',     f.max_tilt_deg   <= L.max_tilt_deg
+    'touchdown_tilt_deg', f.touchdown_tilt_deg <= L.max_touchdown_tilt_deg
     };
 ok = [checks{:, 2}];
 result.status.pass   = all(ok);
@@ -54,6 +61,8 @@ L.min_altitude       = M.target_altitude;
 L.max_ascent_vel     = M.max_ascent_vel;
 L.max_descent_vel    = M.max_descent_vel;
 L.max_landing_vel    = M.max_impact_vel;
+L.max_lateral_vel    = M.max_lateral_vel;
 L.max_landing_offset = M.max_landing_offset;
 L.max_tilt_deg       = M.max_tilt_deg;
+L.max_touchdown_tilt_deg = M.max_touchdown_tilt_deg;
 end

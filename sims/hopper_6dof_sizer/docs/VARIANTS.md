@@ -88,7 +88,7 @@ out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('VEHICLE', 'ctv')))
 - **Monte Carlo (10 seeded runs, `inputs/mc_params_ctv.json`): none meet requirements.** Eight land 1.5–11.5 m off the pad, tilting 3–28°; two diverge. The dispersions are ±3% mass and CG, ±10% inertia, ±5% EDF thrust, 150–250°/s gimbal, 5–20 ms latency, ±2 mm thrust offset and ±1.5 m/s wind.
 
 **What changed from the first CTV setup**, which drifted 8.5 m and landed at 0.96 m/s even in calm air:
-- **Engine cutoff on contact.** `Landing_Engine_Cutoff` now cuts at `IN.mission.engine_cutoff_alt`: 5 cm for the hopper as before, 5 mm for the CTV. A 5 cm drop alone lands at ~1 m/s, so the hopper's 0.5 m/s impact requirement can't be met at that cutoff either.
+- **Engine cutoff on contact.** `Landing_Engine_Cutoff` now cuts at `IN.mission.engine_cutoff_alt`: 5 cm for the hopper as before, 5 mm for the CTV. A 5 cm drop alone lands at ~1 m/s, inside the hopper's 1.5 m/s normal-velocity requirement (GNC PDR) but well over the CTV's 0.5 m/s.
 - **EDF throttle steps of 0.05 N.** The hopper's throttle valve moves in 5 N steps, 20% of the CTV's weight, which made its thrust bang-bang.
 - **A faster gimbal:** 200°/s, my estimate for a hobby servo, against the hopper's 15°/s.
 - **Principal inertia only.** The CAD products of inertia (up to 9% of the 0.012 kg·m² roll inertia) alone made it drift 8.5 m and tilt 20° in calm air. The full tensor is kept in `IN.vehicle.mass.I_full`.

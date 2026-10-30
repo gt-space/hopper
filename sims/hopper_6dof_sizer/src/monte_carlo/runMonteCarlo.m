@@ -181,7 +181,7 @@ function T = summaryTable(results)
 n = numel(results);
 run = (1:n)';
 [success, pass, meets_requirements] = deal(false(n, 1));
-[max_alt, landing_vel, landing_offset, max_tilt, flight_time] = deal(nan(n, 1));
+[max_alt, landing_vel, landing_lateral_vel, landing_offset, max_tilt, touchdown_tilt, flight_time] = deal(nan(n, 1));
 [failed, missed_requirements] = deal(strings(n, 1));
 for k = 1:n
     r = results(k);
@@ -193,14 +193,17 @@ for k = 1:n
     if success(k)
         max_alt(k) = r.flight.max_altitude;
         landing_vel(k) = r.flight.landing_vel;
+        landing_lateral_vel(k) = r.flight.landing_lateral_vel;
         landing_offset(k) = r.flight.landing_offset;
         max_tilt(k) = r.flight.max_tilt_deg;
+        touchdown_tilt(k) = r.flight.touchdown_tilt_deg;
         flight_time(k) = r.flight.flight_time;
     else
         failed(k) = string(r.status.error);
     end
 end
-T = table(run, success, pass, max_alt, landing_vel, landing_offset, max_tilt, flight_time, failed, ...
+T = table(run, success, pass, max_alt, landing_vel, landing_lateral_vel, landing_offset, max_tilt, ...
+    touchdown_tilt, flight_time, failed, ...
     meets_requirements, missed_requirements);
 end
 

@@ -28,8 +28,12 @@ classdef ScenarioTest < matlab.unittest.TestCase
         function eachLimitIsChecked(tc)
             r = fakeResult(); r.flight.landing_vel = 2;
             tc.verifyEqual(checkConstraints(r).status.failed, {'landing_vel'});
+            r = fakeResult(); r.timeseries.vx(end) = 1;
+            tc.verifyEqual(checkConstraints(r).status.failed, {'landing_lateral_vel'});
             r = fakeResult(); r.timeseries.x(end) = 3;
             tc.verifyEqual(checkConstraints(r).status.failed, {'landing_offset'});
+            r = fakeResult(); r.timeseries.pitch(end) = 87;
+            tc.verifyEqual(checkConstraints(r).status.failed, {'touchdown_tilt_deg'});
             r = fakeResult(); r.timeseries.pitch(5) = 70;
             tc.verifyEqual(checkConstraints(r).status.failed, {'max_tilt_deg'});
             r = fakeResult(); r.flight.max_altitude = 40;
@@ -43,8 +47,10 @@ classdef ScenarioTest < matlab.unittest.TestCase
             tc.verifyEqual(L.max_ascent_vel, M.max_ascent_vel);
             tc.verifyEqual(L.max_descent_vel, M.max_descent_vel);
             tc.verifyEqual(L.max_landing_vel, M.max_impact_vel);
+            tc.verifyEqual(L.max_lateral_vel, M.max_lateral_vel);
             tc.verifyEqual(L.max_landing_offset, M.max_landing_offset);
             tc.verifyEqual(L.max_tilt_deg, M.max_tilt_deg);
+            tc.verifyEqual(L.max_touchdown_tilt_deg, M.max_touchdown_tilt_deg);
             tc.verifyEqual(L.min_twr, M.min_twr);
         end
 
@@ -59,6 +65,7 @@ end
 function r = fakeResult()
 r.vehicle = struct('twr_initial', 1.5, 'twr_final', 2, 'dry_mass', 117, 'wet_mass', 146);
 r.flight = struct('max_altitude', 52, 'max_ascent_vel', 5, 'max_descent_vel', 5, 'landing_vel', 0.3);
-r.timeseries = struct('x', zeros(10, 1), 'y', zeros(10, 1), 'pitch', 90 * ones(10, 1));
+r.timeseries = struct('x', zeros(10, 1), 'y', zeros(10, 1), 'vx', zeros(10, 1), ...
+    'vy', zeros(10, 1), 'pitch', 90 * ones(10, 1));
 r.status = struct('success', true, 'error', '');
 end

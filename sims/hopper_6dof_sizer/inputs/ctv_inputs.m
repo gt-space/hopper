@@ -27,6 +27,10 @@ IN.wind.vwind = 0;                                 % m/s
 IN.mission.target_altitude = 4;                    % m  [req]
 IN.mission.max_ascent_vel = 2;                     % m/s [req] ASSUMPTION (CTV inputs had 26)
 IN.mission.max_descent_vel = 2;                    % m/s [req] ASSUMPTION
+% The hopper's landing limits before they moved to the GNC PDR values,
+% kept so the CTV's requirements don't loosen with the hopper's
+IN.mission.max_impact_vel = 0.5;                   % m/s [req] ASSUMPTION
+IN.mission.max_landing_offset = 0.5;               % m  [req] ASSUMPTION
 IN.mission.trajectory.apex = 4.5;                  % m
 IN.mission.trajectory.t_up = 6;                    % s (peak 1.4 m/s)
 IN.mission.trajectory.t_hover = 2;                 % s

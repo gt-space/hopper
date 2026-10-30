@@ -18,10 +18,14 @@ IN.const.FS_struct = 2;             % structural factor of safety
 IN.mission.target_altitude = 51;    % m          [req] minimum peak altitude
 IN.mission.hover_time_55m = 2;      % s
 IN.mission.three_sec_check = false; % true: hold 3 s on the pad before ascent (ThreeSecTrajectory2)
-IN.mission.max_ascent_vel = 7;      % m/s        [req]
-IN.mission.max_descent_vel = 7;     % m/s        [req]
-IN.mission.max_impact_vel = 0.5;    % m/s        [req] vertical speed at ground contact
-IN.mission.max_landing_offset = 0.5; % m         [req] from pad center (pad radius)
+% Landing limits follow the GNC PDR (slide 107): radius < 1 m, normal
+% velocity < 1.5 m/s, lateral velocity < 0.5 m/s, touchdown tilt < 2 deg.
+IN.mission.max_ascent_vel = 10;     % m/s        [req]
+IN.mission.max_descent_vel = 10;    % m/s        [req]
+IN.mission.max_impact_vel = 1.5;    % m/s        [req] vertical (normal) speed at ground contact
+IN.mission.max_lateral_vel = 0.5;   % m/s        [req] horizontal speed at ground contact
+IN.mission.max_landing_offset = 1;  % m          [req] from pad center
+IN.mission.max_touchdown_tilt_deg = 2; % deg     [req] body axis from vertical at ground contact
 IN.mission.max_tilt_deg = 10;       % deg        [req] body axis from vertical, whole flight
 IN.mission.min_twr = 1.0;           % -          [req] initial TWR at full throttle
 IN.mission.hover_time_1m = 1;       % s
