@@ -1,0 +1,57 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% lidar_system_model.m
+% 
+% Function to simulate the measurement of four LIDAR sensors given the
+% vehicle state and sensor frames.
+% Depends on filter_sim_initializer setting the sensor frames.
+% 
+% Author: David Meisinger
+% Date: 10/25/26
+% 
+% Inputs:
+%   x: true state vector (20x1)
+% 
+% Outputs:
+%   lidarBus: LIDAR measurement struct defined in the Navigation Dictionary
+% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function lidarBus = lidar_system_model(x, time, lidar_frames)
+
+    % Simulink gets touchy about dims
+    x = x(1:20,1);
+
+    % Load the LIDAR frame variables
+    A1 = lidar_frames.A1;
+    A2 = lidar_frames.A2;
+    A3 = lidar_frames.A3;
+    A4 = lidar_frames.A4;
+    r1 = lidar_frames.r1;
+    r2 = lidar_frames.r2;
+    r3 = lidar_frames.r3;
+    r4 = lidar_frames.r4;
+
+    % Get the height and attitude of the vehicle
+    h = x(3) - lidar_frames.heightCOM;
+    q_BI = x(10:13);
+
+    % Inertial down axis in body coordinates (3rd column of C_BI), so
+    % n*v is the NED down component of a body vector v
+    C_IB = quaternion_to_DCM(q_BI);
+    n = C_IB(3,:);
+
+    % Compute all the LIDAR true distances
+    d_vec = [-(n*r1 + h)/(n*A1(:,1));
+             -(n*r2 + h)/(n*A2(:,1));
+             -(n*r3 + h)/(n*A3(:,1));
+             -(n*r4 + h)/(n*A4(:,1))];
+
+    % Apply sensor model with noise
+    [d_vec, covariance, validity] = lidar_model_base(d_vec);
+
+    % Build the output struct
+    lidarBus.distance = d_vec;
+    lidarBus.covariance = covariance;
+    lidarBus.timestamp = time;
+    lidarBus.validity = validity;
+
+end
