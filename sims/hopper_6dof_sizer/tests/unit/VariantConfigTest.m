@@ -38,7 +38,7 @@ classdef VariantConfigTest < matlab.unittest.TestCase
             tc.verifyEqual(IN.mass.dry_I(1, 1), 12321923.43e-9, 'RelTol', 1e-12);
             tc.verifyEqual(hopperVehicle(), 'ctv');
             hopperVehicle(old);
-            tc.verifyEqual(mission_inputs().mass.dry_override, 116.86);
+            tc.verifyEqual(mission_inputs().mass.dry_override, 114.894);
         end
 
         function typosAreErrors(tc)

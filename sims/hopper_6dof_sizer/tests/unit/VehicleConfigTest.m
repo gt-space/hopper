@@ -31,7 +31,10 @@ classdef VehicleConfigTest < matlab.unittest.TestCase
             VC = vehicleConfig('hopper');
             tc.verifyEqual(VC.tanks.fu.floor_x, 1.0668 - 18.91*0.0254/2);
             tc.verifyEqual(VC.tanks.ox.floor_x, 1.854 - 29.18*0.0254/2);
-            tc.verifyEqual(VC.mass.wet, 116.86 + 16 + 13);
+            tc.verifyEqual(VC.mass.wet, 114.894 + 16 + 13);
+            % CAD dry block: CAD Y from the footpad bottoms becomes body x; roll is CAD Lyy
+            tc.verifyEqual(VC.mass.dry_cg, -0.169015 + 1.208957, 'AbsTol', 1e-12);
+            tc.verifyEqual(diag(VC.mass.dry_I)', [12.6948 52.3340 51.5454]);
             tc.verifyEqual(VC.engine.tvc.natural_freq, 36, 'AbsTol', 1e-12);
             tc.verifyEqual(VC.structure.modal.k_engine, (0.3556 / 2.44)^2);
             d = VC.legs.foot_radius;   % legs 1-4 at +y -y +z -z, as the models expect

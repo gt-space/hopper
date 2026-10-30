@@ -17,16 +17,41 @@ function VC = hopper_config()
 %   Replace them with as-built values.
 
 VC.name     = 'hopper';
-VC.revision = 'as-built 2026-10';
-VC.source   = 'CAD masses and CGs (mission_inputs.m 2026-10); sizer values where tagged';
+VC.revision = 'CAD 2026-10-29';
+VC.source   = ['dry block: SOLIDWORKS mass properties of Updated Vehicle Assy (2026-10-29); ' ...
+               'other CAD masses and CGs (mission_inputs.m 2026-10); sizer values where tagged'];
 VC.height   = 2.44;                            % m, base to top
 
-% ---- Dry mass ----
-% Until the CAD mass-properties export exists: total dry mass from the mass
-% budget (legs and intertank included); the dry CG and inertia come from the
-% component list below (mass_properties_setup). Set dry_cg / dry_I to use
-% CAD values instead.
-VC.mass.dry = 116.86;                          % kg
+% ---- Dry mass: CAD mass properties ----
+% "Updated Vehicle Assy - Mass Properties" (SOLIDWORKS IMassProperty2,
+% 2026-10-29): 552 components, hidden ones included. Replaces the 116.86 kg
+% mass-budget stand-in, whose CG and inertia came from the component list.
+% CAD frame: assembly origin, Y up the thrust axis. The footpad bottoms (the
+% assembly's lowest point, swBoundingBox) are at CAD Y = -1.208957 m; that
+% is body x = 0.
+% In the CAD: legs, intertank structure, thrust structure, gimbal, TVC
+% actuators, engine, tanks and baffles, COPVs with their gas, fluids
+% hardware, the avionics enclosure. Not in it: propellant (added in flight),
+% avionics boards and battery, the payload, the EDF fans. The components
+% block below is not added to this (mass_properties_setup uses dry_cg/dry_I).
+VC.cad.mass   = 114.894;                       % kg
+VC.cad.cg     = [-0.003159; -0.169015; 0.003797];   % m, CAD X Y Z from the assembly origin
+VC.cad.I      = [51.5454   0.2508  -0.0406;
+                  0.2508  12.6948   0.1037;
+                 -0.0406   0.1037  52.3340];  % kg m^2 about the CG, CAD axes, as exported
+y_base = -1.208957;                            % m, CAD Y of the footpad bottoms
+% Body x is the thrust axis (CAD Y); y, z follow right-handed (CAD Z, CAD X)
+VC.cad.to_body = [0 1 0; 0 0 1; 1 0 0];       % body = to_body * CAD
+cg_body = VC.cad.to_body * (VC.cad.cg - [0; y_base; 0]);
+I_body  = VC.cad.to_body * VC.cad.I * VC.cad.to_body';
+
+VC.mass.dry = VC.cad.mass;                     % kg
+VC.mass.dry_cg = cg_body(1);                   % m, axial CG from the base (1.040)
+VC.mass.cg_lateral = cg_body(2:3);             % m (3.8 mm, -3.2 mm); the sim uses the axial CG only
+VC.mass.I_full = I_body;                       % kg m^2, body axes, full CAD tensor
+% Principal moments only, as for the CTV: the products are < 0.5 % of the
+% pitch/yaw inertia, and the principal axes are within 3 deg of the body axes.
+VC.mass.dry_I = diag(diag(I_body));            % kg m^2, [roll pitch yaw] = [12.69 52.33 51.55]
 
 % ---- Propellant tanks (stacked, LOx above RP-1) ----
 VC.tanks.geometry = 'stacked';
@@ -85,7 +110,7 @@ VC.legs.damping     = 1.0;                     % strut damping constant (x sqrt(
 VC.legs.mass        = 3.4856003663531885;      % kg, all legs: sizer 2026-10
 VC.legs.intertank_mass = 3;                    % kg, sizer 2026-10 (guess)
 
-% ---- Other components (dry CG and inertia until the CAD export) ----
+% ---- Other components (the pre-CAD dry block; not used while dry_cg is set) ----
 VC.components.structures = struct('mass', 34.26, 'cg_x', 1.193);    % kg, m (CAD)
 VC.components.avionics   = struct('mass', 11.52, 'cg_x', 1.4224);   % kg, m (CAD)
 VC.components.fluids     = struct('mass', 28.41, 'cg_x', 1.0668);   % kg, m (CAD)
