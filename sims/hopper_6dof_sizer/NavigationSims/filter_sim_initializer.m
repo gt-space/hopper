@@ -27,27 +27,21 @@ filter_st = 1/500;      % Filter sample time (seconds)
 x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
 
 % TODO! TUNE THIS COVARIANCE
-P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0.01 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0.01 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0.01 0 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0.001 0 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0.001 0 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0.001 0 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0.03 0 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 0.03 0 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 0.03 0 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0;
-      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0;
-      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1];
+P0 = diag([ ...
+    0.1*ones(1,3), ...      % pos (m^2)
+    0.01*ones(1,3), ...     % vel (m/s)^2
+    zeros(1,3), ...         % omega: no longer a state
+    (deg2rad(3))^2*ones(1,3), ...   % attitude, ~3 deg
+    (0.05)^2*ones(1,3), ... % accel bias, ~0.05 m/s^2
+    (deg2rad(1))^2*ones(1,3), ...   % gyro bias, ~1 deg/s
+    0.01 ]);                % baro bias
+
 % Note covariance is 19x19, not 20x20, because covariance uses a 3-element
 % rotation representation
+
+% Enforce some stuff for flying the gyro
+P0(7:9,:) = 0;
+P0(:,7:9) = 0;
 
 %% Sensor sampling and noise parameters
 
@@ -127,14 +121,14 @@ imu_params_init.gyro_R = diag(imu_params_init.gyro_noise_std.^2);
 biasCorrelationTime = 100;  % (s)
 accelBiasNoisePSD = max(imu_params_init.accel_bias_stability)^2 / biasCorrelationTime * ones(3,1);
 gyroBiasNoisePSD = max(imu_params_init.gyro_bias_stability)^2 / biasCorrelationTime * ones(3,1);
+gyroNoisePSD = imu_params_init.gyro_noise_std.^2 * imu_st;
 
 % requires calibration
-torqueNoisePSD = [0.0001; 0.0001; 0.0001];
 baroBiasNoisePSD = 0.001;
 
 qc = blkdiag( ...
     diag(accelerationNoisePSD), ...
-    diag(torqueNoisePSD), ...
+    diag(gyroNoisePSD), ...
     diag(accelBiasNoisePSD), ...
     diag(gyroBiasNoisePSD), ...
     baroBiasNoisePSD);
