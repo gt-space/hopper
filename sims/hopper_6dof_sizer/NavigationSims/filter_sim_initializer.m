@@ -17,31 +17,6 @@ addpath("Filters\");
 
 %% Filter parameters
 filter_st = 1/500;      % Filter sample time (seconds)
-% NOTE: This comes from IMU sample rate. ADIS16500 output rate is
-% 2000/(DEC_RATE+1) Hz, so 500 Hz needs DEC_RATE = 3 in the FSW driver.
-% IT IS ASSUMED THE FILTER ITERATES (PROPAGATES) AT THE IMU SENSE RATE.
-% Initial conditions
-
-% state: xx, xy, xz, vx, vy, vz, P, Q, R, q0, q1, q2, q3, ax, ay, az, gx,
-% gy, gz, b
-x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
-
-% TODO! TUNE THIS COVARIANCE
-P0 = diag([ ...
-    0.1*ones(1,3), ...      % pos (m^2)
-    0.01*ones(1,3), ...     % vel (m/s)^2
-    zeros(1,3), ...         % omega: no longer a state
-    (deg2rad(3))^2*ones(1,3), ...   % attitude, ~3 deg
-    (0.05)^2*ones(1,3), ... % accel bias, ~0.05 m/s^2
-    (deg2rad(1))^2*ones(1,3), ...   % gyro bias, ~1 deg/s
-    0.01 ]);                % baro bias
-
-% Note covariance is 19x19, not 20x20, because covariance uses a 3-element
-% rotation representation
-
-% Enforce some stuff for flying the gyro
-P0(7:9,:) = 0;
-P0(:,7:9) = 0;
 
 %% Sensor sampling and noise parameters
 
@@ -105,6 +80,33 @@ lidar_st = 0.01;        % sample time (s)
 % lidar_params.noise_std_2 = 0.02; % Distance measurement jitter (proportion distance) for 3-8m
 % lidar_params.packet_invalid_prob = 0.0; % set to zero for now
 % Note- any distances over 8m will be not valid it appears
+
+% NOTE: This comes from IMU sample rate. ADIS16500 output rate is
+% 2000/(DEC_RATE+1) Hz, so 500 Hz needs DEC_RATE = 3 in the FSW driver.
+% IT IS ASSUMED THE FILTER ITERATES (PROPAGATES) AT THE IMU SENSE RATE.
+% Initial conditions
+
+%% Filter Initial Params
+% state: xx, xy, xz, vx, vy, vz, P, Q, R, q0, q1, q2, q3, ax, ay, az, gx,
+% gy, gz, b
+x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
+
+% TODO! TUNE THIS COVARIANCE
+P0 = diag([ ...
+    0.1*ones(1,3), ...                       % pos (m^2)
+    0.01*ones(1,3), ...                      % vel (m/s)^2
+    zeros(1,3), ...                          % omega: not a state
+    deg2rad(3)^2*ones(1,3), ...              % attitude, 3 deg
+    (4*max(imu_params_init.accel_bias_stability))^2*ones(1,3), ...  % ~5e-4 m/s^2
+    (4*max(imu_params_init.gyro_bias_stability))^2*ones(1,3), ...   % ~1.6e-4 rad/s
+    0.01 ]);    
+
+% Note covariance is 19x19, not 20x20, because covariance uses a 3-element
+% rotation representation
+
+% Enforce some stuff for flying the gyro
+P0(7:9,:) = 0;
+P0(:,7:9) = 0;
 
 %% GMEKF continuous-time process-noise spectral densities
 

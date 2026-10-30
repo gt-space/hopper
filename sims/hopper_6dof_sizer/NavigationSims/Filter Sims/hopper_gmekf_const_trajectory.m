@@ -18,7 +18,7 @@ set(groot, 'defaultAxesFontSize', 14);      % Increases global tick size
 set(groot, 'defaultAxesFontName', 'cmr10');  % Computer Modern (LaTeX font)
 
 % Set up time span
-tf = 10;        % stop time in seconds
+tf = 100;        % stop time in seconds
 Ts = 1/500;     % time increment in seconds
 timespan = (0:Ts:tf)';
 N = numel(timespan); % number of sample points
@@ -54,8 +54,10 @@ inertia_tensor = [62.28 0 0;
                   0 62.28 0;
                   0 0 1.048];
 acceleration_truth = [0; 0; 0];
-accel_bias = [0.01; -0.01; 0];
-gyro_bias = [-0.02; 0; 0.01];
+% accel_bias = [0.01; -0.01; 0];
+% gyro_bias = [-0.02; 0; 0.01];
+accel_bias = [0; 0; 0];
+gyro_bias = [0; 0; 0];
 baro_bias = 0*ones(1,N);
 state_truth = [0 0 -1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0]';
 
