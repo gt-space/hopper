@@ -1,6 +1,7 @@
-"""Render the Monte Carlo summary CSV (runMonteCarlo) as a GitHub job-summary table.
+"""Render a Monte Carlo summary CSV (runMonteCarlo) as a GitHub job-summary table.
 
     python tools/ci/mc_summary.py outputs/montecarlo/mc_summary.csv >> "$GITHUB_STEP_SUMMARY"
+    python tools/ci/mc_summary.py outputs/montecarlo/mc_ctv_summary.csv "CTV Monte Carlo (5 seeded runs)" >> "$GITHUB_STEP_SUMMARY"
 """
 import csv
 import sys
@@ -31,9 +32,9 @@ def cell(value, digits):
     return value
 
 
-def main(path):
+def main(path, title="Monte Carlo (10 seeded runs)"):
     p = Path(path)
-    print("## Monte Carlo (10 seeded runs)\n")
+    print(f"## {title}\n")
     if not p.is_file():
         print("No summary was written; the Monte Carlo did not finish. See the job log.")
         return
@@ -49,4 +50,4 @@ def main(path):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(*sys.argv[1:3])

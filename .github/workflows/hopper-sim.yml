@@ -123,7 +123,9 @@ jobs:
       - name: Monte Carlo summary
         if: always()
         working-directory: ${{ env.PROJECT }}
-        run: python tools/ci/mc_summary.py outputs/montecarlo/mc_summary.csv >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          python tools/ci/mc_summary.py outputs/montecarlo/mc_summary.csv >> "$GITHUB_STEP_SUMMARY"
+          python tools/ci/mc_summary.py outputs/montecarlo/mc_ctv_summary.csv "CTV Monte Carlo (5 seeded runs)" >> "$GITHUB_STEP_SUMMARY"
       - name: Test report
         if: always()
         working-directory: ${{ env.PROJECT }}

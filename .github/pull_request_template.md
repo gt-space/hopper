@@ -26,20 +26,24 @@ Vehicle and variant choices this affects or was run with (`variantConfig`, for e
 - [ ] **No intended change to the flight**: the nominal baseline and the Monte Carlo summary should match `main`
 - [ ] **Intended physics/controls change**: I ran `NominalFlightTest.updateBaseline()` and committed the new `tests/baselines/nominal.mat`
 
-Monte Carlo (from the CI run's summary page or `buildtool mc`). Paste what moved:
+Monte Carlo (from the CI run's summary page or `buildtool mc`: 10 hopper runs, 5 CTV). Paste what moved:
 
-| | `main` | this PR |
-|---|---|---|
-| Within CI limits | /10 | /10 |
-| Meets mission requirements | /10 | /10 |
-| Impact speed (max, m/s) | | |
-| Landing offset (max, m) | | |
-| Max tilt (deg) | | |
+| | hopper `main` | hopper this PR | CTV `main` | CTV this PR |
+|---|---|---|---|---|
+| Within CI limits | /10 | /10 | /5 | /5 |
+| Meets mission requirements | /10 | /10 | /5 | /5 |
+| Impact speed (max, m/s) | | | | |
+| Landing offset (max, m) | | | | |
+| Max tilt (deg) | | | | |
+
+Touched FDIR, navigation or the controller? Say which of these flights you checked and what moved (`buildtool sim` runs them all):
+- FDIR fault cases (`tests/sim/FdirFlightTest.m`)
+- Navigation in shadow or flown on the estimate, hopper and CTV (`tests/sim/NavigationFlightTest.m`)
 
 Changed limits or requirements? <!-- tests/montecarlo/mcLimits.m or the [req] fields in inputs/mission_inputs.m; say why -->
 
 ## Tested
 
-- [ ] `buildtool` (check + test) passes locally
-- [ ] `buildtool sim` passes locally
+- [ ] `buildtool` (check + test, ~2 min) passes locally
+- [ ] `buildtool sim` passes locally, if you changed a model, a subsystem or setup code (~40 min; CI runs it on every push either way)
 - Other variants or models run by hand:
