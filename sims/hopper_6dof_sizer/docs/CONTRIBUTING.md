@@ -74,6 +74,13 @@ Blocks that more than one model uses live in their own files under `subsystems/<
 - **To share another block,** convert it in the harness with `Simulink.SubsystemReference.convertSubsystemToSubsystemReference` and save the file under `subsystems/<area>/` (`archive/refactor/convertToSubsystemReferences.m` shows how the first ones were done). Check that the nominal flight is unchanged: `buildtool sim`.
 - **Conflicts get rarer.** Two people editing different subsystem files never touch the same `.slx`, so prefer a new or existing subsystem file over editing the top-level model.
 
+## Adding a feature
+
+1. **New block or model piece:** build it in its own file under `subsystems/<area>/`, reading its parameters from `IN.*` or other workspace variables.
+2. **Wire it into `models/hopper_6dof.slx`** with a Subsystem Reference block. If it replaces or switches off something already there, make it a choice on a variant axis ([VARIANTS.md](VARIANTS.md), *Adding a choice or an axis*); the default choice must keep today's flight unchanged.
+3. **Setup code** goes in `src/<area>/`. If the model needs a new variable, create it in the setup (`hopperWorkspace`, or a workspace function `buildSimInput` calls for your axis): `buildSimInput` errors on a variable the model reads but the setup didn't create.
+4. **Tests:** `VariantHarnessTest` smoke-runs a new choice for 2 s on its own; add a full flight in `tests/sim/` if it should fly a whole mission, and run `buildtool sim`.
+
 ## Vehicles
 
 Every geometry, mass and hardware value of a vehicle lives in one file, `vehicles/<vehicle>/<vehicle>_config.m`; [VEHICLE_CONFIG.md](VEHICLE_CONFIG.md) lists every field with its units.

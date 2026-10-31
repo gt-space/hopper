@@ -145,7 +145,7 @@ R = runMonteCarlo(10, Variants=variantConfig('VEHICLE', 'ctv'));
 2. **Nominal controller:** the run flies the reference trajectory and gains designed for the nominal CTV, cached per session, so the dispersions are something the controller has to reject. `mc_sim_setup` does the same for the hopper.
 3. **Scoring:** `mc_main` and `checkConstraints` score the run against the CTV's requirements.
 
-`tests/montecarlo/CtvMonteCarloTest` runs 5 seeded scenarios in `buildtool mc`. It requires the nominal flight to meet requirements and every dispersed run to get through setup and simulation (diverging is allowed). The hopper's Monte Carlo path (`mc_sim_setup`) is unchanged.
+`tests/montecarlo/CtvMonteCarloTest.m` runs 5 seeded scenarios in `buildtool mc`. It requires the nominal flight to meet requirements and every dispersed run to get through setup and simulation (diverging is allowed). The hopper's Monte Carlo path (`mc_sim_setup`) is unchanged.
 
 ## Wind moment
 
@@ -167,6 +167,11 @@ R = runMonteCarlo(10, Variants=variantConfig('VEHICLE', 'ctv'));
 ## Adding a choice or an axis
 
 1. **Add the choice** at the end of the axis's list in `variantAxes.m`. Never reorder: the numbers are what the model checks.
-2. **Put the choice in the Variant Subsystem.** Its ports must have the same names as the variant block's ports. Make shared pieces Subsystem Reference files under `subsystems/`.
+2. **Put the choice in the Variant Subsystem.**
+   - Add a subsystem inside the variant block (for example `Slosh` holds `Slosh_Full` and `Slosh_Off`). Its ports must have the same names as the variant block's ports.
+   - Give it the variant control `VARIANT_<AXIS> == k`, with k its position in `variantAxes.m`.
+   - Make shared pieces Subsystem Reference files under `subsystems/`.
+   - For a **new axis**, add it to `variantAxes.m` and turn the block that varies into a Variant Subsystem (right-click → Subsystem & Model Reference → Convert to → Variant Subsystem), with its current contents as choice 1. `variantConfig` and `buildSimInput` pick the new axis up from `variantAxes.m`; nothing else needs registering.
+   - A change you'd want to redo on a fresh copy, such as wiring a choice into many blocks, belongs in a `tools/refactor/` script.
 3. **Test it.** `tests/sim/VariantHarnessTest.m` runs every non-default choice for 2 s automatically. Add a longer test if the choice should fly a full mission.
 4. **Update the axes table** above.
