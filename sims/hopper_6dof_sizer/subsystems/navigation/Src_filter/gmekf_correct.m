@@ -43,12 +43,8 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
         mag_timestamp = -1;
     end
 
-    % Magnetometer is not implemented yet
-    meas_mag.validity = false;
-    meas_mag.timestamp = -1;
-
     % Per-sensor update diagnostics, as in gmekf_correct_hopper: baro, gyro,
-    % GPS, LIDAR 1-4, then slot 8 (the magnetometer, not fused yet: -1).
+    % GPS, LIDAR 1-4, then slot 8 (the magnetometer).
     % diagnostics(1:8): 1 accepted, 0 gated out, -1 no new sample this step;
     % diagnostics(9:16): its NIS (-1 none).
     diagnostics = -ones(16, 1);
@@ -62,6 +58,7 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
     gyroGateThreshold = 11.345;  % 99%, 3 DOF
     gpsGateThreshold  = 16.812;  % 99%, 6 DOF
     lidarGateThreshold = 6.635;  % 99%, 1 DOF (per beam)
+    magGateThreshold  = 11.345;  % 99%, 3 DOF
 
     gpsLeverArmBody = [0.1; 0; -0.2];
 
@@ -207,7 +204,24 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
     end
 
 
-    % TODO: Magnetometer correction
+    % Magnetometer correction: the only heading measurement the CTV has
+    % (no differential GPS); without it rotation about the long axis drifts
+    if mag_incorp
+
+        magParams.gateThreshold = magGateThreshold;
+
+        [xnp1_c, Pnp1_c, acc, nis] = update( ...
+            xnp1_c, ...
+            Pnp1_c, ...
+            @mag_update_model, ...
+            meas_mag, ...
+            magParams);
+        diagnostics(8) = double(acc); diagnostics(16) = nis;   % accepted, NIS
+
+        mag_timestamp = meas_mag.timestamp;
+
+    end
+
     % TODO: Differential GPS
 
 end

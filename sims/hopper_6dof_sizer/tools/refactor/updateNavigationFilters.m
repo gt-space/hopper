@@ -6,7 +6,21 @@ function updateNavigationFilters()
 %     'diagnostics', which FDIR's estimator checks read
 %   - CTV_GMEKF uses a fixed-step solver like Hopper_GMEKF: a model
 %     referenced from the fixed-step harness must be fixed-step
+%   - NavigationDictionary.sldd: magBus.bfield_E is the Earth field vector
+%     in NED (3x1), as Src_sim/mag_model.m documents, not a scalar; the
+%     CTV's magnetometer update (mag_update_model) needs its direction
 %   Rerunning is harmless.
+
+d = Simulink.data.dictionary.open('NavigationDictionary.sldd');
+e = getEntry(getSection(d, 'Design Data'), 'magBus');
+b = getValue(e);
+k = find(strcmp({b.Elements.Name}, 'bfield_E'));
+if ~isequal(b.Elements(k).Dimensions, [3 1])
+    b.Elements(k).Dimensions = [3 1];
+    setValue(e, b);
+    saveChanges(d);
+    fprintf('NavigationDictionary: magBus.bfield_E is 3x1\n');
+end
 
 filters = {'Hopper_GMEKF', 'gmekf_correct_hopper'; 'CTV_GMEKF', 'gmekf_correct'};
 for k = 1:size(filters, 1)

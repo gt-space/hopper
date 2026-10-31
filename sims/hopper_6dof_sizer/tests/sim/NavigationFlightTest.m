@@ -81,26 +81,39 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
         function ctvShadowFlight(tc)
             % The CTV's full hop with its GMEKF in shadow. The roll axis
             % holds (it used to spin up to hundreds of rad/s on hopper
-            % roll gains), the vehicle lands, and the estimate tracks.
-            % Attitude gets its own, looser bound: the CTV filter's
-            % attitude error reached 0.10 (measured 2026-10-30), mostly
-            % about the long axis
+            % roll gains), the vehicle lands, and the estimate tracks;
+            % the magnetometer holds heading (attitude error 0.017,
+            % measured 2026-10-31; 0.14 without it)
             V = variantConfig('VEHICLE', 'ctv', 'NAVIGATION', 'gmekf_shadow');
             out = sim(buildSimInput(tc.Model, [], [], V));
+            tc.verifyCtvFlight(out);
+        end
+
+        function ctvFliesOnTheEstimate(tc)
+            % The CTV flying its hop on the estimate lands within its
+            % requirements (it used to climb to 21 m: hopper thrust
+            % weights made the thrust chatter on estimate noise)
+            V = variantConfig('VEHICLE', 'ctv', 'NAVIGATION', 'gmekf');
+            out = sim(buildSimInput(tc.Model, [], [], V));
+            tc.verifyCtvFlight(out);
+        end
+    end
+
+    methods
+        function verifyCtvFlight(tc, out)
             X = NavigationFlightTest.logged(out, 'nav_estimate');
             E = NavigationFlightTest.logged(out, 'nav_error');
             p = X(:, 7) - E(:, 7);   % true body roll rate
             tc.verifyLessThan(max(abs(p)), 1, 'roll rate (rad/s)');
             K = NominalFlightTest.keyNumbers(out);
+            old = hopperVehicle('ctv'); restore = onCleanup(@() hopperVehicle(old)); %#ok<NASGU>
+            IN = mission_inputs();
             tc.verifyLessThan(abs(K.final_altitude), 0.1, 'landed');
-            tc.verifyLessThan(max(vecnorm(E(:, 1:3), 2, 2)), tc.MaxPosErr, 'position error (m)');
-            tc.verifyLessThan(max(vecnorm(E(:, 4:6), 2, 2)), tc.MaxVelErr, 'velocity error (m/s)');
-            tc.verifyLessThan(max(vecnorm(E(:, 7:9), 2, 2)), tc.MaxRateErr, 'rate error (rad/s)');
-            tc.verifyLessThan(max(vecnorm(E(:, 10:13), 2, 2)), 0.15, 'attitude error');
+            tc.verifyLessThan(K.landing_offset, IN.mission.max_landing_offset, 'landing offset');
+            tc.verifyLessThan(abs(K.final_velocity(3)), IN.mission.max_impact_vel, 'impact velocity');
+            tc.verifyEstimate(out);
         end
-    end
 
-    methods
         function verifyEstimate(tc, out)
             E = NavigationFlightTest.logged(out, 'nav_error');
             tc.verifyLessThan(max(vecnorm(E(:, 1:3), 2, 2)), tc.MaxPosErr, 'position error (m)');

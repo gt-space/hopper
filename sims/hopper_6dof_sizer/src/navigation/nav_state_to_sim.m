@@ -20,5 +20,12 @@ x = zeros(13, 1);
 x(1:3) = xn(1:3) - [0; 0; F.heightCOM] + sim_pos_offset(cg);
 x(4:6) = xn(4:6);
 x(7:9) = F.R' * xn(7:9);
-x(10:13) = nav_quat_from_dcm(dcm_be);       % the sim's quat2dcm convention is the same A(q)
+% q_sim = q_nav * q_c (Hamilton), q_c the quaternion of the fixed frame
+% change: the same attitude as dcm_be, but it keeps the filter's sign. A
+% DCM round trip (w >= 0) flips the sign wherever w crosses zero (the CTV
+% turning about its long axis), and nav_error and anything else comparing
+% quaternions directly then see a full turn (the LQR scheduler aligns the
+% sign itself)
+qc = nav_quat_from_dcm(F.R');
+x(10:13) = [q(1)*qc(1) - q(2:4)'*qc(2:4); q(1)*qc(2:4) + qc(1)*q(2:4) + cross(q(2:4), qc(2:4))];
 end

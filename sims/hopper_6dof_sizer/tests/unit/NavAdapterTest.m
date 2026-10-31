@@ -48,6 +48,22 @@ classdef NavAdapterTest < matlab.unittest.TestCase
             end
         end
 
+        function estimateKeepsTheFilterSign(tc)
+            % the controller's quaternion follows the filter's sign (q and
+            % -q are one attitude): no flip where w crosses zero
+            rng(6);
+            for k = 1:20
+                q = randn(4, 1); q = q / norm(q);
+                xn = [zeros(9, 1); q; zeros(7, 1)];
+                [x1, C1] = nav_state_to_sim(xn, tc.cg, tc.F);
+                xn(10:13) = -q;
+                [x2, C2] = nav_state_to_sim(xn, tc.cg, tc.F);
+                tc.verifyEqual(x2(10:13), -x1(10:13), 'AbsTol', 1e-15, 'sign follows the filter');
+                tc.verifyEqual(C2, C1, 'AbsTol', 1e-15, 'same attitude');
+                tc.verifyEqual(nav_dcm_from_quat(x1(10:13)), C1, 'AbsTol', 1e-12, 'quaternion matches the DCM');
+            end
+        end
+
         function measurementsMatchFilterModels(tc)
             % noise off: at the true state, each of the nav team's
             % measurement models predicts what our sensor model measured
@@ -65,7 +81,7 @@ classdef NavAdapterTest < matlab.unittest.TestCase
                 xs = struct('pos_ned', x(1:3), 'vel_ned', x(4:6), 'w_b', x(7:9), 'dcm_be', C, ...
                             'f_b', [9.8; 0; 0], 'cg', tc.cg);
                 [~, tr] = sensor_models(xs, zeros(L.N_MEAS, 1), 0, S, sensor_state());
-                [~, angvel, ~, gps, lidar, dgps, ~, lf, gf] = nav_measurements(tr, true(L.N_SENSORS, 1), ...
+                [~, angvel, ~, gps, lidar, dgps, mag, lf, gf] = nav_measurements(tr, true(L.N_SENSORS, 1), ...
                     zeros(L.N_SENSORS, 1), tc.cg, 130, eye(3), zeros(3, 1), P, 0, 1);
                 xn = nav_state_from_sim(x, C, tc.cg, tc.F);
                 inn = gyro_update_model(xn, angvel, struct());
@@ -74,6 +90,8 @@ classdef NavAdapterTest < matlab.unittest.TestCase
                 tc.verifyEqual(inn, zeros(6, 1), 'AbsTol', 1e-9, 'GPS position and velocity');
                 inn = diffGps_update_model(xn, dgps, gf);
                 tc.verifyEqual(inn, zeros(3, 1), 'AbsTol', 1e-12, 'differential GPS');
+                inn = mag_update_model(xn, mag, struct());
+                tc.verifyEqual(inn, zeros(3, 1), 'AbsTol', 1e-12, 'magnetometer');
                 for b = 1:4
                     lp = lf; lp.lidarIndex = b;
                     inn = lidar_update_model(xn, struct('distance', lidar.distance(b)), lp);

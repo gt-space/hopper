@@ -76,7 +76,7 @@ dgps.validity   = logical(valid(L.S_DGPS)) && on(T.gps);
 
 mag.bfield_meas = R * meas(L.MAG);
 mag.covariance  = r_scale * R * diag(repmat(S.mag.sigma^2, 3, 1)) * R';
-mag.bfield_E    = norm(S.mag.field_ned);
+mag.bfield_E    = S.mag.field_ned(:);         % Earth field, NED (mag_update_model)
 mag.timestamp   = stamp(L.S_MAG);
 mag.validity    = logical(valid(L.S_MAG)) && on(T.mag);
 

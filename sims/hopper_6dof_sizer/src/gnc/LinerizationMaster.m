@@ -188,6 +188,15 @@ if n_run > 0
     B      = cat(3, B, repmat(B_r, 1, 1, n_run));
     Fref   = [Fref; repmat(f_r.', n_run, 1)];
 end
+% Roll angle weight (IN.gnc.lqr.roll_angle_weight, e.g. the CTV): the
+% diagonal quaternion weights can't single out roll, since at the vertical
+% attitude roll and a tilt axis share quaternion components. Weight the
+% quaternion error along the direction a roll rate moves it, dq/dp (the
+% linearization's own convention), so only roll angle is penalized.
+if isfield(IN, 'gnc') && isfield(IN.gnc, 'lqr') && isfield(IN.gnc.lqr, 'roll_angle_weight')
+    n_roll = A(10:13, 7, 1) / norm(A(10:13, 7, 1));
+    Q(10:13, 10:13) = Q(10:13, 10:13) + IN.gnc.lqr.roll_angle_weight * (n_roll * n_roll');
+end
 GainTable = TrajectoryFollowingGains2(Sf,Q,R,Target_Trajectory,A,B,tgrid,unom,params,Fref);
 
 K1 = GainTable.K1;

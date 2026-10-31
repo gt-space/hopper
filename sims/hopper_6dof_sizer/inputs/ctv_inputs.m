@@ -26,7 +26,24 @@ function IN = ctv_inputs(IN, scenario)
 Ixx = IN.vehicle.mass.dry_I(1, 1);
 wb = 0.5 / IN.vehicle.rcs.tau;                     % rad/s, roll-rate loop bandwidth
 Qp = 1e6 / 10000;                                  % LinerizationMaster's roll-rate weight
-IN.gnc.lqr.R_diag = [3e7 8e6 8e6 Qp / (Ixx * wb)^2 * 10000] / 10000;   % T, pitch, yaw: the hopper's
+% Thrust: the hopper's thrust weight on a vehicle 55x lighter gives a
+% ~750 N/m height gain, a 17 rad/s vertical loop instead of the hopper's
+% 2.3, and flying on the estimate every mm of height noise moved thrust
+% by 0.75 N, every step: the chattering thrust, sampled by the IMU, left a
+% velocity bias that walked the estimate off. Scaling the weight by the
+% mass ratio squared keeps K / m, so the CTV gets the hopper's vertical
+% dynamics.
+m_ratio = vehicleConfig('hopper').mass.wet / IN.vehicle.mass.wet;
+IN.gnc.lqr.R_diag = [3e7 * m_ratio^2, 8e6, 8e6, Qp / (Ixx * wb)^2 * 10000] / 10000;   % pitch, yaw: the hopper's
+% Roll angle: with the hopper's quaternion weights the angle gain fell with
+% R_rcs to nearly nothing, so a steady roll torque (the TVC's, ~0.04 N m
+% flying on the estimate) held the CTV turning at ~0.8 rad/s. An angle
+% loop at w_th: K_th = Ixx * w_th^2; the quaternion moves half the roll
+% angle, so its weight is 4 * R_rcs * K_th^2. A steady torque M then
+% leaves a fixed roll offset M / K_th (~13 deg for 0.04 N m), harmless
+% on an axisymmetric vehicle.
+w_th = 0.8 * wb;                                   % rad/s
+IN.gnc.lqr.roll_angle_weight = 4 * IN.gnc.lqr.R_diag(4) * (Ixx * w_th^2)^2;
 
 % ---- Wind: calm. ASSUMPTION: the CTV flies in calm air; the hopper's
 % 10 m/s default puts ~11 N of side force (~40 % of weight) on it
