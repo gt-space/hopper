@@ -62,12 +62,20 @@ VC.engine.throttle.resolution = 0.05;          % N, ASSUMPTION
 
 % ---- Roll props ----
 % Four 65 mm props on coreless motors (ctv/inputs/mission_inputs.m), still
-% at that file's placeholder thrust. TODO: datasheet value. The roll
-% authority matters: with the current LQR the CTV holds attitude under a
-% 1 mm engine offset or 1.5 m/s wind at 16 N but tumbles at 2 N or less
-% (typical 65 mm props give ~0.4 N), so check this before flying.
+% at that file's placeholder thrust. TODO: datasheet value (typical 65 mm
+% props give ~0.4 N). Roll torque limit: max_thrust x arm.
 VC.rcs.max_thrust = 16;                        % N, placeholder
 VC.rcs.arm        = 4.25*0.0254;               % m, ASSUMPTION: still the hopper's tank radius; measure the prop arm
+% The hopper's 0.1 N m quantization is several times the torque the CTV's
+% roll loop commands (a few mN m), so the props never moved
+VC.rcs.resolution = 1e-3;                      % N m, ASSUMPTION: ~0.01 N of prop thrust
+
+% ---- Random roll disturbance torque (the harness's Random Gusts) ----
+% The hopper's, scaled by roll inertia squared: the same angular
+% acceleration (20 (N m)^2 x (0.012329 / 12.6948)^2). The hopper's own
+% sigma, 4.5 N m, is 2.6x the CTV's whole roll authority. The CTV's real
+% roll disturbance is the EDF's reaction torque, which is not modelled.
+VC.disturbance.roll_torque_var = 1.886e-5;     % (N m)^2, ASSUMPTION
 
 % ---- Landing legs ----
 VC.legs.foot_radius = 0.15;                    % m, ASSUMPTION

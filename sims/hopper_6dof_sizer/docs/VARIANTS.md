@@ -75,7 +75,7 @@ plot(out.get('nav_error'))   % estimate - truth, in the controller's 13-state
 
 **With FDIR:** `FDIR=on` with `gmekf_shadow` runs the estimator checks (rows 33–37, [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md)). Quiet they stay clear; a 5 m GPS bias trips the NIS CUSUM (R1) while the filter gates GPS out. With `gmekf` FDIR monitors the estimate, and the quiet flight runs the PDR mode sequence to LANDED. A stuck gyro on `gmekf` still crashes: FDIR masks it and the filter stops fusing it, but without a gyro the GMEKF can't hold attitude on differential GPS and lidar alone, and the abort flies on that attitude.
 
-**The CTV (experimental):** `CTV_GMEKF.slx` now runs (fixed-step, the same diagnostics), but its estimate diverges within a few seconds: the CTV plant itself spins up in roll to ~14 rad/s from ~0.8 s after liftoff, with the roll fans saturated against it, on truth too. That is the CTV's roll loop (fan model and gains on a 0.0123 kg·m² roll axis), still to fix; no filter can follow it.
+**The CTV (experimental):** `CTV_GMEKF.slx` runs (fixed-step, the same diagnostics). Since the roll fix ([The CTV](#the-ctv)), in shadow it tracks the full hop within 0.03 m, 0.13 m/s and 0.04 rad/s; its attitude error reaches 0.10, mostly about the long axis. Flown closed loop (`gmekf`) it does not land yet: the estimate walks off and the CTV climbs to 22 m.
 
 **Checks:** `tests/unit/NavAdapterTest.m` (frames round-trip; with noise off each of their measurement models predicts exactly what our sensor model measured; FDIR's masks and R scale reach the buses), `tests/sim/NavigationFlightTest.m` (the flights above) and their own `subsystems/navigation/Tests` (in `buildtool test`). Their sensor models read their parameters from `Src_sim/nav_sensor_params.m`, which tests override.
 
@@ -108,10 +108,16 @@ out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('VEHICLE', 'ctv')))
 - **EDF throttle steps of 0.05 N.** The hopper's throttle valve moves in 5 N steps, 20% of the CTV's weight, which made its thrust bang-bang.
 - **A faster gimbal:** 200°/s, my estimate for a hobby servo, against the hopper's 15°/s.
 - **Principal inertia only.** The CAD products of inertia (up to 9% of the 0.012 kg·m² roll inertia) alone made it drift 8.5 m and tilt 20° in calm air. The full tensor is kept in `IN.vehicle.mass.I_full`.
+- **Roll sized to its own inertia** (fixed 2026-10-30). The CTV used to spin up in roll to hundreds of rad/s from liftoff. Three hopper values met a roll inertia 1000x smaller:
+  - **Gain.** The LQR's roll-rate gain is √(Q_p/R_rcs) = 10 N·m per rad/s whatever the inertia: a 0.8 rad/s loop on the hopper, 810 rad/s on the CTV. `ctv_inputs` now sets R_rcs so the loop crosses at half the props' bandwidth, 1/(2τ) = 5 rad/s.
+  - **Quantization.** The hopper's 0.1 N·m fan resolution is several times the torque the CTV's loop asks for, so the props never moved; the CTV's is 1 mN·m.
+  - **Disturbance.** The harness's random roll torque (Random Gusts: σ 4.5 N·m on 5% of 0.1 s intervals) is per vehicle now, `disturbance.roll_torque_var` in the config; the CTV's is the hopper's at the same angular acceleration. Its real roll disturbance, the EDF's reaction torque, is not modelled.
+
+  The fan block's torque limit was also in the wrong units (±16 N·m, the thrust in N used as a torque, against 16 N × 0.108 m = 1.73 N·m); it is max_thrust × arm now, for both vehicles. The hopper's nominal flight peaks at 0.7 N·m and is unchanged. `tools/refactor/parameterizeRollActuation.m` made the model changes.
 
 **Why the dispersed CTV runs fail.** These are open problems for GNC, roughly in order of suspicion:
 1. **`Wind_Forces` got the wind moment wrong** (fixed, see [Wind moment](#wind-moment)). The force was always right: drag ½ρCdA·|V|·V in inertial axes, rotated into body axes by the model.
-2. **Roll authority.** With the current controller the CTV needs hopper-sized roll fans. At 16 N, the placeholder from the old CTV inputs, it survives disturbances; at 2 N or less it tumbles in 1.5 m/s wind, and typical 65 mm props give about 0.4 N. The real props' thrust decides whether the CTV is controllable as modeled.
+2. **Roll authority** (no longer a suspect). The tumbling at 2 N props or less was the roll loop, not the props: since the roll fix the hop flies the same at 16, 2 and 0.4 N (typical 65 mm props), in calm air and 1.5 m/s wind, with roll rate under 0.07 rad/s. The EDF's reaction torque, still unmodelled, will set what the props need.
 3. **The products-of-inertia coupling** above: something in the LQR (likely the K2 feedforward from the linearization) reacts to them.
 4. **Tuning.** No LQR weight set I tried is robust. Raising the lateral weights fixed one windy case but did worse across the Monte Carlo. The `IN.gnc.lqr` hook takes CTV weights without touching the hopper's.
 

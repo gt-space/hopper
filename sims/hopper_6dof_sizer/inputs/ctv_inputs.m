@@ -12,11 +12,21 @@ function IN = ctv_inputs(IN, scenario)
 %   the mission, wind and its Monte Carlo dispersions. Values marked
 %   ASSUMPTION are placeholders until measured.
 
-% ---- LQR weights: the hopper's (LinerizationMaster). Set CTV weights with
-% IN.gnc.lqr.Q_diag / R_diag / Sf_diag (13 / 4 / 13 diagonal entries).
-% Tried 2026-10-28: lateral position x10 and velocity x30 landed one windy
-% case within 0.25 m but did worse than the hopper's weights across a
-% 10-run Monte Carlo, so the CTV still needs real tuning (docs/VARIANTS.md).
+% ---- LQR weights: the hopper's (LinerizationMaster), except roll. Set CTV
+% weights with IN.gnc.lqr.Q_diag / R_diag / Sf_diag (13 / 4 / 13 diagonal
+% entries). Tried 2026-10-28: lateral position x10 and velocity x30 landed
+% one windy case within 0.25 m but did worse than the hopper's weights
+% across a 10-run Monte Carlo, so the CTV still needs real tuning
+% (docs/VARIANTS.md).
+% Roll: the LQR's roll-rate gain is sqrt(Q_p / R_rcs) = 10 N m per rad/s
+% whatever the inertia. On the hopper (Ixx 12.7) that's a 0.8 rad/s loop;
+% on the CTV (Ixx 0.0123) 810 rad/s, far past the props' 0.1 s spin-up,
+% and the CTV spun up in roll to hundreds of rad/s. R_rcs is set so the
+% roll-rate loop crosses at half the prop bandwidth (1 / (2 tau)).
+Ixx = IN.vehicle.mass.dry_I(1, 1);
+wb = 0.5 / IN.vehicle.rcs.tau;                     % rad/s, roll-rate loop bandwidth
+Qp = 1e6 / 10000;                                  % LinerizationMaster's roll-rate weight
+IN.gnc.lqr.R_diag = [3e7 8e6 8e6 Qp / (Ixx * wb)^2 * 10000] / 10000;   % T, pitch, yaw: the hopper's
 
 % ---- Wind: calm. ASSUMPTION: the CTV flies in calm air; the hopper's
 % 10 m/s default puts ~11 N of side force (~40 % of weight) on it

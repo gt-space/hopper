@@ -78,16 +78,25 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
             tc.verifyTrue(ismember(double(mode(end)), double([M.TOUCHDOWN_CONFIRM M.LANDED])), 'final mode');
         end
 
-        function ctvFilterRuns(tc)
-            % The CTV's GMEKF compiles and runs in shadow. Only a smoke run:
-            % the CTV plant spins up in roll from ~0.8 s (its roll loop, not
-            % the filter), and no estimator can follow that yet
+        function ctvShadowFlight(tc)
+            % The CTV's full hop with its GMEKF in shadow. The roll axis
+            % holds (it used to spin up to hundreds of rad/s on hopper
+            % roll gains), the vehicle lands, and the estimate tracks.
+            % Attitude gets its own, looser bound: the CTV filter's
+            % attitude error reached 0.10 (measured 2026-10-30), mostly
+            % about the long axis
             V = variantConfig('VEHICLE', 'ctv', 'NAVIGATION', 'gmekf_shadow');
-            in = buildSimInput(tc.Model, [], [], V);
-            out = sim(in.setModelParameter('StopTime', '0.6'));
-            tc.verifyEmpty(out.ErrorMessage);
+            out = sim(buildSimInput(tc.Model, [], [], V));
+            X = NavigationFlightTest.logged(out, 'nav_estimate');
             E = NavigationFlightTest.logged(out, 'nav_error');
+            p = X(:, 7) - E(:, 7);   % true body roll rate
+            tc.verifyLessThan(max(abs(p)), 1, 'roll rate (rad/s)');
+            K = NominalFlightTest.keyNumbers(out);
+            tc.verifyLessThan(abs(K.final_altitude), 0.1, 'landed');
             tc.verifyLessThan(max(vecnorm(E(:, 1:3), 2, 2)), tc.MaxPosErr, 'position error (m)');
+            tc.verifyLessThan(max(vecnorm(E(:, 4:6), 2, 2)), tc.MaxVelErr, 'velocity error (m/s)');
+            tc.verifyLessThan(max(vecnorm(E(:, 7:9), 2, 2)), tc.MaxRateErr, 'rate error (rad/s)');
+            tc.verifyLessThan(max(vecnorm(E(:, 10:13), 2, 2)), 0.15, 'attitude error');
         end
     end
 

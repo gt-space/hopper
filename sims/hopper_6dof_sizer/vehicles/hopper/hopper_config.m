@@ -95,11 +95,15 @@ VC.engine.tvc.damping    = 0.5;                % actuator damping ratio
 VC.engine.tvc.resolution = deg2rad(0.1);       % rad
 
 % ---- Roll control (EDF fans) ----
-VC.rcs.max_thrust = 16;                        % N per fan
+VC.rcs.max_thrust = 16;                        % N per fan (roll torque limit: max_thrust x arm)
 VC.rcs.arm        = VC.tanks.radius;           % m, fan moment arm (fans at the tank wall)
 VC.rcs.tau        = 0.1;                       % s, fan spin-up time constant
 VC.rcs.resolution = 0.1;                       % N m, command quantization
 VC.rcs.throttle_rate = 50;                     % N/s
+
+% ---- Random roll disturbance torque (the harness's Random Gusts) ----
+% On 5 % of 0.1 s intervals, a Gaussian roll torque redrawn every second
+VC.disturbance.roll_torque_var = 20;           % (N m)^2
 
 % ---- Landing legs ----
 VC.legs.n           = 4;

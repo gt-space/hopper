@@ -53,6 +53,7 @@ Two things are generated from the geometry and need regenerating by hand:
 | `engine.throttle.*` | N/s, s, N | throttle valve `rate_limit`, `latency`, `resolution` |
 | `engine.tvc.*` | rad, rad/s, s | `max_angle`, `max_rate`, `latency`, `rise_time`, `damping`, `resolution` |
 | `rcs.*` | N, m, s, N·m | roll fans: `max_thrust`, moment `arm`, spin-up `tau`, `resolution`, `throttle_rate` |
+| `disturbance.roll_torque_var` | (N·m)² | variance of the harness's random roll disturbance torque (Random Gusts) |
 | `legs.*` | -, m, deg, N/m, kg | `n`, `foot_radius`, `azimuth` (in leg order), `stiffness` per leg, `damping` (× √wet mass), `mass`, `intertank_mass` |
 | `components.<name>` | kg, m | `mass`, `cg_x` of structures, avionics, fluids, payload and COPV, for the dry block until a CAD export |
 | `structure.modal.*` | Hz, - | first bending mode: a stopgap until a structural response model exists |

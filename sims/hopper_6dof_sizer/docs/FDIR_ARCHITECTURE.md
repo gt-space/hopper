@@ -191,5 +191,5 @@ FDIR logs the active mode, response level, latched-fault bitfield, first-fault I
 | `FDIR_SensorFault_Subsystem` (#31) | Its monitor, persistence and arbitration code becomes part of the executive above. Its ladder numbering and its four phases change to the PDR's, and `FDIR_Tests` is updated to match. |
 | `hopper_6dof_NED_fault_injection.slx` | Contained no fault injection: it was a stale v2 copy. Archived (`archive/models/`). |
 | Navigation sensor models (`Src_sim`) | Not used: the shared `Sensors` block feeds the filter, so FDIR and the filter see the same measurements. |
-| Navigation filter | The nav team's `Hopper_GMEKF` runs in the harness (NAVIGATION axis, docs/VARIANTS.md). `CTV_GMEKF` runs too, but is experimental: the CTV plant spins up in roll. |
+| Navigation filter | The nav team's `Hopper_GMEKF` runs in the harness (NAVIGATION axis, docs/VARIANTS.md). `CTV_GMEKF` runs too and tracks in shadow, but is experimental: flown closed loop the CTV doesn't land yet. |
 | Open (PDR) | Numeric thresholds and persistence times from Monte Carlo; thrust cut at 0.1 m (PDR) vs. the sim's 0.05 m (`IN.mission.engine_cutoff_alt`); the FMECA catalog for the non-GNC rows. |
