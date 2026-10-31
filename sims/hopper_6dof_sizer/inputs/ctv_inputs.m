@@ -36,12 +36,12 @@ Qp = 1e6 / 10000;                                  % LinerizationMaster's roll-r
 m_ratio = vehicleConfig('hopper').mass.wet / IN.vehicle.mass.wet;
 IN.gnc.lqr.R_diag = [3e7 * m_ratio^2, 8e6, 8e6, Qp / (Ixx * wb)^2 * 10000] / 10000;   % pitch, yaw: the hopper's
 % Roll angle: with the hopper's quaternion weights the angle gain fell with
-% R_rcs to nearly nothing, so a steady roll torque (the TVC's, ~0.04 N m
-% flying on the estimate) held the CTV turning at ~0.8 rad/s. An angle
-% loop at w_th: K_th = Ixx * w_th^2; the quaternion moves half the roll
-% angle, so its weight is 4 * R_rcs * K_th^2. A steady torque M then
-% leaves a fixed roll offset M / K_th (~13 deg for 0.04 N m), harmless
-% on an axisymmetric vehicle.
+% R_rcs to nearly nothing, so any steady roll torque held the CTV turning
+% (a spurious ~0.04 N m one from the TVC, since fixed, turned it at
+% ~0.8 rad/s). An angle loop at w_th: K_th = Ixx * w_th^2; the quaternion
+% moves half the roll angle, so its weight is 4 * R_rcs * K_th^2. A steady
+% torque M then leaves a fixed roll offset M / K_th, harmless on an
+% axisymmetric vehicle.
 w_th = 0.8 * wb;                                   % rad/s
 IN.gnc.lqr.roll_angle_weight = 4 * IN.gnc.lqr.R_diag(4) * (Ixx * w_th^2)^2;
 
