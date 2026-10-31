@@ -56,7 +56,7 @@ Two things are generated from the geometry and need regenerating by hand:
 | `disturbance.roll_torque_var` | (N·m)² | variance of the harness's random roll disturbance torque (Random Gusts) |
 | `legs.*` | -, m, deg, N/m, kg | `n`, `foot_radius`, `azimuth` (in leg order), `stiffness` per leg, `damping` (× √wet mass), `mass`, `intertank_mass` |
 | `components.<name>` | kg, m | `mass`, `cg_x` of structures, avionics, fluids, payload and COPV, for the dry block until a CAD export |
-| `structure.modal.*` | Hz, - | first bending mode: a stopgap until a structural response model exists |
+| `structure.modal.*` | -, Hz, - | first bending mode: a stopgap until a structural response model exists. `enabled` false (the CTV) turns its coupling off |
 | `aero.area`, `.cd`, `.cp_x` | m², -, m | side area, drag coefficient, centre of pressure |
 | `sensors.lidar.*` | deg, m | mounting: `azimuth`, `cant`, `radius`, `mount_x` |
 
@@ -65,7 +65,7 @@ Two things are generated from the geometry and need regenerating by hand:
 - `mass.wet`.
 - `legs.r_foot`: 3 × n foot positions.
 - `engine.tvc.natural_freq` = 1.8 / rise_time.
-- `structure.modal.k_engine` = (engine cg_x / height)².
+- `structure.modal.k_engine` = (engine cg_x / height)², or 0 when `structure.modal.enabled` is false.
 
 Don't set these in the file.
 

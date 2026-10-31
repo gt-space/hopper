@@ -126,6 +126,7 @@ VC.components.copv = struct('mass', 11, 'gas_mass', 6, 'amount', 3, ...
 % ---- Structure (placeholder for a structural response model) ----
 % The first bending mode feeds the TVC angle through k_engine = (engine
 % cg_x / height)^2 (Actuators_TVC_RCS). A stopgap, not a design value.
+VC.structure.modal.enabled           = true;   % false: k_engine = 0, no bending-mode coupling
 VC.structure.modal.natural_frequency = 10;     % Hz
 VC.structure.modal.damping           = 0.01;
 

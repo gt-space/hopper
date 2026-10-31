@@ -39,7 +39,8 @@ ENGINE.tvc_natural_freq = 1.8 / IN.tvc.rise_time;
 % by a Monte Carlo scenario's mass_factor
 VEH.mass.dry = IN.mass_factor * IN.mass.dry_override;
 VEH.mass.wet = VEH.mass.dry + IN.propulsion.oxidizer_mass + IN.propulsion.fuel_mass;
-VEH.k_engine = (IN.engine_cg / IN.mission.max_vehicle_height)^2;   % stopgap bending-mode factor (VC.structure)
+VEH.k_engine = IN.vehicle.structure.modal.enabled * ...
+    (IN.engine_cg / IN.mission.max_vehicle_height)^2;   % stopgap bending-mode factor (VC.structure)
 
 OUT = Outputs(IN, VEH, TANKS, STRUCT);
 

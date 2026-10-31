@@ -37,6 +37,7 @@ classdef VehicleConfigTest < matlab.unittest.TestCase
             tc.verifyEqual(diag(VC.mass.dry_I)', [12.6948 52.3340 51.5454]);
             tc.verifyEqual(VC.engine.tvc.natural_freq, 36, 'AbsTol', 1e-12);
             tc.verifyEqual(VC.structure.modal.k_engine, (0.3556 / 2.44)^2);
+            tc.verifyEqual(vehicleConfig('ctv').structure.modal.k_engine, 0, 'the CTV flies rigid');
             d = VC.legs.foot_radius;   % legs 1-4 at +y -y +z -z, as the models expect
             tc.verifyEqual(VC.legs.r_foot, [0 d 0; 0 -d 0; 0 0 d; 0 0 -d]');
         end

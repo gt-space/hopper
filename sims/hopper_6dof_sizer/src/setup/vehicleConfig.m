@@ -11,7 +11,8 @@ function VC = vehicleConfig(vehicle)
 %     VC.legs.r_foot           3 x n foot positions, body frame (legs.azimuth order)
 %     VC.engine.tvc.natural_freq   1.8 / rise_time (rad/s)
 %     VC.structure.modal.k_engine  (engine cg_x / height)^2, the stopgap
-%                                  bending-mode factor on the TVC angle
+%                                  bending-mode factor on the TVC angle;
+%                                  0 with structure.modal.enabled false
 %   and checks it: required fields, positive masses and sizes, positions
 %   inside the vehicle, tanks that don't overlap. See docs/VEHICLE_CONFIG.md.
 
@@ -35,7 +36,7 @@ az = deg2rad(VC.legs.azimuth);
 VC.legs.r_foot = [zeros(1, VC.legs.n); VC.legs.foot_radius * round(cos(az), 12); ...
                   VC.legs.foot_radius * round(sin(az), 12)];
 VC.engine.tvc.natural_freq = 1.8 / VC.engine.tvc.rise_time;
-VC.structure.modal.k_engine = (VC.engine.cg_x / VC.height)^2;
+VC.structure.modal.k_engine = VC.structure.modal.enabled * (VC.engine.cg_x / VC.height)^2;
 end
 
 function check(VC, vehicle)
@@ -43,7 +44,7 @@ need = {'name', 'height', 'mass.dry', 'tanks.radius', 'tanks.ox.height', 'tanks.
         'tanks.ox.mass', 'tanks.ox.prop_mass', 'tanks.fu.height', 'tanks.fu.cg_x', 'tanks.fu.mass', ...
         'tanks.fu.prop_mass', 'engine.mass', 'engine.cg_x', 'engine.gimbal_x', 'engine.nominal_thrust', ...
         'engine.throttle_range', 'engine.tvc.rise_time', 'rcs.max_thrust', 'rcs.arm', 'legs.n', ...
-        'legs.foot_radius', 'legs.azimuth', 'legs.stiffness', 'aero.area', 'aero.cp_x', 'structure.modal.natural_frequency', ...
+        'legs.foot_radius', 'legs.azimuth', 'legs.stiffness', 'aero.area', 'aero.cp_x', 'structure.modal.natural_frequency', 'structure.modal.enabled', ...
         'disturbance.roll_torque_var'};
 bad = {};
 for k = 1:numel(need)

@@ -82,6 +82,13 @@ VC.legs.foot_radius = 0.15;                    % m, ASSUMPTION
 VC.legs.stiffness   = 2186514.3576498032;      % N/m per leg: sizer 2026-10, at the CTV's mass
 VC.legs.mass        = 0.44908343062561118;     % kg, all legs: sizer 2026-10
 
+% ---- Structure: no bending-mode coupling ----
+% The hopper's stopgap bending mode (k_engine = (engine cg_x / height)^2,
+% at 10 Hz, inherited from hopper_config) was sized for a 2.44 m vehicle.
+% The CTV is a stiff 0.75 m frame with no first mode near its control
+% bandwidth, so it flies rigid until a structural model says otherwise.
+VC.structure.modal.enabled = false;
+
 % ---- Aerodynamics (Wind_Forces) ----
 VC.aero.area = 0.15;                           % m^2, ASSUMPTION: side area
 VC.aero.cd   = 1.2;                            % ASSUMPTION
