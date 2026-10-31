@@ -1,6 +1,6 @@
 function BS = sweepBaffleSim(overrides)
 % Closed-loop baffle sizing: sweep baffle count / width per tank in
-% hopper_6dof_NED_v2 and pick the fewest baffles that keep altitude and
+% hopper_6dof and pick the fewest baffles that keep altitude and
 % pitch within limits, with margin on the damping model.
 %
 % Run sim_setup first. This is a function so nothing it creates can
@@ -23,7 +23,7 @@ IN           = evalin('base', 'IN');
 t            = evalin('base', 't');
 z_trajectory = evalin('base', 'z_trajectory');
 
-BS.mdl           = 'hopper_6dof_NED_v2';
+BS.mdl           = 'hopper_6dof';
 BS.pitch_lim     = 5;      % max |pitch - 90| above BS.alt_split, deg
 BS.pitch_lim_low = 10;     % same, final descent below BS.alt_split (Inf to ignore)
 BS.alt_split     = 1;      % m

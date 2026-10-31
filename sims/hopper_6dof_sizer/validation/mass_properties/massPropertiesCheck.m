@@ -59,7 +59,7 @@ fprintf('\n=== TABLE INTEGRATION vs DIRECT (full -> empty) ===\n');
 fprintf('INT empty: cg direct %.5f integrated %.5f | I direct %s integrated %s\n', cgE(1), cg_i, mat2str(diag(IE)', 5), mat2str(I_i, 5));
 
 % ---------- 4. nominal sim: integrated outputs vs direct ----------
-mdl = 'hopper_6dof_NED_v2'; load_system(mdl);
+mdl = 'hopper_6dof'; load_system(mdl);
 ph = get_param([mdl '/Mass_Properties'], 'PortHandles');
 nm = {'cg_out', 'moi_out', 'didt_out', 'engcg_out'};
 for k = 1:4, set_param(ph.Outport(k), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 'DataLoggingName', nm{k}); end
@@ -69,7 +69,7 @@ set_param(ph1.Outport(2), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 
 phs = get_param([mdl '/Saturation1'], 'PortHandles');
 set_param(phs.Outport(1), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 'DataLoggingName', 'm_tot');
 set_param(mdl, 'SignalLogging', 'on', 'SignalLoggingName', 'logsout');
-so = sim(mdl, 'ReturnWorkspaceOutputs', 'on');
+so = sim(buildSimInput(mdl));   % logging set above stays on the loaded model
 g = @(n) getsig(so.logsout, n);
 [t, cgo] = g('cg_out'); [~, mo] = g('m_ox'); [~, mf] = g('m_fu'); [~, mt] = g('m_tot'); [~, ec] = g('engcg_out');
 [tI, Io] = g('moi_out');

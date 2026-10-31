@@ -1,7 +1,7 @@
 classdef VariantHarnessTest < matlab.unittest.TestCase
-    % models/hopper_6dof.slx: with every axis at its default it flies v2's
-    % nominal flight (same baseline as NominalFlightTest), and every other
-    % choice of every axis compiles and runs.
+    % models/hopper_6dof.slx: every non-default choice of every axis
+    % compiles and runs (NominalFlightTest flies the defaults), and FDIR
+    % with nothing to detect leaves the nominal flight alone.
 
     properties (Constant)
         Model = 'hopper_6dof'
@@ -24,18 +24,9 @@ classdef VariantHarnessTest < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function defaultsMatchV2Baseline(tc)
-            out = sim(buildSimInput(tc.Model, [], tc.W, variantConfig()));
-            B = load(NominalFlightTest.BaselineFile);
-            K = NominalFlightTest.keyNumbers(out);
-            for f = fieldnames(B.K)'
-                tc.verifyEqual(K.(f{1}), B.K.(f{1}), 'AbsTol', NominalFlightTest.Tol.(f{1}), f{1});
-            end
-        end
-
         function quietFdirFliesBaseline(tc)
             % FDIR and fault injection on, no fault in the table: the
-            % flight is v2's, FDIR walks the PDR mode sequence to LANDED
+            % flight is the nominal one, FDIR walks the PDR mode sequence to LANDED
             % and never raises a response
             V = variantConfig('FDIR', 'on', 'FAULT_INJECTION', 'on');
             out = sim(buildSimInput(tc.Model, [], tc.W, V));

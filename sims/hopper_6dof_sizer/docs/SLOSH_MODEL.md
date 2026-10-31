@@ -1,4 +1,4 @@
-# Slosh Model — `hopper_6dof_NED_v2`
+# Slosh Model — `hopper_6dof`
 
 **Updated:** 2026-10-22
 **Scope:** how the sim models propellant slosh in the LOx and RP-1 tanks (mechanical analog, damping and baffles, coupling into the vehicle), and how the model was validated.
@@ -37,7 +37,7 @@ Here y = L₁φ is the bob displacement in body axes, f is the specific force at
 flowchart LR
   BL[generateBaffleLUT.m<br/>lateralDampingCalc, axialDampingCalc] -->|baffle_lut.csv| WS[(base workspace)]
   WS --> SIM
-  subgraph SIM [hopper_6dof_NED_v2.slx]
+  subgraph SIM [hopper_6dof.slx]
     SSF[Slosh Specific Force<br/>F_total/m − g_body] --> SL
     TM[Propellant_Mass_Integration<br/>tank masses] --> SL
     CGM[Mass_Properties<br/>cg] --> SL
@@ -389,7 +389,7 @@ T = compareSloshML('<path to slosh_ml clone>', design);   % design: struct with 
 
 % open-loop free-oscillation / sign test (one call per case)
 addpath validation/slosh_openloop
-R = sloshOpenLoopTest('hopper_6dof_NED_v2.slx', 1, 0, 'specific', 'asbuilt');   % LOx full
+R = sloshOpenLoopTest('hopper_6dof.slx', 1, 0, 'specific', 'asbuilt');   % LOx full
 
 % regenerate the damping table for the fixed design
 generateBaffleLUT

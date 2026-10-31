@@ -1,5 +1,5 @@
 function T = compareSloshML(slosh_ml_dir, design)
-% Compare the hopper_6dof_NED_v2 slosh model against SLOSH-ML
+% Compare the hopper_6dof slosh model (subsystems/slosh) against SLOSH-ML
 % (https://github.com/lgst-lab/slosh_ml, v1.0.0) for the as-built LOx and
 % RP-1 tanks.
 %
@@ -34,7 +34,7 @@ for T_ = tanks
         h = m / T_.rho / (pi * R^2);
         s = sloshMLHeadless(R, T_.H, h, T_.rho, g);
 
-        % hopper_6dof_NED_v2 Slosh/Ox_Slosh_Parameters
+        % Slosh.slx Ox_Slosh_Parameters
         w_model = sqrt(xi * g / R * tanh(xi * h / R));
         m_model = m * (2 * R * tanh(xi * h / R)) / (xi * (xi^2 - 1) * h);
         l_model = R / (xi * tanh(xi * h / R));

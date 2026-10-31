@@ -1,21 +1,10 @@
-% sim_setup_cached  Fast workspace setup for the 6DOF models.
+% sim_setup_cached  Fast base-workspace setup (used by fsw_bridge).
 %
 % First run (or after sim_setup.m / inputs change): runs the full sim_setup
 % and saves the resulting workspace to sim_workspace_cache.mat.
 % Later runs: loads that cache in seconds instead of re-running everything.
 %
 % Force a rebuild with:   rebuild_cache = true; sim_setup_cached
-%
-% Also defines the enable_slosh / enable_wind toggles used by
-% hopper_6dof_NED_v2_simplified (1 = feature on, 0 = feature off).
-% They default to 1 (full physics). Turn a feature off before simulating, e.g.
-%   enable_slosh.Value = 0;
-% or, for a single run without touching the workspace,
-%   in = Simulink.SimulationInput('hopper_6dof_NED_v2_simplified');
-%   out = sim(in.setVariable('enable_slosh', 0));
-%
-% hopper_6dof_NED_v2_minimal computes its own frozen mass / inertia / CG values
-% in its InitFcn, so it needs nothing extra from this script.
 
 cache_file = hopperRoot('work', 'sim_workspace_cache.mat');
 cd(hopperRoot);
@@ -36,14 +25,5 @@ else
     fprintf('sim_setup finished in %.1f s, saving cache...\n', toc);
     save(cache_file, '-v7.3');
 end
-
-% Feature toggles (1 = feature on, 0 = off)
-enable_slosh  = Simulink.Parameter(1);
-enable_wind   = Simulink.Parameter(1);
-for p = {enable_slosh, enable_wind}
-    p{1}.DataType = 'double';
-    p{1}.StorageClass = 'Auto';
-end
-clear p
 
 fprintf('Workspace ready.\n');

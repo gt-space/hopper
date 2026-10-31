@@ -27,7 +27,7 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
     methods (Test)
         function shadowTracksTruth(tc)
             out = sim(buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf_shadow')));
-            % the controller still flies on truth: v2's flight
+            % the controller still flies on truth: the nominal flight
             B = load(NominalFlightTest.BaselineFile);
             K = NominalFlightTest.keyNumbers(out);
             for f = fieldnames(B.K)'

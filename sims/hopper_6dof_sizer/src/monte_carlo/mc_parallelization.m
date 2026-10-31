@@ -245,7 +245,7 @@ switch runMode
         else
             fprintf('Preparing %d remaining scenarios in Batch %d for parallel execution...\n', numMissing, targetBatch);
             
-            simIn = repmat(Simulink.SimulationInput('hopper_6dof_NED_v2'), numMissing, 1);
+            simIn = repmat(Simulink.SimulationInput('hopper_6dof'), numMissing, 1);
             for k = 1:numMissing
                 localIdx = missingLocalIdx(k);
                 globalIdx = globalIndices(localIdx);
@@ -290,7 +290,7 @@ switch runMode
             localResult = struct(); 
             
             try
-                simInput = buildSimInput('hopper_6dof_NED_v2', currentScenario);
+                simInput = buildSimInput('hopper_6dof', currentScenario);
                 sim_out = sim(simInput);
                 localResult = mc_main(currentScenario, sim_out); 
                 if localResult.status.success
@@ -326,7 +326,7 @@ switch runMode
                 nominalScenario.(f{1}) = P.(f{1}).nominal;
             end
 
-            sim_out = sim(buildSimInput('hopper_6dof_NED_v2', nominalScenario));
+            sim_out = sim(buildSimInput('hopper_6dof', nominalScenario));
             nominal = mc_main(nominalScenario, sim_out);
             
             save(hopperRoot('results', 'mc_results_nominal.mat'), 'nominal');

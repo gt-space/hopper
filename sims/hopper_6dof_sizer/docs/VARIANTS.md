@@ -1,6 +1,6 @@
 # Variants: one model, many configurations
 
-`models/hopper_6dof.slx` is the variant harness. It replaces the full model copies that each added one feature (`_ground`, `_fluid_integration`, ...). Every place where those copies differ is a **Variant Subsystem**, and one workspace variable per axis picks the active choice. With every axis at its default, the harness is `hopper_6dof_NED_v2`, bit for bit.
+`models/hopper_6dof.slx` is the master model. It replaced `hopper_6dof_NED_v2` and the full model copies that each added one feature (`_ground`, `_fluid_integration`, `_fault_injection`, `_simplified`, `_minimal`), which are now in `archive/models/`. Every place where those copies differed is a **Variant Subsystem**, and one workspace variable per axis picks the active choice. With every axis at its default, the harness flies v2's nominal flight bit for bit (checked 2026-10-30 before v2 was archived).
 
 ## Running a configuration
 
@@ -19,11 +19,11 @@ out = sim(buildSimInput('hopper_6dof', [], [], V));
 | `CONTROLLER` | `Controller` | `lqr_sched`: time-scheduled LQR along the reference trajectory (`subsystems/gnc/LQR_Gain_Scheduler.slx` plus its gain tables). `lqi`: LQI-DEV's fixed-gain LQI hover regulator, which is experimental. `lqr_sched_legacy`: the March scheduler from the archived lqr/LQ_6DOF_V3 models, which lacks the quaternion sign fix. |
 | `SLOSH` | `Slosh` | `full`: slosh pendulums, `subsystems/slosh/Slosh.slx`. `off`: zero slosh force, moment and CG offsets. |
 | `PROPULSION` | `Propulsion` | `lut`: thrust command passes through; `Thrust_to_Mdot_LUT` gives ox and fuel mdot. `fluid_network`: #26's Simscape feed system and engine give thrust and mdot. |
-| `GROUND` | `Ground_Contact` | `none`: no ground reaction, as in v2. `strut`: #27's strut spring/damper per leg (`subsystems/ground/Ground_Contact.slx`), into the body force and moment sums. |
+| `GROUND` | `Ground_Contact` | `none`: no ground reaction. `strut`: #27's strut spring/damper per leg (`subsystems/ground/Ground_Contact.slx`), into the body force and moment sums. |
 | `MASS_PROPS` | `Propellant_Flow` | `varying`: propellant drains, so mass, CG, MOI and dI/dt change. `constant`: zero propellant flow, so mass, CG and MOI hold their initial values and dI/dt = 0. Thrust is unaffected. |
-| `FDIR` | `FDIR` | `off`: the controller command goes straight to the actuators, as in v2. `on`: the GNC PDR fault executive runs at 100 Hz on the sensor model in `src/sensors`: monitors, persistence, the R0–R4 response ladder and the PDR mode manager. It can mask a sensor, drop to half-gain (R1), fly an abort-to-land (R2) or cut off and safe (R4). See [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md). |
+| `FDIR` | `FDIR` | `off`: the controller command goes straight to the actuators. `on`: the GNC PDR fault executive runs at 100 Hz on the sensor model in `src/sensors`: monitors, persistence, the R0–R4 response ladder and the PDR mode manager. It can mask a sensor, drop to half-gain (R1), fly an abort-to-land (R2) or cut off and safe (R4). See [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md). |
 | `FAULT_INJECTION` | `Actuator_Faults`, `Sensors` | `off`: no faults. `on`: the fault table in `W.faults` (`faultScenario`) corrupts sensor readings in the shared `Sensors` block and gimbal, throttle and RCS commands between the flight computer and the actuators. With an empty table the flight is unchanged. |
-| `NAVIGATION` | `Navigation` | `none`: the controller and FDIR read truth state, as in v2. `gmekf_shadow`: the nav team's GMEKF (`subsystems/navigation/Filters/Hopper_GMEKF.slx`) runs on the shared `Sensors` block; its estimate and the error against truth are logged (`nav_estimate`, `nav_error`, `nav_state`, `nav_P_diag`) and FDIR's estimator checks run, but the controller still flies on truth. `gmekf`: the controller and FDIR fly on the estimate. See [Navigation](#navigation). |
+| `NAVIGATION` | `Navigation` | `none`: the controller and FDIR read truth state. `gmekf_shadow`: the nav team's GMEKF (`subsystems/navigation/Filters/Hopper_GMEKF.slx`) runs on the shared `Sensors` block; its estimate and the error against truth are logged (`nav_estimate`, `nav_error`, `nav_state`, `nav_P_diag`) and FDIR's estimator checks run, but the controller still flies on truth. `gmekf`: the controller and FDIR fly on the estimate. See [Navigation](#navigation). |
 
 Combinations to know:
 - **`fluid_network` needs `GROUND=strut`.** The feed system takes about a second to build thrust, and without a ground the vehicle falls through the pad first.
@@ -39,7 +39,16 @@ Combinations to know:
 - **`FAULT_INJECTION=on` with `FDIR=off`** shows the unmitigated response. Sensor faults then reach no one, because only FDIR reads the sensor model and the controller flies on truth state. Actuator faults still act.
 - **`FDIR=on` with no fault** flies exactly like `FDIR=off`.
 
-Still to come: `ENV`. Tank and leg geometry is not a variant: change it in the vehicle config file ([VEHICLE_CONFIG.md](VEHICLE_CONFIG.md)).
+There is no `ENV` axis: #13's speed copies map onto the axes above (`compare_sims`, `mc_runner`'s `model` argument):
+
+| Old copy | Harness configuration | Nominal flight (2026-10-30) |
+|---|---|---|
+| `_simplified`, slosh and wind off | `SLOSH=off`, wind speeds 0 (`runMonteCarlo(..., Wind=false)`) | lands 0 m off, 0° tilt; 30 s wall vs 36 s full |
+| `_minimal` | `SLOSH=off`, `MASS_PROPS=constant`, wind speeds 0 | apex 51.88 m, 27.5 s flight; 29 s wall |
+
+The copies themselves had drifted: `_simplified` with its toggles on landed 5.6 m off with 12.9° tilt (v2: 0.66 m, 1.7°), and `_minimal` no longer ran with the current setup.
+
+Tank and leg geometry is not a variant: change it in the vehicle config file ([VEHICLE_CONFIG.md](VEHICLE_CONFIG.md)).
 
 ## Navigation
 
@@ -61,7 +70,7 @@ plot(out.get('nav_error'))   % estimate - truth, in the controller's 13-state
 - FDIR's sensor masks (a sensor with a latched fault goes to the filter as invalid) and R inflation while the NIS CUSUM is latched, applied in the adapter
 
 **How it flies** (nominal hopper):
-- `gmekf_shadow`: the flight is v2's; the estimate stays within 0.04 m, 0.13 m/s, 0.05 rad/s and 0.014 in quaternion of truth, and the covariance stays positive definite.
+- `gmekf_shadow`: the flight is the nominal one; the estimate stays within 0.04 m, 0.13 m/s, 0.05 rad/s and 0.014 in quaternion of truth, and the covariance stays positive definite.
 - `gmekf`: the vehicle flies the mission on the estimate and lands within the landing requirements (`NavigationFlightTest`); on the earlier stand-in mass properties it landed 0.37 m from the pad (0.43 m on truth). With the CAD dry block the truth-fed flight lands 0.66 m off.
 
 **With FDIR:** `FDIR=on` with `gmekf_shadow` runs the estimator checks (rows 33–37, [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md)). Quiet they stay clear; a 5 m GPS bias trips the NIS CUSUM (R1) while the filter gates GPS out. With `gmekf` FDIR monitors the estimate, and the quiet flight runs the PDR mode sequence to LANDED. A stuck gyro on `gmekf` still crashes: FDIR masks it and the filter stops fusing it, but without a gyro the GMEKF can't hold attitude on differential GPS and lidar alone, and the abort flies on that attitude.
@@ -129,23 +138,20 @@ R = runMonteCarlo(10, Variants=variantConfig('VEHICLE', 'ctv'));
 
 ## Wind moment
 
-`subsystems/environment/Wind_Forces.slx` computes the drag of the wind relative to the vehicle in inertial axes. v2 and every model built from it then rotate the force and moment into body axes with the 6DOF block's DCM (`MatrixMultiply1`/`2`).
+`subsystems/environment/Wind_Forces.slx` computes the drag of the wind relative to the vehicle in inertial axes. The harness then rotates the force and moment into body axes with the 6DOF block's DCM (`MatrixMultiply1`/`2`).
 
 **The bug.** Until 2026-10-28 the moment was `F .* (cp − cg)`, element by element:
 - A north force made a moment about north, when it belongs about east.
 - The east force's arm was `cp` itself instead of the CP's height above the CG.
 
-**The fix.** It is now `cross(r, F)`, where `r` is the centre of pressure relative to the CG: `cp − cg_x` along the body x axis, rotated to inertial axes with the DCM's transpose. `tools/refactor/fixWindMoment.m` made the change, and gave the block a third input, `Inertial to Body` (the DCM).
+**The fix.** It is now `cross(r, F)`, where `r` is the centre of pressure relative to the CG: `cp − cg_x` along the body x axis, rotated to inertial axes with the DCM's transpose. `archive/refactor/fixWindMoment.m` made the change, and gave the block a third input, `Inertial to Body` (the DCM).
 
 ## How it works
 
 - **Choices.** `src/setup/variantAxes.m` lists every axis and its choices. Choice *k* of axis `X` is active when `VARIANT_X == k`.
 - **Activation.** Variant activation time is *update diagram*, so only the active choice is compiled. Simscape and the fluid properties are needed only when the fluid network is active.
 - **Variable lookup.** `modelVariables` caches the variables a model reads per variant combination.
-- **Rebuilding.** The harness is built from v2 by `tools/refactor/build_hopper_6dof.m`. Until the copies are retired, rebuild it after changing v2:
-  1. `convertToSubsystemReferences`
-  2. `build_v2_fluid_integration`
-  3. `build_hopper_6dof`
+- **Changing the harness.** Edit `models/hopper_6dof.slx` itself, or better a subsystem file it references. A change you want reproducible (renames, rewiring across many blocks) goes in a script under `tools/refactor/` that edits the harness or the shared files and is harmless to rerun, like `parameterizeVehicleGeometry`. The scripts that first built the harness from v2 (`build_hopper_6dof`, `build_v2_fluid_integration`, `convertToSubsystemReferences`, `renameV2Blocks`, `fixWindMoment`) are in `archive/refactor/` with v2; they no longer run.
 
 ## Adding a choice or an axis
 

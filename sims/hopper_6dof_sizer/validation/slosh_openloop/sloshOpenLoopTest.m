@@ -11,7 +11,7 @@ function R = sloshOpenLoopTest(slxFile, ox_frac, fu_frac, inputMode, floorSet)
 % Run sim_setup first (uses IN, OUT, MoI_init, cg_init, TANKS from the base
 % workspace). Tank geometry comes from the vehicle config (IN.vehicle).
 %
-%   R = sloshOpenLoopTest('hopper_6dof_NED_v2.slx', 1, 0, 'specific', 'asbuilt')
+%   R = sloshOpenLoopTest('hopper_6dof.slx', 1, 0, 'specific', 'asbuilt')
 for v = {'IN', 'OUT', 'MoI_init', 'cg_init', 'TANKS'}, W.(v{1}) = evalin('base', v{1}); end
 [~, src] = fileparts(slxFile);
 load_system(slxFile);
@@ -33,9 +33,13 @@ m_ox = ox_frac * VT.ox.prop_mass; m_fu = fu_frac * VT.fu.prop_mass;   % unused t
 h = 'sloshHarness';
 if bdIsLoaded(h), close_system(h, 0); end
 new_system(h);
-sloshFile = get_param([src '/Slosh'], 'ReferencedSubsystem');
+sloshBlk = [src '/Slosh'];
+if strcmp(get_param(sloshBlk, 'Variant'), 'on')   % the harness: SLOSH variant, Full choice
+    sloshBlk = [sloshBlk '/Slosh_Full'];
+end
+sloshFile = get_param(sloshBlk, 'ReferencedSubsystem');
 if isempty(sloshFile)
-    add_block([src '/Slosh'], [h '/Slosh'], 'Position', [400 100 560 300]);
+    add_block(sloshBlk, [h '/Slosh'], 'Position', [400 100 560 300]);
 else
     % Shared subsystem file: copy its contents into a plain subsystem, so the
     % saturation edits below change the harness and not subsystems/slosh/

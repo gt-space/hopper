@@ -10,7 +10,7 @@ Use the MATLAB release named in [`TEAM_RELEASE`](TEAM_RELEASE). CI installs that
 
 1. Open the project: double-click `HopperSim.prj`, or run `openProject('sims/hopper_6dof_sizer')`.
    This puts every source folder on the path and sends Simulink caches to `work/`. No `addpath` or `cd` is needed.
-2. Nominal flight: `out = sim(buildSimInput())`. `buildSimInput(model, scenario)` returns a `Simulink.SimulationInput` carrying every variable the model reads, so nothing has to be in the base workspace. The old way (`sim_setup`, then simulate `hopper_6dof_NED_v2`) still works.
+2. Nominal flight: `out = sim(buildSimInput())`. `buildSimInput(model, scenario)` returns a `Simulink.SimulationInput` carrying every variable the model reads, so nothing has to be in the base workspace. The old way (`sim_setup`, then simulate) is still there for the fsw_bridge scripts.
 3. Other configurations: `out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('SLOSH', 'off')))` runs the variant harness with slosh off. Axes so far: VEHICLE (hopper, ctv), CONTROLLER, SLOSH, PROPULSION, GROUND, MASS_PROPS; see [docs/VARIANTS.md](docs/VARIANTS.md).
 4. Monte Carlo: `R = runMonteCarlo(10)`; add `UseParallel=true` to use `parsim`. `R.summary` has one row per run. `mc_runner` and the batched/checkpointed `mc_parallelization` (for thousands of runs) use the same pieces. Every run calls CoolProp through Python (`pip install CoolProp`).
 
@@ -21,7 +21,7 @@ From the project root (`buildtool` needs R2023b or later):
 | Command | Runs | Time |
 |---|---|---|
 | `buildtool` | `check` + `test`: repo guards, unit, model-file and FDIR tests | ~2 min |
-| `buildtool sim` | Nominal flight against `tests/baselines/nominal_v2.mat`, plus the slosh open-loop check | ~5 min |
+| `buildtool sim` | Nominal flight against `tests/baselines/nominal.mat`, plus the slosh open-loop check | ~5 min |
 | `buildtool mc` | Seeded 10-run Monte Carlo against the regression limits in `tests/montecarlo/mcLimits.m` | ~5 min with a parallel pool |
 
 ### CI
@@ -53,7 +53,7 @@ Save models in the **team release** (`TEAM_RELEASE`) or older. A model saved in 
 
 | Folder | Contents |
 |---|---|
-| `models/` | Top-level models (`hopper_6dof_NED_v2.slx` is the master; `hopper_6dof.slx` is the variant harness built from it, see `docs/VARIANTS.md`). `dev/` holds work in progress (LQI); `standalone/` holds component models. |
+| `models/` | `hopper_6dof.slx` is the master model, a variant harness (see `docs/VARIANTS.md`); `hopper_6dof_NED_v2_fswBridge.slx` is the flight-software bridge. `dev/` holds work in progress (LQI); `standalone/` holds component models. v2 and its feature copies are in `archive/models/`. |
 | `subsystems/` | Shared subsystem files the models reference: slosh (`Slosh` and the `Slosh_Axis` pendulum used six times), mass_properties, actuators (TVC/RCS, EDF fans), environment (wind), ground (#27's strut ground contact), gnc (LQR gain scheduler), propulsion (mdot lookup, propellant mass, sensors, throttle valve controller), flight_logic (engine cutoffs, touchdown stop), FDIR, navigation filters. Edit a block here once and every model using it changes; see CONTRIBUTING, *Shared subsystems*. |
 | `src/` | MATLAB code: `setup`, `sizing` (design trades with `sizeVehicle`; not run in sim setup), `dynamics`, `gnc`, `propulsion`, `slosh`, `fdir`, `monte_carlo`, `analysis`, `util`. |
 | `vehicles/` | One config file per vehicle (`hopper/hopper_config.m`, `ctv/ctv_config.m`): geometry, masses and hardware, the sim's source of truth for the vehicle. See `docs/VEHICLE_CONFIG.md`. |
@@ -62,7 +62,7 @@ Save models in the **team release** (`TEAM_RELEASE`) or older. A model saved in 
 | `results/` | Tracked Monte Carlo and sweep results (`.mat`). |
 | `tests/`, `validation/` | Automated tests and validation studies. |
 | `fsw_bridge/` | C codegen and Rust SIL bridge to flight software. |
-| `tools/refactor/` | Scripts that build or convert models reproducibly (for example `build_v2_fluid_integration`). |
+| `tools/refactor/` | Scripts that change the harness or shared subsystem files reproducibly (for example `parameterizeVehicleGeometry`). |
 | `docs/` | Model notes: `VEHICLE_CONFIG.md`, `VARIANTS.md`, `FDIR_ARCHITECTURE.md`, `SLOSH_MODEL.md`. |
 | `archive/` | Superseded models and scripts, kept for reference and **not** on the path. |
 | `outputs/`, `work/` | Generated figures, videos, CSVs and build caches. Gitignored. |

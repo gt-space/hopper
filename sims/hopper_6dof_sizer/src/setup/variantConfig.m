@@ -1,6 +1,6 @@
 function V = variantConfig(varargin)
 %VARIANTCONFIG  Variant control variables for models/hopper_6dof.slx.
-%   V = variantConfig()                        defaults (same as v2)
+%   V = variantConfig()                        defaults (the nominal hopper)
 %   V = variantConfig('SLOSH', 'off', 'GROUND', 'strut', ...)
 %   V = variantConfig(S)                       S.SLOSH = "off", ...
 %

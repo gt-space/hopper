@@ -4,8 +4,8 @@ classdef NominalFlightTest < matlab.unittest.TestCase
     %   NominalFlightTest.updateBaseline()
 
     properties (Constant)
-        Model = 'hopper_6dof_NED_v2'
-        BaselineFile = hopperRoot('tests', 'baselines', 'nominal_v2.mat')
+        Model = 'hopper_6dof'
+        BaselineFile = hopperRoot('tests', 'baselines', 'nominal.mat')
         % Absolute tolerance per key number. The same flight on Linux (CI)
         % and Windows differs by about a millimetre at touchdown (different
         % math libraries), so bit-exactness can't hold across platforms.

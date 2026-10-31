@@ -1,6 +1,6 @@
 function [in, W] = buildSimInput(model, scenario, W, variants)
 %BUILDSIMINPUT  Simulink.SimulationInput with every variable a model reads.
-%   in = buildSimInput()                    nominal run of hopper_6dof_NED_v2
+%   in = buildSimInput()                    nominal run of hopper_6dof (all defaults)
 %   in = buildSimInput(model)               nominal run of another model
 %   in = buildSimInput(model, scenario)     one Monte Carlo scenario
 %   in = buildSimInput(model, scenario, W)  reuse a hopperWorkspace result
@@ -9,7 +9,7 @@ function [in, W] = buildSimInput(model, scenario, W, variants)
 %                                           variant choices for
 %                                           models/hopper_6dof.slx, from
 %                                           variantConfig (default: all
-%                                           defaults, same as v2)
+%                                           defaults)
 %   [in, W] = buildSimInput(...)            also return the workspace struct
 %
 %   With FDIR on, StopTime is the trajectory end + 30 s so an abort to
@@ -23,7 +23,7 @@ function [in, W] = buildSimInput(model, scenario, W, variants)
 %   Which variables a model reads is found once per session with
 %   Simulink.findVars and cached (see modelVariables).
 
-if nargin < 1 || isempty(model), model = 'hopper_6dof_NED_v2'; end
+if nargin < 1 || isempty(model), model = 'hopper_6dof'; end
 if nargin < 2, scenario = []; end
 if nargin < 4 || isempty(variants), variants = variantConfig(); end
 if nargin < 3 || isempty(W), W = hopperWorkspace(scenario, variants); end

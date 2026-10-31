@@ -17,7 +17,7 @@ Copying the top-level model to add a feature makes merges painful. If you made a
 ## Results
 
 - [ ] **No intended change to the flight**: the nominal baseline and the Monte Carlo summary should match `main`
-- [ ] **Intended physics/controls change**: I ran `NominalFlightTest.updateBaseline()` and committed the new `tests/baselines/nominal_v2.mat`
+- [ ] **Intended physics/controls change**: I ran `NominalFlightTest.updateBaseline()` and committed the new `tests/baselines/nominal.mat`
 
 Monte Carlo (from the CI run's summary page or `buildtool mc`). Paste what moved:
 

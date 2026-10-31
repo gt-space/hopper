@@ -22,10 +22,9 @@ How we work on this sim together without breaking each other's models. The [READ
   - Merge `main` into your branch at least weekly.
   - Branches that drift for a month end up with `.slx` conflicts nobody can resolve.
 - **Say which model you are editing** in the team channel before changing a shared `.slx`. Two people editing the same binary file at once means one of them redoes their work.
-- **Never copy the top-level model to add a feature.** Every `_ground`, `_fluid_integration` or `_fault_injection` copy so far drifted from the master within weeks.
+- **Never copy the top-level model to add a feature.** Every `_ground`, `_fluid_integration`, `_fault_injection`, `_simplified` or `_minimal` copy drifted from the master within weeks (they are in `archive/models/` now).
   - Put the new piece in its own subsystem file under `subsystems/<area>/`.
-  - Wire it into the master model behind a switch.
-  - Features that replace a piece of the vehicle become a choice in the variant harness `models/hopper_6dof.slx`; see [VARIANTS.md](VARIANTS.md). Ask if unsure where yours goes.
+  - Wire it into the master model, `models/hopper_6dof.slx`. A feature that replaces a piece of the vehicle, or that you want to switch off, becomes a choice of a variant axis; see [VARIANTS.md](VARIANTS.md). Ask if unsure where yours goes.
 - **Open a pull request early** (draft is fine). CI runs on every push, and the PR template asks for the Monte Carlo numbers.
 - **Code owners** (`.github/CODEOWNERS`) are GitHub teams. A pull request automatically requests review from the team that owns each file it touches:
   - `hopper-gca`: guidance and control
@@ -72,7 +71,7 @@ Blocks that more than one model uses live in their own files under `subsystems/<
 - **Tests that tweak a shared block work on a copy.** `set_param` on a block inside a reference edits the shared file. Copy the file's contents into a plain subsystem first, as `validation/slosh_openloop/sloshOpenLoopTest.m` does with `Simulink.BlockDiagram.copyContentsToSubsystem`.
 - **Keep the ports stable.** Port names and order are the interface every referencing model is wired to. If you must add or reorder a port, update every model that uses the file in the same PR. CI's model tests load them all.
 - **Read parameters from workspace variables** (for example `IN.*` or `thrust_data`), not from the parent model. The file has no workspace of its own, and `buildSimInput` sets the variables per run.
-- **To share another block,** add it to the list in `tools/refactor/convertToSubsystemReferences.m` and run it. It converts the block in v2, and models built from v2 (such as the fluid-integration model) pick it up when rebuilt. Check that the nominal flight is unchanged: `buildtool sim`.
+- **To share another block,** convert it in the harness with `Simulink.SubsystemReference.convertSubsystemToSubsystemReference` and save the file under `subsystems/<area>/` (`archive/refactor/convertToSubsystemReferences.m` shows how the first ones were done). Check that the nominal flight is unchanged: `buildtool sim`.
 - **Conflicts get rarer.** Two people editing different subsystem files never touch the same `.slx`, so prefer a new or existing subsystem file over editing the top-level model.
 
 ## Moving to a new MATLAB release
@@ -96,7 +95,7 @@ To move up, in one PR of its own:
 | What | How |
 |---|---|
 | One nominal flight | `out = sim(buildSimInput())` |
-| One scenario | `scenarios = generateScenarios('mc_params.json', 10); out = sim(buildSimInput('hopper_6dof_NED_v2', scenarios(3)))` |
+| One scenario | `scenarios = generateScenarios('mc_params.json', 10); out = sim(buildSimInput('hopper_6dof', scenarios(3)))` |
 | Monte Carlo | `R = runMonteCarlo(100, UseParallel=true)`, then look at `R.summary` |
 | Before pushing | `buildtool` (about 2 min), plus `buildtool sim` if you touched the model or setup |
 
@@ -104,7 +103,7 @@ To move up, in one PR of its own:
 
 ### When the flight is supposed to change
 
-`buildtool sim` compares the nominal flight with `tests/baselines/nominal_v2.mat`. If your change is meant to alter the flight (new gains, new physics):
+`buildtool sim` compares the nominal flight with `tests/baselines/nominal.mat`. If your change is meant to alter the flight (new gains, new physics):
 
 1. Run `NominalFlightTest.updateBaseline()` and commit the new `.mat`.
 2. Say so in the PR, with the Monte Carlo before/after numbers.

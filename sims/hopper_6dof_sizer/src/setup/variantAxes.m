@@ -1,8 +1,8 @@
 function A = variantAxes()
 %VARIANTAXES  The variant axes of models/hopper_6dof.slx and their choices.
 %   A = variantAxes() returns a struct with one field per axis. Each field
-%   lists the axis's choices; the first one is the default, which matches
-%   hopper_6dof_NED_v2.
+%   lists the axis's choices; the first one is the default (the nominal
+%   hopper flight).
 %
 %   The model selects a choice with the variant control expression
 %   VARIANT_<AXIS> == k, where k is the choice's position in this list, so

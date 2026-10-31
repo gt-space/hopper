@@ -8,7 +8,7 @@ Both features are variant axes of `models/hopper_6dof.slx` (see [VARIANTS.md](VA
 - **`FAULT_INJECTION`:** `off` / `on`.
 - **`FDIR`:** `off` / `on`.
 
-With both `off`, the harness flies exactly as v2 does.
+With both `off`, the harness flies the nominal flight unchanged.
 
 ## Frame
 
@@ -189,7 +189,7 @@ FDIR logs the active mode, response level, latched-fault bitfield, first-fault I
 | Piece | State |
 |---|---|
 | `FDIR_SensorFault_Subsystem` (#31) | Its monitor, persistence and arbitration code becomes part of the executive above. Its ladder numbering and its four phases change to the PDR's, and `FDIR_Tests` is updated to match. |
-| `hopper_6dof_NED_fault_injection.slx` | Contains no fault injection: it is a stale v2 copy. Retire it. |
+| `hopper_6dof_NED_fault_injection.slx` | Contained no fault injection: it was a stale v2 copy. Archived (`archive/models/`). |
 | Navigation sensor models (`Src_sim`) | Not used: the shared `Sensors` block feeds the filter, so FDIR and the filter see the same measurements. |
-| Navigation filter | The nav team's `Hopper_GMEKF` runs in the harness (NAVIGATION axis, docs/VARIANTS.md). The CTV filter can't be referenced yet (variable-step solver). |
+| Navigation filter | The nav team's `Hopper_GMEKF` runs in the harness (NAVIGATION axis, docs/VARIANTS.md). `CTV_GMEKF` runs too, but is experimental: the CTV plant spins up in roll. |
 | Open (PDR) | Numeric thresholds and persistence times from Monte Carlo; thrust cut at 0.1 m (PDR) vs. the sim's 0.05 m (`IN.mission.engine_cutoff_alt`); the FMECA catalog for the non-GNC rows. |
