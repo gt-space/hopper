@@ -4,7 +4,8 @@ function P = navParams(W, S, dt)
 %                             Sensors block's sim_sensor_params, dt the
 %                             filter step
 %   P.F (nav_frames), P.S, P.geom (lidar beams and mounts, GPS antennas:
-%   sim body, from the base), P.dt
+%   sim body, from the base), P.dt, P.g, P.shadow_q_accel (the shadow
+%   vertical estimator's acceleration noise)
 %
 %   navWorkspace builds the filter's parameters from it, and FDIR's
 %   estimator checks (fdir_nav_monitors) read the same, so both use the
@@ -16,4 +17,6 @@ P.S = S;
 [P.geom.lidar_dir, P.geom.lidar_mount] = lidar_geometry(S.lidar);
 P.geom.gps_antenna = S.gps.antenna;
 P.dt = dt;
+P.g = W.IN.const.g0;
+P.shadow_q_accel = 0.01;   % (m/s^2)^2/Hz, shadow vertical estimator: IMU noise, bias and attitude error on the vertical acceleration
 end

@@ -74,10 +74,16 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
             tc.verifyEqual(mode(end), double(M.LANDED), 'final mode');
         end
 
-        function ctvIsRefusedClearly(tc)
-            % CTV_GMEKF.slx is variable-step; the harness can't reference it yet
+        function ctvFilterRuns(tc)
+            % The CTV's GMEKF compiles and runs in shadow. Only a smoke run:
+            % the CTV plant spins up in roll from ~0.8 s (its roll loop, not
+            % the filter), and no estimator can follow that yet
             V = variantConfig('VEHICLE', 'ctv', 'NAVIGATION', 'gmekf_shadow');
-            tc.verifyError(@() buildSimInput(tc.Model, [], [], V), 'navWorkspace:vehicle');
+            in = buildSimInput(tc.Model, [], [], V);
+            out = sim(in.setModelParameter('StopTime', '0.6'));
+            tc.verifyEmpty(out.ErrorMessage);
+            E = NavigationFlightTest.logged(out, 'nav_error');
+            tc.verifyLessThan(max(vecnorm(E(:, 1:3), 2, 2)), tc.MaxPosErr, 'position error (m)');
         end
     end
 

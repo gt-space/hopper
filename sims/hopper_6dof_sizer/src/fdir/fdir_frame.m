@@ -19,6 +19,8 @@ function [y, st] = fdir_frame(in, P, st)
 %   y.raw       this frame's monitor results (catalog order), for tuning
 %   y.nav_nis   normalized NIS per sensor (baro gyro gps lidar dgps), -1
 %               without NAVIGATION or a new sample
+%   y.nav_mask  sensors the filter must not fuse (fdir_targets bitmask)
+%   y.nav_r_scale  measurement-noise inflation for the filter (1: none)
 %   y.meas      the sensor measurements this frame saw
 %
 %#codegen
@@ -53,7 +55,7 @@ phase = M.MODE_PHASE(mode_now);
 % estimator checks (rows 33-37) on the navigation filter, when it runs
 nav_nis = -ones(5, 1);
 if P.nav_active
-    [rn, mn, nav_nis, st.nav] = fdir_nav_monitors(meas, valid, stamp, in.xn(:), in.P, in.cg(:), P.mon, st.nav);
+    [rn, mn, nav_nis] = fdir_nav_monitors(in.diag(:), in.xn(:), in.P, in.shadow(:), P.mon);
     raw = raw | rn;
     metric = metric + mn;
 end
@@ -102,6 +104,19 @@ y.mask = ex.mask;
 y.status = double(ex.status);
 y.raw = double(raw);
 y.nav_nis = nav_nis;
+% to the filter: sensors with a latched fault are not fused (fdir_targets
+% bits imu .. mag), and R is inflated while the NIS CUSUM is latched
+K = fdir_catalog_cols();
+latched = ex.status(:) == 2;
+nav_mask = 0;
+for i = 1:numel(latched)
+    tg = P.cat(i, K.TARGET);
+    if latched(i) && tg >= 1 && tg <= 11
+        nav_mask = bitor(nav_mask, bitshift(1, tg - 1));
+    end
+end
+y.nav_mask = double(nav_mask);
+y.nav_r_scale = 1 + (P.mon.nav_r_scale - 1) * double(numel(latched) >= 35 && latched(35));
 y.meas = meas;
 end
 

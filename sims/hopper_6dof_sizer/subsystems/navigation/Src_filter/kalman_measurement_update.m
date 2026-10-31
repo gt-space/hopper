@@ -1,4 +1,4 @@
-function [errorCorrection, errorCovariancePosterior, accepted] = ...
+function [errorCorrection, errorCovariancePosterior, accepted, nis] = ...
     kalman_measurement_update(errorCovariancePrior, innovation, measurementJacobian, measurementNoiseCovariance, gateThreshold)
 % (Yuma's implementation | 10/23/26)
 % Generic error-state Kalman measurement update
@@ -39,15 +39,11 @@ function [errorCorrection, errorCovariancePosterior, accepted] = ...
         errorCorrection = zeros(stateDim, 1);
         errorCovariancePosterior = errorCovariancePrior;
         accepted = false;
+        nis = -1;   % not computed
         return;
     end
 
     % Normalize Innovation Squared (NIS) for outlier rejection
-    disp(size(innovation));
-    disp(size(innovationCovariance));
-    disp(size(choleskyFactor));
-    disp(size(measurementJacobian));
-    disp(size(measurementNoiseCovariance));
     whitenedInnovation = choleskyFactor \ innovation;
     nis = whitenedInnovation' * whitenedInnovation; % computes inner product (norm-squared)
 

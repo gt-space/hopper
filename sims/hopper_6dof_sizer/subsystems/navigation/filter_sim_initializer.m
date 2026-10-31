@@ -128,8 +128,12 @@ biasCorrelationTime = 100;  % (s)
 accelBiasNoisePSD = max(imu_params_init.accel_bias_stability)^2 / biasCorrelationTime * ones(3,1);
 gyroBiasNoisePSD = max(imu_params_init.gyro_bias_stability)^2 / biasCorrelationTime * ones(3,1);
 
-% requires calibration
-torqueNoisePSD = [0.0001; 0.0001; 0.0001];
+% Torque disturbance: the commanded torque leaves out wind, slosh and other
+% unmodeled moments (~7 N m on the hopper in the 6DOF sim). At 1e-4 the
+% rate model trusted the command, the gyro was gated out within 0.07 s of
+% liftoff and the filter diverged; 1 (N m)^2/Hz tracks to ~4 cm and
+% ~0.01 in attitude over the full flight. Still to be calibrated.
+torqueNoisePSD = [1; 1; 1];
 baroBiasNoisePSD = 0.001;
 
 qc = blkdiag( ...

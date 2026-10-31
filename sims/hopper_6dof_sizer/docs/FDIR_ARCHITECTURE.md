@@ -148,17 +148,17 @@ The GNC rows below are filled in, with thresholds marked provisional. The PDR sa
 | RCS fan health | delivered vs. commanded thrust (stands in for ESC RPM) | R0: zero that fan |
 | Stuck thrust | from the T/W table | below 0.9: hold attitude, dither, land; at 1: dither, slow descent; above 1.1: dither, then R4 |
 
-**Estimator** (CoDR 23–26, PDR 81; `fdir_nav_monitors`), with NAVIGATION on. FDIR gets the filter's 20-state estimate and covariance and checks each new sensor sample against the estimate with the nav team's own measurement models and 99 % gates (NIS = rᵀS⁻¹r, S = HPHᵀ + R):
+**Estimator** (CoDR 23–26, PDR 81; `fdir_nav_monitors`), with NAVIGATION on. FDIR gets the filter's 20-state estimate, covariance, per-sensor update diagnostics (its own gate decision and NIS) and the shadow vertical estimate, and judges each sensor's NIS against 99.99 % gates:
 
 | Row | Check | Response |
 |---|---|---|
 | 33 | exactly one sensor group (baro, gyro, GPS, lidar, differential GPS) fails its gate | R0 |
 | 34 | two or more fail together | R1, R3 if it persists 2 s |
 | 35 | CUSUM of the mean normalized NIS above 2, per second | R1 |
-| 36 | main vs shadow estimator | inhibited: there is no second estimator yet |
+| 36 | main vs the shadow vertical estimator: height or vertical velocity apart by more than 5 combined sigmas (and 1 m / 0.5 m/s) | R3 |
 | 37 | covariance or state not finite, a variance ≤ 0 or beyond its bound, quaternion off unit length, speed or rate beyond physical limits | R3 |
 
-The filter gates on its prior; these checks run on the posterior, so a sample the filter accepted passes and one it rejected, or one that pulled the estimate away, fails. With NAVIGATION `none` the rows never fail. With NAVIGATION `gmekf` the G&C monitors also run on the estimate (what the flight computer knows), not on truth. Still open: sensor masking into the filter and Q/R inflation (the filter has no inputs for them). That limit shows: with NAVIGATION `gmekf`, a stuck gyro latches (row 5) and FDIR flies the abort, but the filter keeps fusing the stuck gyro, the abort flies on a corrupted attitude, and the vehicle crashes. On truth the same fault aborts and lands.
+The filter drops single outliers at its 99 % gate; FDIR's stricter gate looks for a sensor that keeps failing. With NAVIGATION `none` the rows never fail. A sensor with a latched fault (its fault-table target) goes back to the filter as invalid, so it is no longer fused, and while the NIS CUSUM is latched every measurement covariance is inflated x4. With NAVIGATION `gmekf` the G&C monitors also run on the estimate (what the flight computer knows), not on truth. Still open: with NAVIGATION `gmekf` a stuck gyro latches (row 5), FDIR masks it and flies the abort, but without a gyro the GMEKF can't hold attitude, the abort flies on a corrupted attitude and the vehicle crashes. On truth the same fault aborts and lands.
 
 **Limit cycle (row 20) on an estimate:** the check counts sign changes of the tilt-error rate and now also needs the tilt to swing at least 0.5° about its 0.2 s average. Flying on the GMEKF's estimate the vehicle jitters about 0.1°, which gave 22 sign changes in 2 s and a false abort at 0.9 s; real limit cycles swing degrees.
 
@@ -169,7 +169,7 @@ The filter gates on its prior; these checks run on the posterior, so a sample th
 | R0 Mask | Zero a failed RCS fan in the allocation. Sensor masks go out on the mask bus; they act once NAVIGATION consumes them. |
 | R1 Degrade | Switch the controller to a low-bandwidth gain set (`IN.gnc.degraded`). Q/R inflation waits for NAVIGATION. |
 | R2 Abort to land | Capture the state. Command a vertical velocity ramp from the current v_z to the landing sink rate, zero horizontal velocity, and hold attitude. Control switches to a fixed-gain regulator (hover LQR at the captured mass). Exits only on confirmed touchdown. |
-| R3 Nav-degraded abort | The R2 abort-to-land with no horizontal (N, E) position or velocity feedback, since that comes from the distrusted estimate: it descends on attitude, rates and height (`fdir_command_select`). The PDR's shadow vertical estimator would replace the estimate's height. |
+| R3 Nav-degraded abort | The R2 abort-to-land with no horizontal (N, E) position or velocity feedback, since that comes from the distrusted estimate, and with height and vertical velocity from the shadow vertical estimator (`fdir_command_select`, `shadow_vertical_filter`). |
 | R4 Cutoff & safing | Throttle valves closed (thrust 0), gimbal centered, RCS off, first fault logged, final health frame recorded. |
 
 **Touchdown confirmation** (PDR 85) needs two independent signals with N-of-M persistence:

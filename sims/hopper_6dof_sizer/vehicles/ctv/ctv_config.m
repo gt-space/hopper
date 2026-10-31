@@ -79,6 +79,16 @@ VC.aero.area = 0.15;                           % m^2, ASSUMPTION: side area
 VC.aero.cd   = 1.2;                            % ASSUMPTION
 VC.aero.cp_x = 0.35;                           % m, ASSUMPTION: centre of pressure
 
+% ---- Navigation filter tuning ----
+% The hopper's torque PSD scaled by inertia (same angular-acceleration
+% noise per axis, J roll 0.0123, pitch/yaw 0.105 kg m^2): the hopper's
+% 1 (N m)^2/Hz on this inertia lets the roll rate and gyro bias trade
+% freely and the attitude diverges within 1.5 s
+VC.nav.torque_psd = [1.4e-4 3e-6 3e-6];        % (N m)^2/Hz, roll pitch yaw
+
 % ---- Sensors: the hopper's lidar layout; GPS antennas near the top ----
-VC.sensors.gps.antenna = [0.6 0.6; 0 0; 0.1 -0.1];   % m, ASSUMPTION: body x y z from the base
+% Antenna 1 where CTV_GMEKF's gmekf_correct assumes it: [0.1; 0; -0.2] m from
+% the CG in its frame, i.e. 0.2 m above the CG and 0.1 m along body z
+% (the CTV keeps its CG); antenna 2 is unused (no differential GPS)
+VC.sensors.gps.antenna = [VC.mass.dry_cg + 0.2, VC.mass.dry_cg + 0.2; 0 0; 0.1 -0.1];   % m, ASSUMPTION: body x y z from the base
 end

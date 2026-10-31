@@ -19,16 +19,20 @@ filter_sim_initializer;
 rng(3);
 
 % Noise off for every sensor
-gps_params.pos_noise_std = zeros(3,1);
-gps_params.vel_noise_std = zeros(3,1);
-gps_params.multipath = zeros(3,1);
-gps_params.bias = zeros(3,1);
-imu_params.accel_noise_std = zeros(3,1);
-imu_params.gyro_noise_std = zeros(3,1);
-baro_params.noise_std = 0;
-lidar_params.noise_std_1 = 0;
-lidar_params.noise_std_2 = 0;
-diffGps_params.noise_std = zeros(3,1);
+% (the models read their parameters from nav_sensor_params)
+sp = nav_sensor_params('reset');
+sp.gps.pos_noise_std = zeros(3,1);
+sp.gps.vel_noise_std = zeros(3,1);
+sp.gps.multipath = zeros(3,1);
+sp.gps.bias = zeros(3,1);
+sp.imu.accel_noise_std = zeros(3,1);
+sp.imu.gyro_noise_std = zeros(3,1);
+sp.baro.noise_std = 0;
+sp.lidar.noise_std_1 = 0;
+sp.lidar.noise_std_2 = 0;
+sp.diffGps.noise_std = zeros(3,1);
+nav_sensor_params(sp);
+restoreParams = onCleanup(@() nav_sensor_params('reset'));
 clear gps_model imu_model barometer_model lidar_model_base diffGps_model
 
 nTrials = 200;

@@ -3,7 +3,9 @@ function u = fdir_command_select(u_nom, u_lo, x, x_ref, mass, mode, K_abort, g)
 %
 %   u_nom    nominal controller command [thrust; gimbal p; gimbal y; rcs]
 %   u_lo     the same controller with the low-bandwidth (R1) gains
-%   x, x_ref 13-state and the abort reference (fdir_abort_reference)
+%   x, x_ref 13-state and the abort reference (fdir_abort_reference); for
+%            R3, x carries the shadow vertical estimate's height and
+%            vertical velocity (the harness swaps them in)
 %   mass     current vehicle mass (kg)
 %   mode     .abort .safed .degrade .nav_abort (fdir_mode_manager /
 %            fdir_executive)

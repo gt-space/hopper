@@ -66,7 +66,7 @@ classdef NavAdapterTest < matlab.unittest.TestCase
                             'f_b', [9.8; 0; 0], 'cg', tc.cg);
                 [~, tr] = sensor_models(xs, zeros(L.N_MEAS, 1), 0, S, sensor_state());
                 [~, angvel, ~, gps, lidar, dgps, ~, lf, gf] = nav_measurements(tr, true(L.N_SENSORS, 1), ...
-                    zeros(L.N_SENSORS, 1), tc.cg, 130, eye(3), zeros(3, 1), P);
+                    zeros(L.N_SENSORS, 1), tc.cg, 130, eye(3), zeros(3, 1), P, 0, 1);
                 xn = nav_state_from_sim(x, C, tc.cg, tc.F);
                 inn = gyro_update_model(xn, angvel, struct());
                 tc.verifyEqual(inn, zeros(3, 1), 'AbsTol', 1e-12, 'gyro');
@@ -80,6 +80,31 @@ classdef NavAdapterTest < matlab.unittest.TestCase
                     tc.verifyEqual(inn, 0, 'AbsTol', 1e-9, sprintf('lidar %d', b));
                 end
             end
+        end
+
+        function fdirMasksReachTheFilter(tc)
+            % a sensor FDIR masks goes to the filter as invalid; the R scale
+            % inflates every covariance; the mask bits are fdir_targets'
+            IN = mission_inputs();
+            P.F = tc.F; P.S = sim_sensor_params(IN);
+            [P.geom.lidar_dir, P.geom.lidar_mount] = lidar_geometry(P.S.lidar);
+            P.geom.gps_antenna = P.S.gps.antenna;
+            L = sensor_layout();
+            meas = zeros(L.N_MEAS, 1); meas(L.LIDAR) = 2;
+            args = {meas, true(L.N_SENSORS, 1), zeros(L.N_SENSORS, 1), tc.cg, 130, eye(3), zeros(3, 1), P};
+            T = fdir_targets();
+            bit = @(names) sum(arrayfun(@(n) 2^(find(T == n) - 1), string(names)));
+            [a0, w0, b0, g0, l0, d0] = nav_measurements(args{:}, 0, 1);
+            tc.verifyTrue(a0.validity && w0.validity && b0.validity && g0.validity && all(l0.validity) && d0.validity);
+            [a, w, b, g, l, d] = nav_measurements(args{:}, bit(["imu_gyro", "lidar3", "gps"]), 4);
+            tc.verifyTrue(a.validity, 'accel stays');
+            tc.verifyFalse(w.validity, 'gyro masked');
+            tc.verifyEqual(l.validity(:)', [true true false true], 'lidar 3 masked');
+            tc.verifyFalse(g.validity || d.validity, 'GPS and differential GPS masked');
+            tc.verifyTrue(b.validity, 'baro stays');
+            tc.verifyEqual(b.covariance, 4 * b0.covariance, 'AbsTol', 1e-15, 'R scale');
+            [a, w] = nav_measurements(args{:}, bit("imu"), 1);
+            tc.verifyFalse(a.validity || w.validity, 'IMU target masks both');
         end
 
         function padStateIsNavZero(tc)

@@ -53,17 +53,24 @@ plot(out.get('nav_error'))   % estimate - truth, in the controller's 13-state
 - `nav_state_to_sim` / `nav_state_from_sim`: their 20-state (CG position from its pad rest point, nav body z down the long axis, scalar-first Hamilton quaternion) to and from the controller's 13-state. `nav_frames` holds the mapping: on the pad the nav attitude is the identity and sim +x (up) is nav −z.
 - `navWorkspace`: P0, Qc and the 500 Hz rate come from their `filter_sim_initializer`; the lidar and antenna geometry from the vehicle config.
 
-**One tuning override:** their torque process noise (1e-4 (N·m)²/Hz) lets the commanded torque, which leaves out ~7 N·m of wind and slosh moment, drive the rate estimate; the gyro is gated out within 0.07 s and the filter diverges. `navWorkspace` raises that block of Qc to 1 until they retune. Set `W.nav_Qc` or `W.nav_P0` before `buildSimInput` to try other tuning.
+**Torque process noise is per vehicle:** the commanded torque leaves out wind, slosh and other moments, so the filter's rate model needs torque noise sized to the vehicle (`VC.nav.torque_psd`, body axes; 1 (N·m)²/Hz on the hopper, scaled by inertia on the CTV). At their original 1e-4 the hopper's gyro was gated out within 0.07 s. Set `W.nav_Qc` or `W.nav_P0` before `buildSimInput` to try other tuning.
+
+**What the filter now gives FDIR, and takes from it:**
+- per-sensor diagnostics out of the correct step (accepted flag and NIS for baro, gyro, GPS, lidar 1–4, differential GPS; `nav_diagnostics`), which FDIR's estimator checks judge at 99.99 % gates
+- a shadow vertical estimator (`Src_filter/shadow_vertical_filter.m`: height and vertical velocity from accelerometer, baro and lidar; `nav_shadow`), compared with the GMEKF for row 36 and flown by the R3 abort; it agrees with the GMEKF to ~0.1 m and ~0.1 m/s on the hopper
+- FDIR's sensor masks (a sensor with a latched fault goes to the filter as invalid) and R inflation while the NIS CUSUM is latched, applied in the adapter
 
 **How it flies** (nominal hopper):
 - `gmekf_shadow`: the flight is v2's; the estimate stays within 0.04 m, 0.13 m/s, 0.05 rad/s and 0.014 in quaternion of truth, and the covariance stays positive definite.
 - `gmekf`: the vehicle flies the mission on the estimate and lands 0.37 m from the pad (0.43 m on truth), 1.6° max tilt.
 
-**With FDIR:** `FDIR=on` with `gmekf_shadow` runs the estimator checks (rows 33–37, [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md)). Quiet they stay clear; a 5 m GPS bias trips the NIS CUSUM (R1) while the filter gates GPS out. With `gmekf` FDIR monitors the estimate, and the quiet flight runs the PDR mode sequence to LANDED. A stuck gyro on `gmekf` crashes: the filter has no sensor-mask input, so it keeps fusing the stuck gyro during the abort.
+**With FDIR:** `FDIR=on` with `gmekf_shadow` runs the estimator checks (rows 33–37, [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md)). Quiet they stay clear; a 5 m GPS bias trips the NIS CUSUM (R1) while the filter gates GPS out. With `gmekf` FDIR monitors the estimate, and the quiet flight runs the PDR mode sequence to LANDED. A stuck gyro on `gmekf` still crashes: FDIR masks it and the filter stops fusing it, but without a gyro the GMEKF can't hold attitude on differential GPS and lidar alone, and the abort flies on that attitude.
 
-**The CTV:** `CTV_GMEKF.slx` uses a variable-step solver, and a model referenced from the fixed-step harness must be fixed-step, so NAVIGATION on the CTV is an error for now.
+**The CTV (experimental):** `CTV_GMEKF.slx` now runs (fixed-step, the same diagnostics), but its estimate diverges within a few seconds: the CTV plant itself spins up in roll to ~14 rad/s from ~0.8 s after liftoff, with the roll fans saturated against it, on truth too. That is the CTV's roll loop (fan model and gains on a 0.0123 kg·m² roll axis), still to fix; no filter can follow it.
 
-**Checks:** `tests/unit/NavAdapterTest.m` (frames round-trip; with noise off each of their measurement models predicts exactly what our sensor model measured) and `tests/sim/NavigationFlightTest.m` (the flights above). Their own `Tests/` folder isn't in our build: three scripts error on parameters their initializer has commented out.
+**Checks:** `tests/unit/NavAdapterTest.m` (frames round-trip; with noise off each of their measurement models predicts exactly what our sensor model measured; FDIR's masks and R scale reach the buses), `tests/sim/NavigationFlightTest.m` (the flights above) and their own `subsystems/navigation/Tests` (in `buildtool test`). Their sensor models read their parameters from `Src_sim/nav_sensor_params.m`, which tests override.
+
+**Their files are edited on this branch** (the requests in the nav team note): the correct steps' diagnostics, `update`/`kalman_measurement_update` returning the NIS, the torque noise, the fixed-step CTV filter (`tools/refactor/updateNavigationFilters.m`), `nav_sensor_params` and the tests, the shadow estimator, and the removed debug prints. `tools/refactor/syncNavigation.m` leaves a file both sides changed for a person instead of taking theirs.
 
 ## The CTV
 

@@ -15,17 +15,12 @@ function W = navWorkspace(W, variants)
 %   The tuning stays the nav team's: P0, Qc and the filter rate come from
 %   their filter_sim_initializer (subsystems/navigation), run as is. To try
 %   other tuning, set W.nav_Qc (13 x 13) or W.nav_P0 (19 x 19) before
-%   buildSimInput; they are kept, like W.faults. One exception: the torque
-%   block of Qc is raised from their 1e-4 to 1 (N m)^2/Hz (see below). The
+%   buildSimInput; they are kept, like W.faults. The torque block of Qc
+%   comes from the vehicle config (VC.nav.torque_psd), since it scales with
+%   the vehicle's inertia. The
 %   lidar and GPS geometry comes from the vehicle config instead of their
 %   hard-coded frames, so the filter and the sensor model agree.
 
-A = variantAxes();
-if A.VEHICLE(variants.VARIANT_VEHICLE) ~= "hopper"
-    error('navWorkspace:vehicle', ['NAVIGATION runs the hopper filter only for now: CTV_GMEKF.slx uses a ' ...
-        'variable-step solver, and a model referenced from the fixed-step harness must be fixed-step ' ...
-        '(subsystems/navigation is the nav team''s; ask them to switch it).']);
-end
 if ~isfield(W, 'sensor_params')
     error('navWorkspace:sensors', 'Run sensorWorkspace first: the filter reads the shared Sensors block.');
 end
@@ -44,22 +39,19 @@ cg0 = [W.cg_init; 0; 0];
 x_pad = [sim_pos_offset(cg0) + [0; 0; -W.cg_init]; zeros(6, 1); nav_quat_from_dcm(dcm_pad)];
 if ~isfield(W, 'nav_P0'), W.nav_P0 = N.P0; end
 if ~isfield(W, 'nav_Qc')
-    % Their torque process noise (1e-4 (N m)^2/Hz) makes the rate model
-    % trust the commanded torque, which leaves out ~7 N m of wind and slosh
-    % moment on the hopper: the gyro is gated out within 0.07 s and the
-    % filter diverges. 1 (N m)^2/Hz tracks truth to ~1 cm and ~1 mrad over
-    % the flight. A sim-side override until the nav team retunes.
     W.nav_Qc = N.qc;
-    W.nav_Qc(4:6, 4:6) = NAV_TORQUE_PSD * eye(3);
+    VC = W.IN.vehicle;
+    if isfield(VC, 'nav') && isfield(VC.nav, 'torque_psd')
+        % the vehicle's torque disturbance (it scales with inertia), body
+        % axes [roll pitch yaw] into the nav frame
+        R = P.F.R;
+        W.nav_Qc(4:6, 4:6) = R * diag(VC.nav.torque_psd) * R';
+    end
 end
 W.nav_init = struct('x0', nav_state_from_sim(x_pad, dcm_pad, cg0, F), 'P0', W.nav_P0);
 W.nav_dt = N.filter_st;
 W.nav_g = W.IN.const.g0;
 W.nav_reset = 0;                    % ValueType reset is a double
-end
-
-function q = NAV_TORQUE_PSD()
-q = 1;   % (N m)^2/Hz, torque block of Qc (see above)
 end
 
 function N = navInitializer()

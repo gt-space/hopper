@@ -23,9 +23,8 @@ function [dist_meas, covariance, validity] = lidar_model_base(dist_true)
 % Retrieve parameters from the workspace (set by filter_sim_initializer)
 persistent lidar_params;
 if isempty(lidar_params)
-    lidar_params.noise_std_1 = 0.06; % Distance measurement jitter (cm) for 0.2-3m
-    lidar_params.noise_std_2 = 0.02; % Distance measurement jitter (proportion distance) for 3-8m
-    lidar_params.packet_invalid_prob = 0.0; % set to zero for now
+    P = nav_sensor_params();   % defaults there; tests can override
+    lidar_params = P.lidar;
 end
 
 % 4. Validity Flag Assignment

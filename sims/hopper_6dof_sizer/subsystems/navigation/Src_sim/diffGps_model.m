@@ -26,9 +26,8 @@ function diffGpsBus = diffGps_model(trueState, simtime, gpsFrameBus)
     % Load in the diffGps_params struct
     persistent diffGps_params;
     if isempty(diffGps_params)
-        diffGps_params.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m)
-        diffGps_params.covariance = diag([0.007; 0.007; 0.012].^2); % Filter measurement covariance
-        diffGps_params.packet_invalid_prob = 0.0;                  % Set to 0 for now
+        P = nav_sensor_params();   % defaults there; tests can override
+        diffGps_params = P.diffGps;
     end
 
     timestamp = simtime;

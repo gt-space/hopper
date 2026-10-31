@@ -23,9 +23,13 @@ frame = gps_frame;
 baselineBody = frame.r2 - frame.r1;
 meas0.basisVec = zeros(3,1);    % zero measurement so innovation = h(x)
 
-%% 1. Noise-off sim truth equals filter prediction
-diffGps_params_noisy = diffGps_params;
-diffGps_params.noise_std = zeros(3,1);
+% (the model reads its parameters from nav_sensor_params)
+sp = nav_sensor_params('reset');
+restoreParams = onCleanup(@() nav_sensor_params('reset'));
+spQuiet = sp; spQuiet.diffGps.noise_std = zeros(3,1);
+
+% ---- 1. Noise-off sim truth equals filter prediction
+nav_sensor_params(spQuiet);
 clear diffGps_model             % reset persistent params
 
 truthErr = 0;
@@ -40,7 +44,7 @@ end
 fprintf('1. noise-off |predicted - measured| max = %.2e m, baseline length err max = %.2e m\n', ...
     truthErr, lengthErr);
 
-%% 2. Finite-difference Jacobian through state_injection
+% ---- 2. Finite-difference Jacobian through state_injection
 delta = 1e-6;
 jacErr = 0;
 flippedErr = 0;
@@ -82,8 +86,8 @@ for trial = 1:50
 end
 fprintf('   (reference) gps_update_model max |H - H_fd| = %.2e\n', gpsJacErr);
 
-%% 3. Noise statistics
-diffGps_params = diffGps_params_noisy;
+% ---- 3. Noise statistics
+nav_sensor_params(sp);          % noise back on
 clear diffGps_model
 
 nSamples = 20000;
@@ -105,7 +109,7 @@ fprintf('   reported std = [%.4f %.4f %.4f] m\n', reportedStd);
 fprintf('   heading error std = %.3f deg on a %.2f m baseline\n', ...
     rad2deg(std(headingErr)), norm(baselineBody));
 
-%% 4. One full update() removes a roll error
+% ---- 4. One full update() removes a roll error
 updateParams.gateThreshold = 11.345;   % 99%, 3 DOF
 updateParams.r1 = frame.r1;
 updateParams.r2 = frame.r2;
@@ -116,7 +120,7 @@ trueError = zeros(19,1);
 trueError(10:12) = deg2rad([1; 1; 3]);
 xTrue = state_injection(xNominal, trueError);
 
-diffGps_params.noise_std = zeros(3,1);
+nav_sensor_params(spQuiet);
 clear diffGps_model
 meas = diffGps_model(xTrue, 1, frame);
 

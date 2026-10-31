@@ -15,10 +15,8 @@ function baroOut = barometer_model(trueState, baroBiasTrue, simtime)
     % Load the baro_params struct
     persistent baro_params;
     if isempty(baro_params)
-        baro_params.noise_std = 0.1;            % Noise standard deviation (m)
-        baro_params.covariance = 0.1^2;         % Filter measurement covariance
-        baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
-        baro_params.bias = 0.5;                 % Placeholder
+        P = nav_sensor_params();   % defaults there; tests can override
+        baro_params = P.baro;
     end
     
     % Forward timestamp for now

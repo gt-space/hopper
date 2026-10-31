@@ -3,7 +3,7 @@ function plan = buildfile
 %   buildtool check      repo guards: no build caches / autosaves committed,
 %                        no model saved newer than the team release
 %                        (TEAM_RELEASE file)
-%   buildtool test       unit, model-file and FDIR tests (fast)
+%   buildtool test       unit, model-file, FDIR and the nav team's filter tests (fast)
 %   buildtool sim        nominal flight and slosh open-loop tests
 %   buildtool mc         seeded 10-run Monte Carlo against tests/montecarlo/mcLimits,
 %                        plus a 5-run CTV Monte Carlo (CtvMonteCarloTest)
@@ -17,9 +17,9 @@ import matlab.buildtool.tasks.TestTask
 plan = buildplan(localfunctions);
 results = fullfile('outputs', 'test-results');
 
-plan("test") = TestTask(["tests/unit", "tests/models", "tests/fdir"], ...
+plan("test") = TestTask(["tests/unit", "tests/models", "tests/fdir", "subsystems/navigation/Tests"], ...
     TestResults = fullfile(results, "test.xml"), ...
-    Description = "Unit, model-file and FDIR tests");
+    Description = "Unit, model-file, FDIR and navigation-filter tests");
 plan("sim") = TestTask("tests/sim", ...
     TestResults = fullfile(results, "sim.xml"), ...
     Description = "Nominal flight and slosh open-loop tests");

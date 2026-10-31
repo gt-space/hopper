@@ -8,7 +8,6 @@ function st = fdir_frame_state(n_faults, n_fault_rows, dt)
 %
 %#codegen
 
-st.nav   = struct('stamp', -ones(sensor_layout().N_SENSORS, 1));   % fdir_nav_monitors
 st.mon   = gnc_monitor_state();
 st.exec  = fdir_exec_state(n_faults);
 st.modes = fdir_mode_state();
