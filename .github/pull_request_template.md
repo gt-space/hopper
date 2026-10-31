@@ -14,6 +14,13 @@ Saved in the team release (`sims/hopper_6dof_sizer/TEAM_RELEASE`) or older? <!--
 
 Copying the top-level model to add a feature makes merges painful. If you made a new variant this way, say so here so it can become a variant choice instead.
 
+Changed a file in `subsystems/navigation` (the nav team's)? Say which, and tell them: they merge from their own branch.
+
+## Configurations
+
+Vehicle and variant choices this affects or was run with (`variantConfig`, for example `VEHICLE=ctv` or `NAVIGATION=gmekf`; "defaults" for the nominal hopper):
+-
+
 ## Results
 
 - [ ] **No intended change to the flight**: the nominal baseline and the Monte Carlo summary should match `main`

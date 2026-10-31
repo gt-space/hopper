@@ -31,11 +31,16 @@
 # Navigation filters (GMEKF / MEKF)
 /sims/hopper_6dof_sizer/subsystems/navigation/                      @gt-space/hopper-nav
 
+# The adapter between the sim and the filters: either team can approve
+/sims/hopper_6dof_sizer/src/navigation/                             @gt-space/hopper-nav @gt-space/hopper-modsim
+
 # FDIR and fault injection
 /sims/hopper_6dof_sizer/src/fdir/                                   @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/src/faults/                                 @gt-space/hopper-fdir
 /sims/hopper_6dof_sizer/subsystems/fdir/                            @gt-space/hopper-fdir
 /sims/hopper_6dof_sizer/tests/fdir/                                 @gt-space/hopper-fdir
-/sims/hopper_6dof_sizer/models/hopper_6dof_NED_fault_injection.slx  @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/inputs/fdir_fault_catalog.csv               @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/docs/FDIR_ARCHITECTURE.md                   @gt-space/hopper-fdir
 
 # Flight-software bridge (C codegen, Rust SIL)
 /sims/hopper_6dof_sizer/fsw_bridge/                                 @gt-space/hopper-fsw

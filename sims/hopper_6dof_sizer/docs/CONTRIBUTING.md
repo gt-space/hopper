@@ -74,6 +74,27 @@ Blocks that more than one model uses live in their own files under `subsystems/<
 - **To share another block,** convert it in the harness with `Simulink.SubsystemReference.convertSubsystemToSubsystemReference` and save the file under `subsystems/<area>/` (`archive/refactor/convertToSubsystemReferences.m` shows how the first ones were done). Check that the nominal flight is unchanged: `buildtool sim`.
 - **Conflicts get rarer.** Two people editing different subsystem files never touch the same `.slx`, so prefer a new or existing subsystem file over editing the top-level model.
 
+## Vehicles
+
+Every geometry, mass and hardware value of a vehicle lives in one file, `vehicles/<vehicle>/<vehicle>_config.m`; [VEHICLE_CONFIG.md](VEHICLE_CONFIG.md) lists every field with its units.
+
+- **To change a value,** edit it there, with a source comment (CAD part, datasheet, or `ASSUMPTION`). `vehicleConfig` checks the file and derives the rest; nothing else needs touching. If it changes the hopper's flight, re-baseline as below.
+- **What a vehicle flies** (mission, wind, LQR weights) is in `inputs/mission_inputs.m`, with `inputs/ctv_inputs.m` on top for the CTV.
+- **A gain or weight tuned on the hopper rarely carries over** to a vehicle of another size. The CTV is 55x lighter with a 1000x smaller roll inertia, and the hopper's weights made its roll spin up and its thrust chatter. Scale weights with the vehicle (see `ctv_inputs.m`) rather than copying numbers.
+- **A new vehicle** is a new config file plus a choice on the VEHICLE axis ([VARIANTS.md](VARIANTS.md)).
+
+## The nav team's files
+
+`subsystems/navigation` is a merge of the nav team's branch (`origin/GMEKF`, their `NavigationSims/`), and `hopper-nav` owns it. Our code talks to it through the adapter in `src/navigation`.
+
+- **Prefer the adapter.** Frame changes, buses, FDIR's masks and measurement covariances belong in `src/navigation`, not in their files.
+- **If you must change one of their files,** keep the change small, say so in the PR, and tell the nav team: they merge from their own branch.
+- **To take their newer work,** run `tools/refactor/syncNavigation.m`. It maps their folder onto ours, takes their version of every file only they changed, and leaves any file both sides changed for a person to merge.
+
+## Changing the harness reproducibly
+
+`models/hopper_6dof.slx` is edited like any model. A change across many blocks (renaming, rewiring, swapping a literal for a parameter) goes in a script under `tools/refactor/` instead, so a reviewer can read what it does and anyone can rerun it. Make the script harmless to rerun by checking whether the change is already there; `parameterizeRollActuation.m` and `parameterizeVehicleGeometry.m` are examples.
+
 ## Moving to a new MATLAB release
 
 The team release lives in one place: [`TEAM_RELEASE`](../TEAM_RELEASE), one line such as `R2026a`. CI installs that release, and `tools/ci/guards.sh`, `buildtool check` and `tests/models` all check models against it (`teamRelease()` in MATLAB). Models saved in older releases stay valid, so upgrading never forces anyone to re-save files.
@@ -122,8 +143,12 @@ Tighten the regression limits as the vehicle improves. Loosening one needs a rea
 `matlab.unittest` classes:
 - `tests/unit/`: fast, no simulation
 - `tests/models/`: model files load and are saved in the team release or older
-- `tests/sim/`: a single simulation
+- `tests/fdir/`: FDIR logic, frame by frame, without the plant
+- `tests/sim/`: whole flights
 - `tests/montecarlo/`: the Monte Carlo
+- `subsystems/navigation/Tests/`: the nav team's own filter tests (in `buildtool test`)
+
+A new variant choice gets a 2 s smoke run from `VariantHarnessTest` automatically; add a full flight in `tests/sim/` if it should fly a whole mission.
 
 `buildfile.m` picks up new test files in those folders automatically.
 
