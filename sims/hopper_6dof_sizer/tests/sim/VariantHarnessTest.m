@@ -46,7 +46,9 @@ classdef VariantHarnessTest < matlab.unittest.TestCase
             end
             M = fdir_modes();
             mode = squeeze(out.get('fdir_mode').Data);
-            tc.verifyEqual(double(mode(end)), double(M.LANDED), 'final mode');
+            % on the ground: the sim stops at contact, which can come a frame
+            % or two before touchdown confirmation reaches LANDED
+            tc.verifyTrue(ismember(double(mode(end)), double([M.TOUCHDOWN_CONFIRM M.LANDED])), 'final mode');
             % -1: no fault active; 0 would be an R0 mask
             tc.verifyEqual(max(double(squeeze(out.get('fdir_level').Data))), -1, 'response level');
         end

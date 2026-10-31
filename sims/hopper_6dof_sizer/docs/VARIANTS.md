@@ -62,7 +62,7 @@ plot(out.get('nav_error'))   % estimate - truth, in the controller's 13-state
 
 **How it flies** (nominal hopper):
 - `gmekf_shadow`: the flight is v2's; the estimate stays within 0.04 m, 0.13 m/s, 0.05 rad/s and 0.014 in quaternion of truth, and the covariance stays positive definite.
-- `gmekf`: the vehicle flies the mission on the estimate and lands 0.37 m from the pad (0.43 m on truth), 1.6° max tilt.
+- `gmekf`: the vehicle flies the mission on the estimate and lands within the landing requirements (`NavigationFlightTest`); on the earlier stand-in mass properties it landed 0.37 m from the pad (0.43 m on truth). With the CAD dry block the truth-fed flight lands 0.66 m off.
 
 **With FDIR:** `FDIR=on` with `gmekf_shadow` runs the estimator checks (rows 33–37, [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md)). Quiet they stay clear; a 5 m GPS bias trips the NIS CUSUM (R1) while the filter gates GPS out. With `gmekf` FDIR monitors the estimate, and the quiet flight runs the PDR mode sequence to LANDED. A stuck gyro on `gmekf` still crashes: FDIR masks it and the filter stops fusing it, but without a gyro the GMEKF can't hold attitude on differential GPS and lidar alone, and the abort flies on that attitude.
 

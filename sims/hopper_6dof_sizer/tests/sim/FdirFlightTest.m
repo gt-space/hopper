@@ -31,7 +31,9 @@ classdef FdirFlightTest < matlab.unittest.TestCase
             tc.verifyEqual(max(FdirFlightTest.logged(out, 'fdir_level')), 0, 'response beyond R0');   % -1 none, 0 mask
             M = fdir_modes();
             mode = FdirFlightTest.logged(out, 'fdir_mode');
-            tc.verifyEqual(mode(end), double(M.LANDED), 'final mode');
+            % on the ground: the sim stops at contact, which can come a frame
+            % or two before touchdown confirmation reaches LANDED
+            tc.verifyTrue(ismember(double(mode(end)), double([M.TOUCHDOWN_CONFIRM M.LANDED])), 'final mode');
         end
 
         function gyroStuckAbortsToLand(tc)
