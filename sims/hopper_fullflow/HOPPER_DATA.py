@@ -19,7 +19,7 @@ from Backend.Hopper_Elements import (CLOSED, BangBangValve, Branch, CavitatingVe
 # =========================================================================== #
 # ---- RUN SETTINGS ---- #
 # =========================================================================== #
-PROP_THRUST_CURVE_NAME     = "1dof"     # which entry of THRUST_CURVES (below) to fly
+PROP_THRUST_CURVE_NAME     = "52m_free" # which entry of THRUST_CURVES (below) to fly
 PROP_PROFILE_INTERPOLATION = "step"     # "step": hold each point until the next, as vehicle_sim.py does;
                                         # "linear": interpolate between points
 PROP_DT                    = 0.05       # [s] time step. 0.05 s gives the same engine results as 0.01 s in
@@ -65,6 +65,8 @@ PROP_REPORT                = True       # run summary, CdA table, vent times, co
 # dense exports. See Hopper_Inputs.load_thrust_curve.
 THRUST_CURVES = {
     "1dof": "thrust_curves/1dof.csv",   # 1dof trajectory sim profile (29.7 s), from Luca's vehicle_sim.py
+    "10m_tethered": "thrust_curves/thrust_profile_10m_tethered.csv",   # GNC 6DOF reference, 10 m tethered hop (16.5 s)
+    "52m_free": "thrust_curves/thrust_profile_52m_free.csv",           # GNC 6DOF reference, 52 m free flight (29.5 s)
 }
 THRUST_CURVE_MIN_SPACING = 0.1          # [s]
 _curve = THRUST_CURVES[PROP_THRUST_CURVE_NAME]
@@ -90,7 +92,7 @@ AMBIENT_PRESSURE = 14.8 * psi
 # ---- PRESSURANT: COPVs ---- #
 # =========================================================================== #
 
-COPV_COUNT = 3
+COPV_COUNT = 2
 COPV_UNIT_VOLUME = 9.0 * liter
 COPV_VOLUME = COPV_COUNT * COPV_UNIT_VOLUME
 PRESSURANT_INITIAL_PRESSURE = 4503.2 * psi   # [psi]
@@ -106,9 +108,10 @@ PRESSURANT_INITIAL_TEMPERATURE = 293.0       # [K]
 # pressure [Pa] starting ullage pressure
 # ullage_temperature [K]
 # collapse_factor [-] COPV pressurant drawn / pressurant kept in the ullage (1 = no collapse)
+# Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = wet - dry mass.
 LOX_TANK = Tank(
     "LOX Tank", propellant=OXIDIZER,
-    volume=20.0 * liter, liquid_mass=19.43 , liquid_temperature=90.0,
+    volume=15.867 * liter, liquid_mass=(45.54 - 10.27) * pound, liquid_temperature=90.0,   # 16.00 kg
     pressure=500.0 * psi, ullage_temperature=150.0,
     collapse_factor=2.0,   #EDIT assumed (user, 2026-10-27); Luca to supply conservative + Vespula values
     set_pressure=500.0 * psi, upper_limit=5.0 * psi, lower_limit=5.0 * psi,
@@ -116,7 +119,7 @@ LOX_TANK = Tank(
 
 FUEL_TANK = Tank(
     "Fuel Tank", propellant=FUEL,
-    volume=16.0 * liter, liquid_mass=9.7, liquid_temperature=293.0,
+    volume=17.929 * liter, liquid_mass=(42.22 - 13.56) * pound, liquid_temperature=293.0,   # 13.00 kg
     pressure=500.0 * psi, ullage_temperature=293.0,
     collapse_factor=1.1,   #EDIT assumed (user, 2026-10-27); Luca to supply conservative + Vespula values
     set_pressure=500.0 * psi, upper_limit=5.0 * psi, lower_limit=5.0 * psi,
@@ -153,10 +156,11 @@ FUEL_PRESSURANT_LEG = [
 # ---- FEED LINES (tank liquid -> ... -> main chamber) ---- #
 # =========================================================================== #
 LOX_TUBE_ID = tube_id(3 / 8 * inch, 0.028 * inch)    # EDIT mm
-FUEL_TUBE_ID = tube_id(1 / 4 * inch, 0.028 * inch)   # EDIT mm
+FUEL_TUBE_ID = tube_id(3 / 8 * inch, 0.028 * inch)   # EDIT 3/8 in (user, 2026-10-30; was 1/4 in from vehicle_sim), wall assumed 0.028 in
 
 INJECTOR_PASSAGE_LENGTH = 0.01   # EDIT [m]
-REGEN_PASSAGE_LENGTH = 0.30      # EDIT [m]
+REGEN_PASSAGE_LENGTH = 0.30      # EDIT [m] flow inertia of the regen channels. Needed: without it the solver
+                                 # stalls at shutdown (zero flow). Spikes are kept small by THROTTLE_RATE_LIMIT
 
 LOX_FEED = [
     Line("LOX Tank to OTV Line", inner_diameter=LOX_TUBE_ID, length=1.0, roughness=TUBE_ROUGHNESS,
@@ -165,19 +169,19 @@ LOX_FEED = [
                   full_scale_mass_flow=0.777, outlet_node="OTV Outlet"),  
     Line("OTV to LOX Injector Line", inner_diameter=LOX_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
          outlet_node="LOX Injector Manifold"),
-    Injector("OINJ", cda=15.3 * milli**2, length=INJECTOR_PASSAGE_LENGTH),
+    Injector("OINJ", cda=16.6 * milli**2, length=INJECTOR_PASSAGE_LENGTH),   #EDIT LOX stem (user, 2026-10-30; was 15.3 from vehicle_sim)
 ]
 
 FUEL_FEED = [
     Line("Fuel Tank to FTV Line", inner_diameter=FUEL_TUBE_ID, length=0.3048, roughness=TUBE_ROUGHNESS,
          outlet_node="FTV Inlet"),
-    ThrottleValve("FTV", max_cda=0.9 * tube_area(FUEL_TUBE_ID),         # EDIT: 90 % of tube area (17.2 mm^2)
+    ThrottleValve("FTV", max_cda=0.9 * tube_area(FUEL_TUBE_ID),         # EDIT: 90 % of tube area (46.4 mm^2 at 3/8 in)
                   full_scale_mass_flow=0.388, outlet_node="FTV Outlet"),
     Line("FTV to Regen Line", inner_diameter=FUEL_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
          outlet_node="Regen Inlet Manifold"),
     Orifice("Regen Jacket", cda=25.0 * milli**2, length=REGEN_PASSAGE_LENGTH,   # EDIT
             outlet_node="Fuel Injector Manifold"),
-    Injector("FINJ", cda=10.6 * milli**2, length=INJECTOR_PASSAGE_LENGTH),
+    Injector("FINJ", cda=15.0 * milli**2, length=INJECTOR_PASSAGE_LENGTH),   #EDIT fuel manifold (user, 2026-10-30; was 10.6 from vehicle_sim)
 ]
 
 # Example additions (uncomment to use):
@@ -200,8 +204,13 @@ FUEL_FEED = [
 # ReliefValve crack / full-open pressures are gauge [Pa] (full open defaults to 1.1 x crack).
 # sheet = Hopper Fluid Components Mastersheet, info = Extra Component Info
 REGULATORS = [
-    Regulator("PR-REG", source="COPV", set_pressure=500.0 * psi, cda=5.0 * milli**2),   #EDIT GUESS: not in sheet
+    Regulator("PR-REG", source="COPV", set_pressure=750.0 * psi, cda=5.0 * milli**2),   #EDIT set: lowest that lets both purges match peak propellant flow at COPV end of life (2026-10-31); CdA GUESS
 ]
+
+# LOX and fuel engine purges share one spec (reg -> tube -> valve -> check valve -> feed line).
+PURGE_TUBE_ID = tube_id(1 / 4 * inch, 0.028 * inch)   #EDIT GUESS purge tube (4.93 mm ID)
+PURGE_VALVE_CDA = 1.86 * milli**2                     #EDIT OPV / FPV: candidate Chinese solenoid (user, 2026-10-31)
+PURGE_CHECK_CDA = 8.5 * milli**2                      #EDIT GUESS CV-4 / CV-5: Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2)
 
 # Torch igniter: OIMV taps the LOX feed above OTV, FIMV the fuel feed above FTV
 # (P&ID engine page); both feed the torch, which fires into the main chamber.
@@ -221,15 +230,17 @@ BRANCHES = [
     Branch("PRRV Relief", "COPV", [
         ReliefValve("PRRV", cda=5.0 * milli**2, crack_pressure=4950.0 * psi)]),   #EDIT GUESS: Swagelok SS-4R3A (info), sheet tab empty
     Branch("ORV-1 Relief", "PR-REG Outlet", [
-        ReliefValve("ORV-1", cda=2.0 * milli**2, crack_pressure=600.0 * psi)]),   #EDIT GUESS
+        ReliefValve("ORV-1", cda=2.0 * milli**2, crack_pressure=825.0 * psi)]),   #EDIT GUESS: 10 % above PR-REG set
     # GN2 engine purges, fed from PR-REG
     Branch("LOX Purge", "PR-REG Outlet", [
-        Valve("OPV", cda=2.0 * milli**2, schedule=CLOSED),            #EDIT GUESS CdA
-        CheckValve("CV-5", cda=5.0 * milli**2)],                      #EDIT GUESS CdA
+        GasLine("LOX Purge Line", inner_diameter=PURGE_TUBE_ID, length=1.0, roughness=TUBE_ROUGHNESS),   #EDIT GUESS length
+        Valve("OPV", cda=PURGE_VALVE_CDA, schedule=CLOSED),           # 2 mm2 purge solenoid (user, shared spec)
+        CheckValve("CV-5", cda=PURGE_CHECK_CDA)],                      # GUESS Cv ~0.5 check (shared spec)
         sink="OTV Outlet"),                                           # P&ID: joins the LOX line below OTV
     Branch("Fuel Purge", "PR-REG Outlet", [
-        Valve("FPV", cda=2.0 * milli**2, schedule=CLOSED),            #EDIT GUESS CdA
-        CheckValve("CV-4", cda=5.0 * milli**2)],                      #EDIT GUESS CdA
+        GasLine("Fuel Purge Line", inner_diameter=PURGE_TUBE_ID, length=1.0, roughness=TUBE_ROUGHNESS),  #EDIT GUESS length
+        Valve("FPV", cda=PURGE_VALVE_CDA, schedule=CLOSED),           # 2 mm2 purge solenoid (user, shared spec)
+        CheckValve("CV-4", cda=PURGE_CHECK_CDA)],                      # GUESS Cv ~0.5 check (shared spec)
         sink="FTV Outlet"),                                           # P&ID: joins the fuel line below FTV
     Branch("Torch Fuel Purge", "PR-REG Outlet", [
         Valve("TFPV", cda=2.0 * milli**2, schedule=CLOSED),           #EDIT GUESS CdA
@@ -279,7 +290,7 @@ VENT_MAX_TIME = 300.0                 # [s]
 # LOX drain calculator (Hopper_Drain.py): time to empty the LOX tank through the
 # OFD Drain branch (+ LOX_DRAIN_EXTRA_ELEMENTS) with the ullage held at each gauge
 # pressure in LOX_DRAIN_ULLAGE_PRESSURES (0 = vented, gravity only).
-LOX_TANK_HEIGHT = 0.6167                  # [m] sheet ORV tab; cross-section = LOX_TANK.volume / height
+LOX_TANK_HEIGHT = 20.454 * inch          # [m] LOX total length (tank dimensions table); cross-section = LOX_TANK.volume / height
 LOX_DRAIN_BRANCH = "OFD Drain"
 LOX_DRAIN_EXTRA_ELEMENTS = [              #EDIT ground side of the drain (OQD, GSE line) once known, e.g.
     # Orifice("OQD", cda=20.0 * milli**2),
@@ -290,6 +301,12 @@ LOX_DRAIN_END_FRACTION = 0.01             # "drained" = 1 % of the load left
 LOX_DRAIN_TIME_REQUIREMENT = None         #EDIT [s], None = no requirement
 DRAIN_STEPS = 400                         # time steps per drain run (length set from an estimate of the drain time)
 DRAIN_MAX_TIME = 3600.0                   # [s]
+
+# Tank pressure sweep (isolated_sims/Hopper_Tank_Pressure_Sweep.py): the throttle-valve
+# CdA each tank set pressure needs to fly every point of the thrust profile (steady state).
+TANK_SWEEP_PRESSURES = [p * psi for p in range(380, 555, 5)]   # [Pa abs] tank set pressures swept
+TANK_SWEEP_VALVE_CDA = 21.0 * milli**2    #EDIT [m^2] throttle valve full-open CdA under consideration
+TANK_SWEEP_VALVE_MARGIN = 0.80            #EDIT design limit: valve at most this fraction of full open
 
 # P&ID hardware with no flow path in a burn: in the component table and schematic only.
 NOT_MODELLED = {
@@ -309,7 +326,7 @@ if not TORCH_ENABLED:
 # =========================================================================== #
 # ---- ENGINE ---- #
 # =========================================================================== #
-MIXTURE_RATIO = 1.8               # target O/F
+MIXTURE_RATIO = 1.25              #EDIT target O/F (user, 2026-10-30; was 1.8 from vehicle_sim)
 THROAT_AREA = 0.00067226          # [m^2]
 EXIT_AREA = 0.00235559904         # [m^2]
 EXPANSION_RATIO = EXIT_AREA / THROAT_AREA   # 3.504
@@ -352,7 +369,9 @@ CHAMBER_MAP_MIXTURE_RATIO_POINTS = 36
 # igniter is not modelled; propellant reaching the chamber ignites at once.
 MAIN_VALVE_OPEN_TIME = 0.30   # [s] OTV + FTV start opening
 MAIN_VALVE_RAMP_TIME = 0.20   # [s] OTV/FTV opening (and closing) time
-THROTTLE_STEP_TIME = 0.01     # [s] OTV/FTV travel time for one "step" change between profile points
+THROTTLE_STEP_TIME = 0.01     # [s] shortest OTV/FTV move between profile points
+THROTTLE_RATE_LIMIT = 180.0 * pound_force   #EDIT [N/s] thrust slew limit (GNC fluid-network slides: 180 lbf/s sim,
+                                            # 90 lbf/s MC). None = step in THROTTLE_STEP_TIME (vehicle_sim-like)
 RAMP_BREAKPOINT_SPACING = 0.01   # [s] solver steps no longer than this through the opening / closing ramps
 TAIL_OFF_TIME = 0.30          # [s] simulated after OTV/FTV have closed
 

@@ -1,34 +1,60 @@
 Metric,Value
-Burn time [s],29.9
-Total impulse [N s],31281.0
-LOX residual [kg],8.126
-LOX residual [%],41.82
-Fuel residual [kg],3.42
-Fuel residual [%],35.26
-LOX used [kg],11.304
-Fuel used [kg],6.28
-COPV end pressure [psia],3005.7
-COPV gas used [kg],1.371
-COPV gas left [kg],7.006
-LOX tank min in profile [psia],491.1
-Fuel tank min in profile [psia],492.5
-LOX tank max [psia],520.5
-Fuel tank max [psia],514.1
-Min LOX injector stiffness [% Pc],18.7
-Min fuel injector stiffness [% Pc],17.0
-Max |thrust error| at profile points [%],0.04
+Burn time [s],29.7
+Total impulse [N s],38832.0
+LOX residual [kg],2.295
+LOX residual [%],14.35
+Fuel residual [kg],2.038
+Fuel residual [%],15.67
+LOX used [kg],13.703
+Fuel used [kg],10.962
+COPV end pressure [psia],1704.7
+COPV gas used [kg],2.067
+COPV gas left [kg],3.518
+LOX tank min in profile [psia],488.6
+Fuel tank min in profile [psia],489.1
+LOX tank max [psia],532.5
+Fuel tank max [psia],529.6
+Min LOX injector stiffness [% Pc],19.1
+Min fuel injector stiffness [% Pc],21.1
+Max |thrust error| at profile points [%],0.05
 RMS thrust error at profile points [%],0.01
-Profile points judged,35 of 36
-Max OTV % of max CdA,18.4
-Max FTV % of max CdA,35.9
+Profile points judged,295 of 296
+Max OTV % of max CdA,28.2
+Max FTV % of max CdA,29.4
 Relief mass vented [kg],0.0
 All thrust points reachable,yes
 Thrust within tolerance,yes
-"OVNT Vent time, full tank [s]",10.0
-"OVNT Vent time, empty tank [s]",63.9
-"FVNT Vent time, full tank [s]",4.7
-"FVNT Vent time, empty tank [s]",17.8
-LOX drain time at 0 psig [s],1019.1
-LOX drain time at 10 psig [s],159.8
-LOX drain time at 25 psig [s],102.3
-LOX drain time at 50 psig [s],72.6
+"OVNT Vent time, full tank [s]",6.4
+"OVNT Vent time, empty tank [s]",50.8
+"FVNT Vent time, full tank [s]",2.3
+"FVNT Vent time, empty tank [s]",19.9
+LOX drain time at 0 psig [s],897.4
+LOX drain time at 10 psig [s],131.9
+LOX drain time at 25 psig [s],84.3
+LOX drain time at 50 psig [s],59.8
+"Min LOX tank set pressure, OTV full open [psia]",423.1
+"Min LOX tank set pressure, OTV at 80 % [psia]",448.7
+Max OTV CdA needed at current set pressure [mm2],12.8
+"Min Fuel tank set pressure, FTV full open [psia]",441.1
+"Min Fuel tank set pressure, FTV at 80 % [psia]",464.2
+Max FTV CdA needed at current set pressure [mm2],13.46
+COPV end-of-life pressure [psia],1704.7
+COPV end-of-life temperature [K],222.9
+Regulator outlet [psia],514.8
+Regulator outlet temperature [K],198.2
+Regulator capacity at EOL [g/s],171.98
+LOX purge path CdA [mm2],1.89
+LOX max propellant volumetric flow [L/s],0.49
+LOX purge flow at that moment [L/s],0.41
+LOX purge / propellant at peak [%],83.5
+LOX feed pressure at peak [psia],350.8
+"LOX purge / propellant, worst point in burn [%]",83.5
+LOX purge meets max propellant flow,NO
+Fuel purge path CdA [mm2],1.89
+Fuel max propellant volumetric flow [L/s],0.555
+Fuel purge flow at that moment [L/s],0.342
+Fuel purge / propellant at peak [%],61.7
+Fuel feed pressure at peak [psia],388.0
+"Fuel purge / propellant, worst point in burn [%]",61.7
+Fuel purge meets max propellant flow,NO
+Both purges at once vs regulator capacity [%],20.5

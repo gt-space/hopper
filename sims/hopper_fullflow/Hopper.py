@@ -10,7 +10,7 @@ How it runs:
      in PROP_RESULTS_DIRECTORY.
   5. Report (PROP_REPORT): run_summary.csv (burn time, residuals, COPV use,
      margins, thrust checks), cda_table.csv (OTV/FTV CdA per thrust point),
-     vent_times.csv, lox_drain_times.csv, component_table.csv/.md, schematic.png and
+     vent_times.csv, lox_drain_times.csv, tank_pressure_sweep.csv/.png, purge_flow.csv/.png, component_table.csv/.md, schematic.png and
      Hopper_Parameters.xlsx.
 
 """

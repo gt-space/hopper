@@ -105,6 +105,15 @@ Outputs go to `Outputs/`:
     Jaksa valve as OVNT, plus any `LOX_DRAIN_EXTRA_ELEMENTS` such as OQD) with
     the ullage held at each pressure in `LOX_DRAIN_ULLAGE_PRESSURES`, from a
     small FullFlow transient with the liquid head (`Hopper_Drain.py`);
+  - `tank_pressure_sweep.csv` / `.png`: the throttle-valve CdA each tank set
+    pressure needs to fly every point of the thrust profile, against the valve
+    under consideration (`TANK_SWEEP_VALVE_CDA`, 21 mm²) and a design margin
+    (`TANK_SWEEP_VALVE_MARGIN`, 80 % open); gives the lowest usable tank
+    pressure (`Hopper_Tank_Pressure_Sweep.py`, steady state);
+  - `purge_flow.csv` / `.png`: whether the LOX and fuel GN2 purges (PR-REG,
+    tube, OPV/FPV, check valve, into the feed line below OTV/FTV) can match
+    each propellant's peak volumetric flow, with the COPV at its end-of-run
+    state and the feed-line pressures of the run (`Hopper_Purge.py`);
   - `component_table.csv` / `.md`: every P&ID item with type, CdA, set points
     and source (`Hopper_Hardware.py`);
   - `schematic.png`: the simulated network, drawn from the element lists

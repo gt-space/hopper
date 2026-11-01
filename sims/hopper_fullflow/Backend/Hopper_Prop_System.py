@@ -50,7 +50,7 @@ from Backend.Hopper_Elements import (BangBangValve, CheckValve, FeedContext, Gas
 
 # How the throttle-valve flow targets move between thrust-profile points.
 #   "step":   hold each point's flow until the next point, moving to the new flow
-#             over THROTTLE_STEP_TIME just before it, so the new flow is in place
+#             over step_duration() just before it, so the new flow is in place
 #             at the point's time (vehicle_sim.py sets each valve once per point).
 #   "linear": interpolate the flow linearly between points.
 PROFILE_INTERPOLATIONS = ("step", "linear")
@@ -66,6 +66,16 @@ def burn_timeline(targets):
     profile_start = MAIN_VALVE_OPEN_TIME + MAIN_VALVE_RAMP_TIME
     profile_end = profile_start + targets[-1]["time"]
     return profile_start, profile_end, profile_end + MAIN_VALVE_RAMP_TIME
+
+
+def step_duration(previous, target):
+    """Time [s] OTV/FTV take to move from one profile point to the next: the
+    thrust change at THROTTLE_RATE_LIMIT, never less than THROTTLE_STEP_TIME
+    and never more than 90 % of the gap between the points."""
+    duration = THROTTLE_STEP_TIME
+    if THROTTLE_RATE_LIMIT:
+        duration = max(duration, abs(target["thrust"] - previous["thrust"]) / THROTTLE_RATE_LIMIT)
+    return min(duration, 0.9 * (target["time"] - previous["time"]))
 
 
 def target_schedule(targets, key, interpolation):
@@ -96,7 +106,7 @@ def target_schedule(targets, key, interpolation):
     for previous, target in zip(targets[:-1], targets[1:]):
         time = profile_start + target["time"]
         if interpolation == "step":
-            times += [time - THROTTLE_STEP_TIME, time]
+            times += [time - step_duration(previous, target), time]
             values += [previous[key], target[key]]
         else:
             times.append(time)

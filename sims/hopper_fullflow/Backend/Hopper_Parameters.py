@@ -56,7 +56,7 @@ ASSUMPTIONS = [
     ("Engine", "Equilibrium combustion map in (Pc, MR) times c* and Cf efficiencies that ramp linearly with Pc "
                "(c* 0.80 at 100 psia to 0.85 at 300 psia, Cf 0.94 at 100 to 0.97 at 250, flat outside; Luca's "
                "parameters, clamped instead of his max(1, ...)). In the transient each efficiency is taken at the "
-               "previous step's Pc (one 0.05 s lag, under 0.1 % effect). Target MR 1.8. The chamber has no volume; propellant ignites as soon as it arrives."),
+               "previous step's Pc (one 0.05 s lag, under 0.1 % effect). Target MR 1.25. The chamber has no volume; propellant ignites as soon as it arrives."),
     ("Torch", "OIMV taps the LOX feed above OTV, FIMV the fuel feed above FTV (P&ID). Torch ox goes OIMV -> HX-1 "
               "-> torch injector, fuel FIMV -> torch injector, both into the main chamber, where they add to the "
               "chamber flow and MR. HX-1 is a pressure drop only (no heat exchange). All torch CdAs and the "
@@ -86,7 +86,8 @@ ASSUMPTIONS = [
 OPEN_ITEMS = [
     ("OBB / FBB CdA", "Model uses 18.68 mm2 for both. Master sheet: OBB = 2x PLV34 = 2.14 mm2, FBB = 1x PLV34 = "
                       "1.07 mm2. Which is right?"),
-    ("Tank volumes", "Model 20 L LOX / 16 L fuel; master sheet 19.88 L (from Luca) / 15.18 L."),
+    ("Tank volumes", "Updated 2026-10-30 to the tank dimensions table: 15.867 L LOX / 17.929 L fuel, "
+                     "16.00 / 13.00 kg loads. The master sheet's 19.88 / 15.18 L are out of date."),
     ("ORV sizing", "RegO PRV9432T550 has a 0.062 in orifice (about 1.95 mm2 geometric); the sheet requires "
                    "30.8 mm2 CdA (20.5 mm2 minimum). The chosen part looks undersized; check the RegO flow table."),
     ("FRV set pressure", "Sheet FRV tab says 525 psi; the part (PRV9432T550) is 550 psig. Model uses 550."),

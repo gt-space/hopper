@@ -12,7 +12,9 @@ From a FullFlow results file and the thrust targets it flew:
                       reachable: a throttle at 100 % of max CdA has run out of
                       pressure and the thrust falls short.
 Vent times come from Hopper_Vent.py (vent_times.csv), LOX drain times from
-Hopper_Drain.py (lox_drain_times.csv).
+Hopper_Drain.py (lox_drain_times.csv), and the tank pressure vs throttle CdA
+sweep from Hopper_Tank_Pressure_Sweep.py (tank_pressure_sweep.csv / .png), and
+the purge flow check from Hopper_Purge.py (purge_flow.csv / .png).
 
     python Backend/Hopper_Report.py [results.h5]
 """
@@ -32,7 +34,7 @@ if not __package__:   # run as a script (python Backend/Hopper_Report.py): make 
 import HOPPER_DATA as D
 from Backend.Hopper_Elements import ThrottleValve
 from Backend.Hopper_Export import LoadTracks, _track
-from Backend.Hopper_Prop_System import burn_timeline
+from Backend.Hopper_Prop_System import burn_timeline, step_duration
 
 
 def _throttle(feed):
@@ -49,7 +51,8 @@ def sample_times(targets, saved_times):
     times = []
     for k, target in enumerate(targets):
         hold_start = profile_start + target["time"]
-        hold_end = profile_start + targets[k + 1]["time"] - D.THROTTLE_STEP_TIME if k + 1 < len(targets) else hold_start
+        hold_end = (profile_start + targets[k + 1]["time"] - step_duration(target, targets[k + 1])
+                    if k + 1 < len(targets) else hold_start)
         inside = saved_times[(saved_times > hold_start + 1e-9) & (saved_times <= hold_end + 1e-9)]
         times.append(float(inside[-1]) if inside.size else None)
     return times
@@ -159,6 +162,10 @@ def write_report(filename, targets, directory=D.PROP_RESULTS_DIRECTORY, vents=Tr
         from isolated_sims.Hopper_Drain import drain_times
         for row in drain_times(directory)[0]:
             summary[f"LOX drain time at {row['Ullage [psig]']:g} psig [s]"] = row["Drain time [s]"]
+        from isolated_sims.Hopper_Tank_Pressure_Sweep import tank_pressure_sweep
+        summary.update(tank_pressure_sweep(targets, directory))
+        from isolated_sims.Hopper_Purge import purge_check
+        summary.update(purge_check(filename, directory))
     with open(os.path.join(directory, "run_summary.csv"), "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(["Metric", "Value"])
