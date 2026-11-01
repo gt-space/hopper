@@ -1,0 +1,122 @@
+classdef VariantHarnessTest < matlab.unittest.TestCase
+    % models/hopper_6dof.slx: every non-default choice of every axis
+    % compiles and runs (NominalFlightTest flies the defaults), and FDIR
+    % with nothing to detect leaves the nominal flight alone.
+
+    properties (Constant)
+        Model = 'hopper_6dof'
+        SmokeTime = '2'   % s of flight per choice: compile, initialize, lift off
+    end
+
+    properties (TestParameter)
+        choice = VariantHarnessTest.otherChoices()
+    end
+
+    properties
+        W
+    end
+
+    methods (TestClassSetup)
+        function setup(tc)
+            evalin('base', 'clearvars');
+            tc.W = hopperWorkspace();
+        end
+    end
+
+    methods (Test)
+        function quietFdirFliesBaseline(tc)
+            % FDIR and fault injection on, no fault in the table: the
+            % flight is the nominal one, FDIR walks the PDR mode sequence to LANDED
+            % and never raises a response
+            V = variantConfig('FDIR', 'on', 'FAULT_INJECTION', 'on');
+            out = sim(buildSimInput(tc.Model, [], tc.W, V));
+            B = load(NominalFlightTest.BaselineFile);
+            K = NominalFlightTest.keyNumbers(out);
+            for f = fieldnames(B.K)'
+                tc.verifyEqual(K.(f{1}), B.K.(f{1}), 'AbsTol', NominalFlightTest.Tol.(f{1}), f{1});
+            end
+            M = fdir_modes();
+            mode = squeeze(out.get('fdir_mode').Data);
+            % on the ground: the sim stops at contact, which can come a frame
+            % or two before touchdown confirmation reaches LANDED
+            tc.verifyTrue(ismember(double(mode(end)), double([M.TOUCHDOWN_CONFIRM M.LANDED])), 'final mode');
+            % -1: no fault active; 0 would be an R0 mask
+            tc.verifyEqual(max(double(squeeze(out.get('fdir_level').Data))), -1, 'response level');
+        end
+
+        function scopesAndLogLeaveTheFlightAlone(tc)
+            % every scope group and the signal dump on: the flight is the
+            % default one to the bit, and the log file holds all six buses
+            % between the harness groups
+            f = [tempname '.mat'];
+            tc.addTeardown(@() delete(f));
+            run = @(V) sim(buildSimInput(tc.Model, [], tc.W, V).setModelParameter('StopTime', tc.SmokeTime));
+            o1 = run(variantConfig());
+            o2 = run(variantConfig('SCOPES', 'all', 'LOG', f));
+            for v = o1.who'
+                a = o1.get(v{1}); b = o2.get(v{1});
+                if isa(a, 'timeseries'), tc.verifyEqual(b.Data, a.Data, v{1}); end
+            end
+            d = load(f, 'logsout');
+            tc.verifyEqual(sort(d.logsout.getElementNames())', ...
+                {'act_bus', 'dyn_bus', 'env_bus', 'gnc_bus', 'nav_bus', 'prop_bus'});
+            tc.verifyEqual(numel(fieldnames(d.logsout.get('dyn_bus').Values)), 21, 'dyn_bus signals');
+        end
+
+        function constantMassPropsHoldStill(tc)
+            % MASS_PROPS=constant: no propellant flow, so the propellant
+            % masses and the axial CG don't move. The CG still shifts
+            % sideways by under a millimetre as the engine gimbals (its mass
+            % moves with the TVC), which is physics, not propellant.
+            in = buildSimInput(tc.Model, [], tc.W, variantConfig('MASS_PROPS', 'constant'));
+            out = sim(in.setModelParameter('StopTime', '5'));
+            range = @(s) VariantHarnessTest.range(out, s);
+            tc.verifyEqual(range('ox_mass'), 0, 'ox_mass');
+            tc.verifyEqual(range('fuel_mass'), 0, 'fuel_mass');
+            cg = range('cg');
+            tc.verifyEqual(cg(1), 0, 'axial CG');
+            tc.verifyLessThan(cg(2:3), 2e-3, 'lateral CG shift from the engine gimbal');
+        end
+
+        function choiceRuns(tc, choice)
+            V = variantConfig(choice{:});
+            W = tc.W;
+            if V.VARIANT_VEHICLE ~= 1 || V.VARIANT_CONTROLLER == 2
+                W = [];   % another parameter set, or the LQI gains: build it
+            end
+            in = buildSimInput(tc.Model, [], W, V);
+            in = in.setModelParameter('StopTime', tc.SmokeTime);
+            out = sim(in);
+            tc.verifyEmpty(out.ErrorMessage);
+            if V.VARIANT_CONTROLLER ~= 2   % LQI is experimental: it may not hold the vehicle up
+                tc.verifyEqual(out.tout(end), str2double(tc.SmokeTime), 'AbsTol', 1e-9, ...
+                    sprintf('%s stopped early', strjoin(string(choice), '=')));
+            end
+        end
+    end
+
+    methods (Static)
+        function r = range(out, signal)
+            % max - min over time of each component of a logged signal
+            x = squeeze(out.get(signal).Data);
+            n = numel(out.tout);
+            if size(x, 1) ~= n, x = reshape(permute(x, [ndims(x), 1:ndims(x)-1]), n, []); end
+            r = max(x, [], 1) - min(x, [], 1);
+        end
+
+        function c = otherChoices()
+            % {axis, choice} for every non-default choice, named AXIS_choice
+            c = struct();
+            A = variantAxes();
+            for f = fieldnames(A)'
+                for k = 2:numel(A.(f{1}))
+                    name = char(A.(f{1})(k));
+                    c.([f{1} '_' name]) = {f{1}, name};
+                end
+            end
+            % The fluid network takes ~1 s to build thrust; without a
+            % ground the vehicle falls through the pad first
+            c.PROPULSION_fluid_network = [c.PROPULSION_fluid_network, {'GROUND', 'strut'}];
+        end
+    end
+end

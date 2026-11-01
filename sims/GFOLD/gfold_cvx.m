@@ -29,43 +29,44 @@
 clear; clc; close all;
 tic;
 
-%% ── Mission Parameters ───────────────────────────────────────────────────
-% Source: mission_inputs.m + Hopper mass budget
-% Phase: Ascent only (ground → 51m apex)
+%% ── Mission Parameters ─────────────────────────────────────
+% All vehicle limits are read from ctv/inputs/mission_inputs.m so this script
+% cannot drift from the flight sim. Do not hardcode masses or thrust here.
+% Phase: Ascent only (ground → 51 m apex)
+
+here = fileparts(mfilename('fullpath'));
+addpath(fullfile(here, '..', '..', 'ctv', 'inputs'));
+IN = mission_inputs();
 
 % Initial state
 r0 = [0;  0;  0];        % position [m], z = altitude (start on ground)
 v0 = [0;  0;  0];        % velocity [m/s] (start from rest)
 
 % Terminal state
-rf = [0;  0;  51];       % target position [m], z = 51m apex (mission_inputs.target_altitude)
+rf = [0;  0;  IN.mission.target_altitude];   % [m], z = apex (51 m)
 vf = [0;  0;   0];       % velocity [m/s] (arrive at apex with zero velocity)
 
-% Rate limits (mission_inputs.max_ascent_vel)
-vz_max = 7;              % max vertical speed [m/s]
+% Rate limits
+vz_max = IN.mission.max_ascent_vel;          % max vertical speed [m/s] (26)
 
 % Vehicle mass
-m0      = 135.90;        % wet mass [kg]
-m_prop  = 16.0;          % total propellant [kg] (ox=16 + fuel=16 per mission_inputs... 
-                         % NOTE: ox_mass + fuel_mass = 32 kg in file but actual
-                         % loaded prop = 16 kg per propulsion team)
-m_dry   = m0 - m_prop;  % dry mass [kg] = 119.90 kg
+m_dry   = IN.mass.dry_total;                 % dry mass [kg] (48)
+m_prop  = IN.propulsion.oxidizer_mass + IN.propulsion.fuel_mass;   % [kg] (24)
+m0      = m_dry + m_prop;                    % wet mass [kg] (72)
 
-% Propulsion (mission_inputs: nominal_thrust = 500 lbf, throttle_range = [0.4, 1.1])
-T_nominal = 500 * 4.44822;          % N = 2224.1 N
-Tmin      = 0.40 * T_nominal;       % N = 889.6 N  (40% throttle floor)
-Tmax      = 1.10 * T_nominal;       % N = 2446.5 N (110% max)
+% Propulsion
+T_nominal = IN.propulsion.nominal_thrust;    % N (300 lbf = 1334.5 N)
+Tmin      = IN.propulsion.throttle_range(1) * T_nominal;   % N (40%  =  533.8 N)
+Tmax      = IN.propulsion.throttle_range(2) * T_nominal;   % N (110% = 1467.9 N)
 Isp       = 225;                    % specific impulse [s] — placeholder, update when known
-g0        = 9.80665;                % m/s^2 (mission_inputs.const.g0)
+g0        = IN.const.g0;            % m/s^2
 alpha     = 1 / (Isp * g0);        % mass flow coefficient [kg/(N·s)]
 
 % Environment
-g_vec = [0; 0; -9.80665];          % gravity vector [m/s^2]
+g_vec = [0; 0; -g0];               % gravity vector [m/s^2]
 
 % Constraints
-theta_max = deg2rad(10);            % max thrust tilt from vertical — pure ascent, near 0
-% Note: TVC max gimbal = 15 deg (mission_inputs.tvc.max_gimbal_angle)
-% Using 10 deg here as conservative bound for trajectory planning
+theta_max = IN.tvc.max_gimbal_angle;         % max thrust tilt from vertical (8 deg)
 
 %% ── Discretization ───────────────────────────────────────────────────────
 

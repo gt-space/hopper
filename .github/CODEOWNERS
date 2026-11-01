@@ -1,0 +1,56 @@
+# Code owners for the hopper 6DOF sim. GitHub requests a review from the
+# owners of every file a pull request touches; with branch protection's
+# "Require review from Code Owners" on, one of them must approve.
+# Later lines win over earlier ones.
+#
+# Owners are GitHub teams, so people joining or leaving only changes team
+# membership (gt-space org -> Teams), never this file:
+#   hopper
+#   └── hopper-gnc
+#       ├── hopper-gca      guidance and control (LQR/LQI)
+#       ├── hopper-nav      navigation filters
+#       ├── hopper-fdir     fault detection, isolation and recovery
+#       ├── hopper-fsw      flight-software bridge
+#       └── hopper-modsim   modeling and sim: vehicle model, propulsion,
+#                           structures, slosh, Monte Carlo, tests
+#   hopper-gnc-leads        leadership: sole owner of the files that change
+#                           the rules for everyone (see the end of this file)
+# Each team needs Write access to this repo (granting it to hopper covers
+# all of them). CI's guards job fails if GitHub can't resolve an owner here.
+# With several owners on a line, any one of them can approve; a line with a
+# single owner needs that team's approval.
+
+# Default: the sim team owns anything not listed below
+/sims/hopper_6dof_sizer/                                            @gt-space/hopper-modsim
+
+# Guidance and control
+/sims/hopper_6dof_sizer/src/gnc/                                    @gt-space/hopper-gca
+/sims/hopper_6dof_sizer/models/dev/                                 @gt-space/hopper-gca
+/sims/hopper_6dof_sizer/subsystems/gnc/                             @gt-space/hopper-gca
+
+# Navigation filters (GMEKF / MEKF)
+/sims/hopper_6dof_sizer/subsystems/navigation/                      @gt-space/hopper-nav
+
+# The adapter between the sim and the filters: either team can approve
+/sims/hopper_6dof_sizer/src/navigation/                             @gt-space/hopper-nav @gt-space/hopper-modsim
+
+# FDIR and fault injection
+/sims/hopper_6dof_sizer/src/fdir/                                   @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/src/faults/                                 @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/subsystems/fdir/                            @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/tests/fdir/                                 @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/inputs/fdir_fault_catalog.csv               @gt-space/hopper-fdir
+/sims/hopper_6dof_sizer/docs/FDIR_ARCHITECTURE.md                   @gt-space/hopper-fdir
+
+# Flight-software bridge (C codegen, Rust SIL)
+/sims/hopper_6dof_sizer/fsw_bridge/                                 @gt-space/hopper-fsw
+
+# Mission requirements share a file with everyday vehicle parameters, so
+# either the sim team or the leads can approve changes to it
+/sims/hopper_6dof_sizer/inputs/mission_inputs.m                     @gt-space/hopper-modsim @gt-space/hopper-gnc-leads
+
+# Rules for everyone: leads only
+/sims/hopper_6dof_sizer/TEAM_RELEASE                                @gt-space/hopper-gnc-leads
+/sims/hopper_6dof_sizer/tests/montecarlo/mcLimits.m                 @gt-space/hopper-gnc-leads
+/.github/workflows/hopper-sim.yml                                   @gt-space/hopper-gnc-leads
+/.github/CODEOWNERS                                                 @gt-space/hopper-gnc-leads

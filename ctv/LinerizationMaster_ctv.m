@@ -2,7 +2,12 @@
 close all;
 
 
-Trajectory2
+% IN.mission.three_sec_check (mission_inputs) adds the 3 s pre-ascent check period
+if isfield(IN.mission, 'three_sec_check') && IN.mission.three_sec_check
+    ThreeSecTrajectory2
+else
+    Trajectory2
+end
 
 
 % x y z vx vy vz P Q R q0 q1 q2 q3
@@ -22,10 +27,10 @@ Sf = [1e6 0 0 0 0 0 0 0 0 0 0 0 0; % x
 
 Q =  [1e3 0 0 0 0 0 0 0 0 0 0 0 0; % x
     0 1e3 0 0 0 0 0 0 0 0 0 0 0; % y
-    0 0 1.7e13 0 0 0 0 0 0 0 0 0 0; % z
+    0 0 1e15 0 0 0 0 0 0 0 0 0 0; % z
     0 0 0 1e3 0 0 0 0 0 0 0 0 0; % vx
     0 0 0 0 1e3 0 0 0 0 0 0 0 0; % vy
-    0 0 0 0 0 5e9 0 0 0 0 0 0 0; % vz
+    0 0 0 0 0 5e13 0 0 0 0 0 0 0; % vz
     0 0 0 0 0 0 1e6 0 0 0 0 0 0; % P
     0 0 0 0 0 0 0 1e6 0 0 0 0 0; % Q
     0 0 0 0 0 0 0 0 1e6 0 0 0 0; % R
@@ -35,7 +40,7 @@ Q =  [1e3 0 0 0 0 0 0 0 0 0 0 0 0; % x
     0 0 0 0 0 0 0 0 0 0 0 0 100]./10000; % q3
 
 % T delta rcs
-R = [3e7 0 0 0;
+R = [1e7 0 0 0;
    0 8e5 0 0;
    0 0 8e5 0
    0 0 0 10000]./10000;

@@ -1,0 +1,96 @@
+function V = variantConfig(varargin)
+%VARIANTCONFIG  Variant control variables for models/hopper_6dof.slx.
+%   V = variantConfig()                        defaults (the nominal hopper)
+%   V = variantConfig('SLOSH', 'off', 'GROUND', 'strut', ...)
+%   V = variantConfig(S)                       S.SLOSH = "off", ...
+%
+%   Returns VARIANT_<AXIS> = choice number for every axis in variantAxes.
+%   Pass V to buildSimInput, which builds the vehicle's workspace and sets
+%   the variables on the SimulationInput:
+%       out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('SLOSH', 'off')))
+%   Unknown axes or choices are errors, so a typo can't silently run the
+%   default.
+%
+%   VEHICLE='ctv' changes two defaults, since the CTV carries no
+%   propellant: SLOSH='off' and MASS_PROPS='constant'. Axes you name
+%   explicitly always win.
+%
+%   Two logging options sit beside the axes; neither changes the flight:
+%     'SCOPES', ["attitude" "slosh"]   scope groups to open (scopeGroups
+%                                      lists them; "all" for every one)
+%     'LOG', 'on'                      log every signal between the harness
+%                                      groups (all six buses) to a MAT file
+%                                      under outputs/logs; or 'LOG', file
+%   giving VARIANT_SCOPES_<GROUP> and VARIANT_LOG (1 off, 2 on), and
+%   LOG_FILE when the log is on.
+
+A = variantAxes();
+if nargin == 1 && isstruct(varargin{1})
+    S = varargin{1};
+else
+    if mod(nargin, 2), error('variantConfig:args', 'Give axis/choice pairs, e.g. variantConfig(''SLOSH'', ''off'').'); end
+    S = struct();
+    for k = 1:2:nargin
+        S.(upper(char(varargin{k}))) = varargin{k + 1};
+    end
+end
+[S, logging] = takeLogging(S);
+for f = fieldnames(S)'
+    if ~isfield(A, f{1})
+        error('variantConfig:axis', 'Unknown variant axis %s. Axes: %s.', f{1}, strjoin(fieldnames(A), ', '));
+    end
+end
+
+% Vehicle-dependent defaults for the axes not named
+if isfield(S, 'VEHICLE') && string(S.VEHICLE) == "ctv"
+    if ~isfield(S, 'SLOSH'), S.SLOSH = "off"; end
+    if ~isfield(S, 'MASS_PROPS'), S.MASS_PROPS = "constant"; end
+end
+
+V = struct();
+for f = fieldnames(A)'
+    choice = 1;
+    if isfield(S, f{1})
+        choice = find(A.(f{1}) == string(S.(f{1})));
+        if isempty(choice)
+            error('variantConfig:choice', '%s has no choice ''%s''. Choices: %s.', ...
+                f{1}, string(S.(f{1})), strjoin(A.(f{1}), ', '));
+        end
+    end
+    V.(['VARIANT_' f{1}]) = choice;
+end
+for f = fieldnames(logging)'
+    V.(f{1}) = logging.(f{1});
+end
+end
+
+function [S, V] = takeLogging(S)
+% the SCOPES and LOG options, out of S and into their control variables
+names = {scopeGroups().name};
+on = strings(0);
+if isfield(S, 'SCOPES')
+    on = lower(string(S.SCOPES));
+    if any(on == "all"), on = string(names); end
+    bad = setdiff(on, [string(names), "none"]);
+    if ~isempty(bad)
+        error('variantConfig:scopes', 'No scope group ''%s''. Groups: %s.', bad(1), strjoin(names, ', '));
+    end
+    S = rmfield(S, 'SCOPES');
+end
+V = struct();
+for k = 1:numel(names)
+    V.(['VARIANT_SCOPES_' upper(names{k})]) = 1 + any(on == names{k});
+end
+V.VARIANT_LOG = 1;
+if isfield(S, 'LOG')
+    v = string(S.LOG);
+    if v == "on"
+        V.VARIANT_LOG = 2;
+        V.LOG_FILE = hopperRoot('outputs', 'logs', "hopper_" + string(datetime('now', 'Format', 'yyyyMMdd_HHmmss')) + ".mat");
+    elseif v ~= "off"
+        V.VARIANT_LOG = 2;
+        V.LOG_FILE = v;   % a file name
+    end
+    S = rmfield(S, 'LOG');
+end
+end

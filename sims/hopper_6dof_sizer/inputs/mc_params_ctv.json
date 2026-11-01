@@ -1,0 +1,62 @@
+{
+  "mass_factor": {
+    "lower": 0.97,
+    "upper": 1.03,
+    "nominal": 1.0,
+    "distribution": "uniform"
+  },
+  "cg_factor": {
+    "lower": 0.97,
+    "upper": 1.03,
+    "nominal": 1.0,
+    "distribution": "uniform"
+  },
+  "inertia_factor": {
+    "lower": 0.9,
+    "upper": 1.1,
+    "nominal": 1.0,
+    "distribution": "uniform"
+  },
+  "thrust_factor": {
+    "lower": 0.95,
+    "upper": 1.05,
+    "nominal": 1.0,
+    "distribution": "uniform"
+  },
+  "tvc_actuator_rate_limit": {
+    "lower": 150,
+    "upper": 250,
+    "nominal": 200,
+    "distribution": "uniform"
+  },
+  "tvc_actuator_latency": {
+    "lower": 0.005,
+    "upper": 0.02,
+    "nominal": 0.01,
+    "distribution": "uniform"
+  },
+  "engine_off_axis_y": {
+    "lower": -0.002,
+    "upper": 0.002,
+    "nominal": 0,
+    "distribution": "uniform"
+  },
+  "engine_off_axis_z": {
+    "lower": -0.002,
+    "upper": 0.002,
+    "nominal": 0,
+    "distribution": "uniform"
+  },
+  "uwind": {
+    "lower": -1.5,
+    "upper": 1.5,
+    "nominal": 0,
+    "distribution": "uniform"
+  },
+  "vwind": {
+    "lower": -1.5,
+    "upper": 1.5,
+    "nominal": 0,
+    "distribution": "uniform"
+  }
+}
