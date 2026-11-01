@@ -44,6 +44,25 @@ classdef VariantHarnessTest < matlab.unittest.TestCase
             tc.verifyEqual(max(double(squeeze(out.get('fdir_level').Data))), -1, 'response level');
         end
 
+        function scopesAndLogLeaveTheFlightAlone(tc)
+            % every scope group and the signal dump on: the flight is the
+            % default one to the bit, and the log file holds all six buses
+            % between the harness groups
+            f = [tempname '.mat'];
+            tc.addTeardown(@() delete(f));
+            run = @(V) sim(buildSimInput(tc.Model, [], tc.W, V).setModelParameter('StopTime', tc.SmokeTime));
+            o1 = run(variantConfig());
+            o2 = run(variantConfig('SCOPES', 'all', 'LOG', f));
+            for v = o1.who'
+                a = o1.get(v{1}); b = o2.get(v{1});
+                if isa(a, 'timeseries'), tc.verifyEqual(b.Data, a.Data, v{1}); end
+            end
+            d = load(f, 'logsout');
+            tc.verifyEqual(sort(d.logsout.getElementNames())', ...
+                {'act_bus', 'dyn_bus', 'env_bus', 'gnc_bus', 'nav_bus', 'prop_bus'});
+            tc.verifyEqual(numel(fieldnames(d.logsout.get('dyn_bus').Values)), 21, 'dyn_bus signals');
+        end
+
         function constantMassPropsHoldStill(tc)
             % MASS_PROPS=constant: no propellant flow, so the propellant
             % masses and the axial CG don't move. The CG still shifts

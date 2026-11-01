@@ -12,6 +12,9 @@ function [in, W] = buildSimInput(model, scenario, W, variants)
 %                                           defaults)
 %   [in, W] = buildSimInput(...)            also return the workspace struct
 %
+%   With variantConfig('LOG', ...) on, logsout (every signal between the
+%   harness groups) is written to that MAT file as the simulation runs.
+%
 %   With FDIR on, StopTime is the trajectory end + 30 s so an abort to
 %   land can finish.
 %
@@ -52,6 +55,12 @@ for v = modelVariables(model, W)
             '%s reads ''%s'', which the setup did not create.', model, v{1});
     end
     in = in.setVariable(v{1}, W.(v{1}));
+end
+if isfield(variants, 'VARIANT_LOG') && variants.VARIANT_LOG == 2
+    % the signal dump (variantConfig 'LOG'): logsout straight to a MAT file
+    [d, ~] = fileparts(variants.LOG_FILE);
+    if strlength(d) > 0 && ~isfolder(d), mkdir(d); end
+    in = in.setModelParameter('SignalLogging', 'on', 'LoggingToFile', 'on', 'LoggingFileName', char(variants.LOG_FILE));
 end
 if variants.VARIANT_FDIR == 2 && isfield(W, 'tgrid')
     % An abort to land can start late and high; leave it time to come

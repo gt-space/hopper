@@ -157,6 +157,48 @@ R = runMonteCarlo(10, Variants=variantConfig('VEHICLE', 'ctv'));
 
 **The fix.** It is now `cross(r, F)`, where `r` is the centre of pressure relative to the CG: `cp − cg_x` along the body x axis, rotated to inertial axes with the DCM's transpose. `archive/refactor/fixWindMoment.m` made the change, and gave the block a third input, `Inertial to Body` (the DCM).
 
+## Scopes and the signal log
+
+The harness top level is seven groups (Environment, Navigation_Sensors, GNC, Actuation, Mass_Propulsion, Logging, Vehicle_Dynamics). Each sends one bus: `env_bus`, `nav_bus`, `gnc_bus`, `act_bus`, `prop_bus` or `dyn_bus`, with every signal named (`dyn_bus.theta`, `prop_bus.cg`, ...). Logging receives all six.
+
+Two logging options sit next to the axes in `variantConfig`. Neither changes the flight.
+
+```matlab
+V = variantConfig('SCOPES', ["attitude" "actuation"]);   % these scope groups open when the sim starts
+V = variantConfig('SCOPES', 'all');                       % every group
+V = variantConfig('LOG', 'on');                           % every bus signal to outputs/logs/hopper_<time>.mat
+V = variantConfig('LOG', 'outputs/logs/tvc_case3.mat');   % ... or to a file you name
+out = sim(buildSimInput('hopper_6dof', [], [], V));
+```
+
+They combine with any axis, for example `variantConfig('NAVIGATION', 'gmekf', 'SCOPES', 'navigation')`.
+
+**Scope groups.** `src/setup/scopeGroups.m` lists them.
+
+| Group | Displays |
+|---|---|
+| `trajectory` | x and y; altitude vs `z_ref`; vertical speed vs `vz_ref`; NED velocity |
+| `attitude` | roll, pitch and yaw (deg); body rates (deg/s); quaternion |
+| `propulsion` | thrust: actual, command, request and profile; ox and fuel mass; vehicle mass |
+| `actuation` | TVC pitch and yaw; body force; body moment; controller command `u` |
+| `mass_props` | CG; CG with slosh; engine CG; MOI and dI/dt diagonals |
+| `slosh` | ox and fuel slug positions; slug masses; body specific force; CG acceleration |
+| `environment` | wind force; wind moment; roll disturbance |
+| `navigation` | position and velocity, estimate vs truth; filter diagnostics; shadow estimator |
+| `fdir` | nav sensor mask; nav R scale; sensor valid flags |
+
+- Each group is a Variant Subsystem `Logging/Scopes_<group>`, active when `VARIANT_SCOPES_<GROUP> == 2`.
+- A group that's off isn't compiled, so leaving them off costs nothing. That's the default, and it's what Monte Carlo and CI run.
+- **Changing a group:** edit `scopeGroups.m` and rerun `tools/refactor/buildLoggingScopes`, which rebuilds every group from the list.
+  - A signal is `<bus>.<element>`, optionally followed by `:deg`, `:diag` (3×3 diagonal) or `:i1-3` (elements).
+  - `ref.<variable>` overlays a workspace timeseries, such as `ref.z_ref_ts`.
+
+**Signal log.** `LOG` activates `Logging/Signal_Dump`, which logs all six buses whole: all 53 signals between the groups, at the solver step.
+- `buildSimInput` points `logsout` at the MAT file, so it is written while the sim runs.
+- Read it with `d = load(file); d.logsout.get('dyn_bus').Values.theta` (a timeseries per signal), or open it in the Simulation Data Inspector.
+- A nominal 28 s hopper flight makes about 42 MB, most of it the 19×19 nav covariance `nav_bus.p_cov`.
+- The To Workspace logs that the tests and Monte Carlo read (`out.x`, `out.cg`, ...) are always written, log on or off.
+
 ## How it works
 
 - **Choices.** `src/setup/variantAxes.m` lists every axis and its choices. Choice *k* of axis `X` is active when `VARIANT_X == k`.

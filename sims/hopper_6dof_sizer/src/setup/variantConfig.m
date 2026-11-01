@@ -14,6 +14,15 @@ function V = variantConfig(varargin)
 %   VEHICLE='ctv' changes two defaults, since the CTV carries no
 %   propellant: SLOSH='off' and MASS_PROPS='constant'. Axes you name
 %   explicitly always win.
+%
+%   Two logging options sit beside the axes; neither changes the flight:
+%     'SCOPES', ["attitude" "slosh"]   scope groups to open (scopeGroups
+%                                      lists them; "all" for every one)
+%     'LOG', 'on'                      log every signal between the harness
+%                                      groups (all six buses) to a MAT file
+%                                      under outputs/logs; or 'LOG', file
+%   giving VARIANT_SCOPES_<GROUP> and VARIANT_LOG (1 off, 2 on), and
+%   LOG_FILE when the log is on.
 
 A = variantAxes();
 if nargin == 1 && isstruct(varargin{1})
@@ -25,6 +34,7 @@ else
         S.(upper(char(varargin{k}))) = varargin{k + 1};
     end
 end
+[S, logging] = takeLogging(S);
 for f = fieldnames(S)'
     if ~isfield(A, f{1})
         error('variantConfig:axis', 'Unknown variant axis %s. Axes: %s.', f{1}, strjoin(fieldnames(A), ', '));
@@ -48,5 +58,39 @@ for f = fieldnames(A)'
         end
     end
     V.(['VARIANT_' f{1}]) = choice;
+end
+for f = fieldnames(logging)'
+    V.(f{1}) = logging.(f{1});
+end
+end
+
+function [S, V] = takeLogging(S)
+% the SCOPES and LOG options, out of S and into their control variables
+names = {scopeGroups().name};
+on = strings(0);
+if isfield(S, 'SCOPES')
+    on = lower(string(S.SCOPES));
+    if any(on == "all"), on = string(names); end
+    bad = setdiff(on, [string(names), "none"]);
+    if ~isempty(bad)
+        error('variantConfig:scopes', 'No scope group ''%s''. Groups: %s.', bad(1), strjoin(names, ', '));
+    end
+    S = rmfield(S, 'SCOPES');
+end
+V = struct();
+for k = 1:numel(names)
+    V.(['VARIANT_SCOPES_' upper(names{k})]) = 1 + any(on == names{k});
+end
+V.VARIANT_LOG = 1;
+if isfield(S, 'LOG')
+    v = string(S.LOG);
+    if v == "on"
+        V.VARIANT_LOG = 2;
+        V.LOG_FILE = hopperRoot('outputs', 'logs', "hopper_" + string(datetime('now', 'Format', 'yyyyMMdd_HHmmss')) + ".mat");
+    elseif v ~= "off"
+        V.VARIANT_LOG = 2;
+        V.LOG_FILE = v;   % a file name
+    end
+    S = rmfield(S, 'LOG');
 end
 end

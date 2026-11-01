@@ -12,7 +12,8 @@ Use the MATLAB release named in [`TEAM_RELEASE`](TEAM_RELEASE). CI installs that
    This puts every source folder on the path and sends Simulink caches to `work/`. No `addpath` or `cd` is needed.
 2. Nominal flight: `out = sim(buildSimInput())`. `buildSimInput(model, scenario)` returns a `Simulink.SimulationInput` carrying every variable the model reads, so nothing has to be in the base workspace. The old way (`sim_setup`, then simulate) is still there for the fsw_bridge scripts.
 3. Other configurations: `out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('SLOSH', 'off')))` flies with slosh off. The axes: VEHICLE (hopper, ctv), CONTROLLER, SLOSH, PROPULSION, GROUND, MASS_PROPS, FDIR, FAULT_INJECTION and NAVIGATION (the nav team's GMEKF, in shadow or flown on); see [docs/VARIANTS.md](docs/VARIANTS.md).
-4. Monte Carlo: `R = runMonteCarlo(10)`; add `UseParallel=true` to use `parsim`. `R.summary` has one row per run. `mc_runner` and the batched/checkpointed `mc_parallelization` (for thousands of runs) use the same pieces. Every run calls CoolProp through Python (`pip install CoolProp`).
+4. Debugging: `variantConfig('SCOPES', ["attitude" "actuation"])` opens those scope groups, and `variantConfig('LOG', 'on')` writes every signal between the harness groups to a MAT file under `outputs/logs`; see [Scopes and the signal log](docs/VARIANTS.md#scopes-and-the-signal-log).
+5. Monte Carlo: `R = runMonteCarlo(10)`; add `UseParallel=true` to use `parsim`. `R.summary` has one row per run. `mc_runner` and the batched/checkpointed `mc_parallelization` (for thousands of runs) use the same pieces. Every run calls CoolProp through Python (`pip install CoolProp`).
 
 ## Testing
 

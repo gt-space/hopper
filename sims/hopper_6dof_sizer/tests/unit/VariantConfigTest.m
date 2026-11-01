@@ -41,6 +41,24 @@ classdef VariantConfigTest < matlab.unittest.TestCase
             tc.verifyEqual(mission_inputs().mass.dry_override, 114.894);
         end
 
+        function loggingOptions(tc)
+            % scope groups and the signal dump: off by default, on by name
+            V = variantConfig();
+            tc.verifyEqual(V.VARIANT_SCOPES_ATTITUDE, 1);
+            tc.verifyEqual(V.VARIANT_LOG, 1);
+            tc.verifyFalse(isfield(V, 'LOG_FILE'));
+            V = variantConfig('SCOPES', ["attitude" "slosh"], 'LOG', 'on');
+            tc.verifyEqual([V.VARIANT_SCOPES_ATTITUDE V.VARIANT_SCOPES_SLOSH V.VARIANT_SCOPES_TRAJECTORY], [2 2 1]);
+            tc.verifyEqual(V.VARIANT_LOG, 2);
+            tc.verifyTrue(endsWith(V.LOG_FILE, ".mat"));
+            V = variantConfig('SCOPES', 'all', 'LOG', 'run7.mat');
+            for g = {scopeGroups().name}
+                tc.verifyEqual(V.(['VARIANT_SCOPES_' upper(g{1})]), 2, g{1});
+            end
+            tc.verifyEqual(V.LOG_FILE, "run7.mat");
+            tc.verifyError(@() variantConfig('SCOPES', 'atitude'), 'variantConfig:scopes');
+        end
+
         function typosAreErrors(tc)
             tc.verifyError(@() variantConfig('SLOSHH', 'off'), 'variantConfig:axis');
             tc.verifyError(@() variantConfig('SLOSH', 'none'), 'variantConfig:choice');
