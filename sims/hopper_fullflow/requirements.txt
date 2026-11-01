@@ -1,0 +1,7 @@
+fullflow==3.0.0
+fullplot>=0.1.1
+thermoprop>=2.1.2
+numpy
+scipy
+h5py
+matplotlib
