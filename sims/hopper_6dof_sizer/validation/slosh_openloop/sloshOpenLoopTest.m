@@ -34,6 +34,7 @@ h = 'sloshHarness';
 if bdIsLoaded(h), close_system(h, 0); end
 new_system(h);
 sloshBlk = [src '/Slosh'];
+if getSimulinkBlockHandle(sloshBlk) < 0, sloshBlk = [src '/Vehicle_Dynamics/Slosh']; end   % the regrouped harness
 if strcmp(get_param(sloshBlk, 'Variant'), 'on')   % the harness: SLOSH variant, Full choice
     sloshBlk = [sloshBlk '/Slosh_Full'];
 end

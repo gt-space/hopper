@@ -14,7 +14,7 @@ function parameterizeRollActuation()
 
 m = 'hopper_6dof';
 load_system(m);
-rs = [m '/Random' newline 'Source'];
+rs = [m '/Environment/Random' newline 'Source'];   % after regroupHarness
 var = 'IN.vehicle.disturbance.roll_torque_var';
 if strcmp(get_param(rs, 'VarVal'), var)
     fprintf('%s: roll disturbance already parameterized\n', m);

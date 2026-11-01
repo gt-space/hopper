@@ -60,13 +60,14 @@ fprintf('INT empty: cg direct %.5f integrated %.5f | I direct %s integrated %s\n
 
 % ---------- 4. nominal sim: integrated outputs vs direct ----------
 mdl = 'hopper_6dof'; load_system(mdl);
-ph = get_param([mdl '/Mass_Properties'], 'PortHandles');
+grp = [mdl '/Mass_Propulsion'];   % mass blocks' group in the harness
+ph = get_param([grp '/Mass_Properties'], 'PortHandles');
 nm = {'cg_out', 'moi_out', 'didt_out', 'engcg_out'};
 for k = 1:4, set_param(ph.Outport(k), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 'DataLoggingName', nm{k}); end
-ph1 = get_param([mdl '/Propellant_Mass_Integration'], 'PortHandles');
+ph1 = get_param([grp '/Propellant_Mass_Integration'], 'PortHandles');
 set_param(ph1.Outport(1), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 'DataLoggingName', 'm_ox');
 set_param(ph1.Outport(2), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 'DataLoggingName', 'm_fu');
-phs = get_param([mdl '/Saturation1'], 'PortHandles');
+phs = get_param([grp '/Saturation1'], 'PortHandles');
 set_param(phs.Outport(1), 'DataLogging', 'on', 'DataLoggingNameMode', 'Custom', 'DataLoggingName', 'm_tot');
 set_param(mdl, 'SignalLogging', 'on', 'SignalLoggingName', 'logsout');
 so = sim(buildSimInput(mdl));   % logging set above stays on the loaded model
