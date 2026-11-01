@@ -201,6 +201,7 @@ They combine with any axis, for example `variantConfig('NAVIGATION', 'gmekf', 'S
 
 ## How it works
 
+- **Structure.** [HARNESS.md](HARNESS.md) describes the groups, buses and signal names the choices sit among.
 - **Choices.** `src/setup/variantAxes.m` lists every axis and its choices. Choice *k* of axis `X` is active when `VARIANT_X == k`.
 - **Activation.** Variant activation time is *update diagram*, so only the active choice is compiled. Simscape and the fluid properties are needed only when the fluid network is active.
 - **Variable lookup.** `modelVariables` caches the variables a model reads per variant combination.

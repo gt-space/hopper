@@ -5,7 +5,9 @@ function layoutHarnessGroups(model)
 %
 %   Top level, along the signal flow: Environment, Navigation_Sensors,
 %   GNC, Actuation, Vehicle_Dynamics in a row, with Mass_Propulsion and
-%   Logging on a row below (the plant's feedback and the outputs). Inside
+%   Logging on a row below (the plant's feedback and the outputs); once
+%   the groups are on buses (busifyHarness) arrangeSystem places them
+%   instead, since a handful of bus lines routes cleanly that way. Inside
 %   each group Simulink.BlockDiagram.arrangeSystem lays the blocks out; a
 %   group it fails on keeps its layout and is reported. Moving blocks and
 %   rerouting lines doesn't change the simulation. Rerunning is harmless.
