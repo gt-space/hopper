@@ -98,6 +98,7 @@ The executive runs the CoDR and PDR ladder: monitor → persistence → isolatio
 
 **Fault table:** `inputs/fdir_fault_catalog.csv`, readable as text and diffable. Each row has these fields:
 - `id` and `fta_row`
+- `sheet_id`: the row of the team's fault sheet it answers to (see below)
 - `monitor`, the function that evaluates it
 - `filter`: `N_OF_M`, `CONSECUTIVE` or `CUSUM`, with N, M and the CUSUM limit
 - `clear_policy`: `NEVER_IN_FLIGHT`, `AUTO_CLEAR` or `GROUND_ONLY`
@@ -108,6 +109,32 @@ The executive runs the CoDR and PDR ladder: monitor → persistence → isolatio
 - `escalate_to`, for example R1 then R2
 
 The GNC rows below are filled in, with thresholds marked provisional. The PDR says numeric thresholds come from Monte Carlo false-alarm against missed-detection trades.
+
+**The team's fault sheet.** `inputs/fdir_fault_conditions.csv` is the "Fault List" sheet of FaultConditions.xlsx: 102 failure conditions over every subsystem, each with a severity and a response tier (severity − 1). #31 exported it. The two tables are different kinds of thing:
+- **The sheet** rates *conditions*, such as "loss of one or more lidar modules".
+- **The catalog** says how each *monitor* detects a condition and responds. It often masks one redundant sensor at R0 or R1 and escalates if the fault persists.
+
+`fdir_sheet_check()` lines each catalog row up with its sheet row and gives a verdict:
+- **agrees:** 5 rows
+- **conditional:** 6 rows (NO_ARM, R4_ABOVE_HCUT, STUCK_THRUST)
+- **no sheet row:** 1 row
+- **differs:** 25 rows
+
+| Disagreement | Catalog | Sheet tier |
+|---|---|---|
+| IMU loss, timing; accel and gyro saturation or stuck | R3–R4 | R2 (F-01, F-02) |
+| One lidar beam; GPS quality, age, jump; baro; mag | R0 (mask that sensor) | R1–R2 (F-03 to F-08) |
+| Loss-of-control bound, limit cycle, roll rate | R1–R2 then escalate | R3 (F-14, F-17, F-18) |
+| Gimbal hardover | R4 | R1 (F-30) |
+| Gimbal saturation sustained, gimbal tracking | R2 | R1, R3 (F-31, F-32) |
+| RCS fan health | R0 | R3 (F-34) |
+| Several sensors rejecting, NIS CUSUM | R1 | R3 (F-09) |
+
+These are open for the FDIR team. Either a catalog response changes, or the sheet's tier is understood as the end of the escalation rather than the first response. No response was changed when the sheet came in. `tests/fdir/FaultSheetTest.m` checks that every link resolves.
+
+#31's other new commits are covered or superseded:
+- **R3 keeps the engine on.** That's the rule here already: only R4 cuts (`fdir_response_mapping`, `FDIR_Tests`).
+- **Severities and `fault_map` in the old `fdir_config`.** These belong to the pre-PDR subsystem that the executive replaced.
 
 **Fault state:** INACTIVE → PENDING → LATCHED, with an M-bit history, first-latch frame, fail count and an inhibited flag. Once latched, a fault clears only according to its clear policy.
 

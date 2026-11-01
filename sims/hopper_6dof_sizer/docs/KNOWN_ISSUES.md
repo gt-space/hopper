@@ -32,8 +32,9 @@ What's wrong, unfinished or surprising in the sim today (2026-10-31), and what t
 ## FDIR and navigation
 
 - **FDIR thresholds and persistence times are placeholders.** They are to be set from Monte Carlo before PDR.
+- **FDIR responses disagree with the team's fault sheet in 25 of 37 rows.** FaultConditions.xlsx (`inputs/fdir_fault_conditions.csv`) gives IMU loss R2 where the catalog says R4, gimbal hardover R1 where it says R4, and so on. Run `fdir_sheet_check()` for the list; [FDIR_ARCHITECTURE.md](FDIR_ARCHITECTURE.md#fdir-executive) has the summary. The FDIR team needs to decide which is right.
 - **The engine cutoff differs from the PDR.** The sim cuts thrust at 0.05 m (`IN.mission.engine_cutoff_alt`); the PDR says 0.1 m.
-- **The FMECA rows outside GNC aren't written.**
+- **No monitors for the rest of the fault sheet.** The sheet covers fluids, engine, avionics, structures and GSE (70+ rows), but the catalog has monitors only for GNC, TVC, RCS and the throttle.
 - **A stuck gyro with `NAVIGATION=gmekf` still crashes.** FDIR masks the gyro and the filter stops fusing it. Without a gyro the GMEKF can't hold attitude on differential GPS and lidar alone, and the abort flies on that attitude.
 - **The nav team's newest commits aren't merged.** `c32fba9`..`69703bc` ("flying the gyro", work in progress) are on their branch only. `tools/refactor/syncNavigation.m` merges them when they're ready. Several of their files carry changes made here; the nav team note (`outputs/nav_team_note.md`, local) lists them.
 
