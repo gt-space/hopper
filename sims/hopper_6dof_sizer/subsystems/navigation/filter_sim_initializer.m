@@ -10,10 +10,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Add relevant file paths
-addpath("Filter Sims\");
-addpath("Src_sim\");
-addpath("Src_filter\");
-addpath("Filters\");
+addpath("Filter Sims");
+addpath("Src_sim");
+addpath("Src_filter");
+addpath("Filters");
 
 %% Filter parameters
 filter_st = 1/500;      % Filter sample time (seconds)

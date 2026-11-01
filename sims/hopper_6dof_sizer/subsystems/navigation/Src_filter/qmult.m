@@ -19,7 +19,7 @@
 function q = qmult(q1, q2)
 
     % Validate sizes
-    assert(size(q1,1)==4, 'q1 must be 4×n.');
+    assert(size(q1,1)==4, 'q1 must be 4xn.');
     assert(size(q2,1)==4, 'q2 must be 4xn.');
     assert(size(q1,2)==size(q2,2), 'Quaternion lists must be of same length.');
     
