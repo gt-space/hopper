@@ -16,7 +16,7 @@ TANKS = size_tanks(IN);
 AVI = size_avionics(IN);
 ENGINE = size_engine(IN);
 
-VEH.mass.dry = 116.86;
+VEH.mass.dry = IN.mass.dry_total;
 
 VEH.mass.wet = VEH.mass.dry + ...
     IN.propulsion.oxidizer_mass  + IN.propulsion.fuel_mass;

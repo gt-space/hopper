@@ -1,5 +1,5 @@
 function T = compareSloshML(slosh_ml_dir, design)
-% Compare the hopper_6dof_NED_v2 slosh model against SLOSH-ML
+% Compare the hopper_6dof slosh model (subsystems/slosh) against SLOSH-ML
 % (https://github.com/lgst-lab/slosh_ml, v1.0.0) for the as-built LOx and
 % RP-1 tanks.
 %
@@ -8,13 +8,12 @@ function T = compareSloshML(slosh_ml_dir, design)
 %                  defaults to the generateBaffleLUT fixed design
 %
 % Lateral mode: frequency, slosh mass and pendulum length from the model's
-% Slosh/MATLAB Function equations vs SLOSH-ML's Lomen/Dodge solver.
+% Slosh/Ox_Slosh_Parameters equations vs SLOSH-ML's Lomen/Dodge solver.
 % Damping: lateralDampingCalc vs the SLOSH-ML correlations (Stephens,
 % Mikishev smooth wall; Bauer, Coogan ring baffles at eta = 0.1 R).
 
 here = fileparts(mfilename('fullpath'));
 addpath(fullfile(slosh_ml_dir, 'source', 'v1.0.0', 'functions'));
-addpath(fileparts(fileparts(here)));   % hopper_6dof_sizer
 
 g    = 9.81;
 in2m = 0.0254;
@@ -35,7 +34,7 @@ for T_ = tanks
         h = m / T_.rho / (pi * R^2);
         s = sloshMLHeadless(R, T_.H, h, T_.rho, g);
 
-        % hopper_6dof_NED_v2 Slosh/MATLAB Function
+        % Slosh.slx Ox_Slosh_Parameters
         w_model = sqrt(xi * g / R * tanh(xi * h / R));
         m_model = m * (2 * R * tanh(xi * h / R)) / (xi * (xi^2 - 1) * h);
         l_model = R / (xi * tanh(xi * h / R));

@@ -1,0 +1,38 @@
+id,fta_row,sheet_id,name,group,filter,n,m,cusum_limit,clear_policy,phase_mask,response,target,isolated_action,escalate_to,escalate_after_s,inhibited,notes
+1,GNC.SENSOR.IMU_LOSS,F-01,IMU loss,sensor,CONSECUTIVE,2,2,0,NEVER_IN_FLIGHT,ALL,R4,imu,hold_last,,,0,No IMU means no attitude: R3 needs a healthy IMU
+2,GNC.SENSOR.IMU_DRIFT,F-02,Accel saturation,sensor,N_OF_M,3,5,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R3,imu_accel,hold_last,,,0,|f| > 0.95 full scale (CoDR 20)
+3,GNC.SENSOR.IMU_DRIFT,F-02,Gyro saturation,sensor,N_OF_M,3,5,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R4,imu_gyro,hold_last,,,0,|w| > 0.95 full scale (CoDR 20)
+4,GNC.SENSOR.IMU_DRIFT,F-02,Accel stuck,sensor,CONSECUTIVE,20,20,0,NEVER_IN_FLIGHT,ALL,R3,imu_accel,hold_last,,,0,Windowed variance below the noise floor (CoDR 20)
+5,GNC.SENSOR.IMU_DRIFT,F-02,Gyro stuck,sensor,CONSECUTIVE,20,20,0,NEVER_IN_FLIGHT,ALL,R4,imu_gyro,hold_last,,,0,Windowed variance below the noise floor (CoDR 20)
+6,GNC.SENSOR.IMU_DRIFT,F-02,IMU rate of change,sensor,N_OF_M,4,10,0,AUTO_CLEAR,ALL,R1,imu,invalid,,,0,Jerk beyond the physical bound: sample invalid; persistent: suspect (CoDR 20)
+7,GNC.SENSOR.IMU_LOSS,F-01,IMU timing,sensor,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R3,imu,propagate_actual_dt,,,0,dt outside [0.5 1.5] x nominal (CoDR 20)
+8,GNC.SENSOR.LIDAR_DROPOUT,F-08,Lidar beam 1,sensor,N_OF_M,4,10,0,NEVER_IN_FLIGHT,HOVER|DESCENT,R0,lidar1,invalid,,,0,Valid flag / range bounds / rate; blind zone masked on the pad (CoDR 21)
+9,GNC.SENSOR.LIDAR_DROPOUT,F-08,Lidar beam 2,sensor,N_OF_M,4,10,0,NEVER_IN_FLIGHT,HOVER|DESCENT,R0,lidar2,invalid,,,0,
+10,GNC.SENSOR.LIDAR_DROPOUT,F-08,Lidar beam 3,sensor,N_OF_M,4,10,0,NEVER_IN_FLIGHT,HOVER|DESCENT,R0,lidar3,invalid,,,0,
+11,GNC.SENSOR.LIDAR_DROPOUT,F-08,Lidar beam 4,sensor,N_OF_M,4,10,0,NEVER_IN_FLIGHT,HOVER|DESCENT,R0,lidar4,invalid,,,0,
+12,GNC.SENSOR.LIDAR_MODULES,F-07,Lidar all beams,sensor,N_OF_M,4,10,0,NEVER_IN_FLIGHT,DESCENT,R2,lidar,invalid,,,0,Loss of every beam near the ground: no landing altimetry (fault tree: loss of lidar modules)
+13,GNC.SENSOR.GPS_DROPOUT,F-06,GPS solution quality,sensor,N_OF_M,4,10,0,AUTO_CLEAR,ALL,R0,gps,dont_fuse,,,0,Fix below 3D or <= 6 satellites (CoDR 22)
+14,GNC.SENSOR.GPS_DROPOUT,F-05,GPS age,sensor,N_OF_M,4,10,0,AUTO_CLEAR,ALL,R0,gps,dont_fuse,,,0,Solution older than 200 ms (CoDR 22)
+15,GNC.SENSOR.GNSS_MULTIPATH,F-06,GPS jump,sensor,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R0,gps,invalid,,,0,|dp - v dt| > k sigma; multipath mask below a set height (CoDR 22)
+16,GNC.SENSOR.BARO_LOSS,F-04,Barometer,sensor,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R0,baro,invalid,,,0,Range / rate / stuck; ground-effect window near the pad (PDR 80)
+17,GNC.SENSOR.MAG_LOSS,F-03,Magnetometer,sensor,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R0,mag,invalid,,,0,Loss / range (fault tree: magnetometer loss)
+18,GNC.CONTROL.LOSS_OF_CONTROL,F-17,Loss-of-control bound,control,CONSECUTIVE,50,50,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R1,control,,R2,1.0,0,Tilt error beyond e1 for T1 (PDR 82): R1 then R2
+19,GNC.CONTROL.LOSS_OF_CONTROL,F-17,Attitude envelope,control,CONSECUTIVE,5,5,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R4_ABOVE_HCUT,control,,,,0,Tilt error or pitch/yaw rate beyond the hard limit (roll: row 22): R4 above h_cut else R2 (CoDR 28)
+20,GNC.CONTROL.CONTROLLER_INSTABILITY,F-14,Limit cycle,control,CONSECUTIVE,1,1,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R1,control,,R2,2.0,0,Sign-change count on error rate over a window (PDR 82): R1 then R2
+21,GNC.GUIDANCE.ACTUATOR_SATURATION,F-24,Thrust margin,guidance,CONSECUTIVE,100,100,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R2,guidance,,,,0,Throttle > 90% of max for longer than T = 1 s (CoDR 27)
+22,GNC.CONTROL.LOSS_OF_AUTHORITY,F-18,Roll rate,control,CONSECUTIVE,10,10,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R2,control,,,,0,Roll-rate bound exceeded (PDR 82)
+23,GNC.GUIDANCE.INFEASIBLE_TRAJECTORY,F-23,Reference integrity,guidance,CONSECUTIVE,1,1,0,GROUND_ONLY,PAD,NO_ARM,guidance,,,,0,t = 0 reference matches the pad state; checksum at IBIT (CoDR 27)
+24,AVI.TVC.RATE_SATURATION,F-31,Gimbal saturation (high duty),actuator,CONSECUTIVE,1,1,0,AUTO_CLEAR,ASCENT|HOVER|DESCENT,R1,tvc,,,,0,Fraction of samples at the limit over 1 s above 0.3 (CoDR 28)
+25,AVI.TVC.RATE_SATURATION,F-31,Gimbal saturation (sustained),actuator,CONSECUTIVE,1,1,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R2,tvc,,,,0,Fraction at the limit over 2 s above 0.8 (CoDR 28)
+26,AVI.TVC.POSITION_ERROR,F-32,Gimbal tracking (stuck / slow),actuator,CONSECUTIVE,20,20,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,R2,tvc,,,,0,Command vs feedback residual (CoDR 28)
+27,AVI.TVC.ACTUATOR_FAULT,F-30,Gimbal hardover,actuator,CONSECUTIVE,5,5,0,NEVER_IN_FLIGHT,ALL,R4,tvc,,,,0,Feedback at the limit against the command (CoDR 28)
+28,AVI.RCS.FAN_FAILURE,F-34,RCS fan health,actuator,CONSECUTIVE,20,20,0,NEVER_IN_FLIGHT,ALL,R0,rcs,,,,0,Delivered vs commanded roll torque (stands in for ESC RPM vs command; the sim has one roll channel)
+29,ENG.THROTTLE.STUCK,F-71,Stuck thrust,actuator,CONSECUTIVE,50,50,0,NEVER_IN_FLIGHT,ASCENT|HOVER|DESCENT,STUCK_THRUST,throttle,,,,0,T/W < 1.1: land (R2); > 1.1: R4 (PDR 83); bounded dither not modeled
+30,GNC.SENSOR.IMU_DRIFT,F-02,IMU pad sanity (IBIT),ibit,CONSECUTIVE,10,10,0,GROUND_ONLY,PAD,NO_ARM,imu,,,,0,|f| ~ g and |w| near noise on the pad (CoDR 20)
+31,GNC.SENSOR.LIDAR_DROPOUT,F-07,Lidar pad geometry (IBIT),ibit,CONSECUTIVE,10,10,0,GROUND_ONLY,PAD,NO_ARM,lidar,,,,0,Each beam reads the expected pad height (CoDR 21)
+32,GNC.SENSOR.GPS_DROPOUT,F-05,GPS pad calibration (IBIT),ibit,CONSECUTIVE,10,10,0,GROUND_ONLY,PAD,NO_ARM,gps,,,,0,NED origin calibrated at the pad (CoDR 22)
+33,GNC.EKF.SENSOR_FAULT,,One sensor rejecting,estimator,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R0,nav,,,,0,NAVIGATION on: one sensor fails a 99.99 % gate on the NIS the filter reports (fdir_nav_monitors; PDR 81)
+34,GNC.EKF.DIVERGENCE,F-09,Several sensors rejecting,estimator,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R1,nav,,R3,2.0,0,NAVIGATION on: two or more sensors fail together; persistent -> R3
+35,GNC.EKF.POOR_TUNING,F-09,NIS window / CUSUM,estimator,CUSUM,1,1,5,AUTO_CLEAR,ALL,R1,nav,,,,0,NAVIGATION on: CUSUM of mean normalized NIS above 2 per second (CoDR 24)
+36,GNC.EKF.DIVERGENCE,F-09,Main vs shadow estimator,estimator,N_OF_M,4,10,0,NEVER_IN_FLIGHT,ALL,R3,nav,,,,0,NAVIGATION on: GMEKF vs the shadow vertical estimator (height or vertical velocity apart) -> R3 on the shadow
+37,GNC.EKF.EXTREME_NONLINEARITY,F-09,Covariance / state plausibility,estimator,CONSECUTIVE,1,1,0,NEVER_IN_FLIGHT,ALL,R3,nav,,,,0,NAVIGATION on: covariance or state not finite or beyond bounds (CoDR 25-26)

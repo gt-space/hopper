@@ -13,35 +13,43 @@
 clear; clc; close all;
 tic;
 
-%% ── Mission Parameters ───────────────────────────────────────────────────
+%% ── Mission Parameters ─────────────────────────────────────
+% All vehicle limits are read from ctv/inputs/mission_inputs.m so this script
+% cannot drift from the flight sim. Do not hardcode masses or thrust here.
+
+here = fileparts(mfilename('fullpath'));
+addpath(fullfile(here, '..', '..', 'ctv', 'inputs'));
+IN = mission_inputs();
 
 % Ascent handoff
-ascent_fuel_used = 8.76;             % kg — update if ascent re-run
-m_wet_initial    = 135.90;           % kg
+% !! STALE !! 8.76 kg was solved for the old 135.90 kg / 500 lbf vehicle.
+% It MUST be recomputed by rerunning gfold_cvx.m against the 72 kg / 300 lbf
+% vehicle and copying its reported "Fuel used" here. Until then every number
+% downstream of m0 in this script is only indicative.
+ascent_fuel_used = 8.76;             % kg — RECOMPUTE: rerun gfold_cvx.m
 
 % States
 r0 = [0; 0; 10];   v0 = [0; 0; 5.698230544019777];  % apex: at rest
 rf = [0; 0;  0.05];   vf = [0; 0; 0];  % landing: 1m AGL, at rest
 
 % Vehicle mass
-m_prop_total  = 16.0;
-m_dry         = m_wet_initial - m_prop_total;    % 119.90 kg
-m0            = m_wet_initial - ascent_fuel_used; % 127.14 kg at apex
-m_prop_remain = m0 - m_dry;                      % 7.24 kg for descent
+m_dry         = IN.mass.dry_total;                   % kg (48)
+m_prop_total  = IN.propulsion.oxidizer_mass + IN.propulsion.fuel_mass;  % kg (24)
+m_wet_initial = m_dry + m_prop_total;                % kg (72)
+m0            = m_wet_initial - ascent_fuel_used;    % kg at apex
+m_prop_remain = m0 - m_dry;                          % kg available for descent
 
-% Propulsion (mission_inputs)
-T_nominal = 500 * 4.44822;           % N
-Tmin      = 0.40 * T_nominal;        % N = 778.4 N — 35% throttle floor
-                                     % Note: 40% (890N) hits prop budget limit for this descent
-                                     % 35% gives optimizer margin; engine stays well above idle
-Tmax      = 1.10 * T_nominal;        % N = 2446.5 N
+% Propulsion
+T_nominal = IN.propulsion.nominal_thrust;            % N (300 lbf = 1334.5 N)
+Tmin      = IN.propulsion.throttle_range(1) * T_nominal;   % N (40%  =  533.8 N)
+Tmax      = IN.propulsion.throttle_range(2) * T_nominal;   % N (110% = 1467.9 N)
 Isp       = 225;                     % s
-g0        = 9.80665;                 % m/s^2
+g0        = IN.const.g0;             % m/s^2
 
 % Environment & constraints
 g_vec     = [0; 0; -g0];
-vz_max    = 8;                       % m/s (mission_inputs.max_descent_vel)
-theta_max = deg2rad(15);             % TVC gimbal limit (mission_inputs.tvc.max_gimbal_angle)
+vz_max    = IN.mission.max_descent_vel;      % m/s (26)
+theta_max = IN.tvc.max_gimbal_angle;         % TVC gimbal limit (8 deg)
 
 %% ── Discretization ───────────────────────────────────────────────────────
 % Short tf forces ballistic free-fall + braking burn profile
@@ -89,7 +97,7 @@ cvx_begin quiet
         end
 
         % ── Thrust magnitude bounds ──
-        Tm >= Tmin;   % 40% throttle floor — engine always on during descent
+        Tm >= Tmin;   % throttle floor — engine always on during descent
         Tm <= Tmax;
 
         % ── Pointing: thrust within theta_max of vertical ──
