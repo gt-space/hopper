@@ -2,9 +2,8 @@
 
 N = 50;
 
-% Mass profile
-m_profile = linspace(OUT.Vehicle.WetMass, ...
-                     OUT.Vehicle.DryMass, N);
+% Masses sampled at N points
+m_schedule = m_profile(round(linspace(1, length(m_profile), N)));
 
 % Preallocate gain schedule
 Klqi_schedule = zeros(4, 15, N);
@@ -21,7 +20,7 @@ Cpos = [eye(3), zeros(3,9)];
 for i = 1:N
 
     % Current mass
-    m = m_profile(i);
+    m = m_schedule(i);
 
     % Hover equilibrium
     p = zeros(3,1);
