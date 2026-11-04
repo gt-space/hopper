@@ -13,7 +13,7 @@ python Hopper.py
 | `HOPPER_DATA.py` | every input: components, properties, routing, sequence, Monte Carlo bands | yes, this is the one file to edit |
 | `thrust_curves/` | thrust-curve CSVs 
 | `Hopper.py`, `Hopper_MonteCarlo.py` | the two scripts you run 
-| `ASSUMPTIONS.txt` | every modelling assumption and its source| keep it current |
+| `ASSUMPTIONS.txt` | key inputs, modelling assumptions and unconfirmed values | keep it current |
 | `Backend/` | the model and its tools (element classes, network builder, engine, targeter, plots, report, workbook) | only to add a new element type or output |
 | `isolated_sims/` | standalone calculators: tank vent time, LOX drain time
 | `Old_sims_comparison/` | reruns vehicle_sim.py and compares it with this model 
@@ -85,7 +85,7 @@ way (OIMV taps above OTV through HX-1, FIMV above FTV, firing on
 `TORCH_SCHEDULE`), and its propellant counts in the chamber flow and MR.
 P&ID items with no flow path in flight (quick disconnects, diffuser, the
 torch spark, sensors) are listed in `NOT_MODELLED` so they still appear in
-the component table and schematic. Every assumption is in `ASSUMPTIONS.txt`.
+the component table and schematic. Key assumptions are in `ASSUMPTIONS.txt`.
 
 Outputs go to `Outputs/`:
 - `engine_targets.csv` and `actual_performance.csv`, in vehicle_sim.py's formats
@@ -138,7 +138,7 @@ so an element added to a list is varied automatically. A group is "each"
 (every input drawn separately, e.g. the CdAs) or "shared" (one draw moves the
 whole group, e.g. the c* efficiency curve). Current bands: CdA +-10 %,
 initial tank and COPV pressure +-2 %, loads +-1 %, collapse factor +-0.3,
-c* +-2 %, Cf +-1 % (all listed in `ASSUMPTIONS.txt`, section 14).
+c* +-2 %, Cf +-1 % (all listed in `ASSUMPTIONS.txt`).
 The seed makes the draws repeatable and run 0 is nominal. With
 `MC_THRUST_CONTROL = "thrust"` the thrust targets are re-solved with each
 run's engine (the controller holds thrust); `"flow"` flies nominal flows.

@@ -4,20 +4,20 @@ LOX Tank,LOX Tank,Tank,,"15.867 L, 15.9982 kg LOX, set 500 psia +5/-5, collapse 
 Fuel Tank,Fuel Tank,Tank,,"17.929 L, 13 kg RP-1, set 500 psia +5/-5, collapse factor 1.1",
 LOX pressurant leg,LOX Pressurant Line,Gas line,7.55,"ID 4.92 mm, L 1.000 m; lumped (fully rough)","meter, EDIT"
 LOX pressurant leg,OBB,Bang-bang solenoid,18.68,opened/closed by the tank bang-bang band,
-LOX pressurant leg,OR-1,Orifice,2.04,,EDIT
+LOX pressurant leg,OR-1,Orifice,7.00,,"EDIT (user, 2026-11-03; was 2.04 from vehicle_sim)"
 LOX pressurant leg,PROCK,Check valve,12.00,,EDIT
 Fuel pressurant leg,Fuel Pressurant Line,Gas line,7.55,"ID 4.92 mm, L 1.000 m; lumped (fully rough)","meter, EDIT"
 Fuel pressurant leg,FBB,Bang-bang solenoid,18.68,opened/closed by the tank bang-bang band,
-Fuel pressurant leg,OR-2,Orifice,1.02,,EDIT
+Fuel pressurant leg,OR-2,Orifice,3.00,,"EDIT (user, 2026-11-03; was 1.02 from vehicle_sim)"
 Fuel pressurant leg,PRFCK,Check valve,12.00,,EDIT
-LOX feed,LOX Tank to OTV Line,Line,,"ID 8.10 mm, L 1.000 m",
+LOX feed,LOX Tank to OTV Line,Line,,"ID 9.02 mm, L 1.000 m",
 LOX feed,OTV,Throttle valve,50.00,max CdA; CdA set to hit the flow target,
-LOX feed,OTV to LOX Injector Line,Line,,"ID 8.10 mm, L 0.203 m",
+LOX feed,OTV to LOX Injector Line,Line,,"ID 9.02 mm, L 0.203 m",
 LOX feed,OINJ,Injector,16.60,passage length 0.010 m,"EDIT LOX stem (user, 2026-10-30; was 15.3 from vehicle_sim)"
-Fuel feed,Fuel Tank to FTV Line,Line,,"ID 8.10 mm, L 0.305 m",
+Fuel feed,Fuel Tank to FTV Line,Line,,"ID 9.02 mm, L 0.305 m",
 Fuel feed,FTV,Throttle valve,50.00,max CdA; CdA set to hit the flow target,
-Fuel feed,FTV to Regen Line,Line,,"ID 8.10 mm, L 0.203 m",
-Fuel feed,Regen Jacket,Orifice,25.00,passage length 0.300 m,EDIT
+Fuel feed,FTV to Regen Line,Line,,"ID 9.02 mm, L 0.203 m",
+Fuel feed,Regen Jacket,Orifice,30.00,passage length 0.300 m,"EDIT (user, 2026-11-03; was 25)"
 Fuel feed,FINJ,Injector,15.00,passage length 0.010 m,"EDIT fuel manifold (user, 2026-10-30; was 10.6 from vehicle_sim)"
 COPV side path,PR-REG,Regulator,5.00,"ideal, set 750 psig",EDIT set: lowest that lets both purges match peak propellant flow at COPV end of life (2026-10-31); CdA GUESS
 PRVNT Vent: COPV -> ambient,PRVNT,Valve,1.07,closed all run,Marotta PLV34 (info); 1x PLV34 = 1.07 mm^2 (sheet FRV tab)

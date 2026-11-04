@@ -1,0 +1,6 @@
+{
+  "folders": [
+    { "name": "hopper", "path": "." },
+    { "name": "hopper_fullflow", "path": "sims/hopper_fullflow" }
+  ]
+}

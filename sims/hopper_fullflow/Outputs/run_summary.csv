@@ -7,21 +7,21 @@ Fuel residual [kg],2.038
 Fuel residual [%],15.67
 LOX used [kg],13.703
 Fuel used [kg],10.962
-COPV end pressure [psia],1704.7
-COPV gas used [kg],2.067
-COPV gas left [kg],3.518
-LOX tank min in profile [psia],488.6
+COPV end pressure [psia],1714.5
+COPV gas used [kg],2.057
+COPV gas left [kg],3.528
+LOX tank min in profile [psia],488.8
 Fuel tank min in profile [psia],489.1
-LOX tank max [psia],532.5
-Fuel tank max [psia],529.6
+LOX tank max [psia],569.2
+Fuel tank max [psia],571.1
 Min LOX injector stiffness [% Pc],19.1
 Min fuel injector stiffness [% Pc],21.1
 Max |thrust error| at profile points [%],0.05
 RMS thrust error at profile points [%],0.01
 Profile points judged,295 of 296
-Max OTV % of max CdA,28.2
-Max FTV % of max CdA,29.4
-Relief mass vented [kg],0.0
+Max OTV % of max CdA,24.8
+Max FTV % of max CdA,25.6
+Relief mass vented [kg],0.0041
 All thrust points reachable,yes
 Thrust within tolerance,yes
 "OVNT Vent time, full tank [s]",6.4
@@ -32,29 +32,29 @@ LOX drain time at 0 psig [s],897.4
 LOX drain time at 10 psig [s],131.9
 LOX drain time at 25 psig [s],84.3
 LOX drain time at 50 psig [s],59.8
-"Min LOX tank set pressure, OTV full open [psia]",423.1
-"Min LOX tank set pressure, OTV at 80 % [psia]",448.7
-Max OTV CdA needed at current set pressure [mm2],12.8
-"Min Fuel tank set pressure, FTV full open [psia]",441.1
-"Min Fuel tank set pressure, FTV at 80 % [psia]",464.2
-Max FTV CdA needed at current set pressure [mm2],13.46
-COPV end-of-life pressure [psia],1704.7
-COPV end-of-life temperature [K],222.9
-Regulator outlet [psia],514.8
-Regulator outlet temperature [K],198.2
-Regulator capacity at EOL [g/s],171.98
-LOX purge path CdA [mm2],1.89
+"Min LOX tank set pressure, OTV full open [psia]",374.5
+"Min LOX tank set pressure, OTV at 80 % [psia]",379.0
+Max OTV CdA needed at current set pressure [mm2],12.25
+"Min Fuel tank set pressure, FTV full open [psia]",393.5
+"Min Fuel tank set pressure, FTV at 80 % [psia]",397.6
+Max FTV CdA needed at current set pressure [mm2],12.63
+COPV end-of-life pressure [psia],1714.5
+COPV end-of-life temperature [K],223.3
+Regulator outlet [psia],764.8
+Regulator outlet temperature [K],205.2
+Regulator capacity at EOL [g/s],172.79
+LOX purge path CdA [mm2],1.77
 LOX max propellant volumetric flow [L/s],0.49
-LOX purge flow at that moment [L/s],0.41
-LOX purge / propellant at peak [%],83.5
-LOX feed pressure at peak [psia],350.8
-"LOX purge / propellant, worst point in burn [%]",83.5
-LOX purge meets max propellant flow,NO
-Fuel purge path CdA [mm2],1.89
+LOX purge flow at that moment [L/s],0.618
+LOX purge / propellant at peak [%],126.0
+LOX feed pressure at peak [psia],348.9
+"LOX purge / propellant, worst point in burn [%]",126.0
+LOX purge meets max propellant flow,yes
+Fuel purge path CdA [mm2],1.77
 Fuel max propellant volumetric flow [L/s],0.555
-Fuel purge flow at that moment [L/s],0.342
-Fuel purge / propellant at peak [%],61.7
-Fuel feed pressure at peak [psia],388.0
-"Fuel purge / propellant, worst point in burn [%]",61.7
-Fuel purge meets max propellant flow,NO
-Both purges at once vs regulator capacity [%],20.5
+Fuel purge flow at that moment [L/s],0.572
+Fuel purge / propellant at peak [%],103.1
+Fuel feed pressure at peak [psia],377.2
+"Fuel purge / propellant, worst point in burn [%]",103.0
+Fuel purge meets max propellant flow,yes
+Both purges at once vs regulator capacity [%],31.8

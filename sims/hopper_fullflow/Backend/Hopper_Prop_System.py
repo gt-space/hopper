@@ -32,7 +32,7 @@ Not modelled
 Sensors, the torch spark and torch combustion, the ground-side quick
 disconnects (PRQD, OQD, FQD), the oxygen diffuser and line priming. The feed lines start full of liquid, as in
 vehicle_sim.py. Propellant reaching the chamber is assumed to ignite at once.
-Every modelling assumption is listed in ASSUMPTIONS.txt.
+Key modelling assumptions are listed in ASSUMPTIONS.txt.
 """
 
 from functools import lru_cache

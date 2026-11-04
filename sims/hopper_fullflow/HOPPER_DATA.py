@@ -137,7 +137,7 @@ LOX_PRESSURANT_LEG = [
     GasLine("LOX Pressurant Line", inner_diameter=4.92 * milli, length=1.0, #meter, EDIT
             roughness=TUBE_ROUGHNESS, outlet_node="OBB Inlet"),
     BangBangValve("OBB", cda=18.68 * milli**2),
-    Orifice("OR-1", cda=2 * 1.02 * milli**2),              #EDIT
+    Orifice("OR-1", cda=7.0 * milli**2),                   #EDIT (user, 2026-11-03; was 2.04 from vehicle_sim)
     CheckValve("PROCK", cda=12.0 * milli**2),              #EDIT
 ]
 
@@ -145,7 +145,7 @@ FUEL_PRESSURANT_LEG = [
     GasLine("Fuel Pressurant Line", inner_diameter=4.92 * milli, length=1.0, #meter, EDIT
             roughness=TUBE_ROUGHNESS, outlet_node="FBB Inlet"),
     BangBangValve("FBB", cda=18.68 * milli**2),             
-    Orifice("OR-2", cda=1.02 * milli**2),                   #EDIT
+    Orifice("OR-2", cda=3.0 * milli**2),                    #EDIT (user, 2026-11-03; was 1.02 from vehicle_sim)
     CheckValve("PRFCK", cda=12.0 * milli**2),               #EDIT
 ]
 
@@ -156,8 +156,8 @@ FUEL_PRESSURANT_LEG = [
 # ---- FEED LINES (tank liquid -> ... -> main chamber) ---- #
 # =========================================================================== #
 THROTTLE_VALVE_MAX_CDA = 50.0 * milli**2   #EDIT OTV / FTV full-open CdA (user, 2026-11-03)
-LOX_TUBE_ID = tube_id(3 / 8 * inch, 0.028 * inch)    # EDIT mm
-FUEL_TUBE_ID = tube_id(3 / 8 * inch, 0.028 * inch)   # EDIT 3/8 in (user, 2026-10-30; was 1/4 in from vehicle_sim), wall assumed 0.028 in
+LOX_TUBE_ID = tube_id(3 / 8 * inch, 0.01 * inch)     # EDIT 3/8 in x 0.01 in wall (user, 2026-11-03; 9.02 mm ID)
+FUEL_TUBE_ID = tube_id(3 / 8 * inch, 0.01 * inch)    # EDIT 3/8 in x 0.01 in wall (user, 2026-11-03; 9.02 mm ID; was 1/4 in from vehicle_sim)
 
 INJECTOR_PASSAGE_LENGTH = 0.01   # EDIT [m]
 REGEN_PASSAGE_LENGTH = 0.30      # EDIT [m] flow inertia of the regen channels. Needed: without it the solver
@@ -180,7 +180,7 @@ FUEL_FEED = [
                   full_scale_mass_flow=0.388, outlet_node="FTV Outlet"),
     Line("FTV to Regen Line", inner_diameter=FUEL_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
          outlet_node="Regen Inlet Manifold"),
-    Orifice("Regen Jacket", cda=25.0 * milli**2, length=REGEN_PASSAGE_LENGTH,   # EDIT
+    Orifice("Regen Jacket", cda=30.0 * milli**2, length=REGEN_PASSAGE_LENGTH,   # EDIT (user, 2026-11-03; was 25)
             outlet_node="Fuel Injector Manifold"),
     Injector("FINJ", cda=15.0 * milli**2, length=INJECTOR_PASSAGE_LENGTH),   #EDIT fuel manifold (user, 2026-10-30; was 10.6 from vehicle_sim)
 ]
