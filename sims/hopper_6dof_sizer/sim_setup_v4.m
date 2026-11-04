@@ -11,6 +11,8 @@ Trajectory2
 
 LQIDevR1();
 
+gainScheduling;
+
 %Baffle damping LUT: rerun generateBaffleLUT after changing tanks/baffles
 if ~isfile('baffle_lut.csv')
     generateBaffleLUT();
