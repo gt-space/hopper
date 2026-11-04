@@ -155,6 +155,7 @@ FUEL_PRESSURANT_LEG = [
 # =========================================================================== #
 # ---- FEED LINES (tank liquid -> ... -> main chamber) ---- #
 # =========================================================================== #
+THROTTLE_VALVE_MAX_CDA = 50.0 * milli**2   #EDIT OTV / FTV full-open CdA (user, 2026-11-03)
 LOX_TUBE_ID = tube_id(3 / 8 * inch, 0.028 * inch)    # EDIT mm
 FUEL_TUBE_ID = tube_id(3 / 8 * inch, 0.028 * inch)   # EDIT 3/8 in (user, 2026-10-30; was 1/4 in from vehicle_sim), wall assumed 0.028 in
 
@@ -165,7 +166,7 @@ REGEN_PASSAGE_LENGTH = 0.30      # EDIT [m] flow inertia of the regen channels. 
 LOX_FEED = [
     Line("LOX Tank to OTV Line", inner_diameter=LOX_TUBE_ID, length=1.0, roughness=TUBE_ROUGHNESS,
          outlet_node="OTV Inlet"),
-    ThrottleValve("OTV", max_cda=0.9 * tube_area(LOX_TUBE_ID),          #EDIT
+    ThrottleValve("OTV", max_cda=THROTTLE_VALVE_MAX_CDA,
                   full_scale_mass_flow=0.777, outlet_node="OTV Outlet"),  
     Line("OTV to LOX Injector Line", inner_diameter=LOX_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
          outlet_node="LOX Injector Manifold"),
@@ -175,7 +176,7 @@ LOX_FEED = [
 FUEL_FEED = [
     Line("Fuel Tank to FTV Line", inner_diameter=FUEL_TUBE_ID, length=0.3048, roughness=TUBE_ROUGHNESS,
          outlet_node="FTV Inlet"),
-    ThrottleValve("FTV", max_cda=0.9 * tube_area(FUEL_TUBE_ID),         # EDIT: 90 % of tube area (46.4 mm^2 at 3/8 in)
+    ThrottleValve("FTV", max_cda=THROTTLE_VALVE_MAX_CDA,
                   full_scale_mass_flow=0.388, outlet_node="FTV Outlet"),
     Line("FTV to Regen Line", inner_diameter=FUEL_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
          outlet_node="Regen Inlet Manifold"),
@@ -234,12 +235,12 @@ BRANCHES = [
     # GN2 engine purges, fed from PR-REG
     Branch("LOX Purge", "PR-REG Outlet", [
         GasLine("LOX Purge Line", inner_diameter=PURGE_TUBE_ID, length=1.0, roughness=TUBE_ROUGHNESS),   #EDIT GUESS length
-        Valve("OPV", cda=PURGE_VALVE_CDA, schedule=CLOSED),           # 2 mm2 purge solenoid (user, shared spec)
+        Valve("OPV", cda=PURGE_VALVE_CDA, schedule=CLOSED),           # 1.86 mm2 purge solenoid (user, shared spec)
         CheckValve("CV-5", cda=PURGE_CHECK_CDA)],                      # GUESS Cv ~0.5 check (shared spec)
         sink="OTV Outlet"),                                           # P&ID: joins the LOX line below OTV
     Branch("Fuel Purge", "PR-REG Outlet", [
         GasLine("Fuel Purge Line", inner_diameter=PURGE_TUBE_ID, length=1.0, roughness=TUBE_ROUGHNESS),  #EDIT GUESS length
-        Valve("FPV", cda=PURGE_VALVE_CDA, schedule=CLOSED),           # 2 mm2 purge solenoid (user, shared spec)
+        Valve("FPV", cda=PURGE_VALVE_CDA, schedule=CLOSED),           # 1.86 mm2 purge solenoid (user, shared spec)
         CheckValve("CV-4", cda=PURGE_CHECK_CDA)],                      # GUESS Cv ~0.5 check (shared spec)
         sink="FTV Outlet"),                                           # P&ID: joins the fuel line below FTV
     Branch("Torch Fuel Purge", "PR-REG Outlet", [
@@ -305,7 +306,7 @@ DRAIN_MAX_TIME = 3600.0                   # [s]
 # Tank pressure sweep (isolated_sims/Hopper_Tank_Pressure_Sweep.py): the throttle-valve
 # CdA each tank set pressure needs to fly every point of the thrust profile (steady state).
 TANK_SWEEP_PRESSURES = [p * psi for p in range(380, 555, 5)]   # [Pa abs] tank set pressures swept
-TANK_SWEEP_VALVE_CDA = 21.0 * milli**2    #EDIT [m^2] throttle valve full-open CdA under consideration
+TANK_SWEEP_VALVE_CDA = THROTTLE_VALVE_MAX_CDA   # [m^2] throttle valve full-open CdA
 TANK_SWEEP_VALVE_MARGIN = 0.80            #EDIT design limit: valve at most this fraction of full open
 
 # P&ID hardware with no flow path in a burn: in the component table and schematic only.

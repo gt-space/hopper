@@ -12,23 +12,23 @@
 | Fuel pressurant leg | OR-2 | Orifice | 1.02 |  | EDIT |
 | Fuel pressurant leg | PRFCK | Check valve | 12.00 |  | EDIT |
 | LOX feed | LOX Tank to OTV Line | Line |  | ID 8.10 mm, L 1.000 m |  |
-| LOX feed | OTV | Throttle valve | 46.41 | max CdA; CdA set to hit the flow target | EDIT |
+| LOX feed | OTV | Throttle valve | 50.00 | max CdA; CdA set to hit the flow target |  |
 | LOX feed | OTV to LOX Injector Line | Line |  | ID 8.10 mm, L 0.203 m |  |
 | LOX feed | OINJ | Injector | 16.60 | passage length 0.010 m | EDIT LOX stem (user, 2026-10-30; was 15.3 from vehicle_sim) |
 | Fuel feed | Fuel Tank to FTV Line | Line |  | ID 8.10 mm, L 0.305 m |  |
-| Fuel feed | FTV | Throttle valve | 46.41 | max CdA; CdA set to hit the flow target | EDIT: 90 % of tube area (46.4 mm^2 at 3/8 in) |
+| Fuel feed | FTV | Throttle valve | 50.00 | max CdA; CdA set to hit the flow target |  |
 | Fuel feed | FTV to Regen Line | Line |  | ID 8.10 mm, L 0.203 m |  |
 | Fuel feed | Regen Jacket | Orifice | 25.00 | passage length 0.300 m | EDIT |
 | Fuel feed | FINJ | Injector | 15.00 | passage length 0.010 m | EDIT fuel manifold (user, 2026-10-30; was 10.6 from vehicle_sim) |
-| COPV side path | PR-REG | Regulator | 5.00 | ideal, set 500 psig | EDIT GUESS: not in sheet |
+| COPV side path | PR-REG | Regulator | 5.00 | ideal, set 750 psig | EDIT set: lowest that lets both purges match peak propellant flow at COPV end of life (2026-10-31); CdA GUESS |
 | PRVNT Vent: COPV -> ambient | PRVNT | Valve | 1.07 | closed all run | Marotta PLV34 (info); 1x PLV34 = 1.07 mm^2 (sheet FRV tab) |
 | PRRV Relief: COPV -> ambient | PRRV | Relief valve | 5.00 | crack 4950 psig, full open 5445 psig | EDIT GUESS: Swagelok SS-4R3A (info), sheet tab empty |
-| ORV-1 Relief: PR-REG Outlet -> ambient | ORV-1 | Relief valve | 2.00 | crack 600 psig, full open 660 psig | EDIT GUESS |
+| ORV-1 Relief: PR-REG Outlet -> ambient | ORV-1 | Relief valve | 2.00 | crack 825 psig, full open 908 psig | EDIT GUESS: 10 % above PR-REG set |
 | LOX Purge: PR-REG Outlet -> OTV Outlet | LOX Purge Line | Gas line | 7.58 | ID 4.93 mm, L 1.000 m; lumped (fully rough) | EDIT GUESS length |
-| LOX Purge: PR-REG Outlet -> OTV Outlet | OPV | Valve | 2.00 | closed all run | 2 mm2 purge solenoid (user, shared spec) |
+| LOX Purge: PR-REG Outlet -> OTV Outlet | OPV | Valve | 1.86 | closed all run | 1.86 mm2 purge solenoid (user, shared spec) |
 | LOX Purge: PR-REG Outlet -> OTV Outlet | CV-5 | Check valve | 8.50 |  | GUESS Cv ~0.5 check (shared spec) |
 | Fuel Purge: PR-REG Outlet -> FTV Outlet | Fuel Purge Line | Gas line | 7.58 | ID 4.93 mm, L 1.000 m; lumped (fully rough) | EDIT GUESS length |
-| Fuel Purge: PR-REG Outlet -> FTV Outlet | FPV | Valve | 2.00 | closed all run | 2 mm2 purge solenoid (user, shared spec) |
+| Fuel Purge: PR-REG Outlet -> FTV Outlet | FPV | Valve | 1.86 | closed all run | 1.86 mm2 purge solenoid (user, shared spec) |
 | Fuel Purge: PR-REG Outlet -> FTV Outlet | CV-4 | Check valve | 8.50 |  | GUESS Cv ~0.5 check (shared spec) |
 | Torch Fuel Purge: PR-REG Outlet -> Main Chamber | TFPV | Valve | 2.00 | closed all run | EDIT GUESS CdA |
 | Torch Fuel Purge: PR-REG Outlet -> Main Chamber | CV-3 | Check valve | 5.00 |  | EDIT GUESS CdA |

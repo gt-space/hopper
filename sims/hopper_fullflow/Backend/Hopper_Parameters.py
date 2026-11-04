@@ -52,7 +52,7 @@ ASSUMPTIONS = [
     ("Gas restrictions", "FullFlow CompressibleOrifice (choked / subcritical) with the upstream real-gas R and gamma."),
     ("Liquid lines", "FullFlow DarcyWeisbach with flow inertia and Churchill friction; junctions have no volume."),
     ("Throttle valves", "OTV / FTV are ideal flow controllers: their CdA is solved to pass the thrust-target flow, "
-                        "capped at their max CdA. Valve dynamics are a 0.01 s travel between profile steps."),
+                        "capped at their 50 mm2 max CdA. They move between profile points at the GNC 180 lbf/s slew limit."),
     ("Engine", "Equilibrium combustion map in (Pc, MR) times c* and Cf efficiencies that ramp linearly with Pc "
                "(c* 0.80 at 100 psia to 0.85 at 300 psia, Cf 0.94 at 100 to 0.97 at 250, flat outside; Luca's "
                "parameters, clamped instead of his max(1, ...)). In the transient each efficiency is taken at the "
@@ -66,7 +66,7 @@ ASSUMPTIONS = [
                          "steps through both ramps."),
     ("Bang-bang", "Each tank's solenoid closes above set + upper and opens below set - lower, sampled once per "
                   "accepted time step (0.05 s), so pressure overshoots the band slightly."),
-    ("Regulator", "PR-REG is ideal: outlet = min(COPV, set) at the COPV gas temperature, no droop or lock-up."),
+    ("Regulator", "PR-REG is ideal: outlet = min(COPV, ambient + 750 psig) at the COPV gas temperature, no droop or lock-up."),
     ("Purges", "Purge GN2 is drawn from the COPV; OPV joins the LOX line below OTV, FPV the fuel line below FTV, "
                "TFPV the torch fuel line (P&ID). The gas only sees that back pressure; it is not added to the "
                "line or chamber flow. All purges are closed during the nominal burn."),
@@ -91,12 +91,12 @@ OPEN_ITEMS = [
     ("ORV sizing", "RegO PRV9432T550 has a 0.062 in orifice (about 1.95 mm2 geometric); the sheet requires "
                    "30.8 mm2 CdA (20.5 mm2 minimum). The chosen part looks undersized; check the RegO flow table."),
     ("FRV set pressure", "Sheet FRV tab says 525 psi; the part (PRV9432T550) is 550 psig. Model uses 550."),
-    ("OVNT vent time", "With the Jaksa 9.4 mm2, an empty LOX tank takes about 64 s to vent from 505 psia to 1 psig "
-                       "(requirement 60 s; sheet target CdA 14.1 mm2)."),
+    ("OVNT vent time", "With the Jaksa 9.4 mm2, an empty 15.867 L LOX tank takes about 51 s to vent from 505 psia to "
+                       "1 psig (requirement 60 s)."),
     ("Start-up tank spike", "Both tanks start at set pressure with the bang-bang solenoid open, so the first step "
-                            "overshoots to about 517-520 psia. Start with bang_bang_initial_state = 0?"),
-    ("Propellant residuals", "The 1dof curve uses about 10.8 kg LOX and 6.0 kg fuel of 19.43 / 9.7 kg loaded "
-                             "(44 % / 38 % left). Are the loads or the curve out of date?"),
+                            "overshoots to about 530 psia. Start with bang_bang_initial_state = 0?"),
+    ("Propellant residuals", "The 52 m profile uses about 13.7 kg LOX and 11.0 kg fuel of 16.0 / 13.0 kg loaded "
+                             "(14 % / 16 % left, tank only; line hold-up not counted)."),
     ("Vendor flow data", "No published Cv found for Marotta PLV34, Swagelok SS-4R3A, Check-All BUDSSTF.125SS or the "
                          "UNOX 3/8 NO solenoid. Need datasheets or flow tests."),
     ("LOX drain path", "Drain time uses only the OFD valve (9.4 mm2). OQD and the GSE drain line will slow it; add "

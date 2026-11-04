@@ -107,7 +107,7 @@ Outputs go to `Outputs/`:
     small FullFlow transient with the liquid head (`Hopper_Drain.py`);
   - `tank_pressure_sweep.csv` / `.png`: the throttle-valve CdA each tank set
     pressure needs to fly every point of the thrust profile, against the valve
-    under consideration (`TANK_SWEEP_VALVE_CDA`, 21 mm²) and a design margin
+    (`TANK_SWEEP_VALVE_CDA`, 50 mm²) and a design margin
     (`TANK_SWEEP_VALVE_MARGIN`, 80 % open); gives the lowest usable tank
     pressure (`Hopper_Tank_Pressure_Sweep.py`, steady state);
   - `purge_flow.csv` / `.png`: whether the LOX and fuel GN2 purges (PR-REG,
