@@ -1,30 +1,54 @@
 """Run the Hopper vehicle fluids model.
 
-Every input, including these run settings, is in HOPPER_DATA.py.
+Every user input is in hopper_config.json; HOPPER_DATA.py is a loader adapter.
 
-How it runs:
-  1. Builds a property lookup table for the propellants and their mixtures (HopperChamberMap).
+Steps, each switchable in the JSON configuration:
+  1. Chamber map: build Hopper_Chamber_Map.h5 if asked to or if it is missing.
   2. Thrust targets: Pc and propellant flows for every thrust-profile point.
   3. Prop system: the FullFlow transient of the whole vehicle P&ID.
   4. Results: CSVs (vehicle_sim.py formats) and the plots listed in PROP_PLOTS
      in PROP_RESULTS_DIRECTORY.
-  5. Report (PROP_REPORT): run_summary.csv (burn time, residuals, COPV use,
-     margins, thrust checks), cda_table.csv (OTV/FTV CdA per thrust point),
-     vent_times.csv, lox_drain_times.csv, tank_pressure_sweep.csv/.png, purge_flow.csv/.png, component_table.csv/.md, schematic.png and
-     Hopper_Parameters.xlsx.
 
+Run from this folder:  python Hopper.py
+Plots can also be made later from the saved results without re-running:
+  python Hopper_Plots.py list                      (everything that can be plotted)
+  python Hopper_Plots.py plot ox_ladder engine     (named plots)
+  python Hopper_Plots.py nodes "LOX Tank" COPV     (any nodes, elements, tracks...)
 """
 
 import os
+import argparse
 import time
+import json
+
+run_started = time.perf_counter()
 
 import matplotlib
 
+parser = argparse.ArgumentParser(description='Run Hopper from a JSON configuration.')
+parser.add_argument('--config', help='JSON input file (default: hopper_config.json or HOPPER_CONFIG).')
+parser.add_argument('--results-only', action='store_true', help='Export an existing history; use its archived run_config.json.')
+args = parser.parse_args()
+if args.config:
+    os.environ['HOPPER_CONFIG'] = args.config
+import HOPPER_DATA as data
+if args.results_only:
+    data.PROP_SOLVE_PROP_SYSTEM = False
+if data.PROP_SOLVE_PROP_SYSTEM:
+    for tank in (data.LOX_TANK, data.FUEL_TANK):
+        print(f"{tank.name}: initial {tank.pressure / data.psi:g} psia, "
+              f"setpoint {tank.set_pressure / data.psi:g} psia "
+              f"(-{tank.lower_limit / data.psi:g}/+{tank.upper_limit / data.psi:g} psi).", flush=True)
+from Hopper_Run_Config import prepare_run, write_resolved
+if data.PROP_SOLVE_PROP_SYSTEM:
+    prepare_run(data)
 from HOPPER_DATA import *
-from Backend.Hopper_Chamber_Map import HopperChamberMap
-from Backend.Hopper_Thrust_Targeter import HopperThrustTargets
-from Backend.Hopper_Prop_System import HopperPropSystem
-from Backend.Hopper_Export import ExportEngineTargets, ExportActualPerformance
+from Hopper_Chamber_Map import HopperChamberMap
+from Hopper_Thrust_Targeter import HopperThrustTargets
+from Hopper_Prop_System import HopperPropSystem
+from Hopper_Export import ExportEngineTargets, ExportActualPerformance
+from Hopper_Report import export_summary, read_metadata
+from Hopper_Diagram import hardware_diagram
 
 
 
@@ -33,7 +57,7 @@ from Backend.Hopper_Export import ExportEngineTargets, ExportActualPerformance
 if not PROP_SHOW_PLOTS:
     matplotlib.use("Agg")
 
-from Backend.Hopper_Plots import HopperRun, make_plots
+from Hopper_Plots import HopperRun, make_plots
 
 
 
@@ -44,6 +68,9 @@ if PROP_GENERATE_CHAMBER_MAP or not os.path.exists(CHAMBER_MAP_FILENAME):
     print("Generating chamber Pc/MR map...")
 
     HopperChamberMap(filename=CHAMBER_MAP_FILENAME)
+
+if PROP_SOLVE_PROP_SYSTEM:
+    write_resolved(data)
 
 
 
@@ -58,6 +85,8 @@ targets = HopperThrustTargets(
 )
 
 os.makedirs(PROP_RESULTS_DIRECTORY, exist_ok=True)
+if PROP_COMPONENT_DIAGRAM:
+    hardware_diagram(PROP_RESULTS_DIRECTORY)
 ExportEngineTargets(targets, os.path.join(PROP_RESULTS_DIRECTORY, "engine_targets.csv"))
 
 
@@ -84,6 +113,12 @@ if PROP_SOLVE_PROP_SYSTEM:
 
     print(f"Propulsion system solved in {time.perf_counter() - start:.1f} s.")
 
+if PROP_SOLVE_PROP_SYSTEM or PROP_EXPORT_RESULTS:
+    if read_metadata(PROP_FILENAME) is not None:
+        export_summary(PROP_FILENAME, PROP_RESULTS_DIRECTORY)
+    else:
+        print("Saved run predates summary metadata; rerun to obtain maximum-thrust and residual reports.")
+
 
 
 
@@ -105,24 +140,8 @@ if PROP_EXPORT_RESULTS:
 
     print(f"Results written to {PROP_RESULTS_DIRECTORY}/")
 
-
-
-
-# ---- Report ---- #
-if PROP_REPORT:
-
-    print("Writing report...")
-
-    from Backend.Hopper_Report import write_report
-    from Backend.Hopper_Hardware import write_table
-    from Backend.Hopper_Schematic import draw
-    from Backend.Hopper_Parameters import write_workbook
-
-    summary = write_report(PROP_FILENAME, targets, PROP_RESULTS_DIRECTORY)
-    write_table(PROP_RESULTS_DIRECTORY)
-    draw(os.path.join(PROP_RESULTS_DIRECTORY, "schematic.png"))
-    write_workbook(PROP_RESULTS_DIRECTORY)
-
-    width = max(map(len, summary))
-    for key, value in summary.items():
-        print(f"  {key:<{width}}  {value}")
+if PROP_SOLVE_PROP_SYSTEM:
+    elapsed = time.perf_counter() - run_started
+    with open(os.path.join(PROP_RESULTS_DIRECTORY, 'run_timing.json'), 'w', encoding='utf-8') as stream:
+        json.dump({'total_wall_time_s': elapsed}, stream, indent=2)
+    print(f"Complete run including setup, solve, and outputs: {elapsed:.1f} s ({elapsed / 60:.2f} min).")

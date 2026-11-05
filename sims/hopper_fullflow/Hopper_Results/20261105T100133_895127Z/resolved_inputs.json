@@ -1,0 +1,657 @@
+{
+  "source_config": "C:\\Users\\vedan\\hopper\\sims\\hopper_fullflow\\hopper_config.json",
+  "config": {
+    "schema_version": 1,
+    "description": "Hopper FullFlow inputs. Unit suffixes are authoritative; pressures are absolute unless a difference. Paths are relative to this file. Null tube OD/wall means unmeasured; ID is then required. Ullage collapse uses radius and ullage_htc, not an empirical mass multiplier.",
+    "simulation": {
+      "maximum_step_s": 0.05,
+      "nonlinear_max_evaluations": 20,
+      "save_interval_s": 0.05,
+      "residual_tolerance": 1e-06,
+      "jacobian_method": "2-point",
+      "verbose": false,
+      "statistics": true,
+      "solve": true,
+      "rebuild_chamber_map": false
+    },
+    "files": {
+      "chamber_map": "inputs/chamber_map.h5",
+      "history": "Hopper_Prop_System.h5",
+      "results_directory": "."
+    },
+    "outputs": {
+      "export_results": true,
+      "plots": "all",
+      "plot_units": "E",
+      "plot_csv": false,
+      "profile_time": false,
+      "show_plots": false,
+      "component_diagram": true,
+      "station_times_s": null,
+      "nozzle_separation_ratio": 0.4
+    },
+    "fluids": {
+      "oxidizer": "LOX",
+      "fuel": "RP-1",
+      "pressurant": "Nitrogen",
+      "ambient_pressure_psia": 14.8
+    },
+    "sequence": {
+      "main_valve_start_s": 0.3,
+      "demand_ramp_s": 0.2,
+      "step_smoothing_s": 0.01,
+      "tail_off_s": 0.3
+    },
+    "numerics": {
+      "mixture_ratio_flow_floor_kg_s": 0.0001,
+      "nozzle_linear_pressure_drop_psi": 0.5,
+      "regen_temperature_points": 101,
+      "controller_steps_per_period": 2,
+      "valve_steps_per_stroke": 10
+    },
+    "engine": {
+      "mixture_ratio": 1.25,
+      "throat_area_in2": 1.0420050840101682,
+      "exit_area_in2": 3.651185814371629,
+      "nominal_chamber_pressure_psia": 300.0,
+      "cstar_efficiency": {
+        "mode": "linear",
+        "low": 0.8,
+        "high": 0.85,
+        "pc_low_psia": 100.0,
+        "pc_span_psi": 200.0,
+        "csv": null
+      },
+      "cf_efficiency": {
+        "mode": "linear",
+        "low": 0.94,
+        "high": 0.97,
+        "pc_low_psia": 100.0,
+        "pc_span_psi": 150.0,
+        "csv": null
+      }
+    },
+    "chamber_map": {
+      "pressure_min_psia": 10.0,
+      "pressure_max_psia": 610.0,
+      "pressure_points": 31,
+      "mixture_ratio_min": 0.5,
+      "mixture_ratio_max": 4.0,
+      "mixture_ratio_points": 36
+    },
+    "pressurization": {
+      "controller_period_s": 0.01,
+      "header_volume_l": 0.05
+    },
+    "maximum_thrust": {
+      "sustained_duration_s": 0.5,
+      "tracking_tolerance_fraction": 0.02
+    },
+    "thrust_profile": {
+      "selected": "ramp",
+      "interpolation": "linear",
+      "ramp": {
+        "start_lbf": 100.0,
+        "end_lbf": 600.0,
+        "duration_s": 4.0,
+        "points": 40
+      },
+      "profiles": {
+        "1dof": {
+          "time_s_thrust_n": [
+            [
+              0.0,
+              1115.9
+            ],
+            [
+              0.1,
+              1176.9
+            ],
+            [
+              0.3,
+              1238.0
+            ],
+            [
+              0.6,
+              1309.1
+            ],
+            [
+              1.0,
+              1365.7
+            ],
+            [
+              1.6,
+              1382.5
+            ],
+            [
+              2.5,
+              1347.9
+            ],
+            [
+              3.5,
+              1276.7
+            ],
+            [
+              4.5,
+              1209.9
+            ],
+            [
+              5.5,
+              1007.4
+            ],
+            [
+              6.5,
+              890.0
+            ],
+            [
+              7.5,
+              890.0
+            ],
+            [
+              8.5,
+              890.0
+            ],
+            [
+              9.5,
+              890.0
+            ],
+            [
+              10.5,
+              970.4
+            ],
+            [
+              11.5,
+              1015.4
+            ],
+            [
+              12.5,
+              1034.7
+            ],
+            [
+              13.5,
+              1040.9
+            ],
+            [
+              14.5,
+              1040.6
+            ],
+            [
+              15.5,
+              896.9
+            ],
+            [
+              16.3,
+              890.0
+            ],
+            [
+              17.3,
+              890.0
+            ],
+            [
+              18.3,
+              890.0
+            ],
+            [
+              19.3,
+              890.0
+            ],
+            [
+              20.3,
+              890.0
+            ],
+            [
+              21.3,
+              890.0
+            ],
+            [
+              21.8,
+              1074.1
+            ],
+            [
+              22.4,
+              1213.5
+            ],
+            [
+              23.1,
+              1218.3
+            ],
+            [
+              24.1,
+              1172.4
+            ],
+            [
+              25.1,
+              1115.0
+            ],
+            [
+              26.1,
+              1066.2
+            ],
+            [
+              27.1,
+              1030.0
+            ],
+            [
+              28.1,
+              1004.8
+            ],
+            [
+              29.1,
+              987.6
+            ],
+            [
+              29.7,
+              979.9
+            ]
+          ]
+        }
+      }
+    },
+    "bottles": [
+      {
+        "type": "COPVSource",
+        "name": "COPV 1",
+        "volume_l": 9.0,
+        "pressure_psia": 4503.2,
+        "temperature_k": 293.0,
+        "minimum_temperature_k": 220,
+        "outlet_cda_mm2": 100.0
+      },
+      {
+        "type": "COPVSource",
+        "name": "COPV 2",
+        "volume_l": 9.0,
+        "pressure_psia": 4503.2,
+        "temperature_k": 293.0,
+        "minimum_temperature_k": 220,
+        "outlet_cda_mm2": 100.0
+      }
+    ],
+    "tanks": {
+      "oxidizer": {
+        "type": "Tank",
+        "name": "LOX Tank",
+        "propellant": "LOX",
+        "volume_l": 20.0,
+        "liquid_mass_kg": 19.43,
+        "liquid_temperature_k": 90.0,
+        "pressure_psia": 500,
+        "ullage_temperature_k": 150.0,
+        "radius_in": 7.874015748031497,
+        "ullage_htc_w_m2_k": 500.0,
+        "set_pressure_psia": 500,
+        "deadband_high_psi": 5.0,
+        "deadband_low_psi": 5.0,
+        "bang_bang_initial_state": 1.0
+      },
+      "fuel": {
+        "type": "Tank",
+        "name": "Fuel Tank",
+        "propellant": "RP-1",
+        "volume_l": 16.0,
+        "liquid_mass_kg": 9.7,
+        "liquid_temperature_k": 293.0,
+        "pressure_psia": 500,
+        "ullage_temperature_k": 293.0,
+        "radius_in": 3.9370078740157486,
+        "ullage_htc_w_m2_k": 0.0,
+        "set_pressure_psia": 500,
+        "deadband_high_psi": 5.0,
+        "deadband_low_psi": 5.0,
+        "bang_bang_initial_state": 1.0
+      }
+    },
+    "flow_paths": {
+      "oxidizer_pressurant": [
+        {
+          "type": "GasLine",
+          "name": "LOX Pressurant Line",
+          "inner_diameter_in": null,
+          "length_in": 48,
+          "roughness_in": 0.0005905511811023622,
+          "inertia": false,
+          "outlet_node": "OBB Inlet",
+          "outer_diameter_in": 0.25,
+          "wall_thickness_in": 0.035
+        },
+        {
+          "type": "BangBangValve",
+          "name": "OBB",
+          "cda_mm2": 18.68,
+          "schedule": null,
+          "length_in": null,
+          "outlet_node": "OBB Outlet",
+          "open_time_s": 0.05,
+          "close_time_s": 0.05
+        },
+        {
+          "type": "Orifice",
+          "name": "OR-1",
+          "cda_mm2": 6.04,
+          "length_in": null,
+          "outlet_node": "OR-1 Outlet"
+        },
+        {
+          "type": "CheckValve",
+          "name": "PROCK",
+          "cda_mm2": 12.0,
+          "schedule": null,
+          "length_in": null,
+          "outlet_node": "PROCK Outlet",
+          "open_time_s": 0.0,
+          "close_time_s": 0.0
+        }
+      ],
+      "fuel_pressurant": [
+        {
+          "type": "GasLine",
+          "name": "Fuel Pressurant Line",
+          "inner_diameter_in": null,
+          "length_in": 48,
+          "roughness_in": 0.0005905511811023622,
+          "inertia": false,
+          "outlet_node": "FBB Inlet",
+          "outer_diameter_in": 0.25,
+          "wall_thickness_in": 0.035
+        },
+        {
+          "type": "BangBangValve",
+          "name": "FBB",
+          "cda_mm2": 18.68,
+          "schedule": null,
+          "length_in": null,
+          "outlet_node": "FBB Outlet",
+          "open_time_s": 0.05,
+          "close_time_s": 0.05
+        },
+        {
+          "type": "Orifice",
+          "name": "OR-2",
+          "cda_mm2": 6.02,
+          "length_in": null,
+          "outlet_node": "OR-2 Outlet"
+        },
+        {
+          "type": "CheckValve",
+          "name": "PRFCK",
+          "cda_mm2": 12.0,
+          "schedule": null,
+          "length_in": null,
+          "outlet_node": "PRFCK Outlet",
+          "open_time_s": 0.0,
+          "close_time_s": 0.0
+        }
+      ],
+      "oxidizer_feed": [
+        {
+          "type": "Line",
+          "name": "LOX Tank to OTV Line",
+          "inner_diameter_in": null,
+          "length_in": 48,
+          "roughness_in": 0.0005905511811023622,
+          "height_change_in": 0,
+          "outlet_node": "OTV Inlet",
+          "outer_diameter_in": 0.375,
+          "wall_thickness_in": 0.035
+        },
+        {
+          "type": "ThrottleValve",
+          "name": "OTV",
+          "max_cda_mm2": 42.422816918740246,
+          "full_scale_mass_flow_kg_s": 0.777,
+          "outlet_node": "OTV Outlet",
+          "open_time_s": 0.2,
+          "close_time_s": 0.2
+        },
+        {
+          "type": "Line",
+          "name": "OTV to LOX Injector Line",
+          "inner_diameter_in": null,
+          "length_in": 10.0,
+          "roughness_in": 0.0005905511811023622,
+          "height_change_in": 0.0,
+          "outlet_node": "LOX Injector Manifold",
+          "outer_diameter_in": 0.375,
+          "wall_thickness_in": 0.035
+        },
+        {
+          "type": "Injector",
+          "name": "OINJ",
+          "cda_mm2": 15.3,
+          "length_in": 0.3937007874015748,
+          "outlet_node": "OINJ Outlet"
+        }
+      ],
+      "fuel_feed": [
+        {
+          "type": "Line",
+          "name": "Fuel Tank to FTV Line",
+          "inner_diameter_in": null,
+          "length_in": 12.0,
+          "roughness_in": 0.0005905511811023622,
+          "height_change_in": 0.0,
+          "outlet_node": "FTV Inlet",
+          "outer_diameter_in": 0.375,
+          "wall_thickness_in": 0.035
+        },
+        {
+          "type": "ThrottleValve",
+          "name": "FTV",
+          "max_cda_mm2": 42.422816918740246,
+          "full_scale_mass_flow_kg_s": 0.388,
+          "outlet_node": "FTV Outlet",
+          "open_time_s": 0.2,
+          "close_time_s": 0.2
+        },
+        {
+          "type": "Line",
+          "name": "FTV to Regen Line",
+          "inner_diameter_in": null,
+          "length_in": 12,
+          "roughness_in": 0.0005905511811023622,
+          "height_change_in": 0.0,
+          "outlet_node": "Regen Inlet Manifold",
+          "outer_diameter_in": 0.375,
+          "wall_thickness_in": 0.035
+        },
+        {
+          "type": "Regen",
+          "name": "Regen Jacket",
+          "cda_mm2": 25.0,
+          "pc_psia_delta_t_k": [
+            [
+              150,
+              51
+            ],
+            [
+              300,
+              44
+            ]
+          ],
+          "length_in": 11.811023622047244,
+          "outlet_node": "Fuel Injector Manifold"
+        },
+        {
+          "type": "Injector",
+          "name": "FINJ",
+          "cda_mm2": 10.6,
+          "length_in": 0.3937007874015748,
+          "outlet_node": "FINJ Outlet"
+        }
+      ]
+    }
+  },
+  "derived": {
+    "throat_diameter_in": 1.1518342236523587,
+    "expansion_ratio": 3.5039999999999996,
+    "integration_step_cap_s": 0.005,
+    "selected_profile_time_s_thrust_n": [
+      [
+        0.0,
+        444.82216152604997
+      ],
+      [
+        0.10256410256410256,
+        501.8506437729794
+      ],
+      [
+        0.20512820512820512,
+        558.8791260199089
+      ],
+      [
+        0.3076923076923077,
+        615.9076082668385
+      ],
+      [
+        0.41025641025641024,
+        672.9360905137679
+      ],
+      [
+        0.5128205128205128,
+        729.9645727606974
+      ],
+      [
+        0.6153846153846154,
+        786.9930550076269
+      ],
+      [
+        0.717948717948718,
+        844.0215372545564
+      ],
+      [
+        0.8205128205128205,
+        901.0500195014858
+      ],
+      [
+        0.923076923076923,
+        958.0785017484153
+      ],
+      [
+        1.0256410256410255,
+        1015.1069839953448
+      ],
+      [
+        1.1282051282051282,
+        1072.1354662422743
+      ],
+      [
+        1.2307692307692308,
+        1129.163948489204
+      ],
+      [
+        1.3333333333333333,
+        1186.1924307361332
+      ],
+      [
+        1.435897435897436,
+        1243.2209129830628
+      ],
+      [
+        1.5384615384615383,
+        1300.2493952299924
+      ],
+      [
+        1.641025641025641,
+        1357.2778774769217
+      ],
+      [
+        1.7435897435897436,
+        1414.306359723851
+      ],
+      [
+        1.846153846153846,
+        1471.3348419707806
+      ],
+      [
+        1.9487179487179487,
+        1528.3633242177102
+      ],
+      [
+        2.051282051282051,
+        1585.3918064646396
+      ],
+      [
+        2.1538461538461537,
+        1642.4202887115691
+      ],
+      [
+        2.2564102564102564,
+        1699.4487709584987
+      ],
+      [
+        2.358974358974359,
+        1756.477253205428
+      ],
+      [
+        2.4615384615384617,
+        1813.5057354523576
+      ],
+      [
+        2.564102564102564,
+        1870.5342176992872
+      ],
+      [
+        2.6666666666666665,
+        1927.5626999462165
+      ],
+      [
+        2.769230769230769,
+        1984.591182193146
+      ],
+      [
+        2.871794871794872,
+        2041.6196644400757
+      ],
+      [
+        2.9743589743589745,
+        2098.648146687005
+      ],
+      [
+        3.0769230769230766,
+        2155.676628933935
+      ],
+      [
+        3.1794871794871793,
+        2212.705111180864
+      ],
+      [
+        3.282051282051282,
+        2269.7335934277935
+      ],
+      [
+        3.3846153846153846,
+        2326.762075674723
+      ],
+      [
+        3.4871794871794872,
+        2383.790557921652
+      ],
+      [
+        3.5897435897435894,
+        2440.819040168582
+      ],
+      [
+        3.692307692307692,
+        2497.8475224155113
+      ],
+      [
+        3.7948717948717947,
+        2554.876004662441
+      ],
+      [
+        3.8974358974358974,
+        2611.9044869093705
+      ],
+      [
+        4.0,
+        2668.9329691563
+      ]
+    ],
+    "header_initial_pressure_pa": 31048471.042595763,
+    "header_initial_temperature_k": 293.0
+  },
+  "assets_sha256": {
+    "inputs\\chamber_map.h5": "128a320ce75cae8fe0b885814b52d288292ce8bd4ba84e6307b4e988db32c125",
+    "inputs/chamber_map.h5": "128a320ce75cae8fe0b885814b52d288292ce8bd4ba84e6307b4e988db32c125"
+  }
+}

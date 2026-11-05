@@ -1,0 +1,7 @@
+Profile: ramp
+Max thrust demonstrated for >= 0.5 s: 2050.3 N (460.9 lbf)
+Sustained valve saturation and thrust shortfall occurred; result applies to this run.
+LOX residual: 18.0204 kg (92.75 % initial); consumed 1.4096 kg
+Fuel residual: 8.6750 kg (89.43 % initial); consumed 1.0250 kg
+COPV 1: minimum 277.88 K; limit 220 K
+COPV 2: minimum 277.88 K; limit 220 K

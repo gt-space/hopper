@@ -1,0 +1,48 @@
+{
+  "profile": "ramp",
+  "hold_time_s": 0.5,
+  "demonstrated_maximum_N": 2050.304761412217,
+  "demonstrated_maximum_lbf": 460.9268464453846,
+  "interval_s": [
+    2.3,
+    2.799999999999997
+  ],
+  "peak_thrust_N": 2126.4808864121387,
+  "capacity_shortfall_demonstrated": true,
+  "interpretation": "Sustained valve saturation and thrust shortfall occurred; result applies to this run.",
+  "residuals": {
+    "LOX": {
+      "initial_kg": 19.43,
+      "profile_end_kg": 18.157388730278637,
+      "final_kg": 18.020393823267508,
+      "consumed_kg": 1.4096061767324919,
+      "remaining_percent": 92.74520753097019
+    },
+    "Fuel": {
+      "initial_kg": 9.7,
+      "profile_end_kg": 8.785459243845647,
+      "final_kg": 8.67504694281987,
+      "consumed_kg": 1.024953057180129,
+      "remaining_percent": 89.43347363731826
+    }
+  },
+  "copv_temperatures": [
+    {
+      "name": "COPV 1",
+      "minimum_observed_K": 277.88354122384794,
+      "limit_K": 220,
+      "violated": false,
+      "first_crossing_s": null
+    },
+    {
+      "name": "COPV 2",
+      "minimum_observed_K": 277.8835410686413,
+      "limit_K": 220,
+      "violated": false,
+      "first_crossing_s": null
+    }
+  ],
+  "invalid_inventory": false,
+  "profile_completed": true,
+  "excluded_profile_samples": 0
+}
