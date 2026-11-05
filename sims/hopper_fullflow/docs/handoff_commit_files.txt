@@ -1,0 +1,448 @@
+Hopper FullFlow — complete delivered-commit file manifest
+Prepared November 5, 2026. Companion: ../HANDOFF.md
+
+Scope: sims/hopper_fullflow only. Paths below are relative to repository root.
+A = added; M = modified; D = deleted; Rnnn = rename with similarity percentage.
+Rename rows contain old and new paths. Binary changes are included as paths.
+Each list is the complete change against that commit's own parent.
+The final replacement commit has a different parent from the feature branch;
+its remote-only removals are intentional. See HANDOFF.md for context.
+
+==============================================================================
+31d3aad81e48a9d8b0d32b3e5a20529d6382fba1
+748458d4fd8d242603099c8ef4dbecb258820654
+Add configurable Hopper propulsion dynamics and reporting
+50 files changed, 6508 insertions(+), 763 deletions(-)
+
+A	sims/hopper_fullflow/.gitignore
+A	sims/hopper_fullflow/DESIGN.md
+M	sims/hopper_fullflow/HOPPER_DATA.py
+M	sims/hopper_fullflow/Hopper.py
+M	sims/hopper_fullflow/Hopper_Components.py
+A	sims/hopper_fullflow/Hopper_Control.py
+A	sims/hopper_fullflow/Hopper_Diagram.py
+M	sims/hopper_fullflow/Hopper_Elements.py
+M	sims/hopper_fullflow/Hopper_Export.py
+A	sims/hopper_fullflow/Hopper_Inputs.py
+M	sims/hopper_fullflow/Hopper_Plots.py
+M	sims/hopper_fullflow/Hopper_Prop_System.py
+A	sims/hopper_fullflow/Hopper_Report.py
+M	sims/hopper_fullflow/Hopper_Results/actual_performance.csv
+A	sims/hopper_fullflow/Hopper_Results/component_diagram.png
+A	sims/hopper_fullflow/Hopper_Results/component_diagram.svg
+A	sims/hopper_fullflow/Hopper_Results/copv_temperatures.png
+M	sims/hopper_fullflow/Hopper_Results/engine.png
+M	sims/hopper_fullflow/Hopper_Results/engine_targets.csv
+M	sims/hopper_fullflow/Hopper_Results/exit_pressure.png
+M	sims/hopper_fullflow/Hopper_Results/feed_nodes.png
+M	sims/hopper_fullflow/Hopper_Results/fuel_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/fuel_pressurant_stations.csv
+A	sims/hopper_fullflow/Hopper_Results/fuel_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/fuel_pressure_stations.csv
+A	sims/hopper_fullflow/Hopper_Results/fuel_pressure_stations.png
+M	sims/hopper_fullflow/Hopper_Results/fuel_stations.png
+A	sims/hopper_fullflow/Hopper_Results/lox_pressurant_stations.csv
+A	sims/hopper_fullflow/Hopper_Results/lox_pressurant_stations.png
+M	sims/hopper_fullflow/Hopper_Results/nodes.png
+M	sims/hopper_fullflow/Hopper_Results/ox_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/ox_pressure_stations.csv
+A	sims/hopper_fullflow/Hopper_Results/ox_pressure_stations.png
+M	sims/hopper_fullflow/Hopper_Results/ox_stations.png
+M	sims/hopper_fullflow/Hopper_Results/pressurant_ladder.png
+M	sims/hopper_fullflow/Hopper_Results/pressurization.png
+A	sims/hopper_fullflow/Hopper_Results/propellant_residuals.csv
+A	sims/hopper_fullflow/Hopper_Results/regen.png
+A	sims/hopper_fullflow/Hopper_Results/run_summary.json
+A	sims/hopper_fullflow/Hopper_Results/run_summary.txt
+M	sims/hopper_fullflow/Hopper_Results/startup.png
+M	sims/hopper_fullflow/Hopper_Results/stiffness.png
+M	sims/hopper_fullflow/Hopper_Results/tank_states.png
+M	sims/hopper_fullflow/Hopper_Thrust_Targeter.py
+M	sims/hopper_fullflow/README.md
+A	sims/hopper_fullflow/inputs/cf_efficiency.example.csv
+A	sims/hopper_fullflow/inputs/cstar_efficiency.example.csv
+A	sims/hopper_fullflow/tests/check_integration.py
+A	sims/hopper_fullflow/tests/run_feature_validation.py
+A	sims/hopper_fullflow/tests/test_features.py
+
+==============================================================================
+9b85078b4dfe0477fbd2c2c84cf415641a790d8c
+31d3aad81e48a9d8b0d32b3e5a20529d6382fba1
+Move Hopper inputs to JSON and improve run diagnostics and solver retries
+143 files changed, 29203 insertions(+), 3883 deletions(-)
+
+M	sims/hopper_fullflow/DESIGN.md
+M	sims/hopper_fullflow/HOPPER_DATA.py
+M	sims/hopper_fullflow/Hopper.py
+A	sims/hopper_fullflow/Hopper_Config.py
+A	sims/hopper_fullflow/Hopper_Config_Fields.py
+M	sims/hopper_fullflow/Hopper_Diagram.py
+M	sims/hopper_fullflow/Hopper_Plots.py
+M	sims/hopper_fullflow/Hopper_Prop_System.py
+M	sims/hopper_fullflow/Hopper_Report.py
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/actual_performance.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/component_diagram.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/component_diagram.svg
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/copv_temperatures.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/engine.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/engine_targets.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/exit_pressure.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/feed_nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/fuel_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/fuel_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/fuel_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/fuel_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/input_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/inputs/chamber_map.h5
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/lox_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/ox_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/ox_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/ox_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/pressurant_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/pressurization.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/propellant_residuals.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/regen.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/resolved_inputs.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/run_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/run_summary.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/run_summary.txt
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/run_timing.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/startup.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/stiffness.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/tank_states.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/actual_performance.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/component_diagram.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/component_diagram.svg
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/copv_temperatures.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/engine.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/engine_targets.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/exit_pressure.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/feed_nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/fuel_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/fuel_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/fuel_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/fuel_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/input_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/inputs/chamber_map.h5
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/lox_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/ox_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/ox_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/ox_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/pressurant_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/pressurization.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/propellant_residuals.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/regen.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/resolved_inputs.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/run_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/run_summary.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/run_summary.txt
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/run_timing.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/startup.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/stiffness.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/tank_states.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/actual_performance.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/component_diagram.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/component_diagram.svg
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/copv_temperatures.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/engine.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/engine_targets.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/exit_pressure.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/feed_nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/fuel_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/fuel_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/fuel_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/fuel_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/input_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/inputs/chamber_map.h5
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/lox_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/ox_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/ox_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/ox_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/pressurant_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/pressurization.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/propellant_residuals.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/regen.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/resolved_inputs.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/run_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/run_summary.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/run_summary.txt
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/run_timing.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/startup.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/stiffness.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/tank_states.png
+M	sims/hopper_fullflow/Hopper_Results/actual_performance.csv
+M	sims/hopper_fullflow/Hopper_Results/component_diagram.png
+M	sims/hopper_fullflow/Hopper_Results/component_diagram.svg
+M	sims/hopper_fullflow/Hopper_Results/copv_temperatures.png
+M	sims/hopper_fullflow/Hopper_Results/engine.png
+M	sims/hopper_fullflow/Hopper_Results/engine_targets.csv
+M	sims/hopper_fullflow/Hopper_Results/exit_pressure.png
+A	sims/hopper_fullflow/Hopper_Results/feed_nodes.csv
+M	sims/hopper_fullflow/Hopper_Results/feed_nodes.png
+A	sims/hopper_fullflow/Hopper_Results/fuel_ladder.csv
+M	sims/hopper_fullflow/Hopper_Results/fuel_ladder.png
+M	sims/hopper_fullflow/Hopper_Results/fuel_pressurant_stations.png
+M	sims/hopper_fullflow/Hopper_Results/fuel_pressure_stations.png
+M	sims/hopper_fullflow/Hopper_Results/fuel_stations.png
+M	sims/hopper_fullflow/Hopper_Results/lox_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/nodes.csv
+M	sims/hopper_fullflow/Hopper_Results/nodes.png
+A	sims/hopper_fullflow/Hopper_Results/ox_ladder.csv
+M	sims/hopper_fullflow/Hopper_Results/ox_ladder.png
+M	sims/hopper_fullflow/Hopper_Results/ox_pressure_stations.png
+M	sims/hopper_fullflow/Hopper_Results/ox_stations.png
+A	sims/hopper_fullflow/Hopper_Results/pressurant_ladder.csv
+M	sims/hopper_fullflow/Hopper_Results/pressurant_ladder.png
+M	sims/hopper_fullflow/Hopper_Results/pressurization.png
+M	sims/hopper_fullflow/Hopper_Results/propellant_residuals.csv
+M	sims/hopper_fullflow/Hopper_Results/regen.png
+M	sims/hopper_fullflow/Hopper_Results/run_summary.json
+M	sims/hopper_fullflow/Hopper_Results/run_summary.txt
+M	sims/hopper_fullflow/Hopper_Results/startup.png
+M	sims/hopper_fullflow/Hopper_Results/stiffness.png
+M	sims/hopper_fullflow/Hopper_Results/tank_states.png
+A	sims/hopper_fullflow/Hopper_Run_Config.py
+A	sims/hopper_fullflow/Hopper_Solver.py
+M	sims/hopper_fullflow/README.md
+A	sims/hopper_fullflow/hopper_config.json
+A	sims/hopper_fullflow/run_hopper.sh
+M	sims/hopper_fullflow/tests/check_integration.py
+A	sims/hopper_fullflow/tests/test_config.py
+A	sims/hopper_fullflow/tests/test_solver.py
+A	sims/hopper_fullflow/thrust_profile_10m_tethered.csv
+A	sims/hopper_fullflow/thrust_profile_52m_free.csv
+
+==============================================================================
+996f850999e15ed25b5a0cc16f338024f860b419
+f23441ad2e8aeb06ef2752e80d2eb5d2dfd499d1
+Replace FullFlow with local JSON-configured simulator
+225 files changed, 28468 insertions(+), 5788 deletions(-)
+
+M	sims/hopper_fullflow/.gitignore
+D	sims/hopper_fullflow/.vscode/settings.json
+D	sims/hopper_fullflow/ASSUMPTIONS.txt
+D	sims/hopper_fullflow/Backend/Hopper_Components.py
+D	sims/hopper_fullflow/Backend/Hopper_Hardware.py
+D	sims/hopper_fullflow/Backend/Hopper_Inputs.py
+D	sims/hopper_fullflow/Backend/Hopper_Parameters.py
+D	sims/hopper_fullflow/Backend/Hopper_Report.py
+D	sims/hopper_fullflow/Backend/Hopper_Schematic.py
+D	sims/hopper_fullflow/Backend/__init__.py
+A	sims/hopper_fullflow/DESIGN.md
+M	sims/hopper_fullflow/HOPPER_DATA.py
+M	sims/hopper_fullflow/Hopper.py
+R100	sims/hopper_fullflow/Backend/Hopper_Chamber_Map.h5	sims/hopper_fullflow/Hopper_Chamber_Map.h5
+R100	sims/hopper_fullflow/Backend/Hopper_Chamber_Map.py	sims/hopper_fullflow/Hopper_Chamber_Map.py
+A	sims/hopper_fullflow/Hopper_Components.py
+A	sims/hopper_fullflow/Hopper_Config.py
+A	sims/hopper_fullflow/Hopper_Config_Fields.py
+A	sims/hopper_fullflow/Hopper_Control.py
+A	sims/hopper_fullflow/Hopper_Diagram.py
+R074	sims/hopper_fullflow/Backend/Hopper_Elements.py	sims/hopper_fullflow/Hopper_Elements.py
+R094	sims/hopper_fullflow/Backend/Hopper_Export.py	sims/hopper_fullflow/Hopper_Export.py
+A	sims/hopper_fullflow/Hopper_Inputs.py
+D	sims/hopper_fullflow/Hopper_MonteCarlo.py
+R082	sims/hopper_fullflow/Backend/Hopper_Plots.py	sims/hopper_fullflow/Hopper_Plots.py
+R066	sims/hopper_fullflow/Backend/Hopper_Prop_System.py	sims/hopper_fullflow/Hopper_Prop_System.py
+A	sims/hopper_fullflow/Hopper_Report.py
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/actual_performance.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/component_diagram.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/component_diagram.svg
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/copv_temperatures.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/engine.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/engine_targets.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/exit_pressure.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/feed_nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/fuel_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/fuel_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/fuel_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/fuel_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/input_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/inputs/chamber_map.h5
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/lox_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/ox_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/ox_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/ox_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/pressurant_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/pressurization.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/propellant_residuals.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/regen.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/resolved_inputs.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/run_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/run_summary.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/run_summary.txt
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/run_timing.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/startup.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/stiffness.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T095434_244612Z/tank_states.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/actual_performance.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/component_diagram.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/component_diagram.svg
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/copv_temperatures.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/engine.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/engine_targets.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/exit_pressure.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/feed_nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/fuel_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/fuel_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/fuel_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/fuel_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/input_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/inputs/chamber_map.h5
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/lox_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/ox_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/ox_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/ox_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/pressurant_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/pressurization.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/propellant_residuals.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/regen.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/resolved_inputs.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/run_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/run_summary.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/run_summary.txt
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/run_timing.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/startup.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/stiffness.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100133_895127Z/tank_states.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/actual_performance.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/component_diagram.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/component_diagram.svg
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/copv_temperatures.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/engine.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/engine_targets.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/exit_pressure.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/feed_nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/fuel_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/fuel_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/fuel_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/fuel_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/input_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/inputs/chamber_map.h5
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/lox_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/nodes.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/ox_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/ox_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/ox_stations.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/pressurant_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/pressurization.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/propellant_residuals.csv
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/regen.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/resolved_inputs.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/run_config.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/run_summary.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/run_summary.txt
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/run_timing.json
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/startup.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/stiffness.png
+A	sims/hopper_fullflow/Hopper_Results/20261105T100916_169935Z/tank_states.png
+A	sims/hopper_fullflow/Hopper_Results/actual_performance.csv
+A	sims/hopper_fullflow/Hopper_Results/component_diagram.png
+A	sims/hopper_fullflow/Hopper_Results/component_diagram.svg
+A	sims/hopper_fullflow/Hopper_Results/copv_temperatures.png
+A	sims/hopper_fullflow/Hopper_Results/engine.png
+A	sims/hopper_fullflow/Hopper_Results/engine_targets.csv
+A	sims/hopper_fullflow/Hopper_Results/exit_pressure.png
+A	sims/hopper_fullflow/Hopper_Results/feed_nodes.csv
+A	sims/hopper_fullflow/Hopper_Results/feed_nodes.png
+A	sims/hopper_fullflow/Hopper_Results/fuel_ladder.csv
+A	sims/hopper_fullflow/Hopper_Results/fuel_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/fuel_pressurant_stations.csv
+A	sims/hopper_fullflow/Hopper_Results/fuel_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/fuel_pressure_stations.csv
+A	sims/hopper_fullflow/Hopper_Results/fuel_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/fuel_stations.png
+A	sims/hopper_fullflow/Hopper_Results/lox_pressurant_stations.csv
+A	sims/hopper_fullflow/Hopper_Results/lox_pressurant_stations.png
+A	sims/hopper_fullflow/Hopper_Results/nodes.csv
+A	sims/hopper_fullflow/Hopper_Results/nodes.png
+A	sims/hopper_fullflow/Hopper_Results/ox_ladder.csv
+A	sims/hopper_fullflow/Hopper_Results/ox_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/ox_pressure_stations.csv
+A	sims/hopper_fullflow/Hopper_Results/ox_pressure_stations.png
+A	sims/hopper_fullflow/Hopper_Results/ox_stations.png
+A	sims/hopper_fullflow/Hopper_Results/pressurant_ladder.csv
+A	sims/hopper_fullflow/Hopper_Results/pressurant_ladder.png
+A	sims/hopper_fullflow/Hopper_Results/pressurization.png
+A	sims/hopper_fullflow/Hopper_Results/propellant_residuals.csv
+A	sims/hopper_fullflow/Hopper_Results/regen.png
+A	sims/hopper_fullflow/Hopper_Results/run_summary.json
+A	sims/hopper_fullflow/Hopper_Results/run_summary.txt
+A	sims/hopper_fullflow/Hopper_Results/startup.png
+A	sims/hopper_fullflow/Hopper_Results/stiffness.png
+A	sims/hopper_fullflow/Hopper_Results/tank_states.png
+A	sims/hopper_fullflow/Hopper_Run_Config.py
+A	sims/hopper_fullflow/Hopper_Solver.py
+R095	sims/hopper_fullflow/Backend/Hopper_Thrust_Targeter.py	sims/hopper_fullflow/Hopper_Thrust_Targeter.py
+D	sims/hopper_fullflow/Outputs/Hopper_Parameters.xlsx
+D	sims/hopper_fullflow/Outputs/MonteCarlo/monte_carlo_envelopes.png
+D	sims/hopper_fullflow/Outputs/MonteCarlo/monte_carlo_runs.csv
+D	sims/hopper_fullflow/Outputs/MonteCarlo/monte_carlo_stats.csv
+D	sims/hopper_fullflow/Outputs/actual_performance.csv
+D	sims/hopper_fullflow/Outputs/cda_table.csv
+D	sims/hopper_fullflow/Outputs/component_table.csv
+D	sims/hopper_fullflow/Outputs/component_table.md
+D	sims/hopper_fullflow/Outputs/engine.png
+D	sims/hopper_fullflow/Outputs/engine_targets.csv
+D	sims/hopper_fullflow/Outputs/exit_pressure.png
+D	sims/hopper_fullflow/Outputs/feed_nodes.png
+D	sims/hopper_fullflow/Outputs/fuel_ladder.png
+D	sims/hopper_fullflow/Outputs/fuel_stations.png
+D	sims/hopper_fullflow/Outputs/lox_drain_times.csv
+D	sims/hopper_fullflow/Outputs/nodes.png
+D	sims/hopper_fullflow/Outputs/ox_ladder.png
+D	sims/hopper_fullflow/Outputs/ox_stations.png
+D	sims/hopper_fullflow/Outputs/pressurant_ladder.png
+D	sims/hopper_fullflow/Outputs/pressurization.png
+D	sims/hopper_fullflow/Outputs/purge_flow.csv
+D	sims/hopper_fullflow/Outputs/purge_flow.png
+D	sims/hopper_fullflow/Outputs/run_summary.csv
+D	sims/hopper_fullflow/Outputs/schematic.png
+D	sims/hopper_fullflow/Outputs/startup.png
+D	sims/hopper_fullflow/Outputs/stiffness.png
+D	sims/hopper_fullflow/Outputs/tank_pressure_sweep.csv
+D	sims/hopper_fullflow/Outputs/tank_pressure_sweep.png
+D	sims/hopper_fullflow/Outputs/tank_states.png
+D	sims/hopper_fullflow/Outputs/vent_times.csv
+M	sims/hopper_fullflow/README.md
+R099	sims/hopper_fullflow/Old_sims_comparison/compare_models.py	sims/hopper_fullflow/comparison/compare_models.py
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/results/comparison_engine.png	sims/hopper_fullflow/comparison/results/comparison_engine.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/results/comparison_flows.png	sims/hopper_fullflow/comparison/results/comparison_flows.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/results/comparison_injectors.png	sims/hopper_fullflow/comparison/results/comparison_injectors.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/results/comparison_pressurization.png	sims/hopper_fullflow/comparison/results/comparison_pressurization.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/results/comparison_propellant.png	sims/hopper_fullflow/comparison/results/comparison_propellant.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/results/comparison_stiffness.png	sims/hopper_fullflow/comparison/results/comparison_stiffness.png
+R099	sims/hopper_fullflow/Outputs/Old_sims_comparison/results/comparison_summary.csv	sims/hopper_fullflow/comparison/results/comparison_summary.csv
+R098	sims/hopper_fullflow/Outputs/Old_sims_comparison/results/comparison_summary.md	sims/hopper_fullflow/comparison/results/comparison_summary.md
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/results/comparison_temperatures.png	sims/hopper_fullflow/comparison/results/comparison_temperatures.png
+R100	sims/hopper_fullflow/Old_sims_comparison/run_vehicle_sim.py	sims/hopper_fullflow/comparison/run_vehicle_sim.py
+R098	sims/hopper_fullflow/Outputs/Old_sims_comparison/vehicle_sim_outputs/actual_performance.csv	sims/hopper_fullflow/comparison/vehicle_sim_outputs/actual_performance.csv
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/vehicle_sim_outputs/vehicle_sim_01_network_simulation_nodes.png	sims/hopper_fullflow/comparison/vehicle_sim_outputs/vehicle_sim_01_network_simulation_nodes.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/vehicle_sim_outputs/vehicle_sim_02_network_simulation_ox_feed_system.png	sims/hopper_fullflow/comparison/vehicle_sim_outputs/vehicle_sim_02_network_simulation_ox_feed_system.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/vehicle_sim_outputs/vehicle_sim_03_network_simulation_fuel_feed_system.png	sims/hopper_fullflow/comparison/vehicle_sim_outputs/vehicle_sim_03_network_simulation_fuel_feed_system.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/vehicle_sim_outputs/vehicle_sim_04_network_simulation_pressurization_system.png	sims/hopper_fullflow/comparison/vehicle_sim_outputs/vehicle_sim_04_network_simulation_pressurization_system.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/vehicle_sim_outputs/vehicle_sim_05_engine_transient_performance.png	sims/hopper_fullflow/comparison/vehicle_sim_outputs/vehicle_sim_05_engine_transient_performance.png
+R100	sims/hopper_fullflow/Outputs/Old_sims_comparison/vehicle_sim_outputs/vehicle_sim_06_injector_stiffness.png	sims/hopper_fullflow/comparison/vehicle_sim_outputs/vehicle_sim_06_injector_stiffness.png
+R099	sims/hopper_fullflow/Outputs/Old_sims_comparison/vehicle_sim_outputs/vehicle_sim_history.csv	sims/hopper_fullflow/comparison/vehicle_sim_outputs/vehicle_sim_history.csv
+A	sims/hopper_fullflow/hopper_config.json
+A	sims/hopper_fullflow/inputs/cf_efficiency.example.csv
+A	sims/hopper_fullflow/inputs/cstar_efficiency.example.csv
+D	sims/hopper_fullflow/isolated_sims/Hopper_Drain.py
+D	sims/hopper_fullflow/isolated_sims/Hopper_Purge.py
+D	sims/hopper_fullflow/isolated_sims/Hopper_Tank_Pressure_Sweep.py
+D	sims/hopper_fullflow/isolated_sims/Hopper_Vent.py
+D	sims/hopper_fullflow/isolated_sims/__init__.py
+A	sims/hopper_fullflow/run_hopper.sh
+A	sims/hopper_fullflow/tests/check_integration.py
+A	sims/hopper_fullflow/tests/run_feature_validation.py
+A	sims/hopper_fullflow/tests/test_config.py
+A	sims/hopper_fullflow/tests/test_features.py
+A	sims/hopper_fullflow/tests/test_solver.py
+D	sims/hopper_fullflow/thrust_curves/1dof.csv
+R100	sims/hopper_fullflow/thrust_curves/thrust_profile_10m_tethered.csv	sims/hopper_fullflow/thrust_profile_10m_tethered.csv
+R100	sims/hopper_fullflow/thrust_curves/thrust_profile_52m_free.csv	sims/hopper_fullflow/thrust_profile_52m_free.csv

@@ -1,5 +1,8 @@
 # Hopper FullFlow
 
+See [HANDOFF.md](HANDOFF.md) for the comprehensive November 5, 2026 development
+handoff, commit history, implementation details, validation evidence, and open issues.
+
 Transient propulsion model built with FullFlow and ThermoProp. A thrust history
 sets the engine's required chamber pressure and propellant flows. The transient
 model solves bottles, tank ullages, feed restrictions, valves, and engine
@@ -52,7 +55,8 @@ volumes L, masses kg, and time s. JSON accepts `true`, `false`, and `null`; comm
 are not valid JSON. Unknown fields and duplicate keys are rejected.
 
 The shipped settings preserve the current vehicle inputs: two 9 L bottles,
-3/8-inch liquid tubes with 0.035-inch walls, and a 100-to-600 lbf, 10 s ramp.
+3/8-inch liquid tubes with 0.035-inch walls, and a 100-to-600 lbf, 2.5 s ramp
+sampled at 40 points. Earlier runtime benchmarks used a 10 s ramp.
 Placeholder geometry and timing still require measured hardware data.
 
 ## Hardware and thermal inputs
@@ -80,7 +84,8 @@ Custom Python builders need a code extension; JSON does not execute Python.
 
 ID is calculated as OD minus twice wall. Alternatively specify ID and leave OD
 and wall `null`; the diagram marks those missing measurements. If all three are
-specified they must agree. Gas lines currently have only measured/configured IDs.
+specified they must agree. ID-only gas lines display OD/wall as unspecified;
+the current configuration supplies 0.25-inch OD and 0.035-inch wall gas tubes.
 Every line shows OD/wall status, ID, and length in inches on the diagram.
 `engine.throat_area_in2` is the nozzle throat input; diameter is derived and
 shown in inches. Valve maximum CdAs are independent inputs, not automatically
@@ -100,7 +105,8 @@ by `liquid_mass_kg`; ullage volume follows from tank volume and liquid density.
 A `Regen` entry has a hydraulic CdA, optional inertial passage length, and
 `pc_psia_delta_t_k` pairs such as `[[0, 0], [100, 10], [300, 45]]`.
 Temperature rise is linearly interpolated with held endpoints. It updates
-downstream fuel temperature and liquid properties. The default rise remains zero.
+downstream fuel temperature and liquid properties. The current configured rise
+is 51 K at 150 psia and 44 K at 300 psia, with held endpoints.
 The regen plot retains physical heat pickup; the removed Hdot panels were
 enthalpy transport, a different quantity.
 

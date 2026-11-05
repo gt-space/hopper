@@ -4,6 +4,9 @@ This is the working design document for the propulsion simulator. Update the
 checklist and validation notes when behavior changes. Inputs belong in
 `hopper_config.json`; generated results belong in timestamped folders under
 `Hopper_Results/`. `HOPPER_DATA.py` is now a compatibility adapter, not an input file.
+See [HANDOFF.md](HANDOFF.md) for the complete delivered-commit history, final
+checked-in inputs, and consolidated validation/limitations. Earlier sections
+below retain development-stage input and test-count history.
 
 ## Objective
 
