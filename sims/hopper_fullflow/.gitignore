@@ -1,0 +1,6 @@
+.venv-validation/
+venv/
+__pycache__/
+tests/__pycache__/
+validation_outputs/
+Hopper_Prop_System.h5

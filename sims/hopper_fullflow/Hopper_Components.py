@@ -3,10 +3,19 @@
 
 import math
 
-from fullflow import IsentropicNozzle, Map, State
+from fullflow import IsentropicNozzle, Map, State, Lookup
 from scipy.constants import psi
 
 from HOPPER_DATA import *
+from Hopper_Inputs import efficiency_value
+from Hopper_Control import FunctionLookup
+
+
+def engine_efficiencies(chamber_pressure, mixture_ratio):
+    return {"cstar": efficiency_value(CSTAR_EFFICIENCY_FUNCTION, CSTAR_EFFICIENCY_CSV,
+                                      chamber_pressure, mixture_ratio),
+            "cf": efficiency_value(CF_EFFICIENCY_FUNCTION, CF_EFFICIENCY_CSV,
+                                   chamber_pressure, mixture_ratio)}
 
 
 class LinearizedNozzle(IsentropicNozzle):
@@ -49,16 +58,10 @@ def EnginePerformance(name, network, chamber_pressure, mixture_ratio,
         extrapolate=True,   # tolerate solver trial points just outside the map
     )
 
-    # vehicle_sim.dynamic_eta_cstar / dynamic_eta_cf, written exactly as there:
-    #   eta = LOW + (HIGH - LOW) * max(1, (Pc_psia - PC_LOW) / SPAN)
-    # (see HOPPER_DATA for what max(1, ...) does to the curves).
-    pc_psia = chamber_pressure / psi
-    cstar_efficiency = CSTAR_EFFICIENCY_LOW + (CSTAR_EFFICIENCY_HIGH - CSTAR_EFFICIENCY_LOW) * State.maximum(
-        1.0, (pc_psia - CSTAR_EFFICIENCY_PC_LOW) / CSTAR_EFFICIENCY_PC_SPAN
-    )
-    cf_efficiency = CF_EFFICIENCY_LOW + (CF_EFFICIENCY_HIGH - CF_EFFICIENCY_LOW) * State.maximum(
-        1.0, (pc_psia - CF_EFFICIENCY_PC_LOW) / CF_EFFICIENCY_PC_SPAN
-    )
+    efficiencies = FunctionLookup(f"{name} Efficiencies", network, engine_efficiencies,
+                          chamber_pressure=chamber_pressure, mixture_ratio=mixture_ratio,
+                          outputs=("cstar", "cf"))
+    cstar_efficiency, cf_efficiency = efficiencies.cstar, efficiencies.cf
 
     # Ideal (100 % c*) nozzle: flow, exit velocity and exit pressure at the
     # ambient back pressure (sea-level test conditions, so Pe < Pa is possible).

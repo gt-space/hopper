@@ -7,8 +7,9 @@ Then run python Hopper.py
 
 from scipy.constants import *
 
-from Hopper_Elements import (BangBangValve, CavitatingVenturi, CheckValve, Custom, GasLine, Injector, Line,
-                             Orifice, Tank, ThrottleValve, Valve, tube_area, tube_id)
+from Hopper_Elements import (BangBangValve, CavitatingVenturi, CheckValve, COPVSource, Custom, GasLine, Injector, Line,
+                             Orifice, Regen, Tank, ThrottleValve, Valve, tube_area, tube_id)
+from Hopper_Inputs import ramp_profile, validate_profile, LBF
 
 
 
@@ -16,12 +17,11 @@ from Hopper_Elements import (BangBangValve, CavitatingVenturi, CheckValve, Custo
 # =========================================================================== #
 # ---- RUN SETTINGS ---- #
 # =========================================================================== #
-PROP_THRUST_CURVE_NAME     = "1dof"     # which entry of THRUST_CURVES (below) to fly
-PROP_PROFILE_INTERPOLATION = "step"     # "step": hold each point until the next, as vehicle_sim.py does;
+PROP_THRUST_CURVE_NAME     = "ramp"     # which entry of THRUST_CURVES (below) to fly
+PROP_PROFILE_INTERPOLATION = "linear"     # "step": hold each point until the next, as vehicle_sim.py does;
                                         # "linear": interpolate between points
-PROP_DT                    = 0.05       # [s] time step. 0.05 s gives the same engine results as 0.01 s in
-                                        # ~40 % of the time; the bang-bang is sampled less often, so tank
-                                        # pressure overshoots ~10 psi more. Use 0.01 to study the tank band.
+PROP_DT                    = 0.05       # [s] requested maximum step; capped by valve/controller resolution
+                                        # (currently 0.005 s). Check temporal convergence for your inputs.
 PROP_SAVE_DT               = 0.05       # [s] output interval in the HDF5 file
 PROP_RTOL                  = 1e-6       # per-step residual tolerance
 PROP_JACOBIAN_METHOD       = "2-point"  # "2-point" is ~2x faster than "3-point"
@@ -52,7 +52,7 @@ PROP_SHOW_PLOTS            = False      # True also opens the plot windows
 # =========================================================================== #
 # Each curve maps time from the start of the profile [s] to thrust [N]. Add a
 # curve here and select it with PROP_THRUST_CURVE_NAME above. Points must be
-# at least 0.1 s apart.
+# distinct, increasing times, starting at zero.
 THRUST_CURVES = {
     # The full flight profile from the 1dof trajectory sim (29.7 s), from vehicle_sim.py.
     "1dof": {
@@ -66,7 +66,15 @@ THRUST_CURVES = {
     },
 }
 THRUST_CURVE_1DOF = THRUST_CURVES["1dof"]   # kept for comparison/compare_models.py
-PROP_THRUST_CURVE = THRUST_CURVES[PROP_THRUST_CURVE_NAME]
+# Select "1dof" or "ramp" above. Thrust inputs are N; multiply lbf by LBF.
+RAMP_START_THRUST = 100.0 * LBF
+RAMP_END_THRUST = 600.0 * LBF
+RAMP_DURATION = 10.0
+RAMP_POINTS = 101
+THRUST_CURVES["ramp"] = ramp_profile(RAMP_START_THRUST, RAMP_END_THRUST, RAMP_DURATION, RAMP_POINTS)
+PROP_THRUST_CURVE = validate_profile(THRUST_CURVES[PROP_THRUST_CURVE_NAME])
+MAX_THRUST_HOLD_TIME = 0.5        # [s] continuous duration required for demonstrated thrust
+MAX_THRUST_TRACKING_TOLERANCE = 0.02  # relative tracking error for capacity evidence
 
 
 
@@ -80,18 +88,24 @@ PRESSURANT = "Nitrogen"
 
 AMBIENT_PRESSURE = 14.8 * psi
 
-
-
-
 # =========================================================================== #
 # ---- PRESSURANT: COPVs ---- #
 # =========================================================================== #
 
-COPV_COUNT = 3
+COPV_COUNT = 2
 COPV_UNIT_VOLUME = 9.0 * liter
 COPV_VOLUME = COPV_COUNT * COPV_UNIT_VOLUME
 PRESSURANT_INITIAL_PRESSURE = 4503.2 * psi   # [psi]
 PRESSURANT_INITIAL_TEMPERATURE = 293.0       # [K]
+# Each bottle is solved separately. None disables its minimum-temperature check.
+# outlet_cda describes the bottle-to-header connection; 100 mm2 is a placeholder.
+COPV_MIN_TEMPERATURES = [220, 220]  # [K], one entry per bottle
+COPV_HEADER_VOLUME = 0.05 * liter  # placeholder manifold volume; replace with measured plumbing volume
+if len(COPV_MIN_TEMPERATURES) != COPV_COUNT:
+    raise ValueError("COPV_MIN_TEMPERATURES must have one entry per COPV.")
+COPVS = [COPVSource(f"COPV {i+1}", COPV_UNIT_VOLUME, PRESSURANT_INITIAL_PRESSURE,
+                    PRESSURANT_INITIAL_TEMPERATURE, min_temperature=COPV_MIN_TEMPERATURES[i], outlet_cda=100 * milli**2)
+         for i in range(COPV_COUNT)]
 
 
 
@@ -104,12 +118,20 @@ PRESSURANT_INITIAL_TEMPERATURE = 293.0       # [K]
 # ullage_temperature [K]
 # radius [m] sets the liquid free-surface area for ullage heat transfer
 # ullage_htc [W/m^2/K] 
+LOX_TANK_SET_PRESSURE = 500.0 * psi
+LOX_TANK_DEADBAND_LOW = 5.0 * psi   # opens below set pressure minus this amount
+LOX_TANK_DEADBAND_HIGH = 5.0 * psi  # closes above set pressure plus this amount
+FUEL_TANK_SET_PRESSURE = 500.0 * psi
+FUEL_TANK_DEADBAND_LOW = 5.0 * psi
+FUEL_TANK_DEADBAND_HIGH = 5.0 * psi
+BANG_BANG_SAMPLE_PERIOD = 0.01     # [s] controller clock, independent of valve travel
+
 LOX_TANK = Tank(
     "LOX Tank", propellant=OXIDIZER,
     volume=20.0 * liter, liquid_mass=19.43 , liquid_temperature=90.0,
     pressure=500.0 * psi, ullage_temperature=150.0,
     radius=0.2, ullage_htc=500.0,
-    set_pressure=500.0 * psi, upper_limit=5.0 * psi, lower_limit=5.0 * psi,
+    set_pressure=LOX_TANK_SET_PRESSURE, upper_limit=LOX_TANK_DEADBAND_HIGH, lower_limit=LOX_TANK_DEADBAND_LOW,
 )
 
 FUEL_TANK = Tank(
@@ -117,7 +139,7 @@ FUEL_TANK = Tank(
     volume=16.0 * liter, liquid_mass=9.7, liquid_temperature=293.0,
     pressure=500.0 * psi, ullage_temperature=293.0,
     radius=0.1, ullage_htc=0.0,
-    set_pressure=500.0 * psi, upper_limit=5.0 * psi, lower_limit=5.0 * psi,
+    set_pressure=FUEL_TANK_SET_PRESSURE, upper_limit=FUEL_TANK_DEADBAND_HIGH, lower_limit=FUEL_TANK_DEADBAND_LOW,
 )
 
 
@@ -131,17 +153,17 @@ TUBE_ROUGHNESS = 1.5e-5   # [m] vehicle_sim.py Line roughness, all tubes
 LOX_PRESSURANT_LEG = [
     GasLine("LOX Pressurant Line", inner_diameter=4.92 * milli, length=1.0, #meter, EDIT
             roughness=TUBE_ROUGHNESS, outlet_node="OBB Inlet"),
-    BangBangValve("OBB", cda=18.68 * milli**2),
+    BangBangValve("OBB", cda=18.68 * milli**2, open_time=0.05, close_time=0.05),  # example timing; replace with measured
     Orifice("OR-1", cda=2 * 1.02 * milli**2),              #EDIT
-    CheckValve("PROCK", cda=12.0 * milli**2),              #EDIT
+    CheckValve("PROCK", cda=12.0 * milli**2, open_time=0.0, close_time=0.0),  # ideal until measured
 ]
 
 FUEL_PRESSURANT_LEG = [
     GasLine("Fuel Pressurant Line", inner_diameter=4.92 * milli, length=1.0, #meter, EDIT
             roughness=TUBE_ROUGHNESS, outlet_node="FBB Inlet"),
-    BangBangValve("FBB", cda=18.68 * milli**2),             
+    BangBangValve("FBB", cda=18.68 * milli**2, open_time=0.05, close_time=0.05),  # example timing
     Orifice("OR-2", cda=1.02 * milli**2),                   #EDIT
-    CheckValve("PRFCK", cda=12.0 * milli**2),               #EDIT
+    CheckValve("PRFCK", cda=12.0 * milli**2, open_time=0.0, close_time=0.0),
 ]
 
 
@@ -150,30 +172,36 @@ FUEL_PRESSURANT_LEG = [
 # =========================================================================== #
 # ---- FEED LINES (tank liquid -> ... -> main chamber) ---- #
 # =========================================================================== #
-LOX_TUBE_ID = tube_id(3 / 8 * inch, 0.028 * inch)    # EDIT mm
-FUEL_TUBE_ID = tube_id(1 / 4 * inch, 0.028 * inch)   # EDIT mm
+LOX_TUBE_OD, LOX_TUBE_WALL = 3 / 8 * inch, 0.035 * inch
+FUEL_TUBE_OD, FUEL_TUBE_WALL = 3 / 8 * inch, 0.035 * inch
+LOX_TUBE_ID = tube_id(LOX_TUBE_OD, LOX_TUBE_WALL)
+FUEL_TUBE_ID = tube_id(FUEL_TUBE_OD, FUEL_TUBE_WALL)
 
 INJECTOR_PASSAGE_LENGTH = 0.01   # EDIT [m]
 REGEN_PASSAGE_LENGTH = 0.30      # EDIT [m]
+# Measured (Pc [Pa], fuel dT [K]); linearly interpolated, endpoints held.
+# Zero rise preserves the previous model until real data are entered.
+FUEL_REGEN_DT_VS_PC = [(0.0, 0.0), (610.0 * psi, 0.0)]
+REGEN_PROPERTY_TEMPERATURE_POINTS = 101  # liquid-property interpolation over the supplied dT range
 
 LOX_FEED = [
     Line("LOX Tank to OTV Line", inner_diameter=LOX_TUBE_ID, length=1.0, roughness=TUBE_ROUGHNESS,
-         outlet_node="OTV Inlet"),
+         outlet_node="OTV Inlet", outer_diameter=LOX_TUBE_OD, wall_thickness=LOX_TUBE_WALL),
     ThrottleValve("OTV", max_cda=0.9 * tube_area(LOX_TUBE_ID),          #EDIT
-                  full_scale_mass_flow=0.777, outlet_node="OTV Outlet"),  
+                  full_scale_mass_flow=0.777, outlet_node="OTV Outlet", open_time=0.20, close_time=0.20),
     Line("OTV to LOX Injector Line", inner_diameter=LOX_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
-         outlet_node="LOX Injector Manifold"),
+         outlet_node="LOX Injector Manifold", outer_diameter=LOX_TUBE_OD, wall_thickness=LOX_TUBE_WALL),
     Injector("OINJ", cda=15.3 * milli**2, length=INJECTOR_PASSAGE_LENGTH),
 ]
 
 FUEL_FEED = [
     Line("Fuel Tank to FTV Line", inner_diameter=FUEL_TUBE_ID, length=0.3048, roughness=TUBE_ROUGHNESS,
-         outlet_node="FTV Inlet"),
+         outlet_node="FTV Inlet", outer_diameter=FUEL_TUBE_OD, wall_thickness=FUEL_TUBE_WALL),
     ThrottleValve("FTV", max_cda=0.9 * tube_area(FUEL_TUBE_ID),         # EDIT: 90 % of tube area (17.2 mm^2)
-                  full_scale_mass_flow=0.388, outlet_node="FTV Outlet"),
+                  full_scale_mass_flow=0.388, outlet_node="FTV Outlet", open_time=0.20, close_time=0.20),
     Line("FTV to Regen Line", inner_diameter=FUEL_TUBE_ID, length=0.2032, roughness=TUBE_ROUGHNESS,
-         outlet_node="Regen Inlet Manifold"),
-    Orifice("Regen Jacket", cda=25.0 * milli**2, length=REGEN_PASSAGE_LENGTH,   # EDIT
+         outlet_node="Regen Inlet Manifold", outer_diameter=FUEL_TUBE_OD, wall_thickness=FUEL_TUBE_WALL),
+    Regen("Regen Jacket", cda=25.0 * milli**2, delta_t_curve=FUEL_REGEN_DT_VS_PC, length=REGEN_PASSAGE_LENGTH,
             outlet_node="Fuel Injector Manifold"),
     Injector("FINJ", cda=10.6 * milli**2, length=INJECTOR_PASSAGE_LENGTH),
 ]
@@ -194,10 +222,8 @@ THROAT_AREA = 0.00067226          # [m^2]
 EXIT_AREA = 0.00235559904         # [m^2]
 EXPANSION_RATIO = EXIT_AREA / THROAT_AREA   # 3.504
 
-# Efficiency vs chamber pressure. Same parameters as Luca's previous sim.
-#   eta = LOW + (HIGH - LOW) * max(1, (Pc_psia - PC_LOW) / PC_SPAN)
-# (max(1, ...) holds eta_c* at 0.85 up to 300 psia and eta_cf at 0.97 up to
-# 250 psia; above those they keep rising with Pc.)
+# Default efficiencies interpolate LOW -> HIGH across the stated Pc span,
+# holding at the endpoints. Replace the functions or select measured CSV data.
 CSTAR_EFFICIENCY_LOW = 0.80
 CSTAR_EFFICIENCY_HIGH = 0.85
 CSTAR_EFFICIENCY_PC_LOW = 100.0     # [psia]
@@ -206,6 +232,20 @@ CF_EFFICIENCY_LOW = 0.94
 CF_EFFICIENCY_HIGH = 0.97
 CF_EFFICIENCY_PC_LOW = 100.0        # [psia]
 CF_EFFICIENCY_PC_SPAN = 150.0       # [psi]
+
+# Functions receive Pc [Pa] and MR. CSV overrides function when non-None.
+# CSV columns: pc_psia,efficiency OR pc_psia,mr,efficiency (complete rectangular grid).
+# Values must be in (0, 1]; table edges are held, not extrapolated.
+def CSTAR_EFFICIENCY_FUNCTION(pc, mr):
+    fraction = min(1.0, max(0.0, (pc / psi - CSTAR_EFFICIENCY_PC_LOW) / CSTAR_EFFICIENCY_PC_SPAN))
+    return CSTAR_EFFICIENCY_LOW + (CSTAR_EFFICIENCY_HIGH - CSTAR_EFFICIENCY_LOW) * fraction
+
+def CF_EFFICIENCY_FUNCTION(pc, mr):
+    fraction = min(1.0, max(0.0, (pc / psi - CF_EFFICIENCY_PC_LOW) / CF_EFFICIENCY_PC_SPAN))
+    return CF_EFFICIENCY_LOW + (CF_EFFICIENCY_HIGH - CF_EFFICIENCY_LOW) * fraction
+
+CSTAR_EFFICIENCY_CSV = None  # e.g. "inputs/cstar_efficiency.csv"
+CF_EFFICIENCY_CSV = None     # e.g. "inputs/cf_efficiency.csv"
 
 
 NOMINAL_CHAMBER_PRESSURE = 300.0 * psi
@@ -231,8 +271,8 @@ CHAMBER_MAP_MIXTURE_RATIO_POINTS = 36
 # zero after the last profile point, then the tail-off is simulated. The torch
 # igniter is not modelled; propellant reaching the chamber ignites at once.
 MAIN_VALVE_OPEN_TIME = 0.30   # [s] OTV + FTV start opening
-MAIN_VALVE_RAMP_TIME = 0.20   # [s] OTV/FTV opening (and closing) time
-THROTTLE_STEP_TIME = 0.01     # [s] OTV/FTV travel time for one "step" change between profile points
+MAIN_VALVE_RAMP_TIME = 0.20   # [s] startup/shutdown flow-demand ramp; valve travel is configured per element
+THROTTLE_STEP_TIME = 0.01     # [s] demand smoothing in "step" mode, independent of physical valve travel
 TAIL_OFF_TIME = 0.30          # [s] simulated after OTV/FTV have closed
 
 
@@ -244,6 +284,8 @@ TAIL_OFF_TIME = 0.30          # [s] simulated after OTV/FTV have closed
 # Flow-separation line on the exit-pressure plot: exit pressure below this
 # multiple of ambient risks separation (the old deck's "0.4 x Pamb" line).
 NOZZLE_SEPARATION_RATIO = 0.4
+STATION_PLOT_TIMES = None   # simulation seconds; None selects time of peak delivered thrust
+PROP_COMPONENT_DIAGRAM = True
 
 
 

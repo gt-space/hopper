@@ -113,6 +113,14 @@ class HopperRun:
 
     def __init__(self, filename=PROP_FILENAME):
         self.filename = str(filename)
+        from Hopper_Report import read_metadata
+        metadata = read_metadata(self.filename)
+        if metadata and "paths" in metadata:
+            current = {"ox": [e.name for e in LOX_FEED], "fuel": [e.name for e in FUEL_FEED],
+                       "lox_pressurant": [e.name for e in LOX_PRESSURANT_LEG],
+                       "fuel_pressurant": [e.name for e in FUEL_PRESSURANT_LEG]}
+            if metadata["paths"] != current:
+                raise ValueError("Saved hardware paths differ from HOPPER_DATA.py; restore that run's configuration before plotting.")
         with h5py.File(self.filename, "r") as h5:   # only to list what the file holds
             self.network = next(name for name, group in h5.items()
                                 if isinstance(group, h5py.Group) and "transient" in group)
@@ -213,8 +221,13 @@ def _ullage_node(label):
 def _liquid_junction(label, tank, node_name):
     def node(run):
         p = run.track(f"{node_name} Pressure [Pa]")
-        return _node(p, np.full_like(p, tank.liquid_temperature), np.zeros_like(p),
-                     run.track(f"{label} Liquid Density [kg/m3]"),
+        temperature = (run.track(f"{node_name} Temperature [K]")
+                       if _safe_name(f"{node_name} Temperature [K]") in run.tracks
+                       else np.full_like(p, tank.liquid_temperature))
+        density = (run.track(f"{node_name} Density [kg/m3]")
+                   if _safe_name(f"{node_name} Density [kg/m3]") in run.tracks
+                   else run.track(f"{label} Liquid Density [kg/m3]"))
+        return _node(p, temperature, np.zeros_like(p), density,
                      _two_phase_quality(run.track(f"{label} Liquid Quality [-]")), np.ones_like(p))
     return node
 
@@ -320,12 +333,18 @@ def _group_member(group, member):
     the group is open; while it is shut, the shut element carries it all."""
     def evaluate(run):
         data = _tracked_element(member.name)(run)
-        states = [run.track(f"{element.name} State [-]") for element in group]
-        open_now = np.prod(states, axis=0) > 0.5
-        open_cda = _series([element.cda_value for element in group])
-        shut = run.track(f"{member.name} State [-]") < 0.5
-        data["dp"] = np.where(open_now, data["dp"] * (open_cda / member.cda_value) ** 2,
-                              np.where(shut, data["dp"], 0.0))
+        # New histories store actual area, including partial valve travel.
+        dynamic = _safe_name(f"{member.name} Opening") in run.tracks or any(
+            _safe_name(f"{element.name} Opening") in run.tracks for element in group)
+        areas = [run.track(f"{element.name} CdA [m2]") if dynamic else
+                 element.cda_value * run.track(f"{element.name} State [-]") for element in group]
+        series = _series(areas)
+        own = areas[group.index(member)]
+        closed = [area <= 1e-12 for area in areas]
+        shut_count = np.maximum(np.sum(closed, axis=0), 1)
+        fraction = np.where(series > 0, (series / np.maximum(own, 1e-30)) ** 2,
+                            np.where(own <= 1e-12, 1.0 / shut_count, 0.0))
+        data["dp"] = data["dp"] * fraction
         return data
     return evaluate
 
@@ -820,6 +839,109 @@ def plot_component(run, component, attributes, units="E", profile_time=False, wi
 
 
 
+def plot_pressure_stations(run, branch="ox", times=None, units="E", profile_time=False, window=None):
+    """Pressure at each component outlet, at selected simulation/profile times."""
+    import matplotlib.pyplot as plt
+    if branch not in ("ox", "fuel", "lox_pressurant", "fuel_pressurant"):
+        raise ValueError("Station branch must be ox, fuel, lox_pressurant, or fuel_pressurant.")
+    gas = branch.endswith("pressurant")
+    label = "LOX" if branch in ("ox", "lox_pressurant") else "Fuel"
+    tank, elements = LEGS[label] if gas else FEEDS[label]
+    clock, clock_label = _clock(run, profile_time)
+    chosen = times if times is not None else STATION_PLOT_TIMES
+    if chosen is None:
+        chosen = [float(clock[np.argmax(run.track("Thrust [N]"))])]
+    if any(t < clock[0] or t > clock[-1] for t in chosen):
+        raise ValueError(f"Station times must be between {clock[0]:g} and {clock[-1]:g} s.")
+    source = "COPV Header" if gas else tank.name
+    names = [source] + [element.name for element in elements]
+    if gas:
+        pressure = run.track("COPV Pressure [psia]") * psi
+        histories = [pressure]
+        for element in elements:
+            pressure = pressure - ELEMENTS[element.name](run)["dp"]
+            histories.append(pressure)
+    else:
+        histories = [run.track(f"{label} Tank Pressure [psia]") * psi] + [
+            run.track(f"{element.name} Downstream Pressure [Pa]") for element in elements]
+    fig, ax = plt.subplots(figsize=(max(10, 1.9 * len(names)), 5.5))
+    table = {"Station": np.array(names)}
+    for t in chosen:
+        values = _to_pressure(np.array([np.interp(t, clock, p) for p in histories]), units)
+        ax.plot(range(len(names)), values, marker="o", label=f"{clock_label}: {t:g}")
+        table[f"Pressure at {t:g} s [{'psia' if units == 'E' else 'Pa'}]"] = values
+    ax.set_xticks(range(len(names)), names, rotation=25, ha="right")
+    ax.set_ylabel("Pressure [psia]" if units == "E" else "Pressure [Pa]")
+    ax.set_xlabel("Station: source, then each component outlet")
+    ax.set_title(f"{label} {'pressurant' if gas else 'feed'} pressure versus station"
+                 + (" (lumped restriction drops allocated by CdA)" if gas else ""))
+    ax.grid(True, axis="y")
+    ax.legend()
+    fig.tight_layout()
+    return Figure(fig, table)
+
+
+def plot_regen(run, units="E", profile_time=False, window=None):
+    import matplotlib.pyplot as plt
+    parts = [e for e in FUEL_FEED if hasattr(e, "delta_t_curve")]
+    fig, axes = plt.subplots(2, 1, figsize=(11, 7), sharex=True)
+    time, time_label = _clock(run, profile_time)
+    table = {time_label: time}
+    for part in parts:
+        required = [f"{part.name} Inlet Temperature [K]", f"{part.name} Outlet Temperature [K]"]
+        if any(_safe_name(name) not in run.tracks for name in required):
+            axes[0].text(0.5, 0.5, "Regen temperature tracks require a new simulation.",
+                         transform=axes[0].transAxes, ha="center")
+            continue
+        for name in required:
+            values = _to_temperature(run.track(name), units)
+            axes[0].plot(time, values, label=name.replace(" [K]", ""))
+            table[name.replace("[K]", "[F]" if units == "E" else "[K]")] = values
+        name = f"{part.name} Heat Pickup [W]"
+        values = run.track(name)
+        axes[1].plot(time, values, label=part.name)
+        table[name] = values
+    axes[0].set_ylabel("Temperature [F]" if units == "E" else "Temperature [K]")
+    axes[1].set_ylabel("Prescribed fuel heat pickup [W]")
+    axes[1].set_xlabel(time_label)
+    for axis in axes:
+        axis.grid(True)
+        if axis.lines:
+            axis.legend()
+    _apply_window(axes, window)
+    fig.suptitle("Fuel regen: prescribed dT versus chamber pressure")
+    fig.tight_layout()
+    return Figure(fig, table)
+
+
+def plot_copv_temperatures(run, units="E", profile_time=False, window=None):
+    import matplotlib.pyplot as plt
+    from Hopper_Report import read_metadata
+    metadata = read_metadata(run.filename)
+    bottles = metadata["copvs"] if metadata else []
+    fig, ax = plt.subplots(figsize=(11, 5))
+    time, label = _clock(run, profile_time)
+    table = {label: time}
+    for bottle in bottles:
+        values = _to_temperature(run.track(f"{bottle['name']} Temperature [K]"), units)
+        ax.plot(time, values, label=bottle["name"])
+        table[bottle["name"]] = values
+        if bottle["minimum_temperature"] is not None:
+            ax.axhline(_to_temperature(bottle["minimum_temperature"], units), linestyle="--",
+                       label=f"{bottle['name']} minimum")
+    if not bottles:
+        ax.text(0.5, 0.5, "Individual COPV tracks require a new simulation.", transform=ax.transAxes, ha="center")
+    ax.set_xlabel(label)
+    ax.set_ylabel("Temperature [F]" if units == "E" else "Temperature [K]")
+    ax.set_title("Individual COPV temperatures and operating limits")
+    ax.grid(True)
+    if ax.lines:
+        ax.legend()
+    _apply_window(ax, window)
+    fig.tight_layout()
+    return Figure(fig, table)
+
+
 # ---- Named plots ---- #
 # name: (description, function(run, units, profile_time, window) -> Figure)
 PLOTS = {
@@ -847,6 +969,12 @@ PLOTS = {
     "pressurization": ("COPV and tank pressures, bang-bang states", plot_pressurization),
     "tank_states": ("Gas temperatures and remaining masses", plot_tank_states),
     "startup": ("Main-valve start-up (first 2 s)", plot_startup),
+    "ox_pressure_stations": ("LOX pressure versus component station", lambda run, **kw: plot_pressure_stations(run, "ox", **kw)),
+    "fuel_pressure_stations": ("Fuel pressure versus component station", lambda run, **kw: plot_pressure_stations(run, "fuel", **kw)),
+    "lox_pressurant_stations": ("LOX pressurant pressure versus station", lambda run, **kw: plot_pressure_stations(run, "lox_pressurant", **kw)),
+    "fuel_pressurant_stations": ("Fuel pressurant pressure versus station", lambda run, **kw: plot_pressure_stations(run, "fuel_pressurant", **kw)),
+    "regen": ("Fuel regen inlet/outlet temperatures and heat pickup", plot_regen),
+    "copv_temperatures": ("Individual COPV temperatures and minimum limits", plot_copv_temperatures),
 }
 
 # The graphs in the old sim's output deck, in deck order.
@@ -865,11 +993,11 @@ def save(figure, output_dir, name, csv_out=False, show=False):
     if csv_out:
         path = output_dir / f"{name}.csv"
         columns = list(figure.table)
-        rows = np.column_stack([np.asarray(figure.table[column], dtype=float) for column in columns])
+        rows = zip(*(np.asarray(figure.table[column]).tolist() for column in columns))
         with open(path, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(columns)
-            writer.writerows(rows.tolist())
+            writer.writerows(rows)
         written.append(path)
     if not show:
         plt.close(figure.figure)
@@ -946,6 +1074,7 @@ def main(argv=None):
     plot = commands.add_parser("plot", parents=[common], help="named plots")
     plot.add_argument("names", nargs="+")
     plot.add_argument("--mr", type=float, help="mixture ratio of the exit_pressure sweep (default: MIXTURE_RATIO)")
+    plot.add_argument("--times", nargs="+", type=float, help="snapshot times for pressure-versus-station plots")
     commands.add_parser("nodes", parents=[common], help="node grid for any nodes/groups").add_argument("names", nargs="+")
     commands.add_parser("ladder", parents=[common], help="element grid for any elements/branches").add_argument(
         "names", nargs="+")
@@ -974,6 +1103,9 @@ def main(argv=None):
     if args.command == "plot":
         names = args.names[0] if len(args.names) == 1 and args.names[0] in ("all", "deck") else args.names
         plot_options = {"exit_pressure": {"mixture_ratio": args.mr}} if args.mr is not None else {}
+        if args.times is not None:
+            for name in ["ox_pressure_stations", "fuel_pressure_stations", "lox_pressurant_stations", "fuel_pressurant_stations"]:
+                plot_options[name] = {"times": args.times}
         written = make_plots(run, names, args.out, args.units, args.csv, args.profile_time, options["window"],
                              args.show, plot_options)
     else:

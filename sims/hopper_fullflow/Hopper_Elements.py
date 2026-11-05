@@ -42,8 +42,10 @@ evaluate_states and balances or dynamics) can be used inside build().
 
 import math
 
-from fullflow import (Balance, CavitatingVenturi as FullFlowCavitatingVenturi, Churchill, DarcyWeisbach,
+from fullflow import (Balance, CavitatingVenturi as FullFlowCavitatingVenturi, Churchill, DarcyWeisbach, Lookup,
                       DischargeCoefficient, FlowTube, Sequence, State)
+from Hopper_Control import ValveTravel, previous, FunctionLookup
+from Hopper_Inputs import delta_t_value
 
 
 def tube_id(outer_diameter, wall):
@@ -54,6 +56,32 @@ def tube_id(outer_diameter, wall):
 def tube_area(inner_diameter):
     """Flow area [m^2] of a round passage."""
     return 3.141592653589793 / 4 * inner_diameter**2
+
+
+def _tube_geometry(inner_diameter, outer_diameter, wall_thickness):
+    if (outer_diameter is None) != (wall_thickness is None):
+        raise ValueError("Specify tube outer diameter and wall thickness together.")
+    if outer_diameter is not None:
+        calculated = tube_id(outer_diameter, wall_thickness)
+        if outer_diameter <= 0 or wall_thickness <= 0 or calculated <= 0:
+            raise ValueError("Tube OD and wall must give a positive inner diameter.")
+        if inner_diameter is not None and not math.isclose(calculated, inner_diameter, rel_tol=1e-6):
+            raise ValueError("Tube inner diameter disagrees with OD minus twice the wall thickness.")
+        inner_diameter = calculated
+    if inner_diameter is None or inner_diameter <= 0:
+        raise ValueError("Specify a positive tube inner diameter or OD/wall thickness.")
+    return inner_diameter
+
+
+class ClosedSafeDischargeCoefficient(DischargeCoefficient):
+    """Handle the closed limit of an optional inertial valve passage without 1/0."""
+
+    def evaluate_states(self):
+        if self.length.is_assigned and abs(self.discharge_coefficient.value * self.cross_sectional_area.value) < 1e-12:
+            dt = max(0.0, self.network.time.value - previous(self.network.time))
+            self.mass_flow_dot = -float(previous(self.mass_flow)) / dt if dt > 0 else 0.0
+            return
+        super().evaluate_states()
 
 
 class Tank:
@@ -140,12 +168,17 @@ class Line(LiquidElement):
     inner_diameter [m], length [m], roughness [m], height_change [m] (outlet above inlet).
     """
 
-    def __init__(self, name, inner_diameter, length, roughness=1.5e-5, height_change=0.0, outlet_node=None):
+    def __init__(self, name, inner_diameter=None, length=None, roughness=1.5e-5, height_change=0.0, outlet_node=None,
+                 outer_diameter=None, wall_thickness=None):
         super().__init__(name, outlet_node)
-        self.inner_diameter = inner_diameter
+        self.inner_diameter = _tube_geometry(inner_diameter, outer_diameter, wall_thickness)
+        if length is None or length <= 0:
+            raise ValueError(f"{name}: tube length must be positive.")
         self.length = length
         self.roughness = roughness
         self.height_change = height_change
+        self.outer_diameter = outer_diameter
+        self.wall_thickness = wall_thickness
 
     def build(self, context, upstream_pressure, downstream_pressure):
         self._connect(upstream_pressure, downstream_pressure)
@@ -185,7 +218,7 @@ class Orifice(LiquidElement):
     def build(self, context, upstream_pressure, downstream_pressure):
         self._connect(upstream_pressure, downstream_pressure)
         self.state = self.opening(context)
-        component = DischargeCoefficient(
+        component = ClosedSafeDischargeCoefficient(
             self.name, context.network, upstream_pressure=upstream_pressure,
             downstream_pressure=downstream_pressure, density=context.fluid.density,
             discharge_coefficient=self.state, cross_sectional_area=self.cda_value,
@@ -207,18 +240,29 @@ class Valve(Orifice):
     clock, interpolated linearly; None keeps the valve fully open.
     """
 
-    def __init__(self, name, cda, schedule=None, length=None, outlet_node=None):
+    def __init__(self, name, cda, schedule=None, length=None, outlet_node=None,
+                 open_time=0.0, close_time=0.0):
         super().__init__(name, cda, length, outlet_node)
         self.schedule = schedule
         self.closed_at_start = bool(schedule) and schedule[1][0] == 0.0
+        self.open_time, self.close_time = open_time, close_time
+
+    def actuate(self, context, command, initial=0.0):
+        self.command = command
+        self.position = State(initial)
+        ValveTravel(f"{self.name} Travel", context.network, command, self.position,
+                    self.open_time, self.close_time)
+        context.network.track(f"{self.name} Command", command)
+        context.network.track(f"{self.name} Opening", self.position)
+        return self.position
 
     def opening(self, context):
         if not self.schedule:
-            return 1.0
+            return self.actuate(context, State(1.0), initial=1.0)
         command = State(float(self.schedule[1][0]))
         Sequence(f"{self.name} Command", context.network, target=command,
                  times=list(self.schedule[0]), values=list(self.schedule[1]))
-        return command
+        return self.actuate(context, command, initial=float(self.schedule[1][0]))
 
 
 class ThrottleValve(LiquidElement):
@@ -234,28 +278,40 @@ class ThrottleValve(LiquidElement):
 
     closed_at_start = True
 
-    def __init__(self, name, max_cda, full_scale_mass_flow=None, outlet_node=None):
+    def __init__(self, name, max_cda, full_scale_mass_flow=None, outlet_node=None,
+                 open_time=0.0, close_time=0.0):
         super().__init__(name, outlet_node)
         self.max_cda = max_cda
         self.full_scale_mass_flow = full_scale_mass_flow
+        self.open_time, self.close_time = open_time, close_time
 
     def build(self, context, upstream_pressure, downstream_pressure):
         self._connect(upstream_pressure, downstream_pressure)
         if context.target_flow is None:
             raise ValueError(f"{self.name}: a ThrottleValve needs a flow target (liquid feed lines only).")
-        self.area = State(0.0)   # [m^2] solved
-        component = DischargeCoefficient(
-            self.name, context.network, upstream_pressure=upstream_pressure,
+        self.area = State(0.0)   # requested effective area, solved before physical travel
+        demand = DischargeCoefficient(
+            f"{self.name} Demand", context.network, upstream_pressure=upstream_pressure,
             downstream_pressure=downstream_pressure, density=context.fluid.density,
             discharge_coefficient=1, cross_sectional_area=self.area)
-        self.mass_flow = component.mass_flow
         # Residual max((mdot - target) / 0.01 kg/s, (CdA - CdA_max) / 1 mm^2): zero
         # when on target with CdA <= max, or fully open and still short. CdA is
         # unbounded below (targets are never negative; a bound at 0 stalls closing).
         Balance(f"{self.name} Flow Control", context.network, variable=self.area,
-                function=State.maximum((self.mass_flow - context.target_flow) / 1.0e-2,
+                function=State.maximum((demand.mass_flow - context.target_flow) / 1.0e-2,
                                        (self.area - self.max_cda) / 1.0e-6))
-        self.cda = self.area
+        self.command = (self.area / self.max_cda).clip(0.0, 1.0)
+        self.position = State(0.0)
+        ValveTravel(f"{self.name} Travel", context.network, self.command, self.position,
+                    self.open_time, self.close_time)
+        self.cda = self.position * self.max_cda
+        component = DischargeCoefficient(
+            self.name, context.network, upstream_pressure=upstream_pressure,
+            downstream_pressure=downstream_pressure, density=context.fluid.density,
+            discharge_coefficient=1.0, cross_sectional_area=self.cda)
+        self.mass_flow = component.mass_flow
+        context.network.track(f"{self.name} Command", self.command)
+        context.network.track(f"{self.name} Opening", self.position)
         self.target_flow = context.target_flow
         if self.full_scale_mass_flow:
             self.state = State.minimum(State.maximum(context.target_flow / self.full_scale_mass_flow, 0.0), 1.0)
@@ -335,9 +391,13 @@ class GasLine(LiquidElement):
 
     kind = "gas_line"
 
-    def __init__(self, name, inner_diameter, length, roughness=1.5e-5, inertia=False, outlet_node=None):
+    def __init__(self, name, inner_diameter=None, length=None, roughness=1.5e-5, inertia=False, outlet_node=None,
+                 outer_diameter=None, wall_thickness=None):
         super().__init__(name, outlet_node)
-        self.inner_diameter = inner_diameter
+        self.inner_diameter = _tube_geometry(inner_diameter, outer_diameter, wall_thickness)
+        if length is None or length <= 0:
+            raise ValueError(f"{name}: gas tube length must be positive.")
+        self.outer_diameter, self.wall_thickness = outer_diameter, wall_thickness
         self.length = length
         self.roughness = roughness
         self.inertia = inertia
@@ -377,14 +437,45 @@ def is_dynamic_line(element):
     return isinstance(element, GasLine) and element.inertia
 
 
-class BangBangValve(Orifice):
+class Regen(Orifice):
+    """Hydraulic restriction with prescribed dT(Pc), evaluated in Pa and K."""
+
+    def __init__(self, name, cda, delta_t_curve, length=None, outlet_node=None):
+        super().__init__(name, cda, length, outlet_node)
+        delta_t_value(delta_t_curve, 0.0)  # validate before constructing a network
+        self.delta_t_curve = tuple(delta_t_curve)
+
+    def outlet_temperature(self, inlet_temperature, chamber_pressure):
+        return inlet_temperature + delta_t_value(self.delta_t_curve, chamber_pressure)
+
+
+class COPVSource:
+    """Individual adiabatic bottle and its connection to the common header."""
+
+    def __init__(self, name, volume, pressure, temperature, min_temperature=None, outlet_cda=100e-6):
+        if not all(math.isfinite(x) and x > 0 for x in (volume, pressure, temperature, outlet_cda)):
+            raise ValueError(f"{name}: COPV volume, pressure, temperature and outlet CdA must be positive.")
+        if min_temperature is not None and (not math.isfinite(min_temperature) or min_temperature <= 0):
+            raise ValueError(f"{name}: minimum COPV temperature must be positive Kelvin or None.")
+        self.name, self.volume, self.pressure = name, volume, pressure
+        self.temperature, self.min_temperature = temperature, min_temperature
+        self.outlet_cda = outlet_cda
+
+
+class BangBangValve(Valve):
     """Pressurization solenoid opened and closed by its tank's bang-bang
     controller (set pressure and band are given with the tank). cda [m^2]."""
 
     solenoid = True
 
 
-class CheckValve(Orifice):
+class CheckValve(Valve):
     """Check valve: a restriction that only lets gas flow toward the tank. cda [m^2]."""
 
     check = True
+
+    def opening(self, context):
+        command = FunctionLookup(f"{self.name} Check Command", context.network,
+                         lambda p1, p2: {"opening": float(p1 > p2)},
+                         p1=self.upstream_pressure, p2=self.downstream_pressure, outputs=("opening",))
+        return self.actuate(context, command.opening, initial=1.0)

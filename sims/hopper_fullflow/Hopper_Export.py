@@ -84,6 +84,10 @@ def ExportActualPerformance(filename, csv_filename):
         ("Actual C* [m/s]", "C* [m/s]", 2),
         ("Actual Isp [s]", "Isp [s]", 2),
     ]
+    # New histories expose thermal quantities; retain support for older runs.
+    for track in tracks:
+        if track.endswith("_Outlet_Temperature_[K]") or track.endswith("_dT_[K]"):
+            columns.append((track.replace("_", " "), track, 3))
     data = [_track(tracks, track) for _, track, _ in columns]
 
     # C* and Isp are flow ratios, meaningless before ignition and after tail-off.

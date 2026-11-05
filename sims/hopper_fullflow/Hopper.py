@@ -26,6 +26,8 @@ from Hopper_Chamber_Map import HopperChamberMap
 from Hopper_Thrust_Targeter import HopperThrustTargets
 from Hopper_Prop_System import HopperPropSystem
 from Hopper_Export import ExportEngineTargets, ExportActualPerformance
+from Hopper_Report import export_summary, read_metadata
+from Hopper_Diagram import hardware_diagram
 
 
 
@@ -59,6 +61,8 @@ targets = HopperThrustTargets(
 )
 
 os.makedirs(PROP_RESULTS_DIRECTORY, exist_ok=True)
+if PROP_COMPONENT_DIAGRAM:
+    hardware_diagram(PROP_RESULTS_DIRECTORY)
 ExportEngineTargets(targets, os.path.join(PROP_RESULTS_DIRECTORY, "engine_targets.csv"))
 
 
@@ -84,6 +88,12 @@ if PROP_SOLVE_PROP_SYSTEM:
     )
 
     print(f"Propulsion system solved in {time.perf_counter() - start:.1f} s.")
+
+if PROP_SOLVE_PROP_SYSTEM or PROP_EXPORT_RESULTS:
+    if read_metadata(PROP_FILENAME) is not None:
+        export_summary(PROP_FILENAME, PROP_RESULTS_DIRECTORY)
+    else:
+        print("Saved run predates summary metadata; rerun to obtain maximum-thrust and residual reports.")
 
 
 

@@ -63,10 +63,11 @@ as incompressible. ThermoProp's RP-1 is 812 kg/m³, against the 752 kg/m³
 n-Dodecane surrogate vehicle_sim.py used, so fuel-side pressure drops are about
 8 % higher than in the old model.
 
-The defaults fly the full 1dof thrust profile (29.7 s) at a 0.05 s time step,
-with the throttle valves stepping at each profile point the way vehicle_sim.py
-does (`PROP_PROFILE_INTERPOLATION = "step"`; `"linear"` interpolates instead).
-A run takes about 5 min. The chamber map (`Hopper_Chamber_Map.h5`) is
+The defaults fly the full 1dof thrust profile (29.7 s), using linear flow-demand
+interpolation. `PROP_DT` is the requested maximum step. Valve/controller resolution
+currently reduces it to 0.005 s; the selected integration step is printed.
+`PROP_PROFILE_INTERPOLATION = "step"` instead holds demands between profile points.
+Runtime depends strongly on the resolved step and hardware settings. The chamber map (`Hopper_Chamber_Map.h5`) is
 included, and is rebuilt automatically if missing or when
 `PROP_GENERATE_CHAMBER_MAP = True` (~2 min). Rebuild it after changing the
 propellants or the map grid.
@@ -74,7 +75,7 @@ propellants or the map grid.
 Outputs go to `Hopper_Results/`:
 - `engine_targets.csv` and `actual_performance.csv`, in vehicle_sim.py's formats
   (plus a target-thrust column);
-- the plots named in `PROP_PLOTS` (default `"all"`, the 13 plots below), and
+- the plots named in `PROP_PLOTS` (default `"all"`, including station and thermal plots), and
   with `PROP_PLOT_CSV = True` the numbers behind each one.
 
 The full FullFlow history goes to `Hopper_Prop_System.h5` (~340 MB). Keep it to make more plots later without re-running.
@@ -207,3 +208,151 @@ changes:
   shown.
 
 It also dumps every history the old model keeps to `vehicle_sim_history.csv`.
+
+## Configuring the new capabilities
+
+The working design and task checklist are in [DESIGN.md](DESIGN.md).
+
+### Flight profile or ramp
+
+Set `PROP_THRUST_CURVE_NAME` to `"1dof"` or `"ramp"`. For a ramp, set
+`RAMP_START_THRUST`, `RAMP_END_THRUST` (N; multiply lbf by `LBF`),
+`RAMP_DURATION` (s), and `RAMP_POINTS`. The targeter solves each supplied thrust
+point; the transient interpolates the resulting flow demands.
+
+After a new run, `run_summary.txt` and `run_summary.json` report maximum
+demonstrated sustained thrust. The value is the highest **minimum** thrust
+maintained for `MAX_THRUST_HOLD_TIME`, considering only valid profile samples.
+This deliberately rejects brief startup spikes. The report distinguishes a run
+that demonstrates sustained valve saturation plus thrust shortfall from a run
+that stops below the feed-system capacity. Neither result is a universal steady
+maximum independent of initial pressure, ramp rate, mixture ratio, or depletion.
+The configured ramp endpoint is a demand, not a guaranteed capability.
+
+### Valve travel and tank deadband
+
+`Valve`, `ThrottleValve`, `BangBangValve`, and `CheckValve` accept `open_time` and
+`close_time` in seconds. These are full-stroke linear travel times; a partial
+stroke takes proportionately less time. Zero means instantaneous. The example
+bang-bang values are 0.05 s and require replacement with measured hardware data.
+There is no extra solenoid electrical delay or valve-specific nonlinear CdA
+versus position curve in this model.
+
+`BANG_BANG_SAMPLE_PERIOD` sets the pressure-controller sample clock independently.
+`LOX_TANK_SET_PRESSURE` / `FUEL_TANK_SET_PRESSURE` set the control targets. Each
+has separate `...DEADBAND_LOW` and `...DEADBAND_HIGH` values in Pa. A 5 psi lower
+and upper offset gives a total 10 psi band. Opening/closing travel follows the
+controller command rather than switching the hydraulic area instantly.
+
+The solver caps the requested `PROP_DT` to at most 1/10 of the shortest nonzero
+valve travel and 1/2 the controller sample period. Controller sample instants
+are supplied as solver breakpoints. This is an initial resolution rule;
+check time-step convergence for the quantities you care about. `PROP_SAVE_DT`
+separately controls saved resolution: use e.g. 0.005 s when studying 50 ms valves.
+`THROTTLE_STEP_TIME` smooths the demand in step mode; it is not actuator travel.
+The main-valve startup/shutdown demand ramps remain independently configurable.
+
+### Regen temperature rise
+
+Edit `FUEL_REGEN_DT_VS_PC`, a list of `(Pc in Pa, dT in K)` pairs. For example:
+
+```python
+FUEL_REGEN_DT_VS_PC = [(0.0, 0.0), (100 * psi, 10.0), (300 * psi, 45.0)]
+```
+
+Values are linearly interpolated and held at the endpoints. The default curve
+has zero rise because no measured curve has been supplied. The `Regen` element
+retains its hydraulic CdA and passage inertia. It calculates outlet temperature
+and updates downstream fuel properties for the injector and subsequent elements.
+The `regen` plot shows inlet/outlet temperature and prescribed heat pickup.
+
+This is a prescribed, single-phase heating model. It has no wall thermal inertia
+or reverse-flow heat transport; keep inputs within liquid-property validity.
+The equilibrium chamber map still uses its original reactant temperatures, so
+the prescribed rise does not automatically change equilibrium gas properties.
+
+### COPVs and residual propellant
+
+`COPVS` contains individual `COPVSource` objects. Each has volume, initial
+pressure/temperature, a bottle-to-header `outlet_cda`, and optional
+`min_temperature` (K). `COPV_MIN_TEMPERATURES` supplies one limit per default bottle;
+`None` disables that bottle's limit. Bottle connection CdAs are placeholders and
+should be replaced by actual connection data. Individual bottles feed a common
+adiabatic header with gas storage; backflow into bottles is blocked.
+`COPV_HEADER_VOLUME` sets its internal volume. The 0.05 L default is a placeholder
+for measured manifold/plumbing volume. A positive volume keeps pressure defined
+when both pressurant valves close and stores the gas trapped in that header.
+
+Minimum temperature is a **reported operating limit**, not an artificial
+temperature clamp or shutoff. The run continues after crossing it.
+`copv_temperatures` plots all bottles and their limits. Aggregate legacy COPV
+pressure/temperature tracks now describe the common header; aggregate mass is
+the sum of all bottle masses.
+
+`propellant_residuals.csv` reports initial, consumed, profile-end, and final liquid
+mass plus percentage remaining. Residuals refer to tank inventory; the model
+does not count trapped liquid in zero-volume feed junctions. Negative inventory
+invalidates the run and is reported; two-phase depletion is not simulated.
+
+### Efficiency functions or CSV tables
+
+Edit `CSTAR_EFFICIENCY_FUNCTION(pc, mr)` and `CF_EFFICIENCY_FUNCTION(pc, mr)`;
+functions receive chamber pressure in **Pa** and O/F mass ratio. Alternatively set
+`CSTAR_EFFICIENCY_CSV` / `CF_EFFICIENCY_CSV` to paths relative to this repo.
+A selected CSV takes precedence over the corresponding function.
+
+CSV formats:
+
+```csv
+pc_psia,efficiency
+100,0.80
+300,0.85
+```
+
+or `pc_psia,mr,efficiency` for a complete rectangular Pc/MR grid. Interpolation is
+linear/bilinear, with endpoint holding. Missing grid cells, duplicate points,
+nonfinite values, and efficiencies outside `(0, 1]` are rejected. Example files
+in `inputs/` describe the format; their values are not measured calibration.
+
+The default functions now interpolate LOW to HIGH and hold their endpoints.
+This corrects the former `max(1, ...)` formula, which held HIGH at low Pc and
+increased without a cap. Expect results to differ from old saved comparisons.
+Changing efficiencies does not require rebuilding the equilibrium gas map.
+
+### Station snapshots and component diagram
+
+```powershell
+python Hopper_Plots.py plot ox_pressure_stations fuel_pressure_stations --times 1 5 10 --csv
+python Hopper_Plots.py plot lox_pressurant_stations fuel_pressurant_stations --times 5
+python Hopper_Plots.py plot regen copv_temperatures
+python Hopper_Diagram.py
+```
+
+Station x labels are the source followed by each component's outlet. Times are
+simulation seconds unless `--profile-time` is used. `STATION_PLOT_TIMES = None`
+selects the time of peak delivered thrust. Pressure drops within grouped gas
+restrictions are allocated by their instantaneous effective CdAs; these are not
+separate compressible node solves.
+
+`component_diagram.png` and `.svg` show every configured source and element.
+Liquid tube boxes include OD/wall when configured, and always show ID and length.
+Gas lines configured only by ID show ID; OD/wall are not invented. `Hopper.py`
+also generates this diagram when `PROP_COMPONENT_DIAGRAM` is true.
+
+New runs embed profile timing, limits, initial inventories, and throttle areas in
+the HDF5 file for reliable reports. Older histories can still make the existing
+plots and station snapshots, but require rerunning to obtain the new summary.
+
+### Validation
+
+```powershell
+python -m unittest discover -s tests -v
+python tests/run_feature_validation.py
+```
+
+These checks cover timing/retries, sampling, ramp generation, CSV interpolation
+and validation, and sustained-thrust reporting. The feature-validation command
+runs a short coupled burn with temporary in-process overrides and checks
+inventory conservation, regen outlet properties, valve rates, limits, report
+exports, and every named plot. It writes to `validation_outputs/` and does not
+overwrite the normal saved run.

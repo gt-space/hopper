@@ -43,7 +43,8 @@ from scipy.constants import *
 
 from HOPPER_DATA import *
 from Hopper_Components import EnginePerformance
-from Hopper_Elements import BangBangValve, CheckValve, FeedContext, GasLine, Injector, ThrottleValve, is_dynamic_line
+from Hopper_Elements import BangBangValve, CheckValve, FeedContext, GasLine, Injector, ThrottleValve, Regen, is_dynamic_line
+from Hopper_Control import SampledBangBang, FunctionLookup
 
 
 # How the throttle-valve flow targets move between thrust-profile points.
@@ -83,7 +84,10 @@ def target_schedule(targets, key, interpolation):
     for previous, target in zip(targets[:-1], targets[1:]):
         time = profile_start + target["time"]
         if interpolation == "step":
-            times += [time - THROTTLE_STEP_TIME, time]
+            smoothing = min(THROTTLE_STEP_TIME, 0.5 * (target["time"] - previous["time"]))
+            if smoothing <= 0:
+                raise ValueError("THROTTLE_STEP_TIME must be positive in step mode.")
+            times += [time - smoothing, time]
             values += [previous[key], target[key]]
         else:
             times.append(time)
@@ -100,7 +104,7 @@ def target_schedule(targets, key, interpolation):
 LIQUID_PROPERTIES = ("density", "dynamic_viscosity", "enthalpy", "vapor_pressure", "quality")
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=512)
 def _liquid_property_values(propellant, pressure, temperature):
     liquid = Propellant(propellant, pressure=pressure, temperature=temperature)
     return tuple(float(getattr(liquid, name)) for name in LIQUID_PROPERTIES)
@@ -111,6 +115,21 @@ def liquid_properties(propellant, pressure, temperature):
     the Propellant is evaluated once per (propellant, pressure, temperature)
     even though the solver evaluates the network thousands of times."""
     return dict(zip(LIQUID_PROPERTIES, _liquid_property_values(propellant, float(pressure), float(temperature))))
+
+
+def heated_property_function(propellant, pressure, minimum_temperature, maximum_temperature):
+    """Precompute T-dependent properties instead of repeated EOS calls in Newton iterations."""
+    import numpy as np
+    count = REGEN_PROPERTY_TEMPERATURE_POINTS if maximum_temperature > minimum_temperature else 1
+    if count < 1 or (maximum_temperature > minimum_temperature and count < 2):
+        raise ValueError("REGEN_PROPERTY_TEMPERATURE_POINTS must be >=2 for a nonzero dT range.")
+    temperatures = np.linspace(minimum_temperature, maximum_temperature, count)
+    values = np.array([_liquid_property_values(propellant, pressure, t) for t in temperatures])
+
+    def evaluate(temperature):
+        return {name: float(np.interp(temperature, temperatures, values[:, i]))
+                for i, name in enumerate(LIQUID_PROPERTIES)}
+    return evaluate
 
 
 
@@ -149,11 +168,13 @@ def build_tank(network, tank, pressurant):
     # incompressible. The Propellant recomputes a property on every read
     # (0.7 ms for density, ~45 ms for enthalpy), so it is read once here and
     # handed to FullFlow as plain numbers through a function Lookup.
-    liquid = Lookup(f"{tank.name} Liquid", network, liquid_properties, propellant=tank.propellant,
+    liquid = FunctionLookup(f"{tank.name} Liquid", network, liquid_properties, propellant=tank.propellant,
                     pressure=tank.set_pressure, temperature=tank.liquid_temperature,
                     outputs=LIQUID_PROPERTIES)
 
     liquid_volume = State(tank.liquid_mass / liquid.density.value)
+    if not 0.0 < liquid_volume.value < tank.volume:
+        raise ValueError(f"{tank.name}: liquid inventory must leave positive ullage volume.")
     outflow = State(0.0)   # set by the feed line
     liquid_node = Volume(f"{tank.name} Liquid Node", network, pressure=State(tank.pressure), volume=liquid_volume,
                          density=liquid.density, mass_flow_out=outflow)
@@ -177,19 +198,14 @@ def build_tank(network, tank, pressurant):
             "ullage_gas": ullage_gas, "heat_transfer": heat_transfer}
 
 
-def bang_bang_state(network, tank, ullage_pressure):
+def bang_bang_state(network, tank, ullage_pressure, horizon=60.0):
     """The tank's bang-bang solenoid command (1 open, 0 closed), as a FullFlow
     function Sequence: close above set + upper, open below set - lower, else
     keep the last command (hysteresis). Function sequences see the previous
     accepted step, like a flight computer sampling its transducer."""
-    def BangBang(t, pressure, state, set_pressure, upper_limit, lower_limit):
-        if pressure > set_pressure + upper_limit: return 0.0
-        if pressure < set_pressure - lower_limit: return 1.0
-        return state
-
     command = State(tank.bang_bang_initial_state)
-    Sequence(f"{tank.name} Bang Bang", network, target=command, function=BangBang,
-             inputs=[ullage_pressure, command, tank.set_pressure, tank.upper_limit, tank.lower_limit])
+    SampledBangBang(f"{tank.name} Bang Bang", network, ullage_pressure, command,
+                   tank.set_pressure, tank.upper_limit, tank.lower_limit, BANG_BANG_SAMPLE_PERIOD, horizon)
     return command
 
 
@@ -242,29 +258,35 @@ def build_pressurant_leg(network, label, elements, source_gas, source_pressure, 
         else:
             group_name = " + ".join(element.name for element in segment)
             context = FeedContext(network, upstream_gas, label)
-            openings = [element.opening(context) for element in segment]
-            discharge_coefficient = 1.0
-            for element, opening in zip(segment, openings):
-                discharge_coefficient = discharge_coefficient * opening
+            openings = []
+            for element in segment:
                 if isinstance(element, BangBangValve):
-                    discharge_coefficient = discharge_coefficient * command
+                    opening = element.actuate(context, command, initial=0.0)
+                elif isinstance(element, CheckValve):
+                    check = FunctionLookup(f"{element.name} Check Command", network,
+                                   lambda p1, p2: {"opening": float(p1 > p2)},
+                                   p1=upstream_pressure, p2=downstream_pressure, outputs=("opening",))
+                    opening = element.actuate(context, check.opening, initial=1.0)
+                else:
+                    opening = element.opening(context)
+                openings.append(opening)
             path = SeriesCdA(f"{group_name} Series CdA", network,
-                             effective_areas=[element.cda_value for element in segment])
+                             effective_areas=[element.cda_value * opening for element, opening in zip(segment, openings)])
             orifice = CompressibleOrifice(
                 group_name, network, upstream_total_pressure=upstream_pressure,
                 upstream_total_temperature=upstream_gas.temperature, downstream_pressure=downstream_pressure,
-                discharge_coefficient=discharge_coefficient, cross_sectional_area=path.effective_area,
+                discharge_coefficient=1.0, cross_sectional_area=path.effective_area,
                 gas_constant=upstream_gas.gas_constant, specific_heat_ratio=upstream_gas.gamma,
                 upstream_static_enthalpy=upstream_gas.enthalpy,
                 upstream_static_temperature=upstream_gas.temperature)
             # Check valve: no reverse flow (flow can only go COPV -> tank).
             mass_flow = State.maximum(orifice.mass_flow, 0.0) if has_check else orifice.mass_flow
-            network.track(f"{group_name} Effective CdA [m2]", path.effective_area * discharge_coefficient)
+            network.track(f"{group_name} Effective CdA [m2]", path.effective_area)
             for element, opening in zip(segment, openings):
                 element._connect(upstream_pressure, downstream_pressure)
                 element.mass_flow = mass_flow
-                element.cda = element.cda_value
-                element.state = command if isinstance(element, BangBangValve) else opening
+                element.cda = element.cda_value * opening
+                element.state = opening
                 element.group = group_name
                 track_element(network, element, upstream_gas.enthalpy)
             flows.append((mass_flow, orifice.total_enthalpy))
@@ -298,6 +320,8 @@ def build_liquid_feed(network, label, elements, tank, chamber_pressure, target_f
         raise ValueError(f"{label} feed must end with an Injector (it discharges into the chamber).")
 
     context = FeedContext(network, tank["liquid"], label, target_flow)
+    liquid_temperature = State(LOX_TANK.liquid_temperature if label == "LOX" else FUEL_TANK.liquid_temperature)
+    temperature_min = temperature_max = liquid_temperature.value
     upstream_pressure, closed, nodes = tank["liquid_node"].pressure, False, []
     for i, element in enumerate(elements):
         closed = closed or element.closed_at_start
@@ -307,7 +331,26 @@ def build_liquid_feed(network, label, elements, tank, chamber_pressure, target_f
             downstream_pressure = State(AMBIENT_PRESSURE if closed else tank["liquid_node"].pressure.value)
             nodes.append((element.outlet_node, downstream_pressure))
         element.build(context, upstream_pressure, downstream_pressure)
-        track_element(network, element, tank["liquid"].enthalpy)
+        track_element(network, element, context.fluid.enthalpy)
+        network.track(f"{element.name} Inlet Temperature [K]", liquid_temperature)
+        if isinstance(element, Regen):
+            inlet_temperature, inlet_enthalpy = liquid_temperature, context.fluid.enthalpy
+            temperature = FunctionLookup(f"{element.name} Outlet Temperature", network,
+                                 lambda inlet, pc, part=element: {"temperature": part.outlet_temperature(inlet, pc)},
+                                 inlet=liquid_temperature, pc=chamber_pressure, outputs=("temperature",))
+            liquid_temperature = temperature.temperature
+            spec = LOX_TANK if label == "LOX" else FUEL_TANK
+            temperature_min += min(dt for _, dt in element.delta_t_curve)
+            temperature_max += max(dt for _, dt in element.delta_t_curve)
+            properties = heated_property_function(spec.propellant, spec.set_pressure, temperature_min, temperature_max)
+            context.fluid = FunctionLookup(f"{element.name} Heated Liquid", network, properties,
+                                   temperature=liquid_temperature, outputs=LIQUID_PROPERTIES)
+            network.track(f"{element.name} dT [K]", liquid_temperature - inlet_temperature)
+            network.track(f"{element.name} Heat Pickup [W]", element.mass_flow * (context.fluid.enthalpy - inlet_enthalpy))
+        network.track(f"{element.name} Outlet Temperature [K]", liquid_temperature)
+        if i < len(elements) - 1:
+            network.track(f"{element.outlet_node} Temperature [K]", liquid_temperature)
+            network.track(f"{element.outlet_node} Density [kg/m3]", context.fluid.density)
         upstream_pressure = downstream_pressure
 
     for i, (node_name, node_pressure) in enumerate(nodes):
@@ -320,7 +363,48 @@ def build_liquid_feed(network, label, elements, tank, chamber_pressure, target_f
     network.track(f"{throttle.name} Target Mass Flow [kg/s]", target_flow)
     network.track(f"{label} Injector dP [psi]",
                   (elements[-1].upstream_pressure - chamber_pressure) / psi)
-    return {"tank_outflow": elements[0].mass_flow, "chamber_inflow": elements[-1].mass_flow, "nodes": nodes}
+    return {"tank_outflow": elements[0].mass_flow, "chamber_inflow": elements[-1].mass_flow, "nodes": nodes,
+            "outlet_temperature": liquid_temperature}
+
+
+def build_copvs(network):
+    """Independent bottles feeding an adiabatic common header with gas storage."""
+    if not COPVS or len({b.name for b in COPVS}) != len(COPVS):
+        raise ValueError("COPVS must contain at least one bottle with unique names.")
+    pressure = State(min(b.pressure for b in COPVS))
+    bottles, flows = [], []
+    enthalpy_flow = 0.0
+    for spec in COPVS:
+        gas = Lookup(f"{spec.name} Gas", network, Fluid, PRESSURANT,
+                     pressure=spec.pressure, temperature=spec.temperature)
+        bottle = Volume(spec.name, network, pressure=gas.pressure, temperature=gas.temperature,
+                        volume=spec.volume, density=gas.density, internal_energy=gas.internal_energy,
+                        enthalpy=gas.enthalpy, energy_variable="temperature")
+        outlet = CompressibleOrifice(f"{spec.name} Header Connection", network,
+                    upstream_total_pressure=bottle.pressure, upstream_total_temperature=gas.temperature,
+                    downstream_pressure=pressure, cross_sectional_area=spec.outlet_cda,
+                    discharge_coefficient=1.0, gas_constant=gas.gas_constant, specific_heat_ratio=gas.gamma,
+                    upstream_static_enthalpy=gas.enthalpy, upstream_static_temperature=gas.temperature)
+        flow = State.maximum(outlet.mass_flow, 0.0)
+        bottle.mass_flow_out = flow
+        flows.append(flow)
+        enthalpy_flow = enthalpy_flow + flow * gas.enthalpy
+        bottles.append((spec, bottle, gas))
+        network.track(f"{spec.name} Pressure [psia]", bottle.pressure / psi)
+        network.track(f"{spec.name} Temperature [K]", bottle.temperature)
+        network.track(f"{spec.name} Gas Mass [kg]", bottle.mass)
+        network.track(f"{spec.name} Outflow [kg/s]", flow)
+    total_flow = sum(flows)
+    if COPV_HEADER_VOLUME <= 0:
+        raise ValueError("COPV_HEADER_VOLUME must be positive so trapped header gas has a physical state.")
+    gas = Lookup("COPV Pressurant Gas", network, Fluid, PRESSURANT, pressure=pressure,
+                 temperature=sum(b.temperature for b in COPVS) / len(COPVS))
+    header = Volume("COPV Header", network, pressure=pressure, temperature=gas.temperature,
+                    volume=COPV_HEADER_VOLUME, density=gas.density, internal_energy=gas.internal_energy,
+                    enthalpy=gas.enthalpy, energy_variable="temperature", mass_flow_in=total_flow,
+                    total_enthalpy_in=enthalpy_flow)
+    network.track("COPV Header Gas Mass [kg]", header.mass)
+    return header, gas, bottles
 
 
 
@@ -368,11 +452,7 @@ def HopperPropSystem(targets: list,
     # ---- Pressurant: COPVs ---- #
     # One lumped GN2 volume; mass and energy integrated, no wall heat transfer,
     # so this is an adiabatic blowdown.
-    COPVGas = Lookup("COPV Pressurant Gas", Hopper, Fluid, PRESSURANT,
-                     pressure=PRESSURANT_INITIAL_PRESSURE, temperature=PRESSURANT_INITIAL_TEMPERATURE)
-    COPV = Volume("COPV", Hopper, pressure=COPVGas.pressure, temperature=COPVGas.temperature,
-                  volume=COPV_VOLUME, density=COPVGas.density, internal_energy=COPVGas.internal_energy,
-                  enthalpy=COPVGas.enthalpy, energy_variable="temperature")
+    COPV, COPVGas, bottles = build_copvs(Hopper)
 
 
     # ---- Tanks and pressurant legs ---- #
@@ -380,7 +460,7 @@ def HopperPropSystem(targets: list,
     for label, tank, leg in [("LOX", LOX_TANK, LOX_PRESSURANT_LEG), ("Fuel", FUEL_TANK, FUEL_PRESSURANT_LEG)]:
         pressurant = {"mass_flow": State(0.0), "total_enthalpy": State(0.0)}   # filled in below
         tanks[label] = build_tank(Hopper, tank, pressurant)
-        command = bang_bang_state(Hopper, tank, tanks[label]["ullage_gas"].pressure)
+        command = bang_bang_state(Hopper, tank, tanks[label]["ullage_gas"].pressure, t_final)
         legs[label] = build_pressurant_leg(Hopper, label, leg, COPVGas, COPV.pressure,
                                            tanks[label]["ullage"].pressure, command)
         tanks[label]["ullage"].mass_flow_in = legs[label]["mass_flow"]
@@ -429,8 +509,8 @@ def HopperPropSystem(targets: list,
     # Saved under "Hopper_Prop_System/transient/runs/base/tracks". The per-element
     # and per-node tracks are written by the builders above.
     Hopper.track("COPV Pressure [psia]", COPV.pressure / psi)
-    Hopper.track("COPV Temperature [K]", COPV.temperature)
-    Hopper.track("COPV Gas Mass [kg]", COPV.mass)
+    Hopper.track("COPV Temperature [K]", COPVGas.temperature)
+    Hopper.track("COPV Gas Mass [kg]", sum(b.mass for _, b, _ in bottles))
     Hopper.track("COPV Density [kg/m3]", COPVGas.density)
     Hopper.track("COPV Enthalpy [J/kg]", COPVGas.enthalpy)
 
@@ -475,8 +555,16 @@ def HopperPropSystem(targets: list,
     # Implicit (backward Euler) transient. Each step solves all unknowns
     # together with SciPy least squares; a step whose residual exceeds rtol is
     # retried with half the time step.
+    # Resolve physical travel with >=10 steps/full stroke and controller samples
+    # with >=2 steps. This is resolution control, not a temporal error estimate.
+    travel = [t for e in LOX_FEED + FUEL_FEED + LOX_PRESSURANT_LEG + FUEL_PRESSURANT_LEG
+              for t in (getattr(e, "open_time", 0), getattr(e, "close_time", 0)) if t > 0]
+    resolved_dt = min(dt, BANG_BANG_SAMPLE_PERIOD / 2, min(travel) / 10 if travel else dt)
+    resolved_dt = BANG_BANG_SAMPLE_PERIOD / __import__("math").ceil(BANG_BANG_SAMPLE_PERIOD / resolved_dt)
+    if resolved_dt < dt:
+        print(f"Valve/controller resolution: integration dt capped at {resolved_dt:g} s (requested {dt:g} s).")
     Transient(Hopper).solve(
-        dt=dt,
+        dt=resolved_dt,
         t_final=t_final,
         save_dt=save_dt,
         filename=filename,
@@ -485,3 +573,5 @@ def HopperPropSystem(targets: list,
         verbose=verbose,
         statistics=statistics,
     )
+    from Hopper_Report import write_run_metadata
+    write_run_metadata(filename, targets, resolved_dt)

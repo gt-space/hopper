@@ -13,6 +13,7 @@ from scipy.constants import *
 
 from HOPPER_DATA import *
 from Hopper_Components import EnginePerformance
+from Hopper_Inputs import validate_profile
 
 
 def HopperThrustTargets(thrust_profile: dict,
@@ -31,6 +32,7 @@ def HopperThrustTargets(thrust_profile: dict,
     """
 
     # A tiny steady network: one unknown (Pc) and one equation (thrust = target).
+    thrust_profile = validate_profile(thrust_profile)
     Targeter = Network("Hopper Thrust Targeter")
 
     chamber_pressure = State(250 * psi)                          # initial guess; solved below
