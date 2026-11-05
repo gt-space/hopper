@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import numpy as np
 from Hopper_Export import LoadTracks, _track, ExportActualPerformance
-from Hopper_Report import summarize
+from Hopper_Report import summarize, read_metadata
 from Hopper_Prop_System import heated_property_function, liquid_properties
 
 
@@ -36,7 +36,8 @@ def check(filename):
         change = np.diff(opening)
         assert np.all(change <= dt / opening_time + 1e-8)
         assert np.all(change >= -dt / closing_time - 1e-8)
-    for name in ("COPV 1", "COPV 2", "COPV 3"):
+    bottle_names = [b['name'] for b in read_metadata(filename)['copvs']]
+    for name in bottle_names:
         mass, flow = get(f"{name} Gas Mass [kg]"), get(f"{name} Outflow [kg/s]")
         # At discrete valve events, the saved connector rate is the endpoint
         # value, not the interval-average transfer. Check source direction and
@@ -45,7 +46,7 @@ def check(filename):
         assert np.min(np.diff(mass)) < 0
         assert np.max(np.diff(mass)) < 5e-6
     np.testing.assert_allclose(get("COPV Gas Mass [kg]"),
-                              sum(get(f"COPV {i} Gas Mass [kg]") for i in (1, 2, 3)), atol=1e-10)
+                              sum(get(f"{name} Gas Mass [kg]") for name in bottle_names), atol=1e-10)
     gas_mass = (get("COPV Gas Mass [kg]") + get("COPV Header Gas Mass [kg]")
                 + get("LOX Ullage Gas Mass [kg]") + get("Fuel Ullage Gas Mass [kg]"))
     np.testing.assert_allclose(gas_mass, gas_mass[0], atol=3e-4)

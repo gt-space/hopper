@@ -2,7 +2,8 @@
 
 This is the working design document for the propulsion simulator. Update the
 checklist and validation notes when behavior changes. Inputs belong in
-`HOPPER_DATA.py`; generated results belong in `Hopper_Results/`.
+`hopper_config.json`; generated results belong in timestamped folders under
+`Hopper_Results/`. `HOPPER_DATA.py` is now a compatibility adapter, not an input file.
 
 ## Objective
 
@@ -21,6 +22,38 @@ temperatures, flow, inventories, and engine performance over time.
 - [x] Individual COPV states and minimum-temperature flags.
 - [x] Engine efficiencies from functions or CSV tables.
 - [x] Automated checks and integration/plot validation.
+- [x] JSON configuration for vehicle, ordered hardware paths, engine, sequence, and solver/output settings.
+- [x] Imperial tube dimensions and throat area inputs; diagram also reports throat diameter.
+- [x] Compact colored schematic with component symbols and orthogonal connections.
+- [x] Remove Hdot and quality panels from standard plots and their plot CSVs.
+- [x] Per-run input archives, copied efficiency/map assets, and resolved derived settings.
+
+## JSON configuration and reproducibility
+
+`Hopper_Config.py` validates the JSON and converts explicit unit-suffixed fields
+to the solver's SI inputs. `Hopper_Config_Fields.py` contains only field bindings
+and unit conversions. Unknown keys and duplicate JSON keys are rejected. Optional
+component defaults are materialized in the saved runnable config. Existing
+hardware settings were migrated, including the user's two bottles, 3/8-inch
+liquid tubes, and 100-to-600 lbf ramp. Gas-line OD/wall remain unknown; their
+existing IDs are preserved instead of inventing wall geometry.
+
+Ullage collapse remains the existing convection model: tank surface radius,
+ullage heat-transfer coefficient, and liquid/ullage temperatures are explicit
+inputs. There is no separate empirical collapse multiplier in this model.
+
+Efficiency functions are declarative bounded linear functions or Pc/MR
+polynomials, or CSV grids. JSON does not execute arbitrary Python expressions.
+Custom Python components remain an extension point in the solver, but are not
+serializable JSON hardware types.
+
+Every driver solve creates a timestamped directory before solving and writes
+`input_config.json` (original input), `run_config.json` (resolved defaults and
+local asset paths), and `resolved_inputs.json` (config, derived timestep/profile/
+geometry, asset hashes). The actual chamber map and efficiency CSVs are copied
+into that directory and used for the run. The run config is embedded in HDF5.
+Original results stay intact. Re-export with the archived config and
+`--results-only`; input archives are not rewritten during re-export.
 
 ## Agreed definitions
 
@@ -40,6 +73,13 @@ temperatures, flow, inventories, and engine performance over time.
   must still be fine enough to resolve both.
 
 ## Validation
+
+The JSON migration passes 18 unit tests, including unit conversions, invalid
+fields/geometry/timing, relative CSV paths, and independent replayable archives.
+A JSON-driven 1.5 s startup/burn/shutdown run completed and generated all 19
+plots with CSVs, inventories and summary, plus config/assets in its own archive.
+The new schematic was visually checked. The previous physics-specific validation
+below remains applicable; this migration did not change the physical equations.
 
 Twelve focused behavioral tests pass. All 19 named plots rendered with CSV output;
 the component diagram and station snapshots were visually checked. A complete
@@ -93,6 +133,38 @@ current configuration and existing history respectively.
 - Default efficiencies now use bounded LOW-to-HIGH interpolation. The former
   `max(1, ...)` expression did not implement the intended interpolation. Existing
   comparisons are historical and must not be treated as current calibration.
+
+## Startup stall investigation
+
+The current input review caught an initial fuel-tank pressure of 5,004 psia
+against a 500 psia setpoint; the user confirmed this was a typo and it was
+corrected to 500 psia. Regen outlet temperatures had also been entered as dT;
+the user corrected the latest curve to +51/+44 K (344/337 K outlets at 293 K inlet).
+
+A separate nonlinear stall was reproduced at the attempted 0.015-to-0.020 s
+step, including with regen disabled. FullFlow's default SciPy iteration budget
+lets a bad step run for thousands of iterations before its existing retry.
+`Hopper_Solver.py` bounds each least-squares attempt and retains the same
+residual checks and timestep-retry mechanism. With an 80-evaluation cap the
+short regression passed the difficult step by retrying at 2.5 ms and reached
+0.1 s. No timestep coarsening, relaxed tolerance, hardware changes, or installed
+package edits were used. Property-table and network-build progress messages
+distinguish setup cost from a nonlinear stall; total run timing is saved.
+
+The final default is 20 evaluations per least-squares attempt, exposed as
+`simulation.nonlinear_max_evaluations`. Full cold-start driver runs with the
+corrected current inputs (11 s including the 10 s ramp, all plots) completed
+in 439.6 s with a cap of 80 and 298.8 s with a cap of 20. The latter retained
+the 5 ms step cap and 1e-6 residual tolerance, using 2,264 accepted steps and
+123 retries versus 2,230 steps and 31 retries. Maximum accepted residual stayed
+below 1e-6; total pressurant mass drift stayed below 9 mg in both runs.
+Maximum demonstrated thrust changed from 2055.91 to 2062.31 N (0.31%). Final
+LOX/fuel inventories differed by 5.42/3.03 g. Instantaneous tank-pressure
+differences reached 20.7 psi because bang-bang pulse timing changed; this is
+not a timestep-convergence study or proof of identical pressure histories.
+The runtime target was met narrowly on this machine; other runs may vary.
+All 21 unit tests pass. Benchmark artifacts are in ignored
+`validation_outputs/runtime_fixed/` and `validation_outputs/runtime_fixed_20/`.
 
 ## Model boundaries
 

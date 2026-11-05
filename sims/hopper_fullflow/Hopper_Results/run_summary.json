@@ -1,50 +1,43 @@
 {
-  "profile": "1dof",
+  "profile": "ramp",
   "hold_time_s": 0.5,
-  "demonstrated_maximum_N": 1374.0951049377154,
-  "demonstrated_maximum_lbf": 308.9088682595336,
+  "demonstrated_maximum_N": 1945.5207951252617,
+  "demonstrated_maximum_lbf": 437.37047373061847,
   "interval_s": [
-    1.7999999999999952,
-    2.2999999999999985
+    6.949999999999903,
+    7.449999999999893
   ],
-  "peak_thrust_N": 1382.500000001434,
-  "capacity_shortfall_demonstrated": false,
-  "interpretation": "No sustained capacity shortfall demonstrated; achieved thrust is a lower bound, not the system maximum.",
+  "peak_thrust_N": 1962.8759158237476,
+  "capacity_shortfall_demonstrated": true,
+  "interpretation": "Sustained valve saturation and thrust shortfall occurred; result applies to this run.",
   "residuals": {
     "LOX": {
       "initial_kg": 19.43,
-      "profile_end_kg": 8.22376181184531,
-      "final_kg": 8.18865217918193,
-      "consumed_kg": 11.24134782081807,
-      "remaining_percent": 42.1443756005246
+      "profile_end_kg": 14.545806932909485,
+      "final_kg": 14.415545297914683,
+      "consumed_kg": 5.014454702085317,
+      "remaining_percent": 74.19220431247906
     },
     "Fuel": {
       "initial_kg": 9.7,
-      "profile_end_kg": 3.474312122024957,
-      "final_kg": 3.4548067705220955,
-      "consumed_kg": 6.245193229477904,
-      "remaining_percent": 35.61656464455769
+      "profile_end_kg": 6.521700203633558,
+      "final_kg": 6.428705819414128,
+      "consumed_kg": 3.271294180585871,
+      "remaining_percent": 66.27531772591885
     }
   },
   "copv_temperatures": [
     {
       "name": "COPV 1",
-      "minimum_observed_K": 188.77289418301595,
-      "limit_K": null,
+      "minimum_observed_K": 226.48568248746133,
+      "limit_K": 220,
       "violated": false,
       "first_crossing_s": null
     },
     {
       "name": "COPV 2",
-      "minimum_observed_K": 188.77289418003983,
-      "limit_K": null,
-      "violated": false,
-      "first_crossing_s": null
-    },
-    {
-      "name": "COPV 3",
-      "minimum_observed_K": 188.7728941851073,
-      "limit_K": null,
+      "minimum_observed_K": 226.48568247819395,
+      "limit_K": 220,
       "violated": false,
       "first_crossing_s": null
     }

@@ -1,8 +1,8 @@
 """Run the Hopper vehicle fluids model.
 
-Every input, including these run settings, is in HOPPER_DATA.py.
+Every user input is in hopper_config.json; HOPPER_DATA.py is a loader adapter.
 
-Steps, each switchable in HOPPER_DATA.py:
+Steps, each switchable in the JSON configuration:
   1. Chamber map: build Hopper_Chamber_Map.h5 if asked to or if it is missing.
   2. Thrust targets: Pc and propellant flows for every thrust-profile point.
   3. Prop system: the FullFlow transient of the whole vehicle P&ID.
@@ -17,10 +17,31 @@ Plots can also be made later from the saved results without re-running:
 """
 
 import os
+import argparse
 import time
+import json
+
+run_started = time.perf_counter()
 
 import matplotlib
 
+parser = argparse.ArgumentParser(description='Run Hopper from a JSON configuration.')
+parser.add_argument('--config', help='JSON input file (default: hopper_config.json or HOPPER_CONFIG).')
+parser.add_argument('--results-only', action='store_true', help='Export an existing history; use its archived run_config.json.')
+args = parser.parse_args()
+if args.config:
+    os.environ['HOPPER_CONFIG'] = args.config
+import HOPPER_DATA as data
+if args.results_only:
+    data.PROP_SOLVE_PROP_SYSTEM = False
+if data.PROP_SOLVE_PROP_SYSTEM:
+    for tank in (data.LOX_TANK, data.FUEL_TANK):
+        print(f"{tank.name}: initial {tank.pressure / data.psi:g} psia, "
+              f"setpoint {tank.set_pressure / data.psi:g} psia "
+              f"(-{tank.lower_limit / data.psi:g}/+{tank.upper_limit / data.psi:g} psi).", flush=True)
+from Hopper_Run_Config import prepare_run, write_resolved
+if data.PROP_SOLVE_PROP_SYSTEM:
+    prepare_run(data)
 from HOPPER_DATA import *
 from Hopper_Chamber_Map import HopperChamberMap
 from Hopper_Thrust_Targeter import HopperThrustTargets
@@ -47,6 +68,9 @@ if PROP_GENERATE_CHAMBER_MAP or not os.path.exists(CHAMBER_MAP_FILENAME):
     print("Generating chamber Pc/MR map...")
 
     HopperChamberMap(filename=CHAMBER_MAP_FILENAME)
+
+if PROP_SOLVE_PROP_SYSTEM:
+    write_resolved(data)
 
 
 
@@ -115,3 +139,9 @@ if PROP_EXPORT_RESULTS:
     )
 
     print(f"Results written to {PROP_RESULTS_DIRECTORY}/")
+
+if PROP_SOLVE_PROP_SYSTEM:
+    elapsed = time.perf_counter() - run_started
+    with open(os.path.join(PROP_RESULTS_DIRECTORY, 'run_timing.json'), 'w', encoding='utf-8') as stream:
+        json.dump({'total_wall_time_s': elapsed}, stream, indent=2)
+    print(f"Complete run including setup, solve, and outputs: {elapsed:.1f} s ({elapsed / 60:.2f} min).")

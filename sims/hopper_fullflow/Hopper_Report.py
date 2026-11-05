@@ -35,6 +35,7 @@ def write_run_metadata(filename, targets, integration_dt):
     }
     with h5py.File(filename, "a") as h5:
         h5.attrs["hopper_metadata"] = json.dumps(metadata)
+        h5.attrs["hopper_config"] = json.dumps(getattr(data, 'RUN_CONFIG', data.CONFIG))
 
 
 def read_metadata(filename):

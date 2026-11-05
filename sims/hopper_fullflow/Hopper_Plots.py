@@ -6,10 +6,10 @@ quantity on request.
 
 Named plots (python Hopper_Plots.py list prints this table):
   nodes              "Network Simulation: Nodes" - pressure, temperature, mass,
-                     density, quality and fill level of the tanks, COPV and
+                     density and fill level of the tanks, COPV and
                      chamber vs time (2 x 3 grid, as the old sim's)
   feed_nodes         the same grid for the nodes along both feed lines
-  ox_ladder          "Pressure Ladder - Ox" - mdot, dP, CdA, Hdot, quality and
+  ox_ladder          "Pressure Ladder - Ox" - mdot, dP, CdA and
                      state of every element from the LOX tank to the chamber
   fuel_ladder        "Pressure Ladder - Fuel" - the same for the RP-1 feed
   pressurant_ladder  "Pressure Ladder - Pressurant" - the COPV-to-tank legs
@@ -52,7 +52,7 @@ Any stored component attribute can also be plotted directly ("component").
 
 Units: "E" (default, the old sim's choice) plots pressure in psi and
 temperature in deg F; "SI" uses Pa and K. Mass flow is always kg/s, CdA mm^2,
-Hdot J/s.
+with four panels in the pressure ladders.
 """
 
 import argparse
@@ -75,7 +75,7 @@ PROFILE_START = MAIN_VALVE_OPEN_TIME + MAIN_VALVE_RAMP_TIME
 # A chamber below this multiple of ambient is treated as unlit (as vehicle_sim.Engine does).
 LIT_PRESSURE_RATIO = 1.5
 
-# The flow paths, exactly as HOPPER_DATA.py lists them. Everything below is
+# The flow paths, exactly as the loaded JSON configuration lists them. Everything below is
 # generated from these, so added elements appear in the plots automatically.
 FEEDS = {"LOX": (LOX_TANK, LOX_FEED), "Fuel": (FUEL_TANK, FUEL_FEED)}
 LEGS = {"LOX": (LOX_TANK, LOX_PRESSURANT_LEG), "Fuel": (FUEL_TANK, FUEL_PRESSURANT_LEG)}
@@ -120,7 +120,7 @@ class HopperRun:
                        "lox_pressurant": [e.name for e in LOX_PRESSURANT_LEG],
                        "fuel_pressurant": [e.name for e in FUEL_PRESSURANT_LEG]}
             if metadata["paths"] != current:
-                raise ValueError("Saved hardware paths differ from HOPPER_DATA.py; restore that run's configuration before plotting.")
+                raise ValueError("Saved hardware paths differ from the loaded configuration; restore that run's configuration before plotting.")
         with h5py.File(self.filename, "r") as h5:   # only to list what the file holds
             self.network = next(name for name, group in h5.items()
                                 if isinstance(group, h5py.Group) and "transient" in group)
@@ -437,15 +437,12 @@ NODE_PANELS = [
     ("temperature", "Temperature", _to_temperature, "Temperature [F]", "Temperature [K]"),
     ("mass", "Mass", _same, "Mass [kg]", "Mass [kg]"),
     ("density", "Density", _same, "Density [kg/m³]", "Density [kg/m³]"),
-    ("quality", "Quality", _same, "Quality [-]", "Quality [-]"),
     ("fill_level", "Fill level", _same, "Fill level [-]", "Fill level [-]"),
 ]
 ELEMENT_PANELS = [
     ("mass_flow", "mdot", _same, "mdot [kg/s]", "mdot [kg/s]"),
     ("dp", "dP", _to_pressure, "dP [psi]", "dP [Pa]"),
     ("cda", "CdA", lambda values, units: values * 1e6, "CdA [mm^2]", "CdA [mm^2]"),
-    ("hdot", "Hdot", _same, "Hdot [J/s]", "Hdot [J/s]"),
-    ("quality", "Q", _same, "Q [0-1]", "Q [0-1]"),
     ("state", "State", _same, "State [-]", "State [-]"),
 ]
 
@@ -481,7 +478,10 @@ def _grid_plot(run, names, data_function, panels, title, units, profile_time, wi
     import matplotlib.pyplot as plt
 
     time, time_label = _clock(run, profile_time)
-    fig, axs = plt.subplots(2, 3, figsize=(14, 7.5), sharex=True)
+    columns = 2 if len(panels) == 4 else 3
+    fig, axs = plt.subplots(2, columns, figsize=(4.7 * columns, 7.5), sharex=True)
+    for unused in axs.flat[len(panels):]:
+        unused.set_visible(False)
     table = {time_label: time}
     data = {name: data_function(run, name) for name in names}
     shared_legend = len(names) > 6

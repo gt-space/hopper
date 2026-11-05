@@ -35,6 +35,7 @@ vehicle_sim.py. Propellant reaching the chamber is assumed to ignite at once.
 """
 
 from functools import lru_cache
+import time
 
 from thermoprop import *
 from fullflow import *
@@ -124,7 +125,18 @@ def heated_property_function(propellant, pressure, minimum_temperature, maximum_
     if count < 1 or (maximum_temperature > minimum_temperature and count < 2):
         raise ValueError("REGEN_PROPERTY_TEMPERATURE_POINTS must be >=2 for a nonzero dT range.")
     temperatures = np.linspace(minimum_temperature, maximum_temperature, count)
-    values = np.array([_liquid_property_values(propellant, pressure, t) for t in temperatures])
+    print(f"Building {propellant} liquid-property table: {minimum_temperature:g}–{maximum_temperature:g} K, "
+          f"{count} points at {pressure / psi:g} psia...", flush=True)
+    start = time.perf_counter()
+    rows = []
+    last_progress = start
+    for index, temperature in enumerate(temperatures):
+        rows.append(_liquid_property_values(propellant, pressure, temperature))
+        if time.perf_counter() - last_progress >= 5:
+            print(f"  Liquid properties: {index + 1}/{count} points ({time.perf_counter() - start:.1f} s)", flush=True)
+            last_progress = time.perf_counter()
+    values = np.array(rows)
+    print(f"Liquid-property table ready in {time.perf_counter() - start:.1f} s.", flush=True)
 
     def evaluate(temperature):
         return {name: float(np.interp(temperature, temperatures, values[:, i]))
@@ -435,6 +447,8 @@ def HopperPropSystem(targets: list,
     if t_final is None:
         t_final = shutdown_end + TAIL_OFF_TIME
 
+    build_start = time.perf_counter()
+    print("Building flow network and fluid properties...", flush=True)
     Hopper = Network("Hopper Prop System")
 
 
@@ -557,13 +571,14 @@ def HopperPropSystem(targets: list,
     # retried with half the time step.
     # Resolve physical travel with >=10 steps/full stroke and controller samples
     # with >=2 steps. This is resolution control, not a temporal error estimate.
-    travel = [t for e in LOX_FEED + FUEL_FEED + LOX_PRESSURANT_LEG + FUEL_PRESSURANT_LEG
-              for t in (getattr(e, "open_time", 0), getattr(e, "close_time", 0)) if t > 0]
-    resolved_dt = min(dt, BANG_BANG_SAMPLE_PERIOD / 2, min(travel) / 10 if travel else dt)
-    resolved_dt = BANG_BANG_SAMPLE_PERIOD / __import__("math").ceil(BANG_BANG_SAMPLE_PERIOD / resolved_dt)
+    from Hopper_Config import integration_step
+    resolved_dt = integration_step(globals(), dt)
+    print(f"Network ready in {time.perf_counter() - build_start:.1f} s; "
+          f"starting transient: {t_final:g} simulated seconds at <= {resolved_dt:g} s per step.", flush=True)
     if resolved_dt < dt:
         print(f"Valve/controller resolution: integration dt capped at {resolved_dt:g} s (requested {dt:g} s).")
-    Transient(Hopper).solve(
+    from Hopper_Solver import transient_solver
+    transient_solver(Hopper, max_evaluations=PROP_MAX_NFEV).solve(
         dt=resolved_dt,
         t_final=t_final,
         save_dt=save_dt,
