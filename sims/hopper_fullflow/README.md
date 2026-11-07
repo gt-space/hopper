@@ -1,238 +1,275 @@
-# Hopper FullFlow
+Transient model of the Hopper vehicle fluids and engine P&ID, built with FullFlow.
 
-See [HANDOFF.md](HANDOFF.md) for the comprehensive November 5, 2026 development
-handoff, commit history, implementation details, validation evidence, and open issues.
+## Running
 
-Transient propulsion model built with FullFlow and ThermoProp. A thrust history
-sets the engine's required chamber pressure and propellant flows. The transient
-model solves bottles, tank ullages, feed restrictions, valves, and engine
-performance together, including pressure, temperature, flow, and inventories.
-
-## Run and configure
-
-```powershell
+```bash
 pip install -r requirements.txt
 python Hopper.py
-python Hopper.py --config path/to/my_config.json
+python Hopper.py --config path/to/my_config.json   # another case
+python Hopper.py --results-only                    # redo every output from Outputs/Hopper_Prop_System.h5
 ```
 
-From Git Bash, use `bash run_hopper.sh` (or `bash run_hopper.sh --config
-path/to/my_config.json`). This selects a working project environment without
-depending on terminal activation or an editor-generated Windows drive path.
-It checks `.venv`, `.venv-validation`, then `venv` for installed dependencies.
-For the existing validation environment, the direct Git Bash command is
-`./.venv-validation/Scripts/python.exe Hopper.py`.
+From Git Bash, `bash run_hopper.sh` finds a working project environment (`.venv`,
+`.venv-validation`, `venv`) and forwards the same arguments.
 
-Edit **[hopper_config.json](hopper_config.json)**. `HOPPER_DATA.py` only loads and
-converts it into SI values for existing solver modules; do not put inputs there.
-`HOPPER_CONFIG` can also select a config for all CLI tools. Relative file paths
-resolve against the selected config's directory, not the working directory.
+### Folder layout
 
-The config groups are:
+| Where | What | Edit it? |
+|---|---|---|
+| `hopper_config.json` | every input: components, properties, routing, sequence, Monte Carlo bands | yes, this is the one file to edit |
+| `thrust_curves/` | thrust-curve CSVs | add curves here |
+| `Hopper.py`, `Hopper_MonteCarlo.py` | the two scripts you run | no |
+| `HOPPER_DATA.py` | loads the JSON into the Python names the model uses, in SI units | only when adding a new input field |
+| `ASSUMPTIONS.txt` | key inputs and modelling assumptions | keep it current |
+| `Backend/` | the model and its tools (config loader, element classes, network builder, engine, targeter, plots, report, workbook) | only to add a new element type or output |
+| `isolated_sims/` | standalone calculators: tank vent time, LOX drain time, tank pressure sweep, purge flow check | no |
+| `Old_sims_comparison/` | reruns vehicle_sim.py and compares it with this model | no |
+| `Outputs/` | the latest run's results for viewing (CSVs, plots, workbook, `Hopper_Prop_System.h5`, `MonteCarlo/`) | no |
+| `Hopper_Results/` | one folder per solve with its exact inputs and results | no |
+| `tests/` | unit tests and a short coupled feature check | no |
+| `DESIGN.md`, `HANDOFF.md` | design record and the 2026-11-05 JSON migration handoff | no |
 
-- `simulation`: solve/rebuild switches, maximum step, save interval, residual
-  tolerance, Jacobian method, console output.
-- `files`, `outputs`: chamber map/history paths, results root, plot selections,
-  plot units, CSV export, station times, and diagram generation.
-- `fluids`: propellant names, pressurant, and ambient pressure.
-- `sequence`: valve demand start/ramp, step smoothing, and tail-off duration.
-- `numerics`: flow floor, nozzle regularization, regen property-table resolution,
-  and controller/valve integration resolution.
-- `engine`, `chamber_map`: mixture ratio, throat/exit areas, efficiencies, nominal
-  pressure, and equilibrium map bounds/resolution.
-- `pressurization`: independent controller period and common-header volume.
-- `maximum_thrust`: required sustained duration and target tracking tolerance.
-- `thrust_profile`: selected ramp or named profile and interpolation mode.
-- `bottles`: each bottle's volume, initial pressure/temperature, minimum-temperature
-  limit, and outlet CdA. Add/remove entries to change the bottle count.
-- `tanks`: initial liquid mass, volume, temperatures, initial pressure, setpoint,
-  asymmetric deadbands, surface radius, ullage HTC, and initial controller state.
-- `flow_paths`: ordered components in each liquid feed and pressurant leg.
+### Inputs
 
-Units are in field names: pressures use psia, pressure differences psi, lengths
-inches, areas in² for nozzle throats/exits and mm² for CdA, temperatures K,
-volumes L, masses kg, and time s. JSON accepts `true`, `false`, and `null`; comments
-are not valid JSON. Unknown fields and duplicate keys are rejected.
+Unit suffixes in the field names are authoritative: psia absolute, psi differences, psig
+gauge, inches, in² for the throat and exit, mm² for CdA, K, L, kg, s. Unknown fields and
+duplicate keys are rejected. Relative paths are relative to the config file.
 
-The shipped settings preserve the current vehicle inputs: two 9 L bottles,
-3/8-inch liquid tubes with 0.035-inch walls, and a 100-to-600 lbf, 2.5 s ramp
-sampled at 40 points. Earlier runtime benchmarks used a 10 s ramp.
-Placeholder geometry and timing still require measured hardware data.
+JSON has no comments, so tags go in a `"note"` on a component, or in the `notes` section by
+JSON path (`"engine.mixture_ratio": "EDIT target O/F ..."`). `EDIT` = expected to change,
+`GUESS` = nobody has confirmed it. Notes feed the component table and the workbook.
 
-## Hardware and thermal inputs
+The sections are:
 
-Each flow-path entry has a `type`, unique `name`, properties, and optional
-`outlet_node`. Supported types are `Line`, `GasLine`, `Orifice`, `Injector`,
-`Regen`, `Valve`, `BangBangValve`, `CheckValve`, `ThrottleValve`, and
-`CavitatingVenturi`. Bottle/tank types are `COPVSource` and `Tank`.
-Adding an entry updates the network, station plots, and diagram automatically.
-Custom Python builders need a code extension; JSON does not execute Python.
+- `simulation`, `files`, `outputs`, `report`: step, tolerances, paths, plot and report options;
+- `fluids`: one name per propellant, used for both the feed-line liquid and the combustion map;
+- `sequence`: main-valve start and ramp, thrust slew limit, tail-off;
+- `engine`, `chamber_map`: MR, throat, nozzle, efficiencies and the chamber-map grid;
+- `pressurization`: bang-bang sample period and the COPV model (below);
+- `thrust_profile`: curves as CSV files in `thrust_curves/` or inline, plus a parameterized
+  ramp, with a selector (`selected`);
+- `bottles`: each COPV;
+- `tanks`: each with its own bang-bang band and ullage collapse factor;
+- `flow_paths`: the pressurant legs and feed lines, as P&ID element lists (below);
+- `regulators`, `side_paths`, `torch`: every vent, relief, purge and drain on the P&ID;
+- `vent`, `lox_drain`, `tank_sweep`: inputs of the isolated calculators;
+- `not_modelled`: P&ID items with no flow path, for the component table and schematic;
+- `monte_carlo`: runs, seed, dispersions.
+
+### The P&ID as element lists
+
+Each flow path is an ordered list of elements, for example:
 
 ```json
-{
-  "type": "Line",
-  "name": "Fuel inlet tube",
-  "outer_diameter_in": 0.375,
-  "wall_thickness_in": 0.035,
-  "inner_diameter_in": null,
-  "length_in": 12.0,
-  "roughness_in": 0.0005905511811023622,
-  "height_change_in": 0.0,
-  "outlet_node": "FTV Inlet"
-}
+"oxidizer_feed": [
+  {"type": "Line", "name": "LOX Tank to OTV Line", "outer_diameter_in": 0.375, "wall_thickness_in": 0.01,
+   "length_in": 48, "outlet_node": "OTV Inlet", "note": "EDIT 3/8 in x 0.01 in wall"},
+  {"type": "ThrottleValve", "name": "OTV", "max_cda_mm2": 50.0, "full_scale_mass_flow_kg_s": 0.777, "outlet_node": "OTV Outlet"},
+  {"type": "Line", "name": "OTV to LOX Injector Line", "outer_diameter_in": 0.375, "wall_thickness_in": 0.01, "length_in": 10},
+  {"type": "Injector", "name": "OINJ", "cda_mm2": 16.6, "length_in": 0.3937}
+]
 ```
 
-ID is calculated as OD minus twice wall. Alternatively specify ID and leave OD
-and wall `null`; the diagram marks those missing measurements. If all three are
-specified they must agree. ID-only gas lines display OD/wall as unspecified;
-the current configuration supplies 0.25-inch OD and 0.035-inch wall gas tubes.
-Every line shows OD/wall status, ID, and length in inches on the diagram.
-`engine.throat_area_in2` is the nozzle throat input; diameter is derived and
-shown in inches. Valve maximum CdAs are independent inputs, not automatically
-resized when a tube changes.
+`Backend/Hopper_Prop_System.py` builds each element from native FullFlow components and
+joins neighbours with a FullFlow junction. To add hardware, add an element to the list; the
+network, tracks and plots follow automatically. The element types are in
+[`Backend/Hopper_Elements.py`](Backend/Hopper_Elements.py):
 
-Valve `open_time_s` and `close_time_s` are full-stroke travel times. Partial strokes
-take proportionate time; zero is ideal instantaneous travel. A scheduled `Valve`
-uses `schedule: [[times in s], [openings from 0 to 1]]` on the simulation clock.
-Tank pressure control opens below setpoint minus low deadband and closes above
-setpoint plus high deadband. The controller samples independently of valve travel.
+| `type` | Built from |
+|---|---|
+| `Line` | `DarcyWeisbach` with flow inertia + `Churchill` friction. Give OD and wall, or ID alone |
+| `Orifice`, `Injector` | `DischargeCoefficient` (optional passage length = inertia) |
+| `Regen` | an `Orifice` plus a fuel temperature rise vs Pc (`pc_psia_delta_t_k`); everything downstream uses the heated properties |
+| `Valve` | `DischargeCoefficient` with its opening driven by a schedule: `[[times], [openings]]`, `"closed"` (shut all run) or `"torch"` |
+| `ThrottleValve` | `DischargeCoefficient` whose CdA a `Balance` sets to hit the thrust-profile flow, capped at fully open |
+| `CavitatingVenturi` | `CavitatingVenturi`, with the propellant's vapour pressure |
+| `GasLine` | equivalent CdA in the leg's `SeriesCdA`; `"inertia": true` builds a `FlowTube` instead |
+| `BangBangValve`, `CheckValve`, gas `Orifice` | members of the leg's `SeriesCdA` feeding one `CompressibleOrifice` |
+| `Branch` | a side path off a node (COPV, ullage, tank liquid, regulator outlet) to ambient, the chamber or a feed junction: one `SeriesCdA` into one `CompressibleOrifice` (gas) or `DischargeCoefficient` (liquid) |
+| `ReliefValve` | branch restriction opening linearly from crack to full-open dP |
+| `Regulator` | ideal regulator off a gas node; its outlet (`"PR-REG Outlet"`) feeds branches |
 
-Ullage collapse uses convection with `ullage_htc_w_m2_k` and surface area
-`pi * radius²`, using the tank's liquid and ullage temperatures. There is no
-separate empirical collapse-factor multiplier. Initial propellant is specified
-by `liquid_mass_kg`; ullage volume follows from tank volume and liquid density.
+Valves and valve-like elements also take `open_time_s` / `close_time_s`, full-stroke travel
+times (0 = instant; partial strokes take proportionate time). Nonzero travel caps the time
+step at 1/10 of the shortest stroke, so it costs run time. The shipped config uses 0.
 
-A `Regen` entry has a hydraulic CdA, optional inertial passage length, and
-`pc_psia_delta_t_k` pairs such as `[[0, 0], [100, 10], [300, 45]]`.
-Temperature rise is linearly interpolated with held endpoints. It updates
-downstream fuel temperature and liquid properties. The current configured rise
-is 51 K at 150 psia and 44 K at 300 psia, with held endpoints.
-The regen plot retains physical heat pickup; the removed Hdot panels were
-enthalpy transport, a different quantity.
+A side path looks like this:
 
-COPV temperature limits only flag a violation; delivery continues. `null`
-disables a bottle's check. Bottle/header connection data and header volume are
-configurable. The current 0.05 L header volume is a placeholder.
-
-## Thrust and efficiency
-
-Set `thrust_profile.selected` to `ramp` or a key under `profiles`.
-The ramp uses `start_lbf`, `end_lbf`, `duration_s`, and `points`. Named profiles
-use `time_s_thrust_n` pairs; the included `1dof` profile is preserved. Times must
-be unique, start at zero, and thrusts must be positive.
-`interpolation` is `linear` or `step`; physical valve travel is modeled separately.
-
-The maximum-thrust report is the highest thrust maintained over the configured
-sustained duration, within valid inventory and map bounds. If no sustained
-saturation/target shortfall was demonstrated, this is a lower bound, not proof
-of a global hardware maximum. The ramp must actually reach a limiting condition
-to provide that evidence.
-
-Each engine efficiency supports:
-
-- `mode: "linear"`: `low`, `high`, `pc_low_psia`, `pc_span_psi`. Bounded linear
-  interpolation with endpoint holding. A non-null `csv` overrides this function.
-- `mode: "polynomial"`: `coefficients[i][j]` multiplies `Pc_psia^i * MR^j`.
-  For example `[[0.8]]` is constant 0.8; `[[0.8, 0.01], [0.0001]]` is
-  `0.8 + 0.01*MR + 0.0001*Pc_psia`.
-- `mode: "csv"`: `csv` points to a file with `pc_psia,efficiency` or
-  `pc_psia,mr,efficiency` columns. MR tables must form a complete rectangular grid.
-
-Efficiencies must be in `(0, 1]`; polynomial outputs are validated during use.
-CSV interpolation is linear/bilinear with held edges. Files in `inputs/` are
-format examples, not calibration data. Changing efficiencies does not require
-rebuilding the ideal equilibrium map; changing propellants or map bounds does.
-
-## Run archives and results
-
-Every new driver solve creates `Hopper_Results/<UTC timestamp>/` (or the configured
-results root). It prints the folder before solving. Previous runs are preserved.
-That folder contains:
-
-- `input_config.json`: original input text.
-- `run_config.json`: runnable config with component defaults filled in and
-  paths referring to this archive's input assets.
-- `resolved_inputs.json`: config plus derived throat diameter, expansion ratio,
-  timestep cap, sampled thrust demand, header initialization, and asset hashes.
-- `inputs/`: the actual chamber map and selected efficiency CSVs used by the run.
-- FullFlow HDF5 history, also containing the run config as metadata.
-- Engine targets, actual performance, residual inventory CSV, summary JSON/text,
-  selected plots and optional plot CSVs, component diagram PNG/SVG.
-
-Run snapshots are written before the transient solve, so failed attempts retain
-their inputs too. A complete result also has the summary and history.
-
-To regenerate outputs for a saved run, use its archived config:
-
-```powershell
-python Hopper.py --config Hopper_Results/<timestamp>/run_config.json --results-only
+```json
+{"type": "Branch", "name": "OVNT Vent", "source": "LOX Ullage",
+ "elements": [{"type": "Valve", "name": "OVNT", "cda_mm2": 9.4, "schedule": "closed"}]}
 ```
 
-To make selected plots directly:
+Give a vent or purge a `[[times], [openings]]` schedule to open it during a run. A branch
+can also start at a feed junction and, with `"into_sink": true`, deliver its liquid into the
+main chamber: the torch igniter is built this way (OIMV taps above OTV through HX-1, FIMV
+above FTV, firing on the `torch` section's window, `torch.enabled` switches it on), and its
+propellant counts in the chamber flow and MR.
 
-```powershell
-$env:HOPPER_CONFIG = "Hopper_Results/<timestamp>/run_config.json"
-python Hopper_Plots.py list
-python Hopper_Plots.py plot ox_pressure_stations fuel_pressure_stations --times 1 5 --csv
-python Hopper_Plots.py plot ox_ladder engine regen copv_temperatures
+### Two COPV models
+
+`pressurization.copv_model`:
+
+- `"lumped"` (default): all bottles as one volume. It needs bottles at the same pressure and
+  temperature, and runs at the full 0.05 s step.
+- `"header"`: each bottle is its own volume feeding a small common header through
+  `outlet_cda_mm2`. Use it for bottles that differ. The header is stiff, so set
+  `maximum_step_s` near 0.005; a run takes roughly ten times longer.
+
+Each bottle has an optional `minimum_temperature_k`. Crossing it flags the run and does not
+stop the flow.
+
+### Efficiencies
+
+`engine.cstar_efficiency` and `cf_efficiency` each take:
+
+- `"mode": "linear"`: `low`, `high`, `pc_low_psia`, `pc_span_psi`, held flat outside the ramp;
+- `"mode": "polynomial"`: `coefficients[i][j]` multiplies `Pc_psia^i * MR^j`;
+- `"mode": "csv"`: a file with `pc_psia,efficiency` or `pc_psia,mr,efficiency` columns
+  (`inputs/` has format examples, not calibration data).
+
+Changing an efficiency does not need a new chamber map. Changing propellants, reactant
+temperatures or the map grid does (`simulation.rebuild_chamber_map`).
+
+## Outputs
+
+Every solve creates `Hopper_Results/<UTC time>/` before it starts, with `input_config.json`,
+`run_config.json` (runnable, paths into the archive), `resolved_inputs.json` (derived values
+and file hashes) and `inputs/` (the chamber map, thrust curves and efficiency CSVs it used).
+The results are written there, then copied to `Outputs/`, and the raw history moves to
+`Outputs/Hopper_Prop_System.h5` so one large file is kept rather than one per run
+(`outputs.keep_run_history` leaves a copy in every archive).
+
+- `engine_targets.csv` and `actual_performance.csv`, in vehicle_sim.py's formats (plus a
+  target-thrust column);
+- `component_diagram.png` / `.svg`: compact card view of the flow paths, tube sizes in inches;
+- the plots named in `outputs.plots` (default `"all"`), and with `plot_csv` the numbers
+  behind each one;
+- `run_summary.txt` / `.json`, `propellant_residuals.csv`: sustained demonstrated thrust,
+  residuals, COPV temperature limits, validity flags;
+- with `outputs.report` (default), the run report:
+  - `run_summary.csv`: burn time, total impulse, propellant residuals (kg and % left at
+    shutdown), COPV pressure and gas used, tank pressure min/max, injector stiffness, relief
+    venting, thrust error at each profile point, and whether every thrust level is reachable
+    (OTV/FTV below 100 % of max CdA);
+  - `cda_table.csv`: per thrust-profile point, target and achieved thrust, Pc, MR, flows,
+    OTV/FTV CdA and % of max, injector dP, tank and COPV pressure;
+  - `vent_times.csv`: each tank vent's blow-down time, full and empty tank, against
+    `vent.time_requirements_s` (`isolated_sims/Hopper_Vent.py`);
+  - `lox_drain_times.csv`: time to drain the loaded LOX through OFD (plus any
+    `lox_drain.extra_elements` such as OQD) with the ullage held at each test pressure, from a
+    small FullFlow transient with the liquid head (`isolated_sims/Hopper_Drain.py`);
+  - `tank_pressure_sweep.csv` / `.png`: the throttle-valve CdA each tank set pressure needs to
+    fly every point of the thrust profile, against the valve and a design margin; gives the
+    lowest usable tank pressure (`isolated_sims/Hopper_Tank_Pressure_Sweep.py`, steady state);
+  - `purge_flow.csv` / `.png`: whether the LOX and fuel GN2 purges can match each propellant's
+    peak volumetric flow, with the COPV at its end-of-run state
+    (`isolated_sims/Hopper_Purge.py`);
+  - `component_table.csv` / `.md`: every P&ID item with type, CdA, set points and source;
+  - `schematic.png`: the simulated network, drawn from the element lists;
+  - `Hopper_Parameters.xlsx`: every input with status (GUESS / EDIT), owner team, every
+    component, the modelling assumptions and the open items.
+
+Each isolated calculator also runs on its own, for example `python isolated_sims/Hopper_Drain.py`.
+
+## Monte Carlo: WORK IN PROGRESS
+
+```bash
+python Hopper_MonteCarlo.py        # monte_carlo.runs runs, monte_carlo.workers at a time
 ```
 
-Other plots include `nodes`, `feed_nodes`, `fuel_ladder`, `pressurant_ladder`,
-`stiffness`, `exit_pressure`, `ox_stations`, `fuel_stations`, `pressurization`,
-`tank_states`, `startup`, `lox_pressurant_stations`, and `fuel_pressurant_stations`.
-Standard node/ladder plots no longer include quality or Hdot. Raw solver tracks
-remain available. Station snapshots use component names along the flow path;
-gas-group intermediate pressures are allocated approximations, not separate
-compressible node solves. `station_times_s: null` selects peak delivered thrust.
+Each run is the full transient with inputs drawn from `monte_carlo.dispersions`: groups of
+inputs, each with a relative or absolute error band, drawn uniformly. `"ALL_CDAS"` stands for
+every CdA that carries flow, so an element added to a list is varied automatically. A group is
+`"each"` (every input drawn separately, e.g. the CdAs) or `"shared"` (one draw moves the whole
+group, e.g. the c* efficiency curve). Current bands are in `ASSUMPTIONS.txt`. The seed makes
+the draws repeatable and run 0 is nominal. With `"thrust_control": "thrust"` the thrust targets
+are re-solved with each run's engine (the controller holds thrust); `"flow"` flies nominal
+flows. Results in `Outputs/MonteCarlo/`: every run's inputs and summary metrics
+(`monte_carlo_runs.csv`), the statistics of each metric, i.e. the error bars
+(`monte_carlo_stats.csv`: mean, std, 5/50/95 %), and time-history envelopes
+(`monte_carlo_envelopes.png`).
 
-## Numerical limits and validation
+## Plots
 
-The timestep is capped by controller and valve resolution. Current defaults
-produce 5 ms steps from a requested 50 ms maximum. These settings are resolution
-heuristics, not automatic temporal error estimates; check timestep convergence.
-The smaller timestep and individual bottle states increase runtime.
+`Backend/Hopper_Plots.py` makes every graph in the old sim's output deck
+(`outputs needed.pptx`) from the saved results, plus more. It can also plot any node, element,
+tracked quantity or component attribute on request. `Hopper.py` makes the `outputs.plots` set
+at the end of each run.
 
-`simulation.nonlinear_max_evaluations` limits each SciPy nonlinear solve attempt
-(default 20). Difficult steps then use FullFlow's existing smaller-timestep retry
-instead of spending thousands of iterations on one attempt. The residual
-tolerance is unchanged; a failed step is never accepted just because its work
-budget ran out. Numerical Jacobian probes are additional evaluations, so this
-is not a wall-clock timeout. `Hopper_Solver.py` adapts the pinned FullFlow 3.0.0
-step solver without modifying installed packages.
+### The deck's graphs
 
-On the checked 11 s simulated run (10 s ramp plus sequencing), the 20-evaluation
-budget completed setup, solve and all plots in 298.8 s versus 439.6 s with 80.
-This is one measured run, not a runtime guarantee for other hardware/computers.
-Both kept accepted residuals below 1e-6 and total pressurant mass drift below
-9 mg. Smaller retries changed bang-bang pulse timing: instantaneous tank pressures
-differed by up to 21 psi between the two runs, while demonstrated maximum thrust
-changed 0.31% and final tank inventories by less than 6 g. Check timestep convergence
-before using precise pressure pulse timing as a design result.
+| Deck slide | Old sim figure | Plot name |
+|---|---|---|
+| 2, 9 | Network Simulation: Nodes (pressure, temperature, mass, density, fill level) | `nodes` |
+| 3, 11 | Ox Feed System pressure ladder (mdot, dP, CdA, State) | `ox_ladder` |
+| 4, 11 | Fuel Feed System pressure ladder | `fuel_ladder` |
+| 5 | Pressurization System pressure ladder | `pressurant_ladder` |
+| 6, 10 | Engine Transient Performance (Pc, thrust vs target, MR) | `engine` |
+| 6, 10 | Injector Stiffness | `stiffness` |
+| 7 | Nozzle Exit Pressure vs Throttle | `exit_pressure` |
 
-Startup now reports heated-liquid property-table progress and distinguishes
-network construction from transient integration. Nonzero regen curves require
-expensive enthalpy integrations when building this table. The driver writes
-`run_timing.json` and prints total runtime including setup and output generation.
-`pc_psia_delta_t_k` is a rise, not an absolute outlet temperature: with a 293 K
-inlet, a 51 K rise gives a 344 K outlet. Values below the curve's first pressure
-hold that endpoint, including startup; add a zero-pressure point if that is
-the desired model. Positive tube `height_change_in` means an upward run.
+`plot deck` makes all seven.
 
-The chamber remains quasi-steady and zero-volume. Liquid feeds are single-phase;
-ignition, wall thermal inertia, two-phase depletion, and trapped liquid in
-zero-volume junctions are not modeled. Regen heating does not regenerate the
-equilibrium combustion map. Negative inventory invalidates the reported run.
-Residual propellant is the remaining tank inventory.
+The other named plots are:
+- `feed_nodes`: the node grid for every station along both feed lines;
+- `ox_stations` and `fuel_stations`: station pressures, plus the OTV or FTV CdA as a
+  percentage of fully open;
+- `ox_pressure_stations`, `fuel_pressure_stations`, `lox_pressurant_stations`,
+  `fuel_pressurant_stations`: pressure against component along each path at chosen times
+  (`outputs.station_times_s`, `--times`; `null` = peak thrust);
+- `regen`: fuel temperature rise and heat pickup; `copv_temperatures`: bottles against their limit;
+- `pressurization`: COPV and tank pressures, and the bang-bang states;
+- `tank_states`: gas temperatures and remaining masses;
+- `startup`: the main-valve opening over the first 2 s.
 
-```powershell
-python -m unittest discover -s tests -v
-python tests/run_feature_validation.py
+### On request
+
+```bash
+python Backend/Hopper_Plots.py list                                     # every plot, node, element, track and component
+python Backend/Hopper_Plots.py plot deck                                # the deck's seven graphs
+python Backend/Hopper_Plots.py plot ox_ladder engine --profile-time     # named plots, timed like the old sim
+python Backend/Hopper_Plots.py plot ox_pressure_stations --times 1 5    # pressure along the LOX feed at 1 s and 5 s
+python Backend/Hopper_Plots.py nodes "LOX Tank" COPV --csv              # node grid for any nodes or node groups
+python Backend/Hopper_Plots.py ladder OTV OINJ "Regen Jacket" --tmin 5 --tmax 8   # ladder for any elements, zoomed
+python Backend/Hopper_Plots.py track "Chamber Pressure [psia]" "Thrust [N]"       # any tracked quantity
+python Backend/Hopper_Plots.py component OTV mass_flow upstream_pressure          # any stored component attribute
+python Backend/Hopper_Plots.py plot exit_pressure --mr 1.25             # exit-pressure sweep at another MR
 ```
 
-See [DESIGN.md](DESIGN.md) for implementation decisions and progress. Core files:
-`Hopper_Config.py` loads inputs, `Hopper_Elements.py` builds hardware,
-`Hopper_Prop_System.py` solves the network, `Hopper_Components.py` models engine
-performance, `Hopper_Chamber_Map.py` builds the gas map, `Hopper_Thrust_Targeter.py`
-solves demands, and `Hopper_Export.py`, `Hopper_Report.py`, `Hopper_Plots.py`,
-`Hopper_Diagram.py`, and `Hopper_Run_Config.py` produce results and archives.
-`comparison/` retains historical comparisons with the previous vehicle model.
+Options for every command:
+
+| Option | Effect |
+|---|---|
+| `--file` | Results file to read (default `Outputs/Hopper_Prop_System.h5`). |
+| `--out` | Output folder (default `Outputs`). |
+| `--units E` / `--units SI` | psi and deg F, as the old sim (default), or Pa and K. |
+| `--csv` | Also write each plot's numbers to `<plot>.csv`. |
+| `--profile-time` | Time from the start of the thrust profile, the old sim's clock. This model's clock starts 0.5 s earlier, with the main-valve ramp. |
+| `--tmin`, `--tmax` | Time window. |
+| `--name` | File name for a custom plot. |
+| `--show` | Also open the plot windows. |
+
+Node groups are `tanks`, `ox_feed`, `fuel_feed` and `all`. Element groups are `ox`, `fuel` and
+`pressurant`. Bad names stop with a one-line error that lists the valid ones. From Python:
+
+```python
+from Backend.Hopper_Plots import HopperRun, make_plots
+make_plots(HopperRun("Outputs/Hopper_Prop_System.h5"), ["nodes", "ox_ladder"], "Outputs", csv_out=True)
+```
+
+## Tests
+
+```bash
+python -m unittest discover -s tests
+python tests/run_feature_validation.py     # short coupled run of the header, valve-travel and regen-curve options
+```
+
+## Numerics
+
+`simulation.nonlinear_max_evaluations` limits each SciPy nonlinear attempt, so a hard step
+retries at a smaller time step instead of spending thousands of iterations on one attempt. The
+residual tolerance is unchanged; a step is never accepted because its budget ran out. See
+`DESIGN.md` and `HANDOFF.md` for the design record and limitations.
+
+## Also included a comparison folder to sanity check with old sims

@@ -7,6 +7,12 @@ handoff, not a replacement for each run's saved inputs or hardware calibration.
 Dates and human-readable commit times below use America/New_York (EST).
 Timestamped result-directory names use UTC.
 
+> **Later change (November 7, 2026):** the element-list work from October 27 to
+> November 3 was merged back into this structure, including the removed features
+> listed in section 2.3. Modules moved to `Backend/`, some inputs and defaults changed,
+> and links to flat module paths below are out of date. See the first section of
+> [DESIGN.md](DESIGN.md) and [README.md](README.md) for the current state.
+
 Start with [README.md](README.md) for operating instructions,
 [DESIGN.md](DESIGN.md) for the ongoing design record, and
 [hopper_config.json](hopper_config.json) for the actual inputs.

@@ -6,18 +6,58 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 
-from Hopper_Config import load_config, build_component, efficiency, integration_step, ROOT
-from Hopper_Run_Config import prepare_run
+from Backend.Hopper_Config import load_config, build_component, efficiency, integration_step, ROOT
+from Backend.Hopper_Run_Config import prepare_run
 
 
 class ConfigTests(unittest.TestCase):
     def test_default_geometry_and_timing_preserved(self):
         config, data, _ = load_config(ROOT/'hopper_config.json')
         self.assertAlmostEqual(data['THROAT_AREA'], .00067226)
-        self.assertAlmostEqual(data['LOX_FEED'][0].inner_diameter, (.375-2*.035)*.0254)
-        self.assertAlmostEqual(integration_step(data), .005)
+        self.assertAlmostEqual(data['LOX_FEED'][0].inner_diameter, (.375-2*.01)*.0254)
+        self.assertAlmostEqual(integration_step(data), .05)
         self.assertEqual(len(data['COPVS']), len(config['bottles']))
-        self.assertEqual(data['LOX_TANK'].ullage_htc, config['tanks']['oxidizer']['ullage_htc_w_m2_k'])
+        self.assertEqual(data['LOX_TANK'].collapse_factor, config['tanks']['oxidizer']['collapse_factor'])
+
+    def test_every_config_value_is_a_static_name_in_hopper_data(self):
+        import ast
+        tree = ast.parse((ROOT/'HOPPER_DATA.py').read_text(encoding='utf-8'))
+        named = {node.targets[0].id for node in tree.body
+                 if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)}
+        _, data, _ = load_config(ROOT/'hopper_config.json')
+        self.assertEqual(set(data) - named, set())
+
+    def test_side_paths_and_csv_curves_load(self):
+        _, data, _ = load_config(ROOT/'hopper_config.json')
+        branches = {branch.name: branch for branch in data['BRANCHES']}
+        self.assertEqual(data['REGULATORS'][0].outlet_node, 'PR-REG Outlet')
+        self.assertAlmostEqual(data['REGULATORS'][0].set_pressure, 750*6894.757293168361)
+        relief = branches['PRRV Relief'].elements[0]
+        self.assertAlmostEqual(relief.crack_pressure, 4950*6894.757293168361)
+        self.assertAlmostEqual(relief.full_open_pressure, 1.1*relief.crack_pressure)
+        self.assertEqual(branches['OVNT Vent'].elements[0].schedule, ([0.0], [0.0]))
+        self.assertEqual(branches['LOX Purge'].sink, 'OTV Outlet')
+        self.assertNotIn('Torch Ox', branches)
+        self.assertIn('OIMV / FIMV / HX-1', data['NOT_MODELLED'])
+        self.assertEqual(len(data['THRUST_CURVES']['52m_free']), 296)
+        self.assertIsNotNone(data['THRUST_CURVE_1DOF'])
+
+    def test_note_is_kept_and_collapse_factor_checked(self):
+        spec = {'type':'Orifice','name':'tagged','cda_mm2':2,'note':'EDIT GUESS'}
+        self.assertEqual(build_component(spec).note, 'EDIT GUESS')
+        with self.assertRaisesRegex(ValueError, 'collapse_factor'):
+            build_component({'type':'Tank','name':'bad','propellant':'LOX','volume_l':10,'liquid_mass_kg':5,
+                'liquid_temperature_k':90,'pressure_psia':500,'ullage_temperature_k':150,'collapse_factor':.5,
+                'set_pressure_psia':500,'deadband_high_psi':5,'deadband_low_psi':5})
+
+    def test_old_schema_is_refused_with_a_reason(self):
+        config, _, _ = load_config(ROOT/'hopper_config.json')
+        config['schema_version'] = 1
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory)/'config.json'
+            file.write_text(json.dumps(config))
+            with self.assertRaisesRegex(ValueError, 'schema_version'):
+                load_config(file)
 
     def test_unknown_and_duplicate_fields_rejected(self):
         config, _, _ = load_config(ROOT/'hopper_config.json')
@@ -27,13 +67,15 @@ class ConfigTests(unittest.TestCase):
             file.write_text(json.dumps(config))
             with self.assertRaisesRegex(ValueError,'unknown fields'):
                 load_config(file)
-            file.write_text('{"schema_version":1,"schema_version":1}')
+            file.write_text('{"schema_version":2,"schema_version":2}')
             with self.assertRaisesRegex(ValueError,'Duplicate'):
                 load_config(file)
 
     def test_legacy_config_gets_bounded_solver_default(self):
         config, _, _ = load_config(ROOT/'hopper_config.json')
         config['simulation'].pop('nonlinear_max_evaluations')
+        for entry in config['thrust_profile']['profiles'].values():   # this copy lives in a temp folder
+            entry['csv'] = str(ROOT/entry['csv'])
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'config.json'
             path.write_text(json.dumps(config))
@@ -75,17 +117,17 @@ class ConfigTests(unittest.TestCase):
             source.write_text('pc_psia,efficiency\n100,0.8\n300,0.9\n')
             config['engine']['cstar_efficiency']={'mode':'csv','csv':str(source)}
             data['CSTAR_EFFICIENCY_CSV']=str(source)
-            data['PROP_RESULTS_DIRECTORY']=directory
+            data['PROP_ARCHIVE_DIRECTORY']=directory
             namespace=SimpleNamespace(**data,CONFIG=config,CONFIG_PATH=path,CONFIG_SOURCE_TEXT=json.dumps(config))
             first=prepare_run(namespace)
             source.write_text('changed after run')
             archived, replay, _=load_config(first/'run_config.json')
             self.assertEqual(archived['engine']['cstar_efficiency']['csv'],'inputs/cstar_efficiency.csv')
+            self.assertEqual(archived['thrust_profile']['profiles']['52m_free']['csv'],'inputs/thrust_52m_free.csv')
             self.assertTrue(Path(replay['CHAMBER_MAP_FILENAME']).is_file())
             self.assertIn('0.8',Path(replay['CSTAR_EFFICIENCY_CSV']).read_text())
-            self.assertAlmostEqual(json.loads((first/'resolved_inputs.json').read_text())['derived']['integration_step_cap_s'],.005)
+            self.assertAlmostEqual(json.loads((first/'resolved_inputs.json').read_text())['derived']['integration_step_cap_s'],.05)
             self.assertTrue((first/'input_config.json').exists())
-            namespace.PROP_RESULTS_DIRECTORY=directory
             second=prepare_run(namespace)
             self.assertNotEqual(first,second)
             self.assertTrue((first/'run_config.json').exists())

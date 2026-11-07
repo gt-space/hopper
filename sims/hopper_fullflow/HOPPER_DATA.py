@@ -1,15 +1,168 @@
-"""Compatibility adapter. Edit hopper_config.json, not this module.
+"""Inputs for the Hopper model as Python names. Edit hopper_config.json, not this file.
 
 Set HOPPER_CONFIG or run Hopper.py --config path/to/config.json for another case.
-All public solver constants below are loaded/derived from that JSON in SI units.
+Every name below is loaded or derived from that JSON, in SI units. They are written
+out one by one (rather than added to globals() in a loop) so that `from HOPPER_DATA
+import *` resolves in the editor as well as at run time.
 """
+
 from scipy.constants import *
-from Hopper_Elements import (BangBangValve, CavitatingVenturi, CheckValve, COPVSource,
-    Custom, GasLine, Injector, Line, Orifice, Regen, Tank, ThrottleValve, Valve,
-    tube_area, tube_id)
-from Hopper_Inputs import LBF
-from Hopper_Config import load_config
+
+from Backend.Hopper_Config import load_config
+from Backend.Hopper_Elements import (CLOSED, BangBangValve, Branch, CavitatingVenturi, CheckValve, COPVSource, Custom,
+                                     GasLine, Injector, Line, Orifice, Regen, Regulator, ReliefValve, Tank,
+                                     ThrottleValve, Valve, tube_area, tube_id)
+from Backend.Hopper_Inputs import LBF
 
 CONFIG, _values, CONFIG_PATH = load_config()
 CONFIG_SOURCE_TEXT = CONFIG_PATH.read_text(encoding='utf-8-sig')
-globals().update(_values)
+
+# ---- Run settings ---- #
+PROP_DT = _values['PROP_DT']
+PROP_SAVE_DT = _values['PROP_SAVE_DT']
+PROP_RTOL = _values['PROP_RTOL']
+PROP_MAX_NFEV = _values['PROP_MAX_NFEV']
+PROP_JACOBIAN_METHOD = _values['PROP_JACOBIAN_METHOD']
+PROP_VERBOSE = _values['PROP_VERBOSE']
+PROP_STATISTICS = _values['PROP_STATISTICS']
+PROP_SOLVE_PROP_SYSTEM = _values['PROP_SOLVE_PROP_SYSTEM']
+PROP_GENERATE_CHAMBER_MAP = _values['PROP_GENERATE_CHAMBER_MAP']
+
+# ---- Files ---- #
+CHAMBER_MAP_FILENAME = _values['CHAMBER_MAP_FILENAME']
+PROP_FILENAME = _values['PROP_FILENAME']
+PROP_RESULTS_DIRECTORY = _values['PROP_RESULTS_DIRECTORY']
+PROP_ARCHIVE_DIRECTORY = _values['PROP_ARCHIVE_DIRECTORY']
+
+# ---- Outputs ---- #
+PROP_EXPORT_RESULTS = _values['PROP_EXPORT_RESULTS']
+PROP_PLOTS = _values['PROP_PLOTS']
+PROP_PLOT_UNITS = _values['PROP_PLOT_UNITS']
+PROP_PLOT_CSV = _values['PROP_PLOT_CSV']
+PROP_PLOT_PROFILE_TIME = _values['PROP_PLOT_PROFILE_TIME']
+PROP_SHOW_PLOTS = _values['PROP_SHOW_PLOTS']
+PROP_REPORT = _values['PROP_REPORT']
+PROP_KEEP_RUN_HISTORY = _values['PROP_KEEP_RUN_HISTORY']
+PROP_COMPONENT_DIAGRAM = _values['PROP_COMPONENT_DIAGRAM']
+STATION_PLOT_TIMES = _values['STATION_PLOT_TIMES']
+NOZZLE_SEPARATION_RATIO = _values['NOZZLE_SEPARATION_RATIO']
+REPORT_THRUST_ON_FRACTION = _values['REPORT_THRUST_ON_FRACTION']
+REPORT_THRUST_TOLERANCE = _values['REPORT_THRUST_TOLERANCE']
+
+# ---- Thrust curves ---- #
+PROP_THRUST_CURVE_NAME = _values['PROP_THRUST_CURVE_NAME']
+PROP_PROFILE_INTERPOLATION = _values['PROP_PROFILE_INTERPOLATION']
+PROP_THRUST_CURVE = _values['PROP_THRUST_CURVE']
+THRUST_CURVES = _values['THRUST_CURVES']
+THRUST_CURVE_MIN_SPACING = _values['THRUST_CURVE_MIN_SPACING']
+THRUST_CURVE_1DOF = _values['THRUST_CURVE_1DOF']
+RAMP_START_THRUST = _values['RAMP_START_THRUST']
+RAMP_END_THRUST = _values['RAMP_END_THRUST']
+RAMP_DURATION = _values['RAMP_DURATION']
+RAMP_POINTS = _values['RAMP_POINTS']
+
+# ---- Fluids ---- #
+OXIDIZER = _values['OXIDIZER']
+FUEL = _values['FUEL']
+PRESSURANT = _values['PRESSURANT']
+AMBIENT_PRESSURE = _values['AMBIENT_PRESSURE']
+
+# ---- Pressurant: COPVs ---- #
+COPVS = _values['COPVS']
+COPV_COUNT = _values['COPV_COUNT']
+COPV_VOLUME = _values['COPV_VOLUME']
+COPV_UNIT_VOLUME = _values['COPV_UNIT_VOLUME']
+COPV_MODEL = _values['COPV_MODEL']
+COPV_HEADER_VOLUME = _values['COPV_HEADER_VOLUME']
+COPV_MIN_TEMPERATURES = _values['COPV_MIN_TEMPERATURES']
+PRESSURANT_INITIAL_PRESSURE = _values['PRESSURANT_INITIAL_PRESSURE']
+PRESSURANT_INITIAL_TEMPERATURE = _values['PRESSURANT_INITIAL_TEMPERATURE']
+
+# ---- Tanks and flow paths ---- #
+LOX_TANK = _values['LOX_TANK']
+FUEL_TANK = _values['FUEL_TANK']
+LOX_PRESSURANT_LEG = _values['LOX_PRESSURANT_LEG']
+FUEL_PRESSURANT_LEG = _values['FUEL_PRESSURANT_LEG']
+LOX_FEED = _values['LOX_FEED']
+FUEL_FEED = _values['FUEL_FEED']
+BANG_BANG_SAMPLE_PERIOD = _values['BANG_BANG_SAMPLE_PERIOD']
+
+# ---- Vents, reliefs, purges, drains ---- #
+REGULATORS = _values['REGULATORS']
+BRANCHES = _values['BRANCHES']
+TORCH_ENABLED = _values['TORCH_ENABLED']
+TORCH_BRANCHES = _values['TORCH_BRANCHES']
+TORCH_OPEN_TIME = _values['TORCH_OPEN_TIME']
+TORCH_DURATION = _values['TORCH_DURATION']
+TORCH_VALVE_STROKE = _values['TORCH_VALVE_STROKE']
+TORCH_SCHEDULE = _values['TORCH_SCHEDULE']
+NOT_MODELLED = _values['NOT_MODELLED']
+VENT_END_GAUGE_PRESSURE = _values['VENT_END_GAUGE_PRESSURE']
+VENT_TIME_REQUIREMENTS = _values['VENT_TIME_REQUIREMENTS']
+VENT_DT = _values['VENT_DT']
+VENT_MAX_TIME = _values['VENT_MAX_TIME']
+LOX_TANK_HEIGHT = _values['LOX_TANK_HEIGHT']
+LOX_DRAIN_BRANCH = _values['LOX_DRAIN_BRANCH']
+LOX_DRAIN_EXTRA_ELEMENTS = _values['LOX_DRAIN_EXTRA_ELEMENTS']
+LOX_DRAIN_OUTLET_DROP = _values['LOX_DRAIN_OUTLET_DROP']
+LOX_DRAIN_ULLAGE_PRESSURES = _values['LOX_DRAIN_ULLAGE_PRESSURES']
+LOX_DRAIN_END_FRACTION = _values['LOX_DRAIN_END_FRACTION']
+LOX_DRAIN_TIME_REQUIREMENT = _values['LOX_DRAIN_TIME_REQUIREMENT']
+DRAIN_STEPS = _values['DRAIN_STEPS']
+DRAIN_MAX_TIME = _values['DRAIN_MAX_TIME']
+TANK_SWEEP_PRESSURES = _values['TANK_SWEEP_PRESSURES']
+TANK_SWEEP_VALVE_CDA = _values['TANK_SWEEP_VALVE_CDA']
+TANK_SWEEP_VALVE_MARGIN = _values['TANK_SWEEP_VALVE_MARGIN']
+
+# ---- Engine ---- #
+MIXTURE_RATIO = _values['MIXTURE_RATIO']
+THROAT_AREA = _values['THROAT_AREA']
+EXIT_AREA = _values['EXIT_AREA']
+EXPANSION_RATIO = _values['EXPANSION_RATIO']
+NOMINAL_CHAMBER_PRESSURE = _values['NOMINAL_CHAMBER_PRESSURE']
+CSTAR_EFFICIENCY_FUNCTION = _values['CSTAR_EFFICIENCY_FUNCTION']
+CSTAR_EFFICIENCY_CSV = _values['CSTAR_EFFICIENCY_CSV']
+CSTAR_EFFICIENCY_SCALE = _values['CSTAR_EFFICIENCY_SCALE']
+CF_EFFICIENCY_FUNCTION = _values['CF_EFFICIENCY_FUNCTION']
+CF_EFFICIENCY_CSV = _values['CF_EFFICIENCY_CSV']
+CF_EFFICIENCY_SCALE = _values['CF_EFFICIENCY_SCALE']
+CHAMBER_MAP_PRESSURE_LOWER_LIMIT = _values['CHAMBER_MAP_PRESSURE_LOWER_LIMIT']
+CHAMBER_MAP_PRESSURE_UPPER_LIMIT = _values['CHAMBER_MAP_PRESSURE_UPPER_LIMIT']
+CHAMBER_MAP_PRESSURE_POINTS = _values['CHAMBER_MAP_PRESSURE_POINTS']
+CHAMBER_MAP_MIXTURE_RATIO_LOWER_LIMIT = _values['CHAMBER_MAP_MIXTURE_RATIO_LOWER_LIMIT']
+CHAMBER_MAP_MIXTURE_RATIO_UPPER_LIMIT = _values['CHAMBER_MAP_MIXTURE_RATIO_UPPER_LIMIT']
+CHAMBER_MAP_MIXTURE_RATIO_POINTS = _values['CHAMBER_MAP_MIXTURE_RATIO_POINTS']
+MAX_THRUST_HOLD_TIME = _values['MAX_THRUST_HOLD_TIME']
+MAX_THRUST_TRACKING_TOLERANCE = _values['MAX_THRUST_TRACKING_TOLERANCE']
+
+# ---- Sequence ---- #
+MAIN_VALVE_OPEN_TIME = _values['MAIN_VALVE_OPEN_TIME']
+MAIN_VALVE_RAMP_TIME = _values['MAIN_VALVE_RAMP_TIME']
+THROTTLE_STEP_TIME = _values['THROTTLE_STEP_TIME']
+THROTTLE_RATE_LIMIT = _values['THROTTLE_RATE_LIMIT']
+RAMP_BREAKPOINT_SPACING = _values['RAMP_BREAKPOINT_SPACING']
+TAIL_OFF_TIME = _values['TAIL_OFF_TIME']
+
+# ---- Monte Carlo ---- #
+MC_RUNS = _values['MC_RUNS']
+MC_SEED = _values['MC_SEED']
+MC_WORKERS = _values['MC_WORKERS']
+MC_SAVE_DT = _values['MC_SAVE_DT']
+MC_KEEP_FILES = _values['MC_KEEP_FILES']
+MC_DIRECTORY = _values['MC_DIRECTORY']
+MC_THRUST_CONTROL = _values['MC_THRUST_CONTROL']
+MC_ALL_CDAS = _values['MC_ALL_CDAS']
+MC_DISPERSIONS = _values['MC_DISPERSIONS']
+MC_INPUT_LIMITS = _values['MC_INPUT_LIMITS']
+
+# ---- Solver numerics ---- #
+MIXTURE_RATIO_FLOW_FLOOR = _values['MIXTURE_RATIO_FLOW_FLOOR']
+NOZZLE_LINEAR_PRESSURE_DROP = _values['NOZZLE_LINEAR_PRESSURE_DROP']
+REGEN_PROPERTY_TEMPERATURE_POINTS = _values['REGEN_PROPERTY_TEMPERATURE_POINTS']
+CONTROLLER_STEPS_PER_PERIOD = _values['CONTROLLER_STEPS_PER_PERIOD']
+VALVE_STEPS_PER_STROKE = _values['VALVE_STEPS_PER_STROKE']
+
+# A new config field must be named above too; fail loudly rather than silently drop it.
+_unnamed = sorted(set(_values) - set(globals()))
+if _unnamed:
+    raise RuntimeError(f"HOPPER_DATA.py does not name these config values: {_unnamed}")

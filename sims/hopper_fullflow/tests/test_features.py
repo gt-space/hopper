@@ -9,13 +9,13 @@ from pathlib import Path
 import numpy as np
 import h5py
 from fullflow import Network, State, Lookup
-from Hopper_Components import engine_efficiencies
+from Backend.Hopper_Components import engine_efficiencies
 
-from Hopper_Inputs import efficiency_value, table_value, ramp_profile, slew_position, delta_t_value
-from Hopper_Control import SampledBangBang, ValveTravel, FunctionLookup
-from Hopper_Report import sustained_maximum, summarize
-from Hopper_Export import _safe_group_name
-from Hopper_Elements import ClosedSafeDischargeCoefficient, Line
+from Backend.Hopper_Inputs import efficiency_value, table_value, ramp_profile, slew_position, delta_t_value
+from Backend.Hopper_Control import SampledBangBang, ValveTravel, FunctionLookup
+from Backend.Hopper_Report import sustained_maximum, summarize
+from Backend.Hopper_Export import _safe_group_name
+from Backend.Hopper_Elements import ClosedSafeDischargeCoefficient, Line
 
 
 class InputTests(unittest.TestCase):

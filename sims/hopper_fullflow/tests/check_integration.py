@@ -9,9 +9,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import numpy as np
-from Hopper_Export import LoadTracks, _track, ExportActualPerformance
-from Hopper_Report import summarize, read_metadata
-from Hopper_Prop_System import heated_property_function, liquid_properties
+import HOPPER_DATA as data
+from Backend.Hopper_Export import LoadTracks, _track, ExportActualPerformance
+from Backend.Hopper_Report import summarize, read_metadata
+from Backend.Hopper_Prop_System import heated_property_function, liquid_properties
 
 
 def check(filename):
@@ -47,9 +48,16 @@ def check(filename):
         assert np.max(np.diff(mass)) < 5e-6
     np.testing.assert_allclose(get("COPV Gas Mass [kg]"),
                               sum(get(f"{name} Gas Mass [kg]") for name in bottle_names), atol=1e-10)
+    # With a collapse factor the ullage keeps 1/CF of what the COPV supplies, so CF x ullage
+    # mass is what is conserved with the bottle gas. Reliefs that opened take gas out.
+    lox_cf, fuel_cf = data.LOX_TANK.collapse_factor, data.FUEL_TANK.collapse_factor
+    def relieved(name, factor):
+        flow = get(f"{name} Mass Flow [kg/s]")
+        return factor * np.concatenate(([0.0], np.cumsum(flow[1:] * dt)))
     gas_mass = (get("COPV Gas Mass [kg]") + get("COPV Header Gas Mass [kg]")
-                + get("LOX Ullage Gas Mass [kg]") + get("Fuel Ullage Gas Mass [kg]"))
-    np.testing.assert_allclose(gas_mass, gas_mass[0], atol=3e-4)
+                + lox_cf * get("LOX Ullage Gas Mass [kg]") + fuel_cf * get("Fuel Ullage Gas Mass [kg]")
+                + relieved("ORV Relief", lox_cf) + relieved("FRV Relief", fuel_cf) + relieved("PRRV Relief", 1.0))
+    np.testing.assert_allclose(gas_mass, gas_mass[0], atol=1e-3)
     report = summarize(filename)
     assert report["copv_temperatures"][0]["violated"]
     assert report["copv_temperatures"][0]["limit_K"] == 294

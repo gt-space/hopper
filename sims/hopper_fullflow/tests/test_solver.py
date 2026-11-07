@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from fullflow import Network
 from fullflow.Solvers.steady_state.settings import LeastSquaresSettings
-from Hopper_Solver import transient_solver
+from Backend.Hopper_Solver import transient_solver
 
 
 class SolverTests(unittest.TestCase):

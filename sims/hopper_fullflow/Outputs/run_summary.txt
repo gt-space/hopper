@@ -1,0 +1,7 @@
+Profile: 52m_free
+Max thrust demonstrated for >= 0.5 s: 1686.3 N (379.1 lbf)
+No sustained capacity shortfall demonstrated; achieved thrust is a lower bound, not the system maximum.
+LOX residual: 2.2955 kg (14.35 % initial); consumed 13.7027 kg
+Fuel residual: 2.0378 kg (15.68 % initial); consumed 10.9622 kg
+COPV 1: minimum 223.02 K; limit 220 K
+COPV 2: minimum 223.02 K; limit 220 K

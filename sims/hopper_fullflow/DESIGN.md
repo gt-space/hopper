@@ -8,6 +8,46 @@ See [HANDOFF.md](HANDOFF.md) for the complete delivered-commit history, final
 checked-in inputs, and consolidated validation/limitations. Earlier sections
 below retain development-stage input and test-count history.
 
+## November 7, 2026: merging the element-list model into the JSON version
+
+The JSON replacement (`996f8509`) was built from the October 26 commit, so it left
+out the work from October 27 to November 3 (`63ef5f4`). That work is now ported into
+the JSON structure. Inputs: where only one side changed a value since October 26 that
+value stands; where both changed it, the element-list value stands. Notes in the
+config record each source.
+
+Brought back from `63ef5f4`: the `Backend/`, `isolated_sims/`, `thrust_curves/`,
+`Outputs/` and `Old_sims_comparison/` layout; collapse factor in place of ullage HTC;
+side paths, regulator, reliefs, purges, drain and torch; thrust-curve CSV loading; the
+180 lbf/s slew limit and ramp breakpoints; efficiencies sampled at the previous step
+in the transient; the run report, component table, schematic and parameter workbook;
+vent, drain, tank-sweep and purge calculators; the Monte Carlo; `ASSUMPTIONS.txt`.
+
+Kept from the JSON version: the JSON loader and validation, run archives, `Regen`
+heating, selectable efficiency modes, station, regen and COPV-temperature plots, the
+component diagram, sustained-thrust and residual reports, valve travel, sampled
+bang-bang, the bounded nonlinear solve, and the tests.
+
+Decisions:
+
+- COPVs are lumped by default (`pressurization.copv_model`). The bottle-and-header
+  model cannot converge at the 0.05 s step: its first step stalls. Identical bottles
+  give the same answer lumped. Header mode stays available for bottles that differ.
+- Valve travel times default to 0 and the controller samples at 0.05 s, which is the
+  element-list behaviour. Nonzero travel caps the step at 1/10 of a stroke.
+- `HOPPER_DATA.py` names every input statically instead of `globals().update(...)`, so
+  editors resolve `from HOPPER_DATA import *`. It raises if a config value is unnamed.
+- JSON notes replace the `#EDIT` comments the table and workbook used to read.
+- Fixed a header energy bug: `Volume.total_enthalpy_in` is per kg (FullFlow energy in =
+  `mass_flow_in * total_enthalpy_in`), but the header was given the enthalpy flow in W.
+- `schema_version` is 2. Run archives from before this merge replay with `9b85078b`.
+- Only the latest raw history is kept by default, because each is about 220 MB
+  (`outputs.keep_run_history`).
+
+Check: with the October 26 line lengths and no regen heating, the port reproduces the
+committed November 3 `Outputs/run_summary.csv`: 41 of 59 metrics identical, the rest
+within 0.67 %. The largest difference is COPV end pressure (1703 vs 1714 psia).
+
 ## Objective
 
 Given a thrust history and configurable hardware, predict feed-system pressures,

@@ -1,0 +1,47 @@
+| Path | Tag | Type | CdA [mm2] | Details | Source / note |
+|---|---|---|---|---|---|
+| Pressurant | COPV 1 | COPV |  | 9 L, 4503 psia, 293 K Nitrogen, lumped as one volume | GUESS outlet CdA and minimum temperature (Vedanth, 2026-11-05) |
+| Pressurant | COPV 2 | COPV |  | 9 L, 4503 psia, 293 K Nitrogen, lumped as one volume | GUESS outlet CdA and minimum temperature (Vedanth, 2026-11-05) |
+| LOX Tank | LOX Tank | Tank |  | 15.867 L, 16.00 kg LOX, set 500 psia +5/-5, collapse factor 2 | EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 45.54 - 10.27 lb wet - dry |
+| Fuel Tank | Fuel Tank | Tank |  | 17.929 L, 13.00 kg RP-1, set 500 psia +5/-5, collapse factor 1.1 | EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 42.22 - 13.56 lb wet - dry |
+| LOX pressurant leg | LOX Pressurant Line | Gas line | 5.75 | 0.25 in x 0.035 in wall, ID 4.57 mm, L 1.219 m; lumped (fully rough) | EDIT (Vedanth, 2026-11-05; was 4.92 mm ID, 1.0 m) |
+| LOX pressurant leg | OBB | Bang-bang solenoid | 18.68 | opened/closed by the tank bang-bang band | Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke |
+| LOX pressurant leg | OR-1 | Orifice | 7.00 |  | EDIT (user, 2026-11-03; was 2.04 from vehicle_sim) |
+| LOX pressurant leg | PROCK | Check valve | 12.00 |  | EDIT |
+| Fuel pressurant leg | Fuel Pressurant Line | Gas line | 5.75 | 0.25 in x 0.035 in wall, ID 4.57 mm, L 1.219 m; lumped (fully rough) | EDIT (Vedanth, 2026-11-05; was 4.92 mm ID, 1.0 m) |
+| Fuel pressurant leg | FBB | Bang-bang solenoid | 18.68 | opened/closed by the tank bang-bang band | Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke |
+| Fuel pressurant leg | OR-2 | Orifice | 3.00 |  | EDIT (user, 2026-11-03; was 1.02 from vehicle_sim) |
+| Fuel pressurant leg | PRFCK | Check valve | 12.00 |  | EDIT |
+| LOX feed | LOX Tank to OTV Line | Line |  | 0.375 in x 0.01 in wall, ID 9.02 mm, L 1.219 m | EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 1.0 m) |
+| LOX feed | OTV | Throttle valve | 50.00 | max CdA; CdA set to hit the flow target | EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel |
+| LOX feed | OTV to LOX Injector Line | Line |  | 0.375 in x 0.01 in wall, ID 9.02 mm, L 0.254 m | EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m) |
+| LOX feed | OINJ | Injector | 16.60 | passage length 0.010 m | EDIT LOX stem (user, 2026-10-30; was 15.3 from vehicle_sim) |
+| Fuel feed | Fuel Tank to FTV Line | Line |  | 0.375 in x 0.01 in wall, ID 9.02 mm, L 0.305 m | EDIT 3/8 in x 0.01 in wall (user, 2026-11-03; was 1/4 in from vehicle_sim) |
+| Fuel feed | FTV | Throttle valve | 50.00 | max CdA; CdA set to hit the flow target | EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel |
+| Fuel feed | FTV to Regen Line | Line |  | 0.375 in x 0.01 in wall, ID 9.02 mm, L 0.305 m | EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m) |
+| Fuel feed | Regen Jacket | Regen | 30.00 | fuel heated +82 K; passage length 0.300 m | EDIT CdA (user, 2026-11-03; was 25). EDIT heating: 293 K in, 375 K at the injector inlet (user, 2026-11-04); Vedanth's curve was +51 K at 150 psia, +44 K at 300 psia. Passage length is flow inertia, needed so the solver does not stall at shutdown |
+| Fuel feed | FINJ | Injector | 15.00 | passage length 0.010 m | EDIT fuel manifold (user, 2026-10-30; was 10.6 from vehicle_sim) |
+| COPV side path | PR-REG | Regulator | 5.00 | ideal, set 750 psig | EDIT set: lowest that lets both purges match peak propellant flow at COPV end of life (2026-10-31); CdA GUESS |
+| PRVNT Vent: COPV -> ambient | PRVNT | Valve | 1.07 | closed all run | Marotta PLV34 (info); 1x PLV34 = 1.07 mm^2 (sheet FRV tab) |
+| PRRV Relief: COPV -> ambient | PRRV | Relief valve | 5.00 | crack 4950 psig, full open 5445 psig | EDIT GUESS: Swagelok SS-4R3A (info), sheet tab empty |
+| ORV-1 Relief: PR-REG Outlet -> ambient | ORV-1 | Relief valve | 2.00 | crack 825 psig, full open 908 psig | EDIT GUESS: 10 % above PR-REG set |
+| LOX Purge: PR-REG Outlet -> OTV Outlet | LOX Purge Line | Gas line | 7.58 | 0.25 in x 0.028 in wall, ID 4.93 mm, L 1.000 m; lumped (fully rough) | EDIT GUESS purge tube (4.93 mm ID) and length |
+| LOX Purge: PR-REG Outlet -> OTV Outlet | OPV | Valve | 1.86 | closed all run | EDIT candidate Chinese solenoid (user, 2026-10-31) |
+| LOX Purge: PR-REG Outlet -> OTV Outlet | CV-5 | Check valve | 8.50 |  | EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2) |
+| Fuel Purge: PR-REG Outlet -> FTV Outlet | Fuel Purge Line | Gas line | 7.58 | 0.25 in x 0.028 in wall, ID 4.93 mm, L 1.000 m; lumped (fully rough) | EDIT GUESS purge tube (4.93 mm ID) and length |
+| Fuel Purge: PR-REG Outlet -> FTV Outlet | FPV | Valve | 1.86 | closed all run | EDIT candidate Chinese solenoid (user, 2026-10-31) |
+| Fuel Purge: PR-REG Outlet -> FTV Outlet | CV-4 | Check valve | 8.50 |  | EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2) |
+| Torch Fuel Purge: PR-REG Outlet -> Main Chamber | TFPV | Valve | 2.00 | closed all run | EDIT GUESS CdA |
+| Torch Fuel Purge: PR-REG Outlet -> Main Chamber | CV-3 | Check valve | 5.00 |  | EDIT GUESS CdA |
+| OVNT Vent: LOX Ullage -> ambient | OVNT | Valve | 9.40 | closed all run | Jaksa 2/2 cryo solenoid (info), 9.4 mm^2 (sheet OVNT) |
+| ORV Relief: LOX Ullage -> ambient | ORV | Relief valve | 30.80 | crack 550 psig, full open 605 psig | RegO PRV9432T550 (info); target CdA (sheet ORV) |
+| OFD Drain: LOX Tank Liquid -> ambient | OFD | Valve | 9.40 | closed all run | Same valve as OVNT (Jaksa 2/2 cryo solenoid) |
+| FVNT Vent: Fuel Ullage -> ambient | FVNT | Valve | 15.00 | closed all run | UNOX 3/8 NO solenoid (info); target CdA (sheet FVNT) |
+| FRV Relief: Fuel Ullage -> ambient | FRV | Relief valve | 14.67 | crack 550 psig, full open 605 psig | EDIT PRV9432T550 = 550 psig (info); sheet FRV says 525 |
+| Not in the flow model | PRQD |  |  |  | Pressurant fill quick disconnect (disconnected in flight) |
+| Not in the flow model | OQD |  |  |  | LOX fill quick disconnect below OFD (disconnected in flight) |
+| Not in the flow model | FQD |  |  |  | Fuel fill quick disconnect, McMaster 52495K63 (disconnected in flight) |
+| Not in the flow model | ODiff |  |  |  | Oxygen diffuser on the OVNT exhaust (sizing) |
+| Not in the flow model | Torch spark igniter |  |  |  | Spark / exciter; torch combustion itself is not modelled (its propellant goes into the main chamber) |
+| Not in the flow model | PRPT-1 and sensors |  |  |  | Instrumentation |
+| Not in the flow model | OIMV / FIMV / HX-1 |  |  |  | Torch igniter feeds, switched off (torch.enabled = false) |
