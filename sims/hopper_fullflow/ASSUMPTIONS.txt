@@ -21,7 +21,7 @@ Efficiency     c* 0.80 -> 0.85 over 100-300 psia; Cf 0.94 -> 0.97 over
                100-250 psia
 Thrust curve   GNC 52 m free flight, 29.5 s, 238-380 lbf
 Purge          PR-REG 750 psig, 1.86 mm2 solenoids, 8.5 mm2 check valves,
-               1 m of 1/4" tube
+               1 m of 1/4" x 0.035" tube
 
 
 MODELLING SIMPLIFICATIONS

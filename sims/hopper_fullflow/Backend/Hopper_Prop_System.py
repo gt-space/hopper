@@ -47,7 +47,7 @@ from scipy.constants import *
 from HOPPER_DATA import *
 from Backend.Hopper_Components import EnginePerformance
 from Backend.Hopper_Elements import (BangBangValve, CheckValve, FeedContext, GasLine, Injector, Regen, ReliefValve,
-                                     ThrottleValve, is_dynamic_line)
+                                     ThrottleValve, Valve, is_dynamic_line)
 from Backend.Hopper_Control import SampledBangBang, FunctionLookup
 
 
@@ -69,6 +69,28 @@ def burn_timeline(targets):
     profile_start = MAIN_VALVE_OPEN_TIME + MAIN_VALVE_RAMP_TIME
     profile_end = profile_start + targets[-1]["time"]
     return profile_start, profile_end, profile_end + MAIN_VALVE_RAMP_TIME
+
+
+def purge_windows(shutdown_end):
+    """[(branch name, open time, close time)] on the simulation clock: the purge
+    sequence, one branch after another, starting after shutdown."""
+    windows, start = [], shutdown_end + PURGE_START_AFTER_SHUTDOWN
+    for branch, duration in PURGE_SEQUENCE:
+        windows.append((branch, start, start + duration))
+        start += duration + PURGE_GAP
+    return windows
+
+
+def schedule_purges(shutdown_end):
+    """Give each purged branch's valve its open window (valves of branches not in the
+    sequence keep their own schedule). Returns the time the last purge closes."""
+    by_name = {branch.name: branch for branch in BRANCHES}
+    for name, opened, closed in purge_windows(shutdown_end):
+        for element in by_name[name].elements:
+            if isinstance(element, Valve) and not isinstance(element, CheckValve):
+                element.schedule = ([0.0, opened, opened + PURGE_VALVE_STROKE, closed, closed + PURGE_VALVE_STROKE],
+                                    [0.0, 0.0, 1.0, 1.0, 0.0])
+    return closed + PURGE_VALVE_STROKE
 
 
 def step_duration(previous, target):
@@ -562,8 +584,10 @@ def HopperPropSystem(targets: list,
     save_dt                output interval [s] (None saves every step)
     """
     profile_start, profile_end, shutdown_end = burn_timeline(targets)
+    # The purges open one after another once OTV/FTV have closed (purge section of the config).
+    purge_end = schedule_purges(shutdown_end) if PURGE_IN_TRANSIENT and PURGE_SEQUENCE else shutdown_end
     if t_final is None:
-        t_final = shutdown_end + TAIL_OFF_TIME
+        t_final = purge_end + TAIL_OFF_TIME
 
     build_start = time.perf_counter()
     print("Building flow network and fluid properties...", flush=True)

@@ -22,7 +22,7 @@ TYPES = {name: getattr(elements, name) for name in (
     'ReliefValve', 'Regulator')}
 # Top-level sections besides GROUPS.
 SECTIONS = {'schema_version', 'thrust_profile', 'bottles', 'tanks', 'flow_paths', 'regulators',
-            'side_paths', 'torch', 'not_modelled', 'monte_carlo'}
+            'side_paths', 'torch', 'purge', 'not_modelled', 'monte_carlo'}
 OPTIONAL_SECTIONS = {'description', 'notes'}
 
 
@@ -191,6 +191,51 @@ def _monte_carlo(mc, base):
             'MC_INPUT_LIMITS': {name: tuple(limits) for name, limits in mc['input_limits'].items()}}
 
 
+def _purge(spec, branches):
+    """The post-shutdown purge sequence and the purge sizing inputs."""
+    keys = ('sequence','start_after_shutdown_s','gap_s','valve_stroke_s','simulate_in_transient',
+            'required_fraction_of_peak_flow','back_pressure_psia','sizing')
+    _keys(spec, keys, 'purge', keys)
+    sizing_keys = ('elements','cda_range_mm2','regulator_min_dp_psi','max_regulator_set_psig','time_step_s')
+    _keys(spec['sizing'], sizing_keys, 'purge.sizing', sizing_keys)
+    by_name = {branch.name: branch for branch in branches}
+    sequence = []
+    for leg in spec['sequence']:
+        _keys(leg, ('branch','duration_s'), 'purge.sequence', ('branch','duration_s'))
+        branch = by_name.get(leg['branch'])
+        if branch is None:
+            raise ValueError(f"purge.sequence: no side path called {leg['branch']!r}.")
+        if not any(isinstance(e, elements.Valve) and not isinstance(e, elements.CheckValve) for e in branch.elements):
+            raise ValueError(f"purge.sequence: {leg['branch']} has no valve to open.")
+        if leg['duration_s'] <= spec['valve_stroke_s']:
+            raise ValueError(f"purge.sequence: {leg['branch']} must stay open longer than the valve stroke.")
+        sequence.append((leg['branch'], float(leg['duration_s'])))
+    if spec['start_after_shutdown_s'] < 0 or spec['gap_s'] < 0 or spec['valve_stroke_s'] <= 0:
+        raise ValueError('purge: start and gap cannot be negative; valve_stroke_s must be positive.')
+    if spec['required_fraction_of_peak_flow'] <= 0:
+        raise ValueError('purge.required_fraction_of_peak_flow must be positive.')
+    sizing = spec['sizing']
+    sized = {e.name for name, _ in sequence for e in by_name[name].elements}
+    missing = [name for name in sizing['elements'] if name not in sized]
+    if not sizing['elements'] or missing:
+        raise ValueError(f'purge.sizing.elements must name elements of the purged branches; not found: {missing}.')
+    low, high = sizing['cda_range_mm2']
+    if not 0 < low < high or sizing['time_step_s'] <= 0 or sizing['regulator_min_dp_psi'] < 0:
+        raise ValueError('purge.sizing: need 0 < cda_range_mm2[0] < [1], positive time_step_s, regulator_min_dp_psi >= 0.')
+    back = spec['back_pressure_psia']
+    limit = sizing['max_regulator_set_psig']
+    return {'PURGE_SEQUENCE': sequence, 'PURGE_START_AFTER_SHUTDOWN': spec['start_after_shutdown_s'],
+            'PURGE_GAP': spec['gap_s'], 'PURGE_VALVE_STROKE': spec['valve_stroke_s'],
+            'PURGE_IN_TRANSIENT': spec['simulate_in_transient'],
+            'PURGE_REQUIRED_FRACTION': spec['required_fraction_of_peak_flow'],
+            'PURGE_BACK_PRESSURE': None if back is None else back * psi,
+            'PURGE_SIZING_ELEMENTS': list(sizing['elements']),
+            'PURGE_SIZING_CDA_RANGE': (low * 1e-6, high * 1e-6),
+            'PURGE_REGULATOR_MIN_DP': sizing['regulator_min_dp_psi'] * psi,
+            'PURGE_MAX_REGULATOR_SET': None if limit is None else limit * psi,
+            'PURGE_SIZING_DT': sizing['time_step_s']}
+
+
 def load_config(filename=None):
     path = Path(filename or os.environ.get('HOPPER_CONFIG', ROOT / 'hopper_config.json')).resolve()
     config = json.loads(path.read_text(encoding='utf-8-sig'), object_pairs_hook=_unique_object,
@@ -297,6 +342,7 @@ def load_config(filename=None):
         values['BRANCHES'] = values['BRANCHES'] + values['TORCH_BRANCHES']
     else:
         values['NOT_MODELLED']['OIMV / FIMV / HX-1'] = 'Torch igniter feeds, switched off (torch.enabled = false)'
+    values.update(_purge(config['purge'], values['BRANCHES']))
     values.update(_monte_carlo(config['monte_carlo'], path.parent))
 
     objects = (values['COPVS'] + [values['LOX_TANK'],values['FUEL_TANK']] + sum([values[s] for s in paths.values()],[])

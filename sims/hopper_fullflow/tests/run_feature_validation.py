@@ -30,6 +30,7 @@ def main():
     # The options the shipped config leaves off: bottles with a common header, valve
     # travel, and a faster controller (these need the small step the driver then picks).
     simulation.COPV_MODEL = "header"
+    simulation.PURGE_IN_TRANSIENT = False
     simulation.BANG_BANG_SAMPLE_PERIOD = .01
     simulation.CONTROLLER_STEPS_PER_PERIOD = 2
     for leg in (simulation.LOX_PRESSURANT_LEG, simulation.FUEL_PRESSURANT_LEG):

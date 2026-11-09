@@ -3,7 +3,7 @@
 From the last full run (PROP_FILENAME) it takes
   * each propellant's volumetric flow along the burn, Q = mdot / rho, and its
     peak;
-  * the COPV state at the end of the run (end-of-life, the weakest supply);
+  * the COPV state when the purges open, at shutdown (end of life, the weakest supply);
   * the pressure in each feed line where its purge enters (OTV Outlet for the
     LOX purge, FTV Outlet for the fuel purge, from the P&ID).
 Then, for each purge line in side_paths ("LOX Purge", "Fuel Purge": tube ->
@@ -42,6 +42,7 @@ from scipy.constants import liter, milli, psi
 from thermoprop import Fluid
 
 from Backend.Hopper_Export import LoadTracks, _track
+from Backend.Hopper_Report import read_metadata
 
 # (side, purge branch, feed track for the propellant flow, its density track, feed node the purge enters)
 SIDES = (("LOX", "LOX Purge", "Ox Mass Flow [kg/s]", "LOX Liquid Density [kg/m3]", "OTV Outlet"),
@@ -62,6 +63,14 @@ def orifice_mass_flow(cda, p_up, t_up, p_down, gamma, gas_constant):
     return cda * p_up * flow
 
 
+def purge_start_time(filename, time):
+    """Simulation time [s] the first purge opens (end of the run for an old file without metadata)."""
+    metadata = read_metadata(filename)
+    if metadata is None:
+        return float(time[-1])
+    return metadata["profile_end"] + D.MAIN_VALVE_RAMP_TIME + D.PURGE_START_AFTER_SHUTDOWN
+
+
 def series_cda(elements):
     return sum(1.0 / element.cda_value**2 for element in elements) ** -0.5
 
@@ -75,8 +84,9 @@ def purge_check(filename=D.PROP_FILENAME, directory=D.PROP_RESULTS_DIRECTORY):
     branches = {b.name: b for b in D.BRANCHES}
 
     # End-of-life COPV and the regulator outlet (isenthalpic throttle).
-    p_copv = _track(tracks, "COPV Pressure [psia]")[-1] * psi
-    t_copv = _track(tracks, "COPV Temperature [K]")[-1]
+    start = purge_start_time(filename, time)
+    p_copv = float(np.interp(start, time, _track(tracks, "COPV Pressure [psia]"))) * psi
+    t_copv = float(np.interp(start, time, _track(tracks, "COPV Temperature [K]")))
     copv = Fluid(D.PRESSURANT, pressure=p_copv, temperature=t_copv)
     p_reg = min(p_copv, D.AMBIENT_PRESSURE + regulator.set_pressure)
     reg_gas = Fluid(D.PRESSURANT, pressure=p_reg, enthalpy=copv.enthalpy)

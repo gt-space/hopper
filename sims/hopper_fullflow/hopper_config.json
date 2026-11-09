@@ -411,9 +411,9 @@
       "sink": "OTV Outlet",
       "note": "P&ID: joins the LOX line below OTV",
       "elements": [
-        {"type": "GasLine", "name": "LOX Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.028,
+        {"type": "GasLine", "name": "LOX Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.035,
          "length_in": 39.37007874015748, "roughness_in": 0.0005905511811023622,
-         "note": "EDIT GUESS purge tube (4.93 mm ID) and length"},
+         "note": "EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS"},
         {"type": "Valve", "name": "OPV", "cda_mm2": 1.86, "schedule": "closed",
          "note": "EDIT candidate Chinese solenoid (user, 2026-10-31)"},
         {"type": "CheckValve", "name": "CV-5", "cda_mm2": 8.5,
@@ -427,9 +427,9 @@
       "sink": "FTV Outlet",
       "note": "P&ID: joins the fuel line below FTV",
       "elements": [
-        {"type": "GasLine", "name": "Fuel Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.028,
+        {"type": "GasLine", "name": "Fuel Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.035,
          "length_in": 39.37007874015748, "roughness_in": 0.0005905511811023622,
-         "note": "EDIT GUESS purge tube (4.93 mm ID) and length"},
+         "note": "EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS"},
         {"type": "Valve", "name": "FPV", "cda_mm2": 1.86, "schedule": "closed",
          "note": "EDIT candidate Chinese solenoid (user, 2026-10-31)"},
         {"type": "CheckValve", "name": "CV-4", "cda_mm2": 8.5,
@@ -524,6 +524,25 @@
       }
     ]
   },
+  "purge": {
+    "sequence": [
+      {"branch": "Fuel Purge", "duration_s": 5.0},
+      {"branch": "LOX Purge", "duration_s": 5.0}
+    ],
+    "start_after_shutdown_s": 0.0,
+    "gap_s": 0.0,
+    "valve_stroke_s": 0.01,
+    "simulate_in_transient": true,
+    "required_fraction_of_peak_flow": 1.0,
+    "back_pressure_psia": null,
+    "sizing": {
+      "elements": ["CV-4", "CV-5"],
+      "cda_range_mm2": [0.2, 100.0],
+      "regulator_min_dp_psi": 0.0,
+      "max_regulator_set_psig": null,
+      "time_step_s": 0.25
+    }
+  },
   "vent": {
     "end_gauge_pressure_psi": 1.0,
     "time_requirements_s": {
@@ -610,6 +629,13 @@
     "lox_drain.tank_height_in": "LOX total length (tank dimensions table); cross-section = tank volume / height",
     "lox_drain.time_requirement_s": "EDIT null = no requirement",
     "tank_sweep.valve_margin_fraction": "EDIT design limit: valve at most this fraction of full open",
+    "purge.sequence": "EDIT (user, 2026-11-08): after shutdown, fuel purge 5 s then LOX purge 5 s, one at a time, in this order",
+    "purge.simulate_in_transient": "true opens the purge valves in the full transient after shutdown, so the COPV drain is simulated",
+    "purge.required_fraction_of_peak_flow": "Purge gas volume flow at back pressure must be at least this fraction of the propellant's peak volume flow, for the whole purge",
+    "purge.back_pressure_psia": "null = each feed line's pressure at peak propellant flow, from the run (conservative); a number uses that pressure for both",
+    "purge.sizing.elements": "Elements whose shared CdA is solved for (the purge check valves); every other CdA stays at its config value",
+    "purge.sizing.regulator_min_dp_psi": "EDIT GUESS margin the regulator needs above its set pressure to stay in regulation; 0 = ideal",
+    "purge.sizing.max_regulator_set_psig": "null = no limit; e.g. the ORV-1 crack pressure minus a margin",
     "torch.enabled": "Off by default: the torch fires ~0.2 s and barely changes the burn",
     "torch.open_time_s": "EDIT GUESS OIMV + FIMV open (main valves start at sequence.main_valve_start_s)",
     "torch.duration_s": "EDIT torch on-time (~0.2 s)",

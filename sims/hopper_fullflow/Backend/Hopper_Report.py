@@ -18,7 +18,8 @@ From a FullFlow results file and the thrust targets it flew:
 Vent times come from Hopper_Vent.py (vent_times.csv), LOX drain times from
 Hopper_Drain.py (lox_drain_times.csv), and the tank pressure vs throttle CdA
 sweep from Hopper_Tank_Pressure_Sweep.py (tank_pressure_sweep.csv / .png), and
-the purge flow check from Hopper_Purge.py (purge_flow.csv / .png).
+the purge flow check from Hopper_Purge.py (purge_flow.csv / .png), and the purge
+check-valve and regulator sizing from Hopper_Purge_Sizing.py (purge_sizing.csv / .png).
 
     python Backend/Hopper_Report.py [results.h5]
 """
@@ -253,7 +254,7 @@ def run_summary(filename, targets, table=None):
     time, tracks = LoadTracks(filename)
     tr = lambda name: _track(tracks, name)
     table = table if table is not None else cda_table(filename, targets)
-    profile_start, profile_end, _ = burn_timeline(targets)
+    profile_start, profile_end, shutdown_end = burn_timeline(targets)
     in_profile = (time >= profile_start) & (time <= profile_end)
 
     thrust = tr("Thrust [N]")
@@ -274,6 +275,7 @@ def run_summary(filename, targets, table=None):
         "Fuel residual [%]": round(100 * float(tr("Fuel Liquid Mass [kg]")[-1]) / D.FUEL_TANK.liquid_mass, 2),
         "LOX used [kg]": round(D.LOX_TANK.liquid_mass - float(tr("LOX Liquid Mass [kg]")[-1]), 3),
         "Fuel used [kg]": round(D.FUEL_TANK.liquid_mass - float(tr("Fuel Liquid Mass [kg]")[-1]), 3),
+        "COPV pressure at shutdown [psia]": round(float(np.interp(shutdown_end, time, tr("COPV Pressure [psia]"))), 1),
         "COPV end pressure [psia]": round(float(tr("COPV Pressure [psia]")[-1]), 1),
         "COPV gas used [kg]": round(float(tr("COPV Gas Mass [kg]")[0] - tr("COPV Gas Mass [kg]")[-1]), 3),
         "COPV gas left [kg]": round(float(tr("COPV Gas Mass [kg]")[-1]), 3),
@@ -320,6 +322,8 @@ def write_report(filename, targets, directory=D.PROP_RESULTS_DIRECTORY, vents=Tr
         summary.update(tank_pressure_sweep(targets, directory))
         from isolated_sims.Hopper_Purge import purge_check
         summary.update(purge_check(filename, directory))
+        from isolated_sims.Hopper_Purge_Sizing import purge_sizing
+        summary.update(purge_sizing(filename, directory))
     with open(os.path.join(directory, "run_summary.csv"), "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(["Metric", "Value"])
