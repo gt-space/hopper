@@ -1,6 +1,32 @@
 # FSW bridge: Rust flight software in the loop with the 6DOF sim
 
-The plant ("environment": actuators, propulsion mass, CG/MOI, slosh, wind,
+## The harness route (CONTROLLER=fsw)
+
+The plant now comes straight from the variant harness,
+`models/hopper_6dof.slx`, with `CONTROLLER=fsw` (docs/VARIANTS.md,
+*Flight software in the loop*): the whole vehicle minus the controller,
+which the flight software replaces through the root ports `u_fsw`
+(thrust N, TVC pitch rad, TVC yaw rad, RCS torque N m) and `x_fsw` (position
+NED, velocity NED, body rates, quaternion). No model is copied.
+
+| Script | What it does |
+|---|---|
+| `build_plant_c` | Embedded Coder C for the harness with `CONTROLLER=fsw` (default `VEHICLE=ctv`, ARM64), packed with every header into `build/plant/` with `sources.txt`, `defines.txt` and `plant.json` |
+| `export_plant_gains` | The vehicle's scheduled LQR tables (what `CONTROLLER=lqr_sched` flies) as CSV in `build/gains/<vehicle>/`, plus `gains.json` |
+| `verify_plant_c` | Replays the LQR flight's commands at 100 Hz through Simulink (`CONTROLLER=fsw`) and through the generated C (`plant_replay.c`, gcc in WSL), and compares every state. Gusts off. |
+
+The flight software's side, the Rust wrapper and flight2's `--sim-plant`
+bench mode, live in luna (`sitl/hopper_plant`, flight2 feature
+`sim-plant`); its README has the bench procedure.
+
+Timing: each 10 ms period the flight software reads `x_fsw` at the period's
+start, and its command reaches the vehicle one plant step (1 ms) later
+(`fsw_latency`), then holds for the rest of the period. Simulink and the
+generated code do the same, so they match bit for bit.
+
+## The original route (hopper_6dof_NED_v2_fswBridge.slx)
+
+Kept until the harness route replaces it. The plant ("environment": actuators, propulsion mass, CG/MOI, slosh, wind,
 6DOF dynamics, sensor models) is the `Environment` subsystem of
 `../hopper_6dof_NED_v2_fswBridge.slx`. It is turned into C with Embedded
 Coder, and a Rust program steps it in lockstep with luna's flight-software
