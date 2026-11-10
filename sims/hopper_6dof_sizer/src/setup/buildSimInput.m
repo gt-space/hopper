@@ -43,6 +43,10 @@ end
 if variants.VARIANT_FDIR == 2 || variants.VARIANT_FAULT_INJECTION == 2
     W = fdirWorkspace(W, variants);   % reads the sensor and nav parameters above
 end
+fsw = isFswController(variants);
+if fsw
+    W = fswWorkspace(W);              % the FSW command period and its replay
+end
 
 if isa(model, 'Simulink.SimulationInput')
     in = model;
@@ -63,9 +67,21 @@ if isfield(variants, 'VARIANT_LOG') && variants.VARIANT_LOG == 2
     if strlength(d) > 0 && ~isfolder(d), mkdir(d); end
     in = in.setModelParameter('SignalLogging', 'on', 'LoggingToFile', 'on', 'LoggingFileName', char(variants.LOG_FILE));
 end
+if fsw
+    % CONTROLLER=fsw: the command arrives on the root inport u_fsw. In a
+    % simulation it is replayed from W.fsw_u ([t, thrust, TVC pitch,
+    % TVC yaw, RCS torque] rows); generated code takes it from the flight
+    % software instead.
+    in = in.setExternalInput(W.fsw_u);
+end
 if variants.VARIANT_FDIR == 2 && isfield(W, 'tgrid')
     % An abort to land can start late and high; leave it time to come
     % down (the touchdown stop still ends a normal flight on time)
     in = in.setModelParameter('StopTime', num2str(W.tgrid(end) + 30));
 end
+end
+
+function tf = isFswController(variants)
+A = variantAxes();
+tf = A.CONTROLLER(variants.VARIANT_CONTROLLER) == "fsw";
 end

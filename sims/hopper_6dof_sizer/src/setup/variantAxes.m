@@ -29,7 +29,10 @@ function A = variantAxes()
 %                             (experimental: toy plant, not tuned)
 %               lqr_sched_legacy  the March lqr/LQ_6DOF_V3 scheduler, without
 %                             the quaternion sign fix
-%   FDIR        off           commands pass straight to the actuators (v2)
+%               fsw           flight software flies: the command comes in
+%                             through the root inport u_fsw (fsw_bridge/;
+%                             replayed from W.fsw_u in a simulation)
+%   FDIR       off           commands pass straight to the actuators (v2)
 %               on            sensors, GNC monitors, FDIR executive, PDR mode
 %                             manager and responses R0/R1/R2/R4
 %                             (docs/FDIR_ARCHITECTURE.md)
@@ -53,7 +56,7 @@ A.SLOSH      = ["full", "off"];
 A.PROPULSION = ["lut", "fluid_network"];
 A.GROUND     = ["none", "strut"];
 A.MASS_PROPS = ["varying", "constant"];
-A.CONTROLLER = ["lqr_sched", "lqi", "lqr_sched_legacy"];
+A.CONTROLLER = ["lqr_sched", "lqi", "lqr_sched_legacy", "fsw"];
 A.FDIR       = ["off", "on"];
 A.FAULT_INJECTION = ["off", "on"];
 A.NAVIGATION = ["none", "gmekf_shadow", "gmekf"];
