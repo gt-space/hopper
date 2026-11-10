@@ -18,6 +18,38 @@ def engine_efficiencies(chamber_pressure, mixture_ratio):
                                                          chamber_pressure, mixture_ratio)}
 
 
+def torch_throat_flow(p_up, p_down, combustion_flow, purge_flow, gamma_c, r_c, t_c, gamma_n, r_n, t_n, area, band):
+    """Ideal isentropic flow [kg/s] through the torch throat, positive torch -> main
+    chamber, subsonic or choked. The torch gas is the mass-weighted ideal-gas mix of
+    the combustion products (map at torch Pc, MR) and the purge nitrogen. Linear in
+    dP inside +/- band so the zero-flow state (torch off, no purge) is smooth; reverse
+    flow uses the same gas (a simplification: main-chamber gas would be hotter)."""
+    # Positive pressures and temperatures, so a Newton trial point never leaves the physical domain.
+    p_up, p_down = max(float(p_up), 1.0), max(float(p_down), 1.0)
+    t_c, t_n = max(float(t_c), 50.0), max(float(t_n), 50.0)
+    mc, mn = max(float(combustion_flow), 0.0), max(float(purge_flow), 0.0)
+    y = (mc + 1e-9) / (mc + mn + 2e-9)
+    cp_c, cp_n = gamma_c * r_c / (gamma_c - 1.0), gamma_n * r_n / (gamma_n - 1.0)
+    r = y * r_c + (1.0 - y) * r_n
+    cp = y * cp_c + (1.0 - y) * cp_n
+    temperature = (y * cp_c * t_c + (1.0 - y) * cp_n * t_n) / cp
+    gamma = cp / (cp - r)
+
+    def one_way(p0, pb):
+        ratio = max(pb / p0, (2.0 / (gamma + 1.0)) ** (gamma / (gamma - 1.0)))
+        term = ratio ** (2.0 / gamma) - ratio ** ((gamma + 1.0) / gamma)
+        return area * p0 * math.sqrt(max(term, 0.0) * 2.0 * gamma / ((gamma - 1.0) * r * temperature))
+
+    dp = p_up - p_down
+    if abs(dp) < band:
+        flow = one_way(max(p_up, p_down) + band - abs(dp), min(p_up, p_down)) * dp / band
+    elif dp > 0:
+        flow = one_way(p_up, p_down)
+    else:
+        flow = -one_way(p_down, p_up)
+    return {"mass_flow": flow, "temperature": temperature}
+
+
 class LinearizedNozzle(IsentropicNozzle):
     """Used to make the runtime acceptable for unchoked flow at the band edge (Pc = Pa + 1 psi).
     """

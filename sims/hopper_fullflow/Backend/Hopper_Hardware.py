@@ -120,17 +120,18 @@ def hardware_rows():
             leg = network[key]
             for spec in leg['elements']:
                 value = spec.get('cda_mm2')
-                detail = 'Configured only; transient coupling pending'
+                detail = ('Solved in the flight transient (torch.sequence)' if D.TORCH_LEGS
+                          else 'Configured only; torch.enabled is false')
                 if spec['type'] == 'HeatedLine':
                     length = spec['length_in']
-                    detail += f'; tube length {"unset" if length is None else str(length) + " in"}; dT versus torch time'
+                    detail += f'; tube length {"unset" if length is None else str(length) + " in"}; hydraulic only, no heating'
                 rows.append([f'Torch {key}: {leg["source"]} -> {leg["sink"]}', spec['name'], spec['type'],
                              'unset' if value is None else str(value), detail, spec.get('note','')])
         for key, field, label in (('chamber','volume_l','Volume [L]'), ('throat','area_in2','Area [in2]')):
             spec = network[key]
             value = spec[field]
             rows.append(['Torch (configured only)', spec['name'], key, '',
-                         f'{label}: {"unset" if value is None else value}; transient coupling pending', spec.get('note','')])
+                         f'{label}: {"unset" if value is None else value}; ' + ('solved in the flight transient' if D.TORCH_LEGS else 'torch.enabled is false'), spec.get('note','')])
     for tag, note in D.NOT_MODELLED.items():
         rows.append(["Not in the flow model", tag, "", "", "", note])
     return rows

@@ -26,8 +26,9 @@ class ScheduleTests(unittest.TestCase):
         targets = [{"time": 0., "thrust": 1000., "ox_mass_flow": .5}, {"time": 1., "thrust": 1000., "ox_mass_flow": .5}]
         times, values = simulation.target_schedule(targets, "ox_mass_flow", "step")
         self.assertTrue(all(b > a for a, b in zip(times, times[1:])))
-        opening = [t for t in times if simulation.MAIN_VALVE_OPEN_TIME < t <= simulation.MAIN_VALVE_OPEN_TIME + simulation.MAIN_VALVE_RAMP_TIME]
-        self.assertGreaterEqual(len(opening), simulation.MAIN_VALVE_RAMP_TIME / simulation.RAMP_BREAKPOINT_SPACING - 1)
+        ramp = simulation.PROFILE_START_TIME - simulation.MAIN_OX_OPEN_TIME
+        opening = [t for t in times if simulation.MAIN_OX_OPEN_TIME < t <= simulation.PROFILE_START_TIME]
+        self.assertGreaterEqual(len(opening), ramp / simulation.RAMP_BREAKPOINT_SPACING - 1)
         self.assertEqual(values[0], 0.)
         self.assertAlmostEqual(values[-1], 0.)
 

@@ -1,0 +1,136 @@
+{
+  "description": "Test-stand hotfire (isolated_sims/Hopper_Hotfire.py). Hardware follows the test-stand P&ID: LOX and kerosene run tanks as constant-pressure reservoirs, OTV/FTV throttle valves, the main injector and regen, the torch igniter legs (OIMV/OICK/OIORF/OTHX and FIMV/FICK/FIORF) into a torch chamber and throat, and the GN2 purge system (purge regulator, purge relief valve, OPV/OPCK, FPV/FPCK, FIPV/FIPCK/FIPORF). Engine (throat, nozzle, efficiencies, chamber map, MR), fluids and the main-valve opening timing come from hopper_config.json. Same unit-suffix rules as hopper_config.json; pressures psia unless psig/psi.",
+  "simulation": {
+    "maximum_step_s": 0.02,
+    "save_interval_s": null,
+    "tail_off_s": 0.3,
+    "output_directory": "Outputs/Hotfire",
+    "note": "The solver also lands on every valve and thrust-ramp breakpoint."
+  },
+  "reservoirs": {
+    "oxidizer": {"name": "LOX Tank", "pressure_psia": 1000.0, "temperature_k": 90.0,
+                 "note": "Run tank held at a constant 1000 psia (user, 2026-11-09): no blowdown, no pressurant, no ullage."},
+    "fuel": {"name": "Kerosene Tank", "pressure_psia": 1000.0, "temperature_k": 293.0,
+             "note": "Run tank held at a constant 1000 psia (user, 2026-11-09)."}
+  },
+  "thrust_profile": {
+    "start_lbf": 100.0,
+    "end_lbf": 500.0,
+    "ramp_duration_s": 2.5,
+    "points": 26,
+    "hold_s": 0.0,
+    "interpolation": "linear",
+    "note": "Ramp to 500 lbf (user, 2026-11-09). Start thrust and duration are the hopper_config.json ramp values. hold_s adds a constant-thrust hold at end_lbf. Profile time 0 is when OTV/FTV finish opening (sequence.main_valve_start_s + demand_ramp_s in hopper_config.json)."
+  },
+  "torch": {
+    "open_s": 0.2,
+    "close_s": 2.0,
+    "valve_stroke_s": 0.08,
+    "chamber_name": "Torch Chamber",
+    "throat_area_in2": 0.006504,
+    "cstar_efficiency": 1.0,
+    "near_zero_dp_psi": 0.5,
+    "note": "OIMV/FIMV open and close times on the simulation clock (hopper_config.json torch values). Throat area from hopper_config torch.network. c* efficiency 1.0 is a GUESS (ideal)."
+  },
+  "purges": {
+    "main_open_after_shutdown_s": 0.0,
+    "main_duration_s": 1.0,
+    "torch_purge_close_after_shutdown_s": 1.0,
+    "valve_stroke_s": 0.01,
+    "note": "EDIT GUESS sequence: FIPV opens as the torch valves close and stays open through the burn; OPV and FPV open together once OTV/FTV are shut."
+  },
+  "purge_supply": {
+    "name": "Purge Supply",
+    "pressure_psia": 2000.0,
+    "temperature_k": 293.0,
+    "note": "EDIT GUESS ground GN2 supply upstream of the purge regulator, held constant."
+  },
+  "purge_regulator": {
+    "type": "Regulator", "name": "Purge Reg", "source": "Purge Supply", "set_pressure_psig": 750.0, "cda_mm2": 5.0,
+    "note": "PR-REG values from hopper_config.json (set 750 psig; CdA GUESS). Ideal: outlet = min(supply, ambient + set)."
+  },
+  "oxidizer_feed": [
+    {"type": "Line", "name": "LOX Tank to OTV Line", "outer_diameter_in": 0.375, "wall_thickness_in": 0.01,
+     "length_in": 48, "roughness_in": 0.0005905511811023622, "height_change_in": 0, "outlet_node": "OTV Inlet",
+     "note": "Copied from the vehicle (hopper_config.json); EDIT for the stand plumbing"},
+    {"type": "ThrottleValve", "name": "OTV", "max_cda_mm2": 50.0, "full_scale_mass_flow_kg_s": 0.777,
+     "outlet_node": "OTV Outlet", "note": "Copied from the vehicle"},
+    {"type": "Line", "name": "OTV to LOX Injector Line", "outer_diameter_in": 0.375, "wall_thickness_in": 0.01,
+     "length_in": 10.0, "roughness_in": 0.0005905511811023622, "height_change_in": 0.0,
+     "outlet_node": "LOX Injector Manifold", "note": "Copied from the vehicle; EDIT for the stand plumbing"},
+    {"type": "Injector", "name": "OINJ", "cda_mm2": 16.6, "length_in": 0.3937007874015748, "outlet_node": "OINJ Outlet",
+     "note": "Copied from the vehicle"}
+  ],
+  "fuel_feed": [
+    {"type": "Line", "name": "Fuel Tank to FTV Line", "outer_diameter_in": 0.375, "wall_thickness_in": 0.01,
+     "length_in": 12.0, "roughness_in": 0.0005905511811023622, "height_change_in": 0.0, "outlet_node": "FTV Inlet",
+     "note": "Copied from the vehicle; EDIT for the stand plumbing"},
+    {"type": "ThrottleValve", "name": "FTV", "max_cda_mm2": 50.0, "full_scale_mass_flow_kg_s": 0.388,
+     "outlet_node": "FTV Outlet", "note": "Copied from the vehicle"},
+    {"type": "Line", "name": "FTV to Regen Line", "outer_diameter_in": 0.375, "wall_thickness_in": 0.01,
+     "length_in": 12, "roughness_in": 0.0005905511811023622, "height_change_in": 0.0,
+     "outlet_node": "Regen Inlet Manifold", "note": "Copied from the vehicle; FRMPT reads this manifold"},
+    {"type": "Regen", "name": "Regen Jacket", "cda_mm2": 30.0, "pc_psia_delta_t_k": [[150, 82], [300, 82]],
+     "length_in": 11.811023622047244, "outlet_node": "Fuel Injector Manifold", "note": "Copied from the vehicle"},
+    {"type": "Injector", "name": "FINJ", "cda_mm2": 15.0, "length_in": 0.3937007874015748, "outlet_node": "FINJ Outlet",
+     "note": "Copied from the vehicle"}
+  ],
+  "torch_oxidizer_leg": {
+    "source": "OTV Inlet",
+    "note": "P&ID: tees off the LOX line above OTV. All CdAs from hopper_config.json torch.network.",
+    "elements": [
+      {"type": "Valve", "name": "OIMV", "cda_mm2": 0.68, "schedule": "torch"},
+      {"type": "CheckValve", "name": "OICK", "cda_mm2": 5.0},
+      {"type": "Orifice", "name": "OIORF", "cda_mm2": 8.0, "note": "User provisional CdA"},
+      {"type": "Tube", "name": "OTHX", "outer_diameter_in": 0.25, "wall_thickness_in": 0.065, "length_in": 60,
+       "roughness_in": 0.0005905511811023622,
+       "note": "Heat exchanger as a plain tube: friction-equivalent CdA, no heating or vaporization"},
+      {"type": "Injector", "name": "Torch Ox Injector", "cda_mm2": 0.4398}
+    ]
+  },
+  "torch_fuel_leg": {
+    "source": "FTV Inlet",
+    "note": "P&ID: tees off the kerosene line above FTV.",
+    "elements": [
+      {"type": "Valve", "name": "FIMV", "cda_mm2": 2.2, "schedule": "torch"},
+      {"type": "CheckValve", "name": "FICK", "cda_mm2": 5.0},
+      {"type": "Orifice", "name": "FIORF", "cda_mm2": 8.0, "note": "User provisional CdA"},
+      {"type": "Injector", "name": "Torch Fuel Injector", "cda_mm2": 0.8051}
+    ]
+  },
+  "purge_branches": [
+    {"type": "Branch", "name": "Purge Relief", "source": "Purge Reg Outlet", "sink": "ambient",
+     "note": "Purge relief valve on the regulator outlet",
+     "elements": [
+       {"type": "ReliefValve", "name": "Purge RV", "cda_mm2": 2.0, "crack_pressure_psig": 825.0,
+        "note": "ORV-1 values from hopper_config.json (GUESS: 10 % above the regulator set)"}
+     ]},
+    {"type": "Branch", "name": "LOX Purge", "source": "Purge Reg Outlet", "sink": "OTV Outlet",
+     "note": "P&ID: joins the LOX line below OTV",
+     "elements": [
+       {"type": "GasLine", "name": "LOX Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.035,
+        "length_in": 39.37007874015748, "roughness_in": 0.0005905511811023622, "note": "1/4 in x 0.035 in. Length GUESS"},
+       {"type": "Valve", "name": "OPV", "cda_mm2": 1.86, "schedule": "main_purge"},
+       {"type": "CheckValve", "name": "OPCK", "cda_mm2": 8.5, "note": "GUESS Cv ~0.5"}
+     ]},
+    {"type": "Branch", "name": "Fuel Purge", "source": "Purge Reg Outlet", "sink": "FTV Outlet",
+     "note": "P&ID: joins the kerosene line below FTV",
+     "elements": [
+       {"type": "GasLine", "name": "Fuel Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.035,
+        "length_in": 39.37007874015748, "roughness_in": 0.0005905511811023622, "note": "1/4 in x 0.035 in. Length GUESS"},
+       {"type": "Valve", "name": "FPV", "cda_mm2": 1.86, "schedule": "main_purge"},
+       {"type": "CheckValve", "name": "FPCK", "cda_mm2": 8.5, "note": "GUESS Cv ~0.5"}
+     ]},
+    {"type": "Branch", "name": "Torch Purge", "source": "Purge Reg Outlet", "sink": "Torch Chamber",
+     "note": "P&ID: FIPV -> FIPCK -> FIPORF tees in below FIORF, then through the torch fuel injector into the torch",
+     "elements": [
+       {"type": "GasLine", "name": "Torch Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.035,
+        "length_in": 39.37007874015748, "roughness_in": 0.0005905511811023622, "note": "1/4 in x 0.035 in. Length GUESS"},
+       {"type": "Valve", "name": "FIPV", "cda_mm2": 2.2, "schedule": "torch_purge", "note": "TFPV in hopper_config.json"},
+       {"type": "CheckValve", "name": "FIPCK", "cda_mm2": 5.0},
+       {"type": "Orifice", "name": "FIPORF", "cda_mm2": 50.0},
+       {"type": "Orifice", "name": "Torch Fuel Injector (purge gas)", "cda_mm2": 0.8051,
+        "note": "Same injector as the torch fuel leg; keep the two CdAs equal"}
+     ]}
+  ]
+}

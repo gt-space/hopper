@@ -10,7 +10,7 @@ Time alignment
     * vehicle_sim.py starts the profile at t = 0 with the engine already at
       full flow (no start-up), and runs to t = 29.6 s.
     * The FullFlow model ramps the main valves open first; its
-      profile time 0 is at MAIN_VALVE_OPEN_TIME + MAIN_VALVE_RAMP_TIME (0.5 s).
+      profile time 0 is at PROFILE_START_TIME (sequence.main_ignition_s).
   Everything here is plotted against profile time: the new model's time minus
   0.5 s. The difference table uses profile time 1.0-29.5 s, which skips
   vehicle_sim.py's first second (its chamber pressure relaxes up from 67 psia)
@@ -34,11 +34,11 @@ import numpy as np
 
 # The FullFlow model's modules live one folder up.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from HOPPER_DATA import MAIN_VALVE_OPEN_TIME, MAIN_VALVE_RAMP_TIME, THRUST_CURVE_1DOF
+from HOPPER_DATA import PROFILE_START_TIME, THRUST_CURVE_1DOF
 from Backend.Hopper_Export import LoadTracks, _track
 
 
-PROFILE_START = MAIN_VALVE_OPEN_TIME + MAIN_VALVE_RAMP_TIME   # new-model time of profile t = 0
+PROFILE_START = PROFILE_START_TIME   # new-model time of profile t = 0
 WINDOW = (1.0, 29.5)                                          # profile-time window for the statistics
 OLD_COLOR, NEW_COLOR, TARGET_COLOR = "tab:blue", "tab:orange", "black"
 

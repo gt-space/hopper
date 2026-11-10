@@ -92,8 +92,11 @@ REGULATORS = _values['REGULATORS']
 BRANCHES = _values['BRANCHES']
 TORCH_ENABLED = _values['TORCH_ENABLED']
 TORCH_BRANCHES = _values['TORCH_BRANCHES']
-# Explicit, disabled torch topology; unit-suffixed JSON fields are retained as supplied.
+# Explicit torch topology; unit-suffixed JSON fields are retained as supplied.
 TORCH_NETWORK = _values['TORCH_NETWORK']
+# Built torch legs (fuel / oxidizer / purge) and the flight torch sequence, when the network is enabled.
+TORCH_LEGS = _values['TORCH_LEGS']
+TORCH_SEQUENCE = _values['TORCH_SEQUENCE']
 TORCH_OPEN_TIME = _values['TORCH_OPEN_TIME']
 TORCH_DURATION = _values['TORCH_DURATION']
 TORCH_VALVE_STROKE = _values['TORCH_VALVE_STROKE']
@@ -138,8 +141,12 @@ MAX_THRUST_HOLD_TIME = _values['MAX_THRUST_HOLD_TIME']
 MAX_THRUST_TRACKING_TOLERANCE = _values['MAX_THRUST_TRACKING_TOLERANCE']
 
 # ---- Sequence ---- #
-MAIN_VALVE_OPEN_TIME = _values['MAIN_VALVE_OPEN_TIME']
-MAIN_VALVE_RAMP_TIME = _values['MAIN_VALVE_RAMP_TIME']
+MAIN_FUEL_OPEN_TIME = _values['MAIN_FUEL_OPEN_TIME']
+MAIN_OX_OPEN_TIME = _values['MAIN_OX_OPEN_TIME']
+PROFILE_START_TIME = _values['PROFILE_START_TIME']
+OX_CLOSE_DELAY = _values['OX_CLOSE_DELAY']
+FUEL_CLOSE_DELAY = _values['FUEL_CLOSE_DELAY']
+MAIN_VALVE_CLOSE_TIME = _values['MAIN_VALVE_CLOSE_TIME']
 THROTTLE_STEP_TIME = _values['THROTTLE_STEP_TIME']
 THROTTLE_RATE_LIMIT = _values['THROTTLE_RATE_LIMIT']
 RAMP_BREAKPOINT_SPACING = _values['RAMP_BREAKPOINT_SPACING']
@@ -147,8 +154,6 @@ TAIL_OFF_TIME = _values['TAIL_OFF_TIME']
 
 # ---- Purge sequence and sizing ---- #
 PURGE_SEQUENCE = _values['PURGE_SEQUENCE']
-PURGE_START_AFTER_SHUTDOWN = _values['PURGE_START_AFTER_SHUTDOWN']
-PURGE_GAP = _values['PURGE_GAP']
 PURGE_VALVE_STROKE = _values['PURGE_VALVE_STROKE']
 PURGE_IN_TRANSIENT = _values['PURGE_IN_TRANSIENT']
 PURGE_REQUIRED_FRACTION = _values['PURGE_REQUIRED_FRACTION']

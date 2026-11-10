@@ -64,11 +64,12 @@ def orifice_mass_flow(cda, p_up, t_up, p_down, gamma, gas_constant):
 
 
 def purge_start_time(filename, time):
-    """Simulation time [s] the first purge opens (end of the run for an old file without metadata)."""
+    """Simulation time [s] of the shutdown request, when the purge timing starts (end of the
+    run for an old file without metadata)."""
     metadata = read_metadata(filename)
     if metadata is None:
         return float(time[-1])
-    return metadata["profile_end"] + D.MAIN_VALVE_RAMP_TIME + D.PURGE_START_AFTER_SHUTDOWN
+    return metadata["profile_end"]
 
 
 def series_cda(elements):

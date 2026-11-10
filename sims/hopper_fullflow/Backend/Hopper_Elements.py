@@ -515,19 +515,39 @@ class ReliefValve(Orifice):
 
 
 class Regulator:
-    """Ideal pressure regulator drawing from a gas node (no droop, no lock-up
-    band): its outlet pressure is min(source pressure, ambient + set_pressure)
-    at the source gas temperature. Its outlet is the node "<name> Outlet",
-    which Branches name as their source; the flow they draw comes out of the
-    regulator's source. set_gauge_pressure [Pa gauge]. cda [m^2] (optional) is the
-    regulator's own flow capacity, put in series with each branch it feeds."""
+    """Pressure regulator drawing from a gas node. Its outlet is the node
+    "<name> Outlet", which Branches name as their source; the flow they draw
+    comes out of the regulator's source.
 
-    def __init__(self, name, source, set_gauge_pressure, cda=None):
+    set_gauge_pressure [Pa gauge] at the reference inlet pressure.
+    cda [m^2] (optional) fully-open flow capacity (Cv / 38 in^2). With it, the
+        regulator is a valve that opens as far as needed to hold its set; every
+        branch it feeds shares that capacity, and the outlet falls below set when
+        their combined demand exceeds it. None: ideal, outlet = min(source, set).
+    supply_pressure_effect [-] outlet rise per unit inlet drop (datasheet
+        "psi rise / 1000 psi inlet drop" / 1000); 0 = none.
+    reference_inlet_pressure [Pa] inlet pressure at which the set applies;
+        None = the source's starting pressure.
+    droop [Pa] (with cda) outlet drop from lock-up (shut) to fully open; None = 10 psi."""
+
+    def __init__(self, name, source, set_gauge_pressure, cda=None, supply_pressure_effect=0.0,
+                 reference_inlet_pressure=None, droop=None):
         self.name = name
         self.source = source
         self.set_pressure = set_gauge_pressure
         self.cda_value = cda
+        self.supply_pressure_effect = supply_pressure_effect
+        self.reference_inlet_pressure = reference_inlet_pressure
+        self.droop = droop or 10.0 * 6894.757293168361
+        if self.droop <= 0:
+            raise ValueError(f"{name}: droop must be positive.")
         self.outlet_node = f"{name} Outlet"
+
+    def outlet_target(self, inlet_pressure, ambient_pressure, reference_inlet_pressure):
+        """Absolute outlet pressure the regulator holds at this inlet pressure."""
+        reference = self.reference_inlet_pressure or reference_inlet_pressure
+        return (ambient_pressure + self.set_pressure
+                + self.supply_pressure_effect * (reference - inlet_pressure))
 
 
 class Branch:

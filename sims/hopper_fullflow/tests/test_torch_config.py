@@ -42,7 +42,8 @@ class TorchConfigTests(unittest.TestCase):
         self.assertEqual(ox['sink'], net['chamber']['name'])
         self.assertEqual(net['throat']['source'], net['chamber']['name'])
         self.assertEqual(net['throat']['sink'], 'Main Chamber')
-        self.assertFalse(data['TORCH_ENABLED'])
+        self.assertTrue(data['TORCH_ENABLED'])
+        self.assertEqual([e.name for e in data['TORCH_LEGS']['purge']['shared']], ['Torch Fuel Injector'])
         self.assertFalse(any(b.name == 'Torch Fuel Purge' for b in data['BRANCHES']))
         self.assertEqual(data['TORCH_BRANCHES'], [])
 
@@ -54,6 +55,7 @@ class TorchConfigTests(unittest.TestCase):
         net['throat']['area_in2'] = None
         net['oxidizer_leg']['elements'][3]['length_in'] = None
         net['fuel_leg']['elements'][2]['cda_mm2'] = None
+        self.config['torch']['enabled'] = False   # an enabled torch needs every value
         _, data, _ = self.load()
         net = data['TORCH_NETWORK']
         self.assertIsNone(net['chamber']['volume_l'])
@@ -67,7 +69,8 @@ class TorchConfigTests(unittest.TestCase):
         for name in ('FIMV','FICK','FIORF','TFPV','FIPCK','FIPORF','OIMV','OICK','OIORF','OTHX',
                      'Torch Fuel Injector','Torch Ox Injector','Torch Chamber','Torch Throat'):
             self.assertIn(name, rows)
-            self.assertIn('transient coupling pending', rows[name][4])
+            self.assertIn('Solved in the flight transient' if name not in ('Torch Chamber', 'Torch Throat')
+                          else 'solved in the flight transient', rows[name][4])
 
     def test_othx_temperature_rise_uses_torch_open_time(self):
         hx = copy.deepcopy(self.config['torch']['network']['oxidizer_leg']['elements'][3])
@@ -99,10 +102,15 @@ class TorchConfigTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.load(config)
 
-    def test_enabling_unimplemented_network_fails_instead_of_using_legacy_shortcut(self):
-        self.config['torch']['enabled'] = True
-        with self.assertRaisesRegex(ValueError,'transient builder is not implemented'):
-            self.load()
+    def test_enabled_network_needs_its_sequence_and_disabled_network_is_listed_unmodelled(self):
+        config = copy.deepcopy(self.config)
+        config['torch'].pop('sequence')
+        with self.assertRaisesRegex(ValueError, 'torch.sequence'):
+            self.load(config)
+        self.config['torch']['enabled'] = False
+        _, data, _ = self.load()
+        self.assertIsNone(data['TORCH_LEGS'])
+        self.assertIn('Torch fluids network', data['NOT_MODELLED'])
 
     def test_previous_schema_two_torch_branches_still_load(self):
         self.config['torch'].pop('network')

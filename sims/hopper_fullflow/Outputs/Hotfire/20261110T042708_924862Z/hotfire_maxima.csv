@@ -1,0 +1,15 @@
+graph,quantity,maximum,time [s]
+mass_flow,"LOX Mass Flow, main injector [kg/s]",0.7148568248431745,3.0
+mass_flow,"LOX Mass Flow, main injector [lbm/s]",1.5759895273973827,3.0
+mass_flow,"Fuel Mass Flow, main injector [kg/s]",0.5718854598745396,3.0
+mass_flow,"Fuel Mass Flow, main injector [lbm/s]",1.2607916219179063,3.0
+mass_flow,"LOX Mass Flow, torch [kg/s]",0.008624053223109664,0.3
+mass_flow,"LOX Mass Flow, torch [lbm/s]",0.01901278282727477,0.3
+mass_flow,"Fuel Mass Flow, torch [kg/s]",0.016018862974919227,2.0
+mass_flow,"Fuel Mass Flow, torch [lbm/s]",0.035315547690021376,2.0
+throttle_valves,OTV Open [%],15.951125264137408,3.0
+throttle_valves,FTV Open [%],15.820137689017047,3.0
+thrust,Thrust [lbf],500.0,3.0
+chamber_pressure,Chamber Pressure [psia],349.8611483144705,3.0
+injector_dp,LOX Injector dP [psi],116.3090345412538,3.0
+injector_dp,Fuel Injector dP [psi],139.3444544398793,3.0

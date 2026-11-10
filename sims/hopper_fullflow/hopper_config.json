@@ -42,8 +42,12 @@
     "ambient_pressure_psia": 14.8
   },
   "sequence": {
-    "main_valve_start_s": 0.3,
-    "demand_ramp_s": 0.2,
+    "main_fuel_open_s": 0.3,
+    "main_ox_open_s": 0.45,
+    "main_ignition_s": 0.7,
+    "ox_close_after_shutdown_s": 0.0,
+    "fuel_close_after_shutdown_s": 0.1,
+    "main_valve_close_s": 0.2,
     "step_smoothing_s": 0.01,
     "throttle_rate_limit_lbf_s": 180.0,
     "ramp_breakpoint_spacing_s": 0.01,
@@ -372,8 +376,11 @@
       "name": "PR-REG",
       "source": "COPV",
       "set_pressure_psig": 750.0,
-      "cda_mm2": 5.0,
-      "note": "EDIT set: lowest that lets both purges match peak propellant flow at COPV end of life (2026-10-31); CdA GUESS"
+      "cda_mm2": 0.8489,
+      "outlet_rise_psi_per_1000_psi_inlet_drop": 17.0,
+      "reference_inlet_pressure_psia": null,
+      "full_open_droop_psi": 10.0,
+      "note": "Droop GUESS (not on the datasheet): outlet falls 10 psi from lock-up to fully open. Aqua Environment 1026 dome-loaded reducing regulator (user, 2026-11-10): Cv 0.05 (0.07 in orifice) = 0.849 mm2, 6000 psi rated, 0-6000 psi out, 1/4 in NPT, 17 psi outlet rise per 1000 psi inlet drop. Set 750 psig EDIT (applies at the starting COPV pressure); dome loading not modelled. Was 5 mm2 GUESS"
     }
   ],
   "side_paths": [
@@ -483,10 +490,18 @@
     }
   ],
   "torch": {
-    "enabled": false,
+    "enabled": true,
     "open_time_s": 0.2,
     "duration_s": 1.8,
     "valve_stroke_s": 0.01,
+    "sequence": {
+      "oxidizer_open_s": 0.08,
+      "fuel_open_s": 0.19,
+      "close_after_ignition_s": 0.055,
+      "purge_open_after_ignition_s": 0.03,
+      "purge_close_after_main_purges_s": 0.1,
+      "note": "Flight startup (user, 2026-11-10): OIMV T+0.08, FIMV T+0.19, both close 55 ms after main ignition (sequence.main_ignition_s); TFPV opens 30 ms after main ignition and closes 0.1 s after the last main purge ends. Each valve's open_time_s / close_time_s below is its stroke."
+    },
     "network": {
       "note": "Explicit torch fluid network. The independent cold-gas purge runner uses its purge leg, shared injector, chamber and throat. Keep torch.enabled false: full vehicle/combustion coupling is pending.",
       "fuel_leg": {
@@ -577,11 +592,9 @@
   },
   "purge": {
     "sequence": [
-      {"branch": "Fuel Purge", "duration_s": 5.0},
-      {"branch": "LOX Purge", "duration_s": 5.0}
+      {"branch": "LOX Purge", "open_after_shutdown_s": 0.0, "duration_s": 2.0, "note": "OPV opens as the main oxidizer valve closes"},
+      {"branch": "Fuel Purge", "open_after_shutdown_s": 0.1, "duration_s": 2.0, "note": "FPV opens as the main fuel valve closes"}
     ],
-    "start_after_shutdown_s": 0.0,
-    "gap_s": 0.0,
     "valve_stroke_s": 0.01,
     "simulate_in_transient": true,
     "required_fraction_of_peak_flow": 1.0,
@@ -665,8 +678,12 @@
     "pressurization.header_volume_l": "GUESS used only by copv_model header; placeholder (Vedanth, 2026-11-05), needs measured plumbing",
     "pressurization.controller_period_s": "Bang-bang sampled once per time step, as a flight computer sampling its transducer",
     "engine.mixture_ratio": "EDIT target O/F (user, 2026-10-30; was 1.8 from vehicle_sim)",
-    "sequence.main_valve_start_s": "GUESS OTV + FTV start opening (vehicle_sim.py started at full flow at t = 0)",
-    "sequence.demand_ramp_s": "GUESS OTV/FTV opening (and closing) time",
+    "sequence.main_fuel_open_s": "Startup (user, 2026-11-10): FTV starts opening after the 100 ms torch Pc check; its flow ramps to the first profile point by main_ignition_s",
+    "sequence.main_ox_open_s": "Startup (user, 2026-11-10): OTV starts opening (fuel lead)",
+    "sequence.main_ignition_s": "Startup (user, 2026-11-10): both flows reach the first thrust-profile point; profile time 0",
+    "sequence.ox_close_after_shutdown_s": "Shutdown (user, 2026-11-10): OTV closes first at the shutdown request (end of the thrust profile), fuel-rich shutdown",
+    "sequence.fuel_close_after_shutdown_s": "Shutdown (user, 2026-11-10): FTV closes 0.1 s after OTV",
+    "sequence.main_valve_close_s": "GUESS OTV/FTV closing time",
     "sequence.step_smoothing_s": "Shortest OTV/FTV move between profile points",
     "sequence.throttle_rate_limit_lbf_s": "EDIT thrust slew limit (GNC fluid-network slides: 180 lbf/s sim, 90 lbf/s MC). null = step in step_smoothing_s (vehicle_sim-like)",
     "sequence.ramp_breakpoint_spacing_s": "Solver steps no longer than this through the opening / closing ramps",
@@ -680,17 +697,17 @@
     "lox_drain.tank_height_in": "LOX total length (tank dimensions table); cross-section = tank volume / height",
     "lox_drain.time_requirement_s": "EDIT null = no requirement",
     "tank_sweep.valve_margin_fraction": "EDIT design limit: valve at most this fraction of full open",
-    "purge.sequence": "EDIT (user, 2026-11-08): after shutdown, fuel purge 5 s then LOX purge 5 s, one at a time, in this order",
+    "purge.sequence": "Shutdown (user, 2026-11-10): OPV opens with the OTV close, FPV with the FTV close, 2 s each; times from the shutdown request (end of the thrust profile). Was fuel 5 s then LOX 5 s (2026-11-08)",
     "purge.simulate_in_transient": "true opens the purge valves in the full transient after shutdown, so the COPV drain is simulated",
     "purge.required_fraction_of_peak_flow": "Purge gas volume flow at back pressure must be at least this fraction of the propellant's peak volume flow, for the whole purge",
     "purge.back_pressure_psia": "null = each feed line's pressure at peak propellant flow, from the run (conservative); a number uses that pressure for both",
     "purge.sizing.elements": "Elements whose shared CdA is solved for (the purge check valves); every other CdA stays at its config value",
     "purge.sizing.regulator_min_dp_psi": "EDIT GUESS margin the regulator needs above its set pressure to stay in regulation; 0 = ideal",
     "purge.sizing.max_regulator_set_psig": "null = no limit; e.g. the ORV-1 crack pressure minus a margin",
-    "torch.enabled": "Keep false: full vehicle/combustion coupling is pending. The independent torch purge runner works with this false.",
-    "torch.open_time_s": "Legacy main-sim torch window / future OTHX time-reference metadata. Independent purge commands are ONLY in torch.standalone_purge.sequence.",
-    "torch.duration_s": "Legacy main-sim torch window. Does not control the independent purge sequence.",
-    "torch.valve_stroke_s": "Legacy main-sim torch window ramp. Independent physical travel is open_time_s / close_time_s on each torch.network valve.",
+    "torch.enabled": "true: the flight sim solves torch.network (torch chamber, throat into the main chamber, TFPV purge) on torch.sequence. false: torch not in the flight sim. The independent torch purge runner works either way.",
+    "torch.open_time_s": "Legacy torch.branches window only; the network uses torch.sequence",
+    "torch.duration_s": "Legacy torch.branches window only; the network uses torch.sequence",
+    "torch.valve_stroke_s": "Legacy torch.branches window only; network valve strokes are open_time_s / close_time_s on each valve",
     "torch.standalone_purge.sequence": "EDIT all independent torch event times, valve commands, main pressure steps, pressure release and run end here. This is separate from the vehicle Fuel Purge / LOX Purge sequence."
   }
 }

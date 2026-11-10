@@ -41,6 +41,7 @@ import time
 
 from thermoprop import *
 from fullflow import *
+from fullflow import Balance, CompressibleOrifice, DischargeCoefficient, Lookup, Map, SeriesCdA, State, Volume
 from fullflow.System.Components.RocketPerformance import SpecificImpulse   # not re-exported by fullflow
 from scipy.constants import *
 
@@ -48,6 +49,7 @@ from HOPPER_DATA import *
 from Backend.Hopper_Components import EnginePerformance
 from Backend.Hopper_Elements import (BangBangValve, CheckValve, FeedContext, GasLine, Injector, Regen, ReliefValve,
                                      ThrottleValve, Valve, is_dynamic_line)
+from scipy.constants import psi
 from Backend.Hopper_Control import SampledBangBang, FunctionLookup
 
 
@@ -62,35 +64,71 @@ PROFILE_INTERPOLATIONS = ("step", "linear")
 def burn_timeline(targets):
     """Key times on the simulation clock [s].
 
-    profile_start  OTV/FTV reach the first profile point; profile time 0 is here
-    profile_end    last profile point
-    shutdown_end   OTV/FTV fully closed again
+    profile_start  main ignition: OTV/FTV flows reach the first profile point;
+                   profile time 0 is here (sequence.main_ignition_s)
+    profile_end    last profile point = the shutdown request (OTV starts closing
+                   ox_close_after_shutdown_s later, FTV fuel_close_after_shutdown_s later)
+    shutdown_end   OTV and FTV both fully closed
     """
-    profile_start = MAIN_VALVE_OPEN_TIME + MAIN_VALVE_RAMP_TIME
+    profile_start = PROFILE_START_TIME
     profile_end = profile_start + targets[-1]["time"]
-    return profile_start, profile_end, profile_end + MAIN_VALVE_RAMP_TIME
+    return profile_start, profile_end, profile_end + max(OX_CLOSE_DELAY, FUEL_CLOSE_DELAY) + MAIN_VALVE_CLOSE_TIME
 
 
-def purge_windows(shutdown_end):
-    """[(branch name, open time, close time)] on the simulation clock: the purge
-    sequence, one branch after another, starting after shutdown."""
-    windows, start = [], shutdown_end + PURGE_START_AFTER_SHUTDOWN
-    for branch, duration in PURGE_SEQUENCE:
-        windows.append((branch, start, start + duration))
-        start += duration + PURGE_GAP
+def valve_window(opened, closed, open_stroke, close_stroke=None):
+    """Valve schedule (times, openings): shut, ramp open over open_stroke, hold, ramp shut."""
+    close_stroke = open_stroke if close_stroke is None else close_stroke
+    open_stroke, close_stroke = max(open_stroke, 1e-3), max(close_stroke, 1e-3)
+    return ([0.0, opened, opened + open_stroke, closed, closed + close_stroke], [0.0, 0.0, 1.0, 1.0, 0.0])
+
+
+def purge_windows(shutdown_request):
+    """[(branch name, open time, close time)] on the simulation clock: each purge
+    opens its open_after_shutdown_s after the shutdown request (end of the profile)."""
+    return [(branch, shutdown_request + delay, shutdown_request + delay + duration)
+            for branch, delay, duration in PURGE_SEQUENCE]
+
+
+def schedule_purges(shutdown_request):
+    """Give each purged branch's valve its open window (valves of branches not in the
+    sequence keep their own schedule). Returns the time the last purge is shut."""
+    by_name = {branch.name: branch for branch in BRANCHES}
+    last = shutdown_request
+    for name, opened, closed in purge_windows(shutdown_request):
+        for element in by_name[name].elements:
+            if isinstance(element, Valve) and not isinstance(element, CheckValve):
+                element.schedule = valve_window(opened, closed, PURGE_VALVE_STROKE)
+        last = max(last, closed + PURGE_VALVE_STROKE)
+    return last
+
+
+def torch_windows(main_purge_end):
+    """{valve name: (open, close)} for the torch network on the simulation clock."""
+    sequence, ignition = TORCH_SEQUENCE, PROFILE_START_TIME
+    close = ignition + sequence["close_after_ignition_s"]
+    windows = {}
+    for label, start in (("oxidizer", sequence["oxidizer_open_s"]), ("fuel", sequence["fuel_open_s"])):
+        for name in TORCH_LEGS[label]["stroke"]:
+            windows[name] = (start, close)
+    for name in TORCH_LEGS["purge"]["stroke"]:
+        windows[name] = (ignition + sequence["purge_open_after_ignition_s"],
+                         main_purge_end + sequence["purge_close_after_main_purges_s"])
     return windows
 
 
-def schedule_purges(shutdown_end):
-    """Give each purged branch's valve its open window (valves of branches not in the
-    sequence keep their own schedule). Returns the time the last purge closes."""
-    by_name = {branch.name: branch for branch in BRANCHES}
-    for name, opened, closed in purge_windows(shutdown_end):
-        for element in by_name[name].elements:
-            if isinstance(element, Valve) and not isinstance(element, CheckValve):
-                element.schedule = ([0.0, opened, opened + PURGE_VALVE_STROKE, closed, closed + PURGE_VALVE_STROKE],
-                                    [0.0, 0.0, 1.0, 1.0, 0.0])
-    return closed + PURGE_VALVE_STROKE
+def schedule_torch(main_purge_end):
+    """Set the torch valve schedules; returns the time the torch purge is shut."""
+    windows, last = torch_windows(main_purge_end), 0.0
+    for label in ("oxidizer", "fuel", "purge"):
+        leg = TORCH_LEGS[label]
+        for element in leg["elements"]:
+            if element.name in leg["stroke"]:
+                opened, closed = windows[element.name]
+                open_stroke, close_stroke = leg["stroke"][element.name]
+                element.schedule = valve_window(opened, closed, open_stroke, close_stroke)
+                element.closed_at_start = True
+                last = max(last, closed + max(close_stroke, 1e-3))
+    return last
 
 
 def step_duration(previous, target):
@@ -109,9 +147,12 @@ def step_duration(previous, target):
 def target_schedule(targets, key, interpolation):
     """(times, values) for one commanded quantity on the simulation clock.
 
-    Closed (0) until MAIN_VALVE_OPEN_TIME, ramp to the first profile point by
-    profile_start, follow the profile, ramp to 0 by shutdown_end. key picks
-    the quantity from the targets ("ox_mass_flow", "fuel_mass_flow", "thrust").
+    Closed (0) until the valve's start (MAIN_FUEL_OPEN_TIME for fuel,
+    MAIN_OX_OPEN_TIME for ox and thrust), ramp to the first profile point by main
+    ignition (profile_start), follow the profile, then from the shutdown request
+    (profile_end) wait FUEL_CLOSE_DELAY / OX_CLOSE_DELAY and ramp to 0 over
+    MAIN_VALVE_CLOSE_TIME. key picks the quantity from the targets
+    ("ox_mass_flow", "fuel_mass_flow", "thrust").
     """
     if interpolation not in PROFILE_INTERPOLATIONS:
         raise ValueError(f"interpolation must be one of {PROFILE_INTERPOLATIONS}")
@@ -126,8 +167,11 @@ def target_schedule(targets, key, interpolation):
         return ([t0 + (t1 - t0) * k / n for k in range(1, n + 1)],
                 [v0 + (v1 - v0) * k / n for k in range(1, n + 1)])
 
-    times, values = [0.0, MAIN_VALVE_OPEN_TIME], [0.0, 0.0]
-    ramp_times, ramp_values = ramp(MAIN_VALVE_OPEN_TIME, profile_start, 0.0, targets[0][key])
+    fuel = key == "fuel_mass_flow"
+    open_time = MAIN_FUEL_OPEN_TIME if fuel else MAIN_OX_OPEN_TIME
+    close_start = profile_end + (FUEL_CLOSE_DELAY if fuel else OX_CLOSE_DELAY)
+    times, values = ([0.0, open_time], [0.0, 0.0]) if open_time > 0 else ([0.0], [0.0])
+    ramp_times, ramp_values = ramp(open_time, profile_start, 0.0, targets[0][key])
     times += ramp_times
     values += ramp_values
 
@@ -140,9 +184,15 @@ def target_schedule(targets, key, interpolation):
             times.append(point_time)
             values.append(target[key])
 
-    ramp_times, ramp_values = ramp(profile_end, shutdown_end, targets[-1][key], 0.0)
+    if close_start > profile_end:
+        times.append(close_start)
+        values.append(targets[-1][key])
+    ramp_times, ramp_values = ramp(close_start, close_start + MAIN_VALVE_CLOSE_TIME, targets[-1][key], 0.0)
     times += ramp_times
     values += ramp_values
+    if times[-1] < shutdown_end:
+        times.append(shutdown_end)
+        values.append(0.0)
     return times, values
 
 
@@ -422,9 +472,86 @@ def build_liquid_feed(network, label, elements, tank, chamber_pressure, target_f
             "junctions": junctions, "outlet_temperature": liquid_temperature}
 
 
-def build_branches(network, regulators, branches, nodes, sinks):
+def regulator_outlet_volume(regulator, branches, minimum=1.0e-6):
+    """Gas volume [m^3] always connected to a regulator outlet: the GasLines of every
+    branch it feeds, up to that branch's first valve (the purge lines run full-length
+    from the regulator to their solenoids). At least minimum (1 mL)."""
+    volume = 0.0
+    for branch in branches:
+        if branch.source != regulator.outlet_node:
+            continue
+        for element in branch.elements:
+            if isinstance(element, GasLine):
+                volume += element.internal_volume()
+            else:
+                break
+    return max(volume, minimum)
+
+
+def build_regulators(network, regulators, nodes, outflows, branches=()):
+    """Regulator outlet nodes. Adds "<name> Outlet" to nodes; the regulator's draw
+    is appended to outflows[source store].
+
+    cda None: ideal, outlet = min(source, target), at the source gas state.
+    cda set: the regulator is a FullFlow CompressibleOrifice (source -> outlet)
+    whose opening rises linearly from 0 at the target outlet pressure to 1 at
+    droop below it (a proportional regulator); with the valve fully open the outlet
+    falls further (capacity limited).
+    The outlet node is shared by every branch the regulator feeds (finish_regulators
+    sets its outflow) and stores the gas in the lines between the regulator and their
+    valves (regulator_outlet_volume); its gas is the source gas throttled at constant
+    enthalpy. (An exact-set regulator on a zero-volume outlet stalls the solver when a
+    purge opens or closes on a fully open regulator.) The target is the set plus the supply-pressure
+    effect, set + effect * (reference inlet - inlet)."""
+    for regulator in regulators:
+        source = nodes[regulator.source]
+        if not source["gas"]:
+            raise ValueError(f"{regulator.name}: a Regulator draws from a gas node, not {regulator.source}.")
+        inlet, fluid = source["pressure"], source["fluid"]
+        reference = float(inlet.value) if hasattr(inlet, "value") else float(inlet)
+        target = regulator.outlet_target(inlet, AMBIENT_PRESSURE, reference)
+        name = regulator.outlet_node
+        if not regulator.cda_value:
+            outlet_pressure = State.minimum(inlet, target)
+            nodes[name] = dict(source, pressure=outlet_pressure, regulator=regulator)
+            network.track(f"{name} Pressure [psia]", outlet_pressure / psi)
+            continue
+        start = min(reference, AMBIENT_PRESSURE + regulator.set_pressure)
+        outlet_pressure = State(start)
+        gas = Lookup(f"{name} Gas", network, Fluid, PRESSURANT, pressure=outlet_pressure, enthalpy=fluid.enthalpy)
+        # Proportional (droop) regulator: shut at the target, fully open droop below it.
+        opening = ((target - outlet_pressure) / regulator.droop).clip(0.0, 1.0)
+        valve = CompressibleOrifice(
+            regulator.name, network, upstream_total_pressure=inlet, upstream_total_temperature=fluid.temperature,
+            downstream_pressure=outlet_pressure, discharge_coefficient=1.0,
+            cross_sectional_area=regulator.cda_value * opening, gas_constant=fluid.gas_constant,
+            specific_heat_ratio=fluid.gamma, upstream_static_enthalpy=fluid.enthalpy,
+            upstream_static_temperature=fluid.temperature)
+        junction = Volume(name, network, pressure=outlet_pressure, mass_flow_in=valve.mass_flow,
+                          volume=regulator_outlet_volume(regulator, branches), density=gas.density)
+        nodes[name] = {"pressure": outlet_pressure, "fluid": gas, "gas": True, "store": name, "volume": junction,
+                       "label": source.get("label")}
+        outflows.setdefault(source["store"], []).append(valve.mass_flow)
+        network.track(f"{name} Pressure [psia]", outlet_pressure / psi)
+        network.track(f"{name} Target Pressure [psia]", target / psi)
+        network.track(f"{name} Temperature [K]", gas.temperature)
+        network.track(f"{regulator.name} Opening", opening)
+        network.track(f"{regulator.name} Mass Flow [kg/s]", valve.mass_flow)
+
+
+def finish_regulators(regulators, nodes, outflows):
+    """Every flow drawn from a capacity-limited regulator's outlet leaves its junction."""
+    for regulator in regulators:
+        node = nodes[regulator.outlet_node]
+        if "volume" in node:
+            flows = outflows.get(regulator.outlet_node, [])
+            node["volume"].mass_flow_out = sum(flows[1:], flows[0]) if flows else State(0.0)
+
+
+def build_branches(network, regulators, branches, nodes, sinks, outflows=None, finish=True):
     """Regulators and side branches (vents, reliefs, purges, drains) from
-    HOPPER_DATA.py.
+    HOPPER_DATA.py. finish=False leaves the regulator outlets open for more
+    draws (the torch purge); call finish_regulators afterwards.
 
     nodes: {name: {"pressure", "fluid", "gas" (True/False), "store", "label"}}
     for the gas and liquid nodes a branch can draw from; "store" names the
@@ -435,14 +562,9 @@ def build_branches(network, regulators, branches, nodes, sinks):
     only leaves the source. Returns {store name: [outflow, ...]} and the
     flows delivered into the chamber, {"LOX": [...], "Fuel": [...]}.
     """
-    outflows, delivered = {}, {}
-    for regulator in regulators:
-        source = nodes[regulator.source]
-        if not source["gas"]:
-            raise ValueError(f"{regulator.name}: a Regulator draws from a gas node, not {regulator.source}.")
-        outlet_pressure = State.minimum(source["pressure"], AMBIENT_PRESSURE + regulator.set_pressure)
-        nodes[regulator.outlet_node] = dict(source, pressure=outlet_pressure, regulator=regulator)
-        network.track(f"{regulator.outlet_node} Pressure [psia]", outlet_pressure / psi)
+    outflows = {} if outflows is None else outflows
+    delivered = {}
+    build_regulators(network, regulators, nodes, outflows, branches)
 
     for branch in branches:
         if branch.source not in nodes:
@@ -493,7 +615,90 @@ def build_branches(network, regulators, branches, nodes, sinks):
             element.state = opening
             element.group = branch.name
             track_element(network, element, fluid.enthalpy)
+    if finish:
+        finish_regulators(regulators, nodes, outflows)
     return outflows, delivered
+
+
+def _torch_path(network, name, elements, shared, upstream, fluid, downstream, gas):
+    """Restrictions in series (SeriesCdA) from a node into the torch chamber;
+    scheduled valves scale the discharge coefficient; no reverse flow. shared:
+    elements of another leg the flow also passes (counted in the CdA, not tracked)."""
+    context = FeedContext(network, fluid, name)
+    openings = [element.opening(context) for element in elements]
+    discharge = 1.0
+    for opening in openings:
+        discharge = discharge * opening
+    path = SeriesCdA(f"{name} Series CdA", network,
+                     effective_areas=[element.cda_value for element in list(elements) + list(shared)])
+    if gas:
+        component = CompressibleOrifice(
+            name, network, upstream_total_pressure=upstream, upstream_total_temperature=fluid.temperature,
+            downstream_pressure=downstream, discharge_coefficient=discharge, cross_sectional_area=path.effective_area,
+            gas_constant=fluid.gas_constant, specific_heat_ratio=fluid.gamma)
+    else:   # the flow is assigned before the first solve: the chamber MR reads it
+        component = DischargeCoefficient(
+            name, network, upstream_pressure=upstream, downstream_pressure=downstream, density=fluid.density,
+            discharge_coefficient=discharge, cross_sectional_area=path.effective_area, mass_flow=State(0.0))
+    mass_flow = State.maximum(component.mass_flow, 0.0)
+    network.track(f"{name} Mass Flow [kg/s]", mass_flow)
+    network.track(f"{name} Effective CdA [m2]", path.effective_area * discharge)
+    for element, opening in zip(elements, openings):
+        element._connect(upstream, downstream)
+        element.mass_flow, element.cda, element.state, element.group = mass_flow, element.cda_value, opening, name
+        track_element(network, element, fluid.enthalpy)
+    return mass_flow
+
+
+def build_torch(network, feeds, tanks, nodes, chamber_pressure, outflows):
+    """The torch igniter from TORCH_LEGS: LOX from a LOX feed node and fuel from a fuel
+    feed node into a zero-volume torch chamber that burns on the main chamber map;
+    the TFPV purge gas (from its regulator outlet, through the shared torch fuel
+    injector) also enters it. The torch throat carries the mixture into the main
+    chamber (ideal, subsonic or choked, either direction). Draws are appended to
+    outflows (feed junctions, regulator outlet)."""
+    from Backend.Hopper_Components import torch_throat_flow
+    legs = TORCH_LEGS
+    torch_pressure = State(AMBIENT_PRESSURE)
+    flows = {}
+    for label, side, title in (("oxidizer", "LOX", "Torch Ox"), ("fuel", "Fuel", "Torch Fuel")):
+        leg = legs[label]
+        feed_nodes = dict(feeds[side]["nodes"])
+        if leg["source"] not in feed_nodes:
+            raise ValueError(f"torch {label} leg: source {leg['source']!r} must be a {side} feed junction.")
+        flows[side] = _torch_path(network, title, leg["elements"], [], feed_nodes[leg["source"]],
+                                  tanks[side]["liquid"], torch_pressure, gas=False)
+        outflows.setdefault(leg["source"], []).append(flows[side])
+    purge = legs["purge"]
+    source = nodes[purge["source"]]
+    purge_flow = _torch_path(network, "Torch Purge", purge["elements"], purge["shared"], source["pressure"],
+                             source["fluid"], torch_pressure, gas=True)
+    outflows.setdefault(source["store"], []).append(purge_flow)
+
+    floor = MIXTURE_RATIO_FLOW_FLOOR
+    torch_mr = ((flows["LOX"] + MIXTURE_RATIO * floor) / (flows["Fuel"] + floor)).clip(
+        CHAMBER_MAP_MIXTURE_RATIO_LOWER_LIMIT, CHAMBER_MAP_MIXTURE_RATIO_UPPER_LIMIT)
+    torch_gas = Map.from_hdf5("Torch Gas", network, CHAMBER_MAP_FILENAME, group="chamber",
+                              inputs={"chamber_pressure": State.maximum(torch_pressure, CHAMBER_MAP_PRESSURE_LOWER_LIMIT),
+                                      "mixture_ratio": torch_mr}, extrapolate=True)
+    purge_gas = source["fluid"]
+    throat = FunctionLookup("Torch Throat", network, torch_throat_flow, p_up=torch_pressure, p_down=chamber_pressure,
+                            combustion_flow=flows["LOX"] + flows["Fuel"], purge_flow=purge_flow,
+                            gamma_c=torch_gas.gamma, r_c=torch_gas.gas_constant, t_c=torch_gas.temperature,
+                            gamma_n=purge_gas.gamma, r_n=purge_gas.gas_constant, t_n=purge_gas.temperature,
+                            area=legs["throat_area"] * legs["throat_discharge_coefficient"],
+                            band=NOZZLE_LINEAR_PRESSURE_DROP, outputs=("mass_flow", "temperature"))
+    Volume(legs["chamber_name"], network, pressure=torch_pressure,
+           mass_flow_in=flows["LOX"] + flows["Fuel"] + purge_flow, mass_flow_out=throat.mass_flow)
+    network.track("Torch Chamber Pressure [psia]", torch_pressure / psi)
+    network.track("Torch Over Main Pressure [psi]", (torch_pressure - chamber_pressure) / psi)
+    network.track("Torch Mixture Ratio", torch_mr)
+    network.track("Torch Gas Temperature [K]", throat.temperature)
+    network.track("Torch Throat Mass Flow [kg/s]", throat.mass_flow)
+    network.track("Torch LOX Mass Flow [kg/s]", flows["LOX"])
+    network.track("Torch Fuel Mass Flow [kg/s]", flows["Fuel"])
+    return {"pressure": torch_pressure, "ox": flows["LOX"], "fuel": flows["Fuel"], "purge": purge_flow,
+            "outflow": throat.mass_flow}
 
 
 def build_lumped_copv(network):
@@ -584,10 +789,12 @@ def HopperPropSystem(targets: list,
     save_dt                output interval [s] (None saves every step)
     """
     profile_start, profile_end, shutdown_end = burn_timeline(targets)
-    # The purges open one after another once OTV/FTV have closed (purge section of the config).
-    purge_end = schedule_purges(shutdown_end) if PURGE_IN_TRANSIENT and PURGE_SEQUENCE else shutdown_end
+    # The purges open at their delays after the shutdown request (purge section of the config).
+    purge_end = schedule_purges(profile_end) if PURGE_IN_TRANSIENT and PURGE_SEQUENCE else shutdown_end
+    # Torch startup and the TFPV purge, which stays open until after the main purges.
+    torch_end = schedule_torch(purge_end) if TORCH_LEGS else 0.0
     if t_final is None:
-        t_final = purge_end + TAIL_OFF_TIME
+        t_final = max(shutdown_end, purge_end, torch_end) + TAIL_OFF_TIME
 
     build_start = time.perf_counter()
     print("Building flow network and fluid properties...", flush=True)
@@ -646,7 +853,9 @@ def HopperPropSystem(targets: list,
             sinks[name] = pressure
             nodes[name] = {"pressure": pressure, "fluid": tanks[label]["liquid"], "gas": False, "store": name,
                            "label": label}
-    branch_flows, delivered = build_branches(Hopper, REGULATORS, BRANCHES, nodes, sinks)
+    branch_flows, delivered = build_branches(Hopper, REGULATORS, BRANCHES, nodes, sinks, finish=False)
+    torch = build_torch(Hopper, feeds, tanks, nodes, PC, branch_flows) if TORCH_LEGS else None
+    finish_regulators(REGULATORS, nodes, branch_flows)
 
     def total(flows):
         return sum(flows[1:], flows[0]) if flows else 0.0
@@ -668,8 +877,13 @@ def HopperPropSystem(targets: list,
     # equal the injector inflow. (vehicle_sim.Engine instead relaxed Pc 30 %
     # per 0.1 s step toward that value.)
     # Main injectors plus anything a branch delivers into the chamber (the torch).
-    OX_INTO_CHAMBER = total([feeds["LOX"]["chamber_inflow"]] + delivered.get("LOX", []))
-    FUEL_INTO_CHAMBER = total([feeds["Fuel"]["chamber_inflow"]] + delivered.get("Fuel", []))
+    # The torch's LOX and fuel count in the chamber's flow and MR (they reach it as torch
+    # products through the torch throat). The TFPV nitrogen pressurizes the torch and
+    # flows out of its throat, but is not counted in the main chamber: the chamber map
+    # would treat it as hot combustion gas and overstate Pc and thrust (~1.8 %).
+    torch_ox, torch_fuel = ([torch["ox"]], [torch["fuel"]]) if torch else ([], [])
+    OX_INTO_CHAMBER = total([feeds["LOX"]["chamber_inflow"]] + delivered.get("LOX", []) + torch_ox)
+    FUEL_INTO_CHAMBER = total([feeds["Fuel"]["chamber_inflow"]] + delivered.get("Fuel", []) + torch_fuel)
     # Chamber MR from the ox and fuel entering, kept defined at zero flow (see
     # MIXTURE_RATIO_FLOW_FLOOR) and clipped to the map range.
     MR = ((OX_INTO_CHAMBER + MIXTURE_RATIO * MIXTURE_RATIO_FLOW_FLOOR)

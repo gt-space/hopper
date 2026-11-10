@@ -1,0 +1,70 @@
+{
+  "timeline_s": {
+    "torch_open_s": 0.2,
+    "torch_close_s": 2.0,
+    "main_valves_open_s": 0.3,
+    "profile_start_s": 0.5,
+    "profile_end_s": 3.0,
+    "shutdown_end_s": 3.2,
+    "main_purges_open_s": 3.2,
+    "main_purges_close_s": 4.2,
+    "torch_purge_open_s": 2.0,
+    "torch_purge_close_s": 4.2,
+    "end_s": 4.51
+  },
+  "at_end_of_ramp": {
+    "Thrust [lbf]": 500.0,
+    "Target Thrust [lbf]": 500.0,
+    "Chamber Pressure [psia]": 349.8611483144705,
+    "LOX Mass Flow, main injector [kg/s]": 0.7148568248431745,
+    "Fuel Mass Flow, main injector [kg/s]": 0.5718854598745396,
+    "OTV Open [%]": 15.951125264137408,
+    "FTV Open [%]": 15.820137689017047,
+    "LOX Injector dP [psi]": 116.3090345412538,
+    "Fuel Injector dP [psi]": 139.3444544398793,
+    "Mixture Ratio": 1.25
+  },
+  "minimum_injector_stiffness_during_profile": {
+    "LOX": 0.10386193980952368,
+    "Fuel": 0.1241483300719002
+  },
+  "peak": {
+    "Thrust [lbf]": 500.0,
+    "Chamber Pressure [psia]": 349.8611483144705,
+    "Torch Chamber Pressure [psia]": 964.124722045385,
+    "OTV Open [%]": 15.951125264137408,
+    "FTV Open [%]": 15.820137689017047
+  },
+  "torch_mid_window": {
+    "Torch Chamber Pressure [psia]": 909.7239398157641,
+    "LOX Mass Flow, torch [kg/s]": 0.008140263863163952,
+    "Fuel Mass Flow, torch [kg/s]": 0.014109074708284633,
+    "Torch Mixture Ratio": 0.581692095981124
+  },
+  "propellant_used_kg": {
+    "LOX": 1.2748902412033063,
+    "Fuel": 1.0361835714895935
+  },
+  "purge_gas_used_kg": {
+    "LOX Purge": 0.021217098734482232,
+    "Fuel Purge": 0.021217098734482232,
+    "Torch Purge": 0.020276619083155926,
+    "Purge Relief": 0.0
+  },
+  "reservoir_pressures_psia": {
+    "oxidizer": 1000.0,
+    "fuel": 1000.0
+  },
+  "assumptions": [
+    "Run tanks are constant-pressure reservoirs (no blowdown, no pressurant, no ullage).",
+    "Engine, chamber map, efficiencies, target MR and the OTV/FTV opening ramp come from hopper_config.json.",
+    "OTV/FTV are flow controllers that track the thrust-targeter flows; the targets ignore the torch flow.",
+    "Propellant ignites as soon as it reaches a chamber; both chambers have no volume.",
+    "Torch: same LOX/RP-1 chamber map, c* efficiency from hotfire_config.json, ideal bidirectional throat.",
+    "OTHX is a plain tube (friction-equivalent CdA): no heating or vaporization of the LOX.",
+    "Liquids are incompressible at the reservoir pressure and temperature; regen heating from hopper_config.json.",
+    "Purge gas: ideal regulator off a constant GN2 supply; the gas only sees its back pressure and is not added to the propellant lines or chambers. Check valves block reverse flow.",
+    "Torch purge path includes the torch fuel injector; it is solved as if FIMV is shut (no shared-node coupling)."
+  ],
+  "elapsed_s": 54.78062630002387
+}

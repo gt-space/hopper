@@ -194,29 +194,33 @@ def _monte_carlo(mc, base):
 
 def _purge(spec, branches):
     """The post-shutdown purge sequence and the purge sizing inputs."""
-    keys = ('sequence','start_after_shutdown_s','gap_s','valve_stroke_s','simulate_in_transient',
+    keys = ('sequence','valve_stroke_s','simulate_in_transient',
             'required_fraction_of_peak_flow','back_pressure_psia','sizing')
     _keys(spec, keys, 'purge', keys)
     sizing_keys = ('elements','cda_range_mm2','regulator_min_dp_psi','max_regulator_set_psig','time_step_s')
     _keys(spec['sizing'], sizing_keys, 'purge.sizing', sizing_keys)
     by_name = {branch.name: branch for branch in branches}
     sequence = []
+    if spec['valve_stroke_s'] <= 0:
+        raise ValueError('purge.valve_stroke_s must be positive.')
     for leg in spec['sequence']:
-        _keys(leg, ('branch','duration_s'), 'purge.sequence', ('branch','duration_s'))
+        _keys(leg, ('branch','open_after_shutdown_s','duration_s','note'), 'purge.sequence',
+              ('branch','open_after_shutdown_s','duration_s'))
         branch = by_name.get(leg['branch'])
         if branch is None:
             raise ValueError(f"purge.sequence: no side path called {leg['branch']!r}.")
         if not any(isinstance(e, elements.Valve) and not isinstance(e, elements.CheckValve) for e in branch.elements):
             raise ValueError(f"purge.sequence: {leg['branch']} has no valve to open.")
-        if leg['duration_s'] <= spec['valve_stroke_s']:
-            raise ValueError(f"purge.sequence: {leg['branch']} must stay open longer than the valve stroke.")
-        sequence.append((leg['branch'], float(leg['duration_s'])))
-    if spec['start_after_shutdown_s'] < 0 or spec['gap_s'] < 0 or spec['valve_stroke_s'] <= 0:
-        raise ValueError('purge: start and gap cannot be negative; valve_stroke_s must be positive.')
+        if leg['duration_s'] <= spec['valve_stroke_s'] or leg['open_after_shutdown_s'] < 0:
+            raise ValueError(f"purge.sequence: {leg['branch']} must open at or after shutdown and stay open "
+                             "longer than the valve stroke.")
+        sequence.append((leg['branch'], float(leg['open_after_shutdown_s']), float(leg['duration_s'])))
+    if len({name for name, _, _ in sequence}) != len(sequence):
+        raise ValueError('purge.sequence: each branch can appear once.')
     if spec['required_fraction_of_peak_flow'] <= 0:
         raise ValueError('purge.required_fraction_of_peak_flow must be positive.')
     sizing = spec['sizing']
-    sized = {e.name for name, _ in sequence for e in by_name[name].elements}
+    sized = {e.name for name, _, _ in sequence for e in by_name[name].elements}
     missing = [name for name in sizing['elements'] if name not in sized]
     if not sizing['elements'] or missing:
         raise ValueError(f'purge.sizing.elements must name elements of the purged branches; not found: {missing}.')
@@ -225,8 +229,7 @@ def _purge(spec, branches):
         raise ValueError('purge.sizing: need 0 < cda_range_mm2[0] < [1], positive time_step_s, regulator_min_dp_psi >= 0.')
     back = spec['back_pressure_psia']
     limit = sizing['max_regulator_set_psig']
-    return {'PURGE_SEQUENCE': sequence, 'PURGE_START_AFTER_SHUTDOWN': spec['start_after_shutdown_s'],
-            'PURGE_GAP': spec['gap_s'], 'PURGE_VALVE_STROKE': spec['valve_stroke_s'],
+    return {'PURGE_SEQUENCE': sequence, 'PURGE_VALVE_STROKE': spec['valve_stroke_s'],
             'PURGE_IN_TRANSIENT': spec['simulate_in_transient'],
             'PURGE_REQUIRED_FRACTION': spec['required_fraction_of_peak_flow'],
             'PURGE_BACK_PRESSURE': None if back is None else back * psi,
@@ -235,6 +238,57 @@ def _purge(spec, branches):
             'PURGE_REGULATOR_MIN_DP': sizing['regulator_min_dp_psi'] * psi,
             'PURGE_MAX_REGULATOR_SET': None if limit is None else limit * psi,
             'PURGE_SIZING_DT': sizing['time_step_s']}
+
+
+TORCH_SEQUENCE_KEYS = ('oxidizer_open_s', 'fuel_open_s', 'close_after_ignition_s', 'purge_open_after_ignition_s',
+                       'purge_close_after_main_purges_s')
+
+
+def _torch_legs(network):
+    """Element objects for the enabled torch network: {"fuel" | "oxidizer" | "purge":
+    {"source", "elements", "stroke"}}. Valve schedules are set by the transient from
+    torch.sequence; each valve's open_time_s / close_time_s in the network is its
+    stroke (the schedule's opening and closing ramp). OTHX (HeatedLine) is built as a
+    tube with its friction-equivalent CdA (no heating). The purge leg tees in
+    upstream of the torch fuel injector; legs["purge"]["shared"] lists the fuel-leg
+    elements after the tee, which the purge gas also flows through."""
+    legs = {}
+    for label, key in (('fuel', 'fuel_leg'), ('oxidizer', 'oxidizer_leg'), ('purge', 'purge_leg')):
+        leg = network[key]
+        parts, strokes = [], {}
+        for raw in leg['elements']:
+            spec = {k: v for k, v in raw.items() if k not in ('command_events_s', 'temperature_rise', 'outlet_node')}
+            if spec['type'] == 'HeatedLine':
+                spec['type'] = 'GasLine'
+                spec.pop('height_change_in', None)
+            if spec['type'] == 'Valve':
+                strokes[spec['name']] = (spec.pop('open_time_s', 0.0) or 0.0, spec.pop('close_time_s', 0.0) or 0.0)
+                spec['schedule'] = 'closed'
+            if any(spec.get(k, 0) is None for k in ('cda_mm2', 'length_in')):
+                raise ValueError(f'torch.enabled: {spec["name"]} needs every CdA / length set (no nulls).')
+            parts.append(build_component(spec))
+        legs[label] = {'source': leg['source'], 'elements': parts, 'stroke': strokes}
+    fuel = network['fuel_leg']['elements']
+    tee = next(i for i, e in enumerate(fuel) if e['outlet_node'] == network['purge_leg']['sink'])
+    legs['purge']['shared'] = legs['fuel']['elements'][tee + 1:]
+    if network['chamber']['volume_l'] is None or network['throat']['area_in2'] is None:
+        raise ValueError('torch.enabled: the torch chamber volume and throat area must be set.')
+    legs['chamber_name'] = network['chamber']['name']
+    legs['throat_area'] = network['throat']['area_in2'] * 0.0254**2
+    legs['throat_discharge_coefficient'] = network['throat'].get('discharge_coefficient') or 1.0
+    return legs
+
+
+def _torch_sequence(spec, values):
+    """Flight torch timing (startup and the torch purge), simulation seconds."""
+    if spec is None:
+        raise ValueError(f'torch.enabled with a network needs torch.sequence {list(TORCH_SEQUENCE_KEYS)}.')
+    _keys(spec, TORCH_SEQUENCE_KEYS + ('note',), 'torch.sequence', TORCH_SEQUENCE_KEYS)
+    if any(isinstance(spec[k], bool) or not isinstance(spec[k], (int, float)) or spec[k] < 0 for k in TORCH_SEQUENCE_KEYS):
+        raise ValueError('torch.sequence: times must be nonnegative numbers.')
+    if max(spec['oxidizer_open_s'], spec['fuel_open_s']) >= values['PROFILE_START_TIME'] + spec['close_after_ignition_s']:
+        raise ValueError('torch.sequence: the torch valves must open before they close.')
+    return {k: float(spec[k]) for k in TORCH_SEQUENCE_KEYS}
 
 
 def load_config(filename=None):
@@ -267,9 +321,14 @@ def load_config(filename=None):
     for key in ('PROP_DT','PROP_SAVE_DT','PROP_RTOL','BANG_BANG_SAMPLE_PERIOD','MAX_THRUST_HOLD_TIME','COPV_HEADER_VOLUME','THROAT_AREA','EXIT_AREA','RAMP_BREAKPOINT_SPACING','VENT_DT','VENT_MAX_TIME','LOX_TANK_HEIGHT','DRAIN_MAX_TIME'):
         if values[key] <= 0:
             raise ValueError(f'{key} must be positive.')
-    for key in ('MAIN_VALVE_OPEN_TIME','MAIN_VALVE_RAMP_TIME','THROTTLE_STEP_TIME','TAIL_OFF_TIME'):
+    for key in ('MAIN_FUEL_OPEN_TIME','MAIN_OX_OPEN_TIME','OX_CLOSE_DELAY','FUEL_CLOSE_DELAY',
+                'THROTTLE_STEP_TIME','TAIL_OFF_TIME'):
         if values[key] < 0:
             raise ValueError(f'{key} cannot be negative.')
+    if values['MAIN_VALVE_CLOSE_TIME'] <= 0:
+        raise ValueError('sequence.main_valve_close_s must be positive.')
+    if max(values['MAIN_FUEL_OPEN_TIME'], values['MAIN_OX_OPEN_TIME']) >= values['PROFILE_START_TIME']:
+        raise ValueError('sequence: OTV and FTV must start opening before main_ignition_s.')
     if values['THROTTLE_RATE_LIMIT'] is not None and values['THROTTLE_RATE_LIMIT'] <= 0:
         raise ValueError('throttle_rate_limit_lbf_s must be positive, or null for no limit.')
     for key in ('REGEN_PROPERTY_TEMPERATURE_POINTS','CHAMBER_MAP_PRESSURE_POINTS','CHAMBER_MAP_MIXTURE_RATIO_POINTS'):
@@ -325,8 +384,8 @@ def load_config(filename=None):
 
     # Side paths. schedule "torch" in a valve uses the firing window of the torch section.
     torch = config['torch']
-    _keys(torch, ('enabled','open_time_s','duration_s','valve_stroke_s','branches','network','standalone_purge'), 'torch',
-          ('enabled','open_time_s','duration_s','valve_stroke_s'))
+    _keys(torch, ('enabled','open_time_s','duration_s','valve_stroke_s','branches','network','sequence','standalone_purge'),
+          'torch', ('enabled','open_time_s','duration_s','valve_stroke_s'))
     if ('branches' in torch) == ('network' in torch):
         raise ValueError('torch: specify exactly one of network or legacy branches.')
     start, duration, stroke = torch['open_time_s'], torch['duration_s'], torch['valve_stroke_s']
@@ -344,19 +403,23 @@ def load_config(filename=None):
     sources.update(e.outlet_node for key in ('LOX_FEED','FUEL_FEED') for e in values[key][:-1])
     sources.update(r.outlet_node for r in values['REGULATORS'])
     values['TORCH_NETWORK'] = (validate_torch_network(torch['network'], sources) if 'network' in torch else None)
+    values['TORCH_LEGS'], values['TORCH_SEQUENCE'] = None, None
     if values['TORCH_NETWORK'] is not None and torch['enabled']:
-        raise ValueError('torch.network is configured but its chamber/throat/purge-tee transient builder is not implemented. '
-                         'Keep torch.enabled=false; run isolated_sims/Hopper_Torch_Purge.py for independent cold-gas purge. '
-                         'The legacy main-chamber shortcut is not used.')
+        values['TORCH_LEGS'] = _torch_legs(values['TORCH_NETWORK'])
+        values['TORCH_SEQUENCE'] = _torch_sequence(torch.get('sequence'), values)
     values['TORCH_BRANCHES'] = [build_branch(b, schedules) for b in torch.get('branches', [])]
     values['LOX_DRAIN_EXTRA_ELEMENTS'] = [build_component(e, schedules) for e in config['lox_drain']['extra_elements']]
     values['NOT_MODELLED'] = dict(config['not_modelled'])
     values.update(TORCH_ENABLED=torch['enabled'], TORCH_OPEN_TIME=start, TORCH_DURATION=duration,
                   TORCH_VALVE_STROKE=stroke, TORCH_SCHEDULE=torch_schedule)
-    if torch['enabled']:
+    if values['TORCH_LEGS'] is not None:
+        values['NOT_MODELLED']['Torch spark plug and Pc check'] = ('Spark and the 100 ms torch Pc go/no-go check are not '
+                                                                    'modelled; torch propellant lights on arrival')
+        values['NOT_MODELLED']['OTHX heating'] = 'OTHX is a plain tube: no heating or vaporization of the torch LOX'
+    elif torch['enabled']:
         values['BRANCHES'] = values['BRANCHES'] + values['TORCH_BRANCHES']
     elif values['TORCH_NETWORK'] is not None:
-        values['NOT_MODELLED']['Torch fluids network'] = 'Configured fuel, oxidizer, OTHX, purge tee, chamber and throat; transient coupling pending.'
+        values['NOT_MODELLED']['Torch fluids network'] = 'Configured fuel, oxidizer, OTHX, purge tee, chamber and throat; torch.enabled is false.'
     else:
         values['NOT_MODELLED']['OIMV / FIMV / HX-1'] = 'Torch igniter feeds, switched off (torch.enabled = false)'
     values.update(_purge(config['purge'], values['BRANCHES']))
@@ -364,7 +427,7 @@ def load_config(filename=None):
 
     objects = (values['COPVS'] + [values['LOX_TANK'],values['FUEL_TANK']] + sum([values[s] for s in paths.values()],[])
                + values['REGULATORS'] + values['LOX_DRAIN_EXTRA_ELEMENTS']
-               + [e for b in values['BRANCHES'] + values['TORCH_BRANCHES'][:0 if torch['enabled'] else None] for e in b.elements])
+               + [e for b in values['BRANCHES'] + values['TORCH_BRANCHES'][:0 if torch['enabled'] and values['TORCH_LEGS'] is None else None] for e in b.elements])
     names = [e.name for e in objects]
     if values['TORCH_NETWORK'] is not None:
         network = values['TORCH_NETWORK']

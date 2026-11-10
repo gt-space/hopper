@@ -21,27 +21,40 @@
 | Fuel feed | FTV to Regen Line | Line |  | 0.375 in x 0.01 in wall, ID 9.02 mm, L 0.305 m | EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m) |
 | Fuel feed | Regen Jacket | Regen | 30.00 | fuel heated +82 K; passage length 0.300 m | EDIT CdA (user, 2026-11-03; was 25). EDIT heating: 293 K in, 375 K at the injector inlet (user, 2026-11-04); Vedanth's curve was +51 K at 150 psia, +44 K at 300 psia. Passage length is flow inertia, needed so the solver does not stall at shutdown |
 | Fuel feed | FINJ | Injector | 15.00 | passage length 0.010 m | EDIT fuel manifold (user, 2026-10-30; was 10.6 from vehicle_sim) |
-| COPV side path | PR-REG | Regulator | 5.00 | ideal, set 750 psig | EDIT set: lowest that lets both purges match peak propellant flow at COPV end of life (2026-10-31); CdA GUESS |
+| COPV side path | PR-REG | Regulator | 0.85 | ideal, set 750 psig | Droop GUESS (not on the datasheet): outlet falls 10 psi from lock-up to fully open. Aqua Environment 1026 dome-loaded reducing regulator (user, 2026-11-10): Cv 0.05 (0.07 in orifice) = 0.849 mm2, 6000 psi rated, 0-6000 psi out, 1/4 in NPT, 17 psi outlet rise per 1000 psi inlet drop. Set 750 psig EDIT (applies at the starting COPV pressure); dome loading not modelled. Was 5 mm2 GUESS |
 | PRVNT Vent: COPV -> ambient | PRVNT | Valve | 1.07 | closed all run | Marotta PLV34 (info); 1x PLV34 = 1.07 mm^2 (sheet FRV tab) |
 | PRRV Relief: COPV -> ambient | PRRV | Relief valve | 5.00 | crack 4950 psig, full open 5445 psig | EDIT GUESS: Swagelok SS-4R3A (info), sheet tab empty |
 | ORV-1 Relief: PR-REG Outlet -> ambient | ORV-1 | Relief valve | 2.00 | crack 825 psig, full open 908 psig | EDIT GUESS: 10 % above PR-REG set |
-| LOX Purge: PR-REG Outlet -> OTV Outlet | LOX Purge Line | Gas line | 7.58 | 0.25 in x 0.028 in wall, ID 4.93 mm, L 1.000 m; lumped (fully rough) | EDIT GUESS purge tube (4.93 mm ID) and length |
-| LOX Purge: PR-REG Outlet -> OTV Outlet | OPV | Valve | 1.86 | closed all run | EDIT candidate Chinese solenoid (user, 2026-10-31) |
+| LOX Purge: PR-REG Outlet -> OTV Outlet | LOX Purge Line | Gas line | 6.26 | 0.25 in x 0.035 in wall, ID 4.57 mm, L 1.000 m; lumped (fully rough) | EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS |
+| LOX Purge: PR-REG Outlet -> OTV Outlet | OPV | Valve | 1.86 | scheduled [(0.0, 0.0), (30.2, 0.0), (30.21, 1.0), (32.2, 1.0), (32.21, 0.0)] | EDIT candidate Chinese solenoid (user, 2026-10-31) |
 | LOX Purge: PR-REG Outlet -> OTV Outlet | CV-5 | Check valve | 8.50 |  | EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2) |
-| Fuel Purge: PR-REG Outlet -> FTV Outlet | Fuel Purge Line | Gas line | 7.58 | 0.25 in x 0.028 in wall, ID 4.93 mm, L 1.000 m; lumped (fully rough) | EDIT GUESS purge tube (4.93 mm ID) and length |
-| Fuel Purge: PR-REG Outlet -> FTV Outlet | FPV | Valve | 1.86 | closed all run | EDIT candidate Chinese solenoid (user, 2026-10-31) |
+| Fuel Purge: PR-REG Outlet -> FTV Outlet | Fuel Purge Line | Gas line | 6.26 | 0.25 in x 0.035 in wall, ID 4.57 mm, L 1.000 m; lumped (fully rough) | EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS |
+| Fuel Purge: PR-REG Outlet -> FTV Outlet | FPV | Valve | 1.86 | scheduled [(0.0, 0.0), (30.3, 0.0), (30.310000000000002, 1.0), (32.3, 1.0), (32.309999999999995, 0.0)] | EDIT candidate Chinese solenoid (user, 2026-10-31) |
 | Fuel Purge: PR-REG Outlet -> FTV Outlet | CV-4 | Check valve | 8.50 |  | EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2) |
-| Torch Fuel Purge: PR-REG Outlet -> Main Chamber | TFPV | Valve | 2.00 | closed all run | EDIT GUESS CdA |
-| Torch Fuel Purge: PR-REG Outlet -> Main Chamber | CV-3 | Check valve | 5.00 |  | EDIT GUESS CdA |
 | OVNT Vent: LOX Ullage -> ambient | OVNT | Valve | 9.40 | closed all run | Jaksa 2/2 cryo solenoid (info), 9.4 mm^2 (sheet OVNT) |
 | ORV Relief: LOX Ullage -> ambient | ORV | Relief valve | 30.80 | crack 550 psig, full open 605 psig | RegO PRV9432T550 (info); target CdA (sheet ORV) |
 | OFD Drain: LOX Tank Liquid -> ambient | OFD | Valve | 9.40 | closed all run | Same valve as OVNT (Jaksa 2/2 cryo solenoid) |
 | FVNT Vent: Fuel Ullage -> ambient | FVNT | Valve | 15.00 | closed all run | UNOX 3/8 NO solenoid (info); target CdA (sheet FVNT) |
 | FRV Relief: Fuel Ullage -> ambient | FRV | Relief valve | 14.67 | crack 550 psig, full open 605 psig | EDIT PRV9432T550 = 550 psig (info); sheet FRV says 525 |
+| Torch fuel_leg: FTV Inlet -> Torch Chamber | FIMV | Valve | 2.2 | Solved in the flight transient (torch.sequence) | Commands are in torch.standalone_purge.sequence. The independent purge run plots travel but excludes propellant flow/combustion. |
+| Torch fuel_leg: FTV Inlet -> Torch Chamber | FICK | CheckValve | 5 | Solved in the flight transient (torch.sequence) | Fuel igniter check valve; INPUT CdA. |
+| Torch fuel_leg: FTV Inlet -> Torch Chamber | FIORF | Orifice | 8.0 | Solved in the flight transient (torch.sequence) | User provisional CdA 8 mm2. Purge tees downstream, upstream of the fuel injector. |
+| Torch fuel_leg: FTV Inlet -> Torch Chamber | Torch Fuel Injector | Injector | 0.8051 | Solved in the flight transient (torch.sequence) | INPUT torch fuel injector CdA. |
+| Torch purge_leg: PR-REG Outlet -> FIORF Outlet | TFPV | Valve | 2.2 | Solved in the flight transient (torch.sequence) | Renamed FIPV to TFPV. Commands are in torch.standalone_purge.sequence; open/close times here describe hardware travel. |
+| Torch purge_leg: PR-REG Outlet -> FIORF Outlet | FIPCK | CheckValve | 5 | Solved in the flight transient (torch.sequence) | Fuel purge igniter check valve; INPUT CdA. |
+| Torch purge_leg: PR-REG Outlet -> FIORF Outlet | FIPORF | Orifice | 50.0 | Solved in the flight transient (torch.sequence) | Current user-entered CdA 50 mm2; earlier exploratory cases used 8 mm2. |
+| Torch oxidizer_leg: OTV Inlet -> Torch Chamber | OIMV | Valve | 0.68 | Solved in the flight transient (torch.sequence) | Commands are in torch.standalone_purge.sequence. Propellant flow/combustion is excluded from the independent cold-gas purge run. |
+| Torch oxidizer_leg: OTV Inlet -> Torch Chamber | OICK | CheckValve | 5 | Solved in the flight transient (torch.sequence) | Oxidizer igniter check valve; INPUT CdA. |
+| Torch oxidizer_leg: OTV Inlet -> Torch Chamber | OIORF | Orifice | 8.0 | Solved in the flight transient (torch.sequence) | User provisional CdA 8 mm2. |
+| Torch oxidizer_leg: OTV Inlet -> Torch Chamber | OTHX | HeatedLine | unset | Solved in the flight transient (torch.sequence); tube length 60 in; hydraulic only, no heating | Ox torch heat exchanger treated hydraulically as a tube. INPUT length and ID or OD/wall. Roughness and zero height are placeholders. No vaporization/phase-change model is implied. |
+| Torch oxidizer_leg: OTV Inlet -> Torch Chamber | Torch Ox Injector | Injector | 0.4398 | Solved in the flight transient (torch.sequence) | INPUT torch oxidizer injector CdA. |
+| Torch (configured only) | Torch Chamber | chamber |  | Volume [L]: 0.0019; solved in the flight transient | User initial/imposed pressure 150 psia. 293 K is an explicit cold-nitrogen purge assumption, not a combustion temperature. |
+| Torch (configured only) | Torch Throat | throat |  | Area [in2]: 0.006504; solved in the flight transient | Geometric throat area, no separate discharge coefficient. Independent purge run uses ideal bidirectional compressible throat flow. |
 | Not in the flow model | PRQD |  |  |  | Pressurant fill quick disconnect (disconnected in flight) |
 | Not in the flow model | OQD |  |  |  | LOX fill quick disconnect below OFD (disconnected in flight) |
 | Not in the flow model | FQD |  |  |  | Fuel fill quick disconnect, McMaster 52495K63 (disconnected in flight) |
 | Not in the flow model | ODiff |  |  |  | Oxygen diffuser on the OVNT exhaust (sizing) |
-| Not in the flow model | Torch spark igniter |  |  |  | Spark / exciter; torch combustion itself is not modelled (its propellant goes into the main chamber) |
+| Not in the flow model | Torch spark igniter |  |  |  | Spark / exciter and torch combustion are not yet modelled. Explicit fluids topology is configured under torch.network; its solver is pending. |
 | Not in the flow model | PRPT-1 and sensors |  |  |  | Instrumentation |
-| Not in the flow model | OIMV / FIMV / HX-1 |  |  |  | Torch igniter feeds, switched off (torch.enabled = false) |
+| Not in the flow model | Torch spark plug and Pc check |  |  |  | Spark and the 100 ms torch Pc go/no-go check are not modelled; torch propellant lights on arrival |
+| Not in the flow model | OTHX heating |  |  |  | OTHX is a plain tube: no heating or vaporization of the torch LOX |

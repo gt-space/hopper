@@ -76,7 +76,7 @@ from Backend.Hopper_Elements import GasLine, Injector, ThrottleValve, is_dynamic
 
 
 # Simulation time at which the thrust profile starts (profile time 0).
-PROFILE_START = MAIN_VALVE_OPEN_TIME + MAIN_VALVE_RAMP_TIME
+PROFILE_START = PROFILE_START_TIME
 # A chamber below this multiple of ambient is treated as unlit (as vehicle_sim.Engine does).
 LIT_PRESSURE_RATIO = 1.5
 
@@ -580,6 +580,63 @@ def plot_engine(run, units="E", profile_time=False, window=None):
                         "Target Thrust [N]": target, "Mixture Ratio": mr})
 
 
+SEQUENCE_VALVES = {   # valve -> (label, colour, line style) for the start-up / shutdown sequence plots
+    "OIMV": ("Torch oxidizer (OIMV)", "tab:blue", (0, (8, 3))),
+    "FIMV": ("Torch fuel (FIMV)", "tab:purple", (0, (4, 2))),
+    "TFPV": ("GN2 torch purge (TFPV)", "teal", "-."),
+    "OTV": ("Main oxidizer (OTV)", "saddlebrown", (0, (10, 4))),
+    "FTV": ("Main fuel (FTV)", "hotpink", (0, (2, 2))),
+    "OPV": ("Oxidizer purge (OPV)", "tab:cyan", (0, (6, 2, 1, 2))),
+    "FPV": ("Fuel purge (FPV)", "darkorchid", ":"),
+}
+
+
+def plot_sequence(run, phase="startup", units="E", profile_time=False, window=None):
+    """Start-up or shutdown sequence: torch and main chamber Pc with every sequenced
+    valve's opening (0-1) on a second axis. Start-up runs from t = 0 (T0); shutdown is
+    on the clock of the shutdown request (the end of the thrust profile)."""
+    import matplotlib.pyplot as plt
+    from Backend.Hopper_Report import read_metadata
+
+    if phase == "startup":
+        origin, span, title = 0.0, (0.0, 1.2), "Engine start-up sequence"
+        x_label = "Time from T0 [s]"
+    else:
+        metadata = read_metadata(run.filename) or {}
+        origin = metadata.get("profile_end", run.time[-1])
+        span, title = (-0.25, 2.5), "Engine shutdown sequence"
+        x_label = "Time from shutdown request [s]"
+    time = run.time - origin
+    shown = (time >= span[0]) & (time <= span[1])
+    pc = run.track("Chamber Pressure [psia]")
+    table = {x_label: time[shown], "MCC Pc [psia]": pc[shown]}
+    fig, ax = plt.subplots(figsize=(12, 6.5))
+    ax.plot(time[shown], pc[shown], color="tab:red", lw=2.5, label="MCC Pc")
+    if "Torch_Chamber_Pressure_[psia]" in run.tracks:
+        torch = run.track("Torch Chamber Pressure [psia]")
+        ax.plot(time[shown], torch[shown], color="orange", lw=2.5, label="Torch Pc")
+        table["Torch Pc [psia]"] = torch[shown]
+    ax.set_xlabel(x_label)
+    ax.set_ylabel("Chamber pressure [psia]")
+    ax.set_xlim(*span)
+    ax.grid(alpha=0.3)
+    valves = ax.twinx()
+    for name, (label, color, style) in SEQUENCE_VALVES.items():
+        if f"{name}_Opening" in run.tracks:
+            opening = run.track(f"{name} Opening")
+            valves.plot(time[shown], opening[shown], color=color, ls=style, lw=1.6, label=label)
+            table[f"{name} opening [-]"] = opening[shown]
+    valves.set_ylim(-0.05, 1.6)
+    valves.set_yticks([0, 1])
+    valves.set_yticklabels(["CLOSED (0)", "OPEN (1)"])
+    lines = ax.get_legend_handles_labels()
+    more = valves.get_legend_handles_labels()
+    ax.legend(lines[0] + more[0], lines[1] + more[1], fontsize=8, ncol=3, loc="upper left")
+    ax.set_title(title)
+    fig.tight_layout()
+    return Figure(fig, table)
+
+
 def plot_stiffness(run, units="E", profile_time=False, window=None):
     """Injector Stiffness: injector dP / Pc [%], only while the chamber is lit."""
     import matplotlib.pyplot as plt
@@ -974,6 +1031,10 @@ PLOTS = {
     "pressurization": ("COPV and tank pressures, bang-bang states", plot_pressurization),
     "tank_states": ("Gas temperatures and remaining masses", plot_tank_states),
     "startup": ("Main-valve start-up (first 2 s)", plot_startup),
+    "startup_sequence": ("Start-up sequence: torch and MCC Pc with torch, main and purge valves",
+                         lambda run, **options: plot_sequence(run, "startup", **options)),
+    "shutdown_sequence": ("Shutdown sequence: Pc decay with main and purge valves from the shutdown request",
+                          lambda run, **options: plot_sequence(run, "shutdown", **options)),
     "ox_pressure_stations": ("LOX pressure versus component station", lambda run, **kw: plot_pressure_stations(run, "ox", **kw)),
     "fuel_pressure_stations": ("Fuel pressure versus component station", lambda run, **kw: plot_pressure_stations(run, "fuel", **kw)),
     "lox_pressurant_stations": ("LOX pressurant pressure versus station", lambda run, **kw: plot_pressure_stations(run, "lox_pressurant", **kw)),

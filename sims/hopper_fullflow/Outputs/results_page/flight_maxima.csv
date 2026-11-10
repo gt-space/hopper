@@ -1,0 +1,39 @@
+Graph,Quantity,Max,At max [s],Min,At min [s]
+Mass flow,"LOX, main injector",0.5636 kg/s,3.35,-0.0000 kg/s,30.4
+Mass flow,"Fuel, main injector",0.4509 kg/s,3.35,-0.0000 kg/s,30.7
+Mass flow,"LOX, torch",8.72 g/s,0.15,0 g/s,0.0
+Mass flow,"Fuel, torch",8.64 g/s,0.3,0 g/s,0.0
+Throttle valves,OTV open,25.2 %,3.45,0.0 %,0.0
+Throttle valves,FTV open,26.8 %,3.4,0.0 %,0.0
+Thrust,Thrust,379.7 lbf,3.35,0.0 lbf,0.0
+Thrust,Target thrust,379.7 lbf,3.35,0.0 lbf,0.0
+Chamber pressure,Main chamber Pc,273.7 psia,3.35,14.8 psia,30.5
+Chamber pressure,Torch chamber Pc,552.6 psia,0.3,14.8 psia,0.0
+Chamber pressure,Torch over main chamber,537.7 psi,0.3,0 psi,0.0
+Injector dP,LOX (OINJ),72.7 psi,3.3,-0.19 psi,30.4
+Injector dP,Fuel (FINJ),87.0 psi,3.3,-0.168 psi,30.5
+Mixture ratio,Main chamber MR,4,0.1,0.5,0.35
+Mixture ratio,Torch MR,4,0.1,0.581,0.3
+Tank pressure,LOX tank,566.0 psia,0.05,489.9 psia,1.4
+Tank pressure,Fuel tank,569.6 psia,0.05,488.6 psia,2.05
+Propellant load,LOX liquid,16.0 kg,0.0,2.28 kg,30.5
+Propellant load,Fuel liquid,13.0 kg,0.0,1.96 kg,30.65
+Ullage temperature,LOX ullage,206.7 K,22.15,150.0 K,0.0
+Ullage temperature,Fuel ullage,300.4 K,0.05,228.3 K,30.05
+COPV,COPV pressure,4503.2 psia,0.0,1311.3 psia,32.55
+COPV,COPV gas temperature,293.0 K,0.0,206.5 K,32.55
+COPV,COPV gas mass,5.58 kg,0.0,3.04 kg,32.55
+Pressurant flow,LOX pressurant (OBB),314.1 g/s,0.0,0 g/s,0.1
+Pressurant flow,Fuel pressurant (FBB),198.7 g/s,0.0,0 g/s,0.1
+Purge regulator,PR-REG outlet,819.1 psia,32.55,262.0 psia,32.2
+Purge regulator,PR-REG opening,100.0 %,30.25,0.0 %,0.0
+Purge regulator,PR-REG flow,24.3 g/s,30.25,0 g/s,0.0
+Purge flow,LOX purge (OPV),24.0 g/s,30.25,0 g/s,0.0
+Purge flow,Fuel purge (FPV),14.3 g/s,30.35,0 g/s,0.0
+Purge flow,Torch purge (TFPV),12.8 g/s,30.2,0 g/s,0.0
+Regen,Regen outlet temperature,375.0 K,0.0,375.0 K,0.0
+Regen,Regen jacket dP,20.2 psi,3.2,-2.52 psi,30.5
+Relief flow,ORV (LOX tank),9.45 g/s,0.05,0 g/s,0.0
+Relief flow,FRV (fuel tank),11.8 g/s,0.05,0 g/s,0.0
+Relief flow,PRRV (COPV),0 g/s,0.0,0 g/s,0.0
+Relief flow,ORV-1 (purge reg),0 g/s,0.0,0 g/s,0.0

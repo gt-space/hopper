@@ -1,9 +1,10 @@
-# Hopper FullFlow handoff — November 5 and 9, 2026
+# Hopper FullFlow handoff — November 5, 9 and 10, 2026
 
 This document explains the work delivered during this development session,
 the resulting code, the evidence behind the changes, and the remaining work.
 The original November 5 sections describe the tree published in **`996f8509`**;
-the November 9 update below describes the independent torch purge implementation.
+the November 9 update describes the independent torch purge implementation, and the
+November 10 update (first below) the flight sequences, torch coupling and purge regulator.
 This handoff does not replace each run's saved inputs or hardware calibration.
 Dates and human-readable commit times below use America/New_York (EST).
 Timestamped result-directory names use UTC.
@@ -19,6 +20,150 @@ Start with [README.md](README.md) for operating instructions,
 [hopper_config.json](hopper_config.json) for the actual inputs.
 The [complete commit file manifest](docs/handoff_commit_files.txt) lists every
 changed file, including generated outputs, for all three delivered commits.
+
+## November 10, 2026 update: flight sequences, torch in the flight sim, purge regulator
+
+This update describes the uncommitted changes on top of `083d88d3` (Vedanth's
+November 9 torch purge commit), made by the user (nayangandra) with Claude. All
+paths are in `sims/hopper_fullflow`. 54 tests pass; the 30 s `52m_free` run solves
+cleanly in about 15–20 min (1072 steps), and its results are in `Outputs/`.
+
+### Start-up and shutdown sequences (flight sim)
+
+The single "both main valves open at 0.3 s over 0.2 s" sequence is replaced by the
+proposed start-up and shutdown sequences.
+
+- `hopper_config.json` `sequence`: `main_valve_start_s` and `demand_ramp_s` are
+  removed. New fields: `main_fuel_open_s` (0.30), `main_ox_open_s` (0.45),
+  `main_ignition_s` (0.70, profile time 0), `ox_close_after_shutdown_s` (0.0),
+  `fuel_close_after_shutdown_s` (0.1) and `main_valve_close_s` (0.2, GUESS).
+  `HOPPER_DATA.py` names: `MAIN_FUEL_OPEN_TIME`, `MAIN_OX_OPEN_TIME`,
+  `PROFILE_START_TIME`, `OX_CLOSE_DELAY`, `FUEL_CLOSE_DELAY`, `MAIN_VALVE_CLOSE_TIME`
+  (the old `MAIN_VALVE_OPEN_TIME` / `MAIN_VALVE_RAMP_TIME` are gone).
+- `Backend/Hopper_Prop_System.py`: `burn_timeline` returns the ignition time,
+  the shutdown request (end of the profile) and the time both valves are shut.
+  `target_schedule` ramps each flow target from its own valve's start to the first
+  profile point at ignition (fuel lead), and closes OTV first, FTV 0.1 s later
+  (fuel-rich shutdown). New helper `valve_window`.
+- Callers updated: `Backend/Hopper_Plots.py` (`PROFILE_START`),
+  `Backend/Hopper_Report.py` (run metadata), `isolated_sims/Hopper_Purge.py`
+  (`purge_start_time` = shutdown request), `Old_sims_comparison/compare_models.py`,
+  `tests/test_port.py`.
+- Fuel-only flow (T+0.30 to T+0.45) burns at the chamber map's lowest MR (0.5);
+  propellant still lights on arrival.
+
+### Purge sequence schema
+
+- `purge.sequence` entries are now `{branch, open_after_shutdown_s, duration_s,
+  note}`; `start_after_shutdown_s` and `gap_s` are removed. Purges may overlap.
+  Current inputs: OPV opens with the OTV close and FPV with the FTV close (T+0 and
+  T+0.1 after the shutdown request), 2 s each. `PURGE_SEQUENCE` is a list of
+  `(branch, open_after_shutdown, duration)`; `PURGE_START_AFTER_SHUTDOWN` and
+  `PURGE_GAP` are gone. `purge_windows` / `schedule_purges` take the shutdown
+  request time.
+
+### Torch network solved in the flight sim
+
+Vedanth's `torch.network` is now built into the flight transient
+(`torch.enabled` = true). The "transient builder is not implemented" error is
+removed; with `enabled` false the network is listed as not modelled, as before.
+
+- New `torch.sequence`: `oxidizer_open_s` 0.08, `fuel_open_s` 0.19,
+  `close_after_ignition_s` 0.055, `purge_open_after_ignition_s` 0.03,
+  `purge_close_after_main_purges_s` 0.1. Each network valve's
+  `open_time_s` / `close_time_s` is its stroke (the schedule ramp).
+  `Backend/Hopper_Config.py`: `_torch_legs` builds element objects from the
+  network (OTHX `HeatedLine` becomes a tube with its friction-equivalent CdA, no
+  heating), `_torch_sequence` validates the timing. New data names `TORCH_LEGS`,
+  `TORCH_SEQUENCE`. The purge leg's sink (`FIORF Outlet`) is handled by putting the
+  fuel-leg elements after the tee (the torch fuel injector) in series with it.
+- `Backend/Hopper_Prop_System.py`: `torch_windows` / `schedule_torch` set the valve
+  schedules; `build_torch` builds the LOX and fuel legs from their feed junctions,
+  the TFPV purge leg from the regulator outlet, a zero-volume torch chamber on the
+  main chamber map, and the torch throat into the main chamber. The torch LOX and
+  fuel count in the main chamber's flow and MR. The TFPV nitrogen pressurizes the
+  torch and leaves through its throat, but is not added to the main chamber (the
+  map would treat it as hot combustion gas; counting it made thrust about 1.8 %
+  high).
+- `Backend/Hopper_Components.py`: `torch_throat_flow`, ideal subsonic/choked
+  throat flow in either direction, for the mass-weighted ideal-gas mix of torch
+  products and purge nitrogen, linear inside +/- the nozzle band at zero dP, with
+  pressures and temperatures clamped positive (a negative-pressure Newton trial
+  stalled the solver after shutdown). The torch map input is clamped to the map's
+  lowest pressure for the same reason.
+- `Backend/Hopper_Hardware.py` rows and `tests/test_torch_config.py` /
+  `tests/test_config.py` updated for an enabled torch.
+- Result: the torch reaches 510–550 psia before main ignition with the current
+  CdAs (the proposed sequence chart shows about 150 psia; the 0.0065 in² throat
+  is the main restriction), and TFPV keeps the torch 17–27 psi above MCC Pc
+  through the burn.
+
+### Purge regulator: Aqua Environment 1026, shared capacity
+
+- `PR-REG` is now the Aqua Environment 1026 dome-loaded reducing regulator:
+  Cv 0.05 (0.849 mm², was 5 mm² GUESS), set 750 psig, outlet rise 17 psi per
+  1000 psi inlet drop (datasheet). New `Regulator` inputs
+  (`Backend/Hopper_Elements.py`, `Backend/Hopper_Config_Fields.py`):
+  `outlet_rise_psi_per_1000_psi_inlet_drop`, `reference_inlet_pressure_psia`
+  (null = the source's starting pressure) and `full_open_droop_psi` (10 psi
+  GUESS, not on the datasheet).
+- `Backend/Hopper_Prop_System.py` `build_regulators`: with a CdA, the regulator is
+  a proportional valve (shut at its target, fully open `droop` below it) feeding
+  one outlet node that every purge and relief on it shares, so their combined
+  demand is capped by its Cv. The outlet node stores the gas in the purge lines up
+  to their solenoids (`regulator_outlet_volume`); its gas is throttled at constant
+  enthalpy. Without a CdA it stays ideal (`min(source, set)`). `build_branches`
+  takes `finish=False` so the torch purge can draw from the outlet before
+  `finish_regulators` closes its mass balance. An exact-set regulator on a
+  zero-volume outlet stalled the solver when a purge opened or closed on a fully
+  open regulator; the droop model and outlet volume fixed it.
+- Result: the 1026 is fully open during the shutdown purges, its outlet sags from
+  about 812 to about 270 psia, and the fuel purge reaches 82 % of its requirement.
+
+### Sizing tools
+
+- `isolated_sims/Hopper_Purge_Sizing.py`: the blowdown steps overlapping purges
+  together, and they, plus the torch purge (open throughout, to ambient), share the
+  regulator capacity (`_solve_outlet`). `simulate` takes `regulator_cda` and
+  `required_mass_flow` overrides. CLI `--order` is replaced by `--delays`. The
+  "no minimum CdA" message now points at regulator capacity.
+- New `isolated_sims/Hopper_Regulator_Sizing.py`: minimum regulator CdA / Cv versus
+  set pressure for the purge requirement (or `--mass-flow` g/s per purge), with
+  the path limit (no regulator is big enough) and the COPV dropout limit. Writes
+  `regulator_sizing.csv`, `regulator_sizing_sequence.csv` and
+  `regulator_sizing.png`; called from the report. Current result: sets from about
+  748 to 1156 psig work with Cv ≥ 0.17 (2.85 mm²); the 1026 is too small at every
+  set.
+
+### New isolated tools and plots
+
+- `isolated_sims/Hopper_Hotfire.py` with `isolated_sims/hotfire_config.json`:
+  test-stand hotfire with constant-pressure run tanks (1000 psia), the vehicle
+  engine, OTV/FTV, injector and regen, the torch legs into a zero-volume torch
+  chamber and throat, and the purge regulator, relief and purges from a constant
+  GN2 supply (2000 psia GUESS). Default profile: 100 → 500 lbf ramp over 2.5 s.
+  Writes `Outputs/Hotfire/<UTC>/` (history CSV, per-graph profiles, maxima,
+  summary and plots; the raw `.h5` is git-ignored). Its torch purge does not add
+  gas to the torch, unlike the flight sim. Inputs documented in
+  `docs/hotfire_inputs.md`.
+- New `isolated_sims/Hopper_Results_Page.py`: builds `Outputs/results_page/`
+  (`flight_overview.png`, `free flight simulation.csv`, `flight_maxima.csv` and
+  `results_page.md`, the Notion results page with every input table) from the
+  latest run.
+- `Backend/Hopper_Plots.py`: new named plots `startup_sequence` and
+  `shutdown_sequence` (torch and MCC Pc with every sequenced valve's opening).
+- `ASSUMPTIONS.txt` and `.gitignore` (`Outputs/Hotfire/**/*.h5`) updated.
+
+### Open items
+
+- Pick a purge regulator with Cv ≥ ~0.2, set between about 760 and 800 psig (under
+  the ORV-1 825 psig crack), or stagger the purges.
+- Torch CdAs or throat versus the intended ~150 psia torch Pc.
+- COPV gas reaches about 210 K, below the 220 K GUESS limit; that is the adiabatic
+  gas temperature, not the wall. A wall heat-transfer model would answer it.
+- Not modelled: spark plug, the 100 ms torch Pc check, OTHX heating, regulator dome
+  loading; the chamber map is used before both propellants arrive.
+- Hotfire line lengths are copied from the vehicle.
 
 ## November 9, 2026 update: torch topology and independent purge model
 

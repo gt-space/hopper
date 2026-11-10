@@ -19,7 +19,8 @@ Vent times come from Hopper_Vent.py (vent_times.csv), LOX drain times from
 Hopper_Drain.py (lox_drain_times.csv), and the tank pressure vs throttle CdA
 sweep from Hopper_Tank_Pressure_Sweep.py (tank_pressure_sweep.csv / .png), and
 the purge flow check from Hopper_Purge.py (purge_flow.csv / .png), and the purge
-check-valve and regulator sizing from Hopper_Purge_Sizing.py (purge_sizing.csv / .png).
+check-valve and regulator-set sizing from Hopper_Purge_Sizing.py (purge_sizing.csv / .png), and
+the minimum regulator CdA / Cv from Hopper_Regulator_Sizing.py (regulator_sizing.csv / .png).
 
     python Backend/Hopper_Report.py [results.h5]
 """
@@ -46,7 +47,7 @@ from Backend.Hopper_Prop_System import burn_timeline, step_duration
 
 # ---- Metadata saved with each run ---- #
 def write_run_metadata(filename, targets, integration_dt):
-    profile_start = D.MAIN_VALVE_OPEN_TIME + D.MAIN_VALVE_RAMP_TIME
+    profile_start = D.PROFILE_START_TIME
     metadata = {
         "schema": 1, "profile": D.PROP_THRUST_CURVE_NAME,
         "profile_start": profile_start, "profile_end": profile_start + targets[-1]["time"],
@@ -324,6 +325,8 @@ def write_report(filename, targets, directory=D.PROP_RESULTS_DIRECTORY, vents=Tr
         summary.update(purge_check(filename, directory))
         from isolated_sims.Hopper_Purge_Sizing import purge_sizing
         summary.update(purge_sizing(filename, directory))
+        from isolated_sims.Hopper_Regulator_Sizing import regulator_sizing
+        summary.update(regulator_sizing(filename, directory))
     with open(os.path.join(directory, "run_summary.csv"), "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(["Metric", "Value"])

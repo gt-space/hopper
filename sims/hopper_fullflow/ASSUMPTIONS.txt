@@ -20,8 +20,14 @@ Engine         MR 1.25 at all throttle levels, throat 672 mm2, expansion 3.50
 Efficiency     c* 0.80 -> 0.85 over 100-300 psia; Cf 0.94 -> 0.97 over
                100-250 psia
 Thrust curve   GNC 52 m free flight, 29.5 s, 238-380 lbf
-Purge          PR-REG 750 psig, 1.86 mm2 solenoids, 8.5 mm2 check valves,
-               1 m of 1/4" x 0.035" tube
+Purge          PR-REG: Aqua 1026 dome-loaded, Cv 0.05 (0.85 mm2), 750 psig,
+               +17 psi per 1000 psi COPV drop. 1.86 mm2 solenoids, 8.5 mm2
+               check valves, 1 m of 1/4" x 0.035" tube
+Startup        OIMV T+0.08, FIMV T+0.19, FTV from T+0.30, OTV from T+0.45, main
+               ignition T+0.70; TFPV opens T+0.73, torch valves shut T+0.755
+Shutdown       At the end of the profile: OTV closes, then FTV 0.1 s later
+               (0.2 s strokes). OPV 2 s from OTV close, FPV 2 s from FTV close;
+               TFPV shuts 0.1 s after FPV
 
 
 MODELLING SIMPLIFICATIONS
@@ -36,8 +42,10 @@ Pressurant     COPV and ullage gas are well mixed and adiabatic, which is
 Feed system    No fittings, bends or K-losses; gravity ignored. Lines start
                full, and line contents are not counted in the residuals.
 Throttling     Valves are ideal flow controllers with no lag or leakage. Flow
-               commands come from a steady targeter using the nominal engine,
-               and both valves move together.
+               commands come from a steady targeter using the nominal engine.
+               In start-up each flow ramps linearly from its valve's start to
+               the first profile point at ignition; fuel-only flow burns at the
+               map's lowest MR (0.5).
 Regen          Fixed 375 K outlet at every throttle level and from the first
                instant, with no thermal lag. Jacket uses its inlet fuel
                properties; FINJ uses 375 K.
@@ -45,8 +53,17 @@ Engine         Zero-volume chamber, instant ignition, equilibrium combustion
                with fuel at 293 K (regen heat comes from the chamber gas), ideal
                frozen nozzle. All losses are in the two efficiencies. Constant
                14.8 psia ambient.
-Off in a burn  Torch igniter is switched off. Vents, purges and the drain stay
-               closed.
+Torch          Zero-volume torch chamber on the main chamber map; products and
+               TFPV nitrogen mix (ideal gas) and flow through the ideal throat
+               into the main chamber. No spark, Pc check or OTHX heating.
+Regulator      Proportional: shut at set, fully open 10 psi below (droop
+               GUESS), capped by its Cv; every purge and relief on its outlet
+               shares that capacity. Outlet stores the purge-line gas up to the
+               solenoids. Gas throttles at constant h. Dome loading not modelled.
+Purge gas      Main purges only see the feed-line back pressure. TFPV gas
+               pressurizes the torch, then leaves the model at the main chamber
+               (not counted in its flow).
+Off in a burn  Vents and the drain stay closed.
 
 
 TORCH INPUTS AND INDEPENDENT COLD-GAS PURGE
@@ -58,7 +75,8 @@ Oxidizer       OTV inlet -> OIMV -> OICK -> OIORF -> OTHX -> ox injector -> Torc
 Outlet         One shared Torch Chamber volume -> Torch Throat -> Main Chamber.
 OTHX           Tube with input length/diameter and prescribed Tout-Tin vs seconds
                since the torch valves begin opening. No phase-change model.
-Status         torch.enabled is false: full vehicle/combustion coupling is pending.
+Status         torch.enabled is true: the flight sim solves this network on
+               torch.sequence (see Startup / Shutdown above).
 Independent    Run isolated_sims/Hopper_Torch_Purge.py. Ideal cold nitrogen, gamma 1.4,
                293 K initially and in supply/main reservoirs. No combustion, residual
                feed flow, liquid displacement or trapped line gas. No valve cracking
@@ -91,6 +109,12 @@ Tank sweep     Steady state with tanks at set - 5 psi; valve design limit is
                80 % open.
 Purge check    Steady flow from the end-of-burn COPV through an ideal regulator,
                compared by volume at feed-line pressure.
+Reg sizing     Same blowdown as purge sizing; for each set, the smallest reg
+               CdA that keeps every purge at its request (reg at set - droop).
+Hotfire        isolated_sims/Hopper_Hotfire.py: test stand with 1000 psia constant
+               run tanks, vehicle engine and feed lines. Torch burns on the same
+               chamber map into a zero-volume torch chamber; OTHX is a plain tube.
+               Purge gas only sees back pressure; GN2 supply 2000 psia GUESS.
 Monte Carlo    100 runs, uniform bands: CdA +-10 %, tank and COPV pressure
                +-2 %, loads +-1 %, collapse +-0.3, c* +-2 %, Cf +-1 %, COPV
                temperature +-10 K, MR +-3 %. The controller knows each run's
