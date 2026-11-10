@@ -49,6 +49,40 @@ Off in a burn  Torch igniter is switched off. Vents, purges and the drain stay
                closed.
 
 
+TORCH INPUTS AND INDEPENDENT COLD-GAS PURGE
+-----------------------------------------
+Fuel           FTV inlet -> FIMV -> FICK -> FIORF -> fuel injector -> Torch Chamber.
+Purge          PR-REG outlet -> TFPV -> FIPCK -> FIPORF -> FIORF Outlet, then through
+               the shared fuel injector and Torch Chamber. FIORF is before the tee.
+Oxidizer       OTV inlet -> OIMV -> OICK -> OIORF -> OTHX -> ox injector -> Torch Chamber.
+Outlet         One shared Torch Chamber volume -> Torch Throat -> Main Chamber.
+OTHX           Tube with input length/diameter and prescribed Tout-Tin vs seconds
+               since the torch valves begin opening. No phase-change model.
+Status         torch.enabled is false: full vehicle/combustion coupling is pending.
+Independent    Run isolated_sims/Hopper_Torch_Purge.py. Ideal cold nitrogen, gamma 1.4,
+               293 K initially and in supply/main reservoirs. No combustion, residual
+               feed flow, liquid displacement or trapped line gas. No valve cracking
+               dP. Constant regulated source, no COPV depletion or regulator droop.
+Sequence       Torch pressure imposed at 150 psia before 2 s. Main pressure steps
+               14.8 -> 300 psia at 2 s; close FIMV/OIMV and open TFPV at 2 s.
+               FIMV/TFPV travel 80 ms, OIMV 100 ms. Close TFPV at 7 s is an editable
+               example. All actions are in torch.standalone_purge.sequence.events,
+               using absolute simulation seconds; sequence.end_time_s ends the run.
+               Old per-valve command_events_s cases remain replayable.
+Chamber        After 2 s integrate mass and internal energy in 0.0019 L. Geometric
+               bidirectional throat, no extra Cd; negative throat mdot is backflow
+               from main into torch. Near-zero dP has configurable regularization.
+Restrictions   Current user inputs: FIORF/OIORF 8 mm2, FIPORF 50 mm2, fuel injector
+               0.8051 mm2. Each active purge restriction has its own solved pressure
+               drop; no lumped allocation of drops. Earlier comparisons used a
+               0.1051 mm2 injector; read saved input configs when comparing results.
+Margin         Fully open equilibrium solves inlet mdot = throat mdot. Latest base
+               inputs give about 15.693 psi margin and 9.502 g/s at 300 psia main;
+               archived small-injector cases give 0.286 psi and 1.286 g/s. Throat is
+               unchoked; this is not a demonstrated minimum design margin. The
+               imposed initial pressure does not establish combustion performance.
+
+
 SEPARATE CALCULATIONS
 ---------------------
 Vent           Adiabatic from 505 psia to 1 psig, no LOX boil-off.

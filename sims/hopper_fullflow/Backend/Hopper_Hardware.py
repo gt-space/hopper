@@ -113,6 +113,24 @@ def hardware_rows():
     for branch in D.BRANCHES:
         for element in branch.elements:
             add(f"{branch.name}: {branch.source} -> {branch.sink}", element)
+    # Include declared torch hardware without representing it as solved hardware.
+    if D.TORCH_NETWORK is not None:
+        network = D.TORCH_NETWORK
+        for key in ('fuel_leg', 'purge_leg', 'oxidizer_leg'):
+            leg = network[key]
+            for spec in leg['elements']:
+                value = spec.get('cda_mm2')
+                detail = 'Configured only; transient coupling pending'
+                if spec['type'] == 'HeatedLine':
+                    length = spec['length_in']
+                    detail += f'; tube length {"unset" if length is None else str(length) + " in"}; dT versus torch time'
+                rows.append([f'Torch {key}: {leg["source"]} -> {leg["sink"]}', spec['name'], spec['type'],
+                             'unset' if value is None else str(value), detail, spec.get('note','')])
+        for key, field, label in (('chamber','volume_l','Volume [L]'), ('throat','area_in2','Area [in2]')):
+            spec = network[key]
+            value = spec[field]
+            rows.append(['Torch (configured only)', spec['name'], key, '',
+                         f'{label}: {"unset" if value is None else value}; transient coupling pending', spec.get('note','')])
     for tag, note in D.NOT_MODELLED.items():
         rows.append(["Not in the flow model", tag, "", "", "", note])
     return rows

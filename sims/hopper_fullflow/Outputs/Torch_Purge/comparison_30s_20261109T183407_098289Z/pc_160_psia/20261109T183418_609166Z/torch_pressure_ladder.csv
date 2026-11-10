@@ -1,0 +1,73 @@
+time_s,station,upstream_component,pressure_psia,phase
+2.0,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+2.0,TFPV Outlet,TFPV,149.99999999999997,computed Pc
+2.0,FIPCK Outlet,FIPCK,149.99999999999997,computed Pc
+2.0,FIORF Outlet,FIPORF,149.99999999999997,computed Pc
+2.0,Torch Chamber,Torch Fuel Injector,149.99999999999997,computed Pc
+2.0,Main Chamber,Torch Throat,160.0,computed Pc
+2.04,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+2.04,TFPV Outlet,TFPV,763.166851603648,computed Pc
+2.04,FIPCK Outlet,FIPCK,763.0878105325407,computed Pc
+2.04,FIORF Outlet,FIPORF,763.0870201268286,computed Pc
+2.04,Torch Chamber,Torch Fuel Injector,160.53394781209644,computed Pc
+2.04,Main Chamber,Torch Throat,160.0,computed Pc
+2.08,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+2.08,TFPV Outlet,TFPV,764.391104821951,computed Pc
+2.08,FIPCK Outlet,FIPCK,764.3119369551299,computed Pc
+2.08,FIORF Outlet,FIPORF,764.3111452814688,computed Pc
+2.08,Torch Chamber,Torch Fuel Injector,160.5369161004275,computed Pc
+2.08,Main Chamber,Torch Throat,160.0,computed Pc
+2.1,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+2.1,TFPV Outlet,TFPV,764.391104821951,computed Pc
+2.1,FIPCK Outlet,FIPCK,764.3119369551299,computed Pc
+2.1,FIORF Outlet,FIPORF,764.3111452814688,computed Pc
+2.1,Torch Chamber,Torch Fuel Injector,160.53702835704647,computed Pc
+2.1,Main Chamber,Torch Throat,160.0,computed Pc
+2.2,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+2.2,TFPV Outlet,TFPV,764.3911048219511,computed Pc
+2.2,FIPCK Outlet,FIPCK,764.3119369551301,computed Pc
+2.2,FIORF Outlet,FIPORF,764.311145281469,computed Pc
+2.2,Torch Chamber,Torch Fuel Injector,160.53708668753873,computed Pc
+2.2,Main Chamber,Torch Throat,160.0,computed Pc
+3.0,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+3.0,TFPV Outlet,TFPV,764.3911048219512,computed Pc
+3.0,FIPCK Outlet,FIPCK,764.3119369551302,computed Pc
+3.0,FIORF Outlet,FIPORF,764.3111452814691,computed Pc
+3.0,Torch Chamber,Torch Fuel Injector,160.53708696229177,computed Pc
+3.0,Main Chamber,Torch Throat,160.0,computed Pc
+17.25,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+17.25,TFPV Outlet,TFPV,764.3911048219512,computed Pc
+17.25,FIPCK Outlet,FIPCK,764.3119369551302,computed Pc
+17.25,FIORF Outlet,FIPORF,764.3111452814691,computed Pc
+17.25,Torch Chamber,Torch Fuel Injector,160.53708696229177,computed Pc
+17.25,Main Chamber,Torch Throat,160.0,computed Pc
+32.0,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+32.0,TFPV Outlet,TFPV,764.3911048219512,computed Pc
+32.0,FIPCK Outlet,FIPCK,764.3119369551302,computed Pc
+32.0,FIORF Outlet,FIPORF,764.3111452814691,computed Pc
+32.0,Torch Chamber,Torch Fuel Injector,160.53708696229177,computed Pc
+32.0,Main Chamber,Torch Throat,160.0,computed Pc
+32.04,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+32.04,TFPV Outlet,TFPV,763.166851603648,computed Pc
+32.04,FIPCK Outlet,FIPCK,763.0878105325407,computed Pc
+32.04,FIORF Outlet,FIPORF,763.0870201268286,computed Pc
+32.04,Torch Chamber,Torch Fuel Injector,160.53537618711175,computed Pc
+32.04,Main Chamber,Torch Throat,160.0,computed Pc
+32.08,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+32.08,TFPV Outlet,TFPV,160.00000000135532,computed Pc
+32.08,FIPCK Outlet,FIPCK,160.00000000135532,computed Pc
+32.08,FIORF Outlet,FIPORF,160.00000000135532,computed Pc
+32.08,Torch Chamber,Torch Fuel Injector,160.00000000135532,computed Pc
+32.08,Main Chamber,Torch Throat,160.0,computed Pc
+32.2,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+32.2,TFPV Outlet,TFPV,160.0,computed Pc
+32.2,FIPCK Outlet,FIPCK,160.0,computed Pc
+32.2,FIORF Outlet,FIPORF,160.0,computed Pc
+32.2,Torch Chamber,Torch Fuel Injector,160.0,computed Pc
+32.2,Main Chamber,Torch Throat,160.0,computed Pc
+32.5,PR-REG Outlet,Regulated source,764.8000000000001,computed Pc
+32.5,TFPV Outlet,TFPV,160.0,computed Pc
+32.5,FIPCK Outlet,FIPCK,160.0,computed Pc
+32.5,FIORF Outlet,FIPORF,160.0,computed Pc
+32.5,Torch Chamber,Torch Fuel Injector,160.0,computed Pc
+32.5,Main Chamber,Torch Throat,160.0,computed Pc

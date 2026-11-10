@@ -1,0 +1,6 @@
+time_s,FIMV,OIMV,TFPV,main_chamber_pressure_psia,torch_pressure_mode,end_of_run
+0.0,0.0,0.0,0.0,14.8,imposed initial pressure,False
+0.2,1.0,1.0,0.0,14.8,imposed initial pressure,False
+2.0,0.0,0.0,1.0,160.0,solve mass/energy,False
+32.0,0.0,0.0,0.0,160.0,solve mass/energy,False
+32.5,0.0,0.0,0.0,160.0,solve mass/energy,True

@@ -1,0 +1,19 @@
+leg,from,to,solved_in_purge
+fuel_leg,FTV Inlet,FIMV,False
+fuel_leg,FIMV,FICK,False
+fuel_leg,FICK,FIORF,False
+fuel_leg,FIORF,FIORF Outlet,False
+fuel_leg,FIORF Outlet,Torch Fuel Injector,True
+fuel_leg,Torch Fuel Injector,Torch Chamber,True
+purge_leg,PR-REG Outlet,TFPV,True
+purge_leg,TFPV,FIPCK,True
+purge_leg,FIPCK,FIPORF,True
+purge_leg,FIPORF,FIORF Outlet,True
+oxidizer_leg,OTV Inlet,OIMV,False
+oxidizer_leg,OIMV,OICK,False
+oxidizer_leg,OICK,OIORF,False
+oxidizer_leg,OIORF,OTHX,False
+oxidizer_leg,OTHX,Torch Ox Injector,False
+oxidizer_leg,Torch Ox Injector,Torch Chamber,False
+shared_outlet,Torch Chamber,Torch Throat,True
+shared_outlet,Torch Throat,Main Chamber,True

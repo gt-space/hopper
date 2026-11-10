@@ -38,7 +38,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(branches['OVNT Vent'].elements[0].schedule, ([0.0], [0.0]))
         self.assertEqual(branches['LOX Purge'].sink, 'OTV Outlet')
         self.assertNotIn('Torch Ox', branches)
-        self.assertIn('OIMV / FIMV / HX-1', data['NOT_MODELLED'])
+        self.assertIn('Torch fluids network', data['NOT_MODELLED'])
         self.assertEqual(len(data['THRUST_CURVES']['52m_free']), 296)
         self.assertIsNotNone(data['THRUST_CURVE_1DOF'])
 

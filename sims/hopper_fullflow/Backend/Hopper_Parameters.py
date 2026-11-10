@@ -65,10 +65,13 @@ ASSUMPTIONS = [
                "(c* 0.80 at 100 psia to 0.85 at 300 psia, Cf 0.94 at 100 to 0.97 at 250, flat outside; Luca's "
                "parameters, clamped instead of his max(1, ...)). In the transient each efficiency is taken at the "
                "previous step's Pc (one 0.05 s lag, under 0.1 % effect). Target MR 1.25. The chamber has no volume; propellant ignites as soon as it arrives."),
-    ("Torch", "OIMV taps the LOX feed above OTV, FIMV the fuel feed above FTV (P&ID). Torch ox goes OIMV -> HX-1 "
-              "-> torch injector, fuel FIMV -> torch injector, both into the main chamber, where they add to the "
-              "chamber flow and MR. HX-1 is a pressure drop only (no heat exchange). All torch CdAs and the "
-              "firing time (0.20-0.40 s) are GUESSes."),
+    ("Torch", "The current torch.network declares fuel FIMV -> FICK -> FIORF -> injector, oxidizer "
+              "OIMV -> OICK -> OIORF -> OTHX -> injector, a shared torch chamber and throat, and purge "
+              "TFPV -> FIPCK -> FIPORF into FIORF Outlet. OTHX is a tube with prescribed dT versus time "
+              "since torch opening. The independent Hopper_Torch_Purge.py solves cold ideal-gas purge "
+              "with a finite chamber and bidirectional geometric throat, no combustion or liquid displacement. "
+              "Full vehicle coupling remains pending; keep torch.enabled false. Older "
+              "configs with torch.branches retain the legacy direct-main-chamber approximation."),
     ("Start / shutdown", "GUESS sequence: OTV/FTV start opening at 0.30 s and take 0.20 s; the same ramp closes them "
                          "after the last profile point; 0.30 s of tail-off is simulated. The solver takes 0.01 s "
                          "steps through both ramps."),
@@ -76,7 +79,8 @@ ASSUMPTIONS = [
                   "0.05 s, so pressure overshoots the band slightly. Solenoids switch instantly."),
     ("Regulator", "PR-REG is ideal: outlet = min(COPV, ambient + 750 psig) at the COPV gas temperature, no droop or lock-up."),
     ("Purges", "Purge GN2 is drawn from the COPV; OPV joins the LOX line below OTV, FPV the fuel line below FTV, "
-               "TFPV the torch fuel line (P&ID). The gas only sees that back pressure; it is not added to the "
+               "Torch purge TFPV tees into FIORF Outlet and is solved only in the independent cold-gas case. Main purge "
+               "gas only sees its feed-line back pressure; it is not added to the "
                "line or chamber flow. All purges are closed during the nominal burn."),
     ("Relief valves", "Opening rises linearly from crack to full-open dP (default 110 % of crack)."),
     ("Side paths", "Vent, relief, purge and drain flows only leave their source (no back-flow)."),

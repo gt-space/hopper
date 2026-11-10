@@ -91,7 +91,8 @@ network, tracks and plots follow automatically. The element types are in
 
 Valves and valve-like elements also take `open_time_s` / `close_time_s`, full-stroke travel
 times (0 = instant; partial strokes take proportionate time). Nonzero travel caps the time
-step at 1/10 of the shortest stroke, so it costs run time. The shipped config uses 0.
+step at 1/10 of the shortest stroke, so it costs run time. The shipped main network uses
+0; independent torch timings are described below.
 
 A side path looks like this:
 
@@ -102,9 +103,161 @@ A side path looks like this:
 
 Give a vent or purge a `[[times], [openings]]` schedule to open it during a run. A branch
 can also start at a feed junction and, with `"into_sink": true`, deliver its liquid into the
-main chamber: the torch igniter is built this way (OIMV taps above OTV through HX-1, FIMV
-above FTV, firing on the `torch` section's window, `torch.enabled` switches it on), and its
-propellant counts in the chamber flow and MR.
+main chamber. Older schema-2 configs used this approximation for the torch igniter;
+the current config instead declares the separate torch network below.
+
+### Torch fluids and independent purge simulation
+
+`torch.network` explicitly declares the three legs and their shared downstream hardware:
+
+```text
+FTV Inlet -> FIMV -> FICK -> FIORF -> Torch Fuel Injector -> Torch Chamber
+PR-REG Outlet -> TFPV -> FIPCK -> FIPORF -> FIORF Outlet (fuel-injector inlet)
+OTV Inlet -> OIMV -> OICK -> OIORF -> OTHX -> Torch Ox Injector -> Torch Chamber
+Torch Chamber -> Torch Throat -> Main Chamber
+```
+
+The chamber and throat are defined once under `torch.network.chamber` and `.throat`.
+The purge shares the main-line purge regulator outlet, tees **downstream of FIORF**, and
+continues through the same fuel injector/chamber/throat. It does not duplicate that
+downstream hardware or feed upstream through FIORF. Throat discharge to the main chamber
+is an explicit assumption; the standalone purge runner currently requires this sink.
+
+Unknown hardware measurements may remain `null` in the declared topology, but an active
+purge-path restriction must have a positive CdA to run the purge calculation. The three
+orifices FIORF/FIPORF/OIORF currently use the requested temporary 8 mm² CdAs. Throat flow
+uses geometric area without an additional discharge coefficient.
+
+Run the independent cold-gas torch purge from the repository folder:
+
+```bash
+python isolated_sims/Hopper_Torch_Purge.py
+# Working project interpreter from Git Bash:
+./.venv-validation/Scripts/python.exe isolated_sims/Hopper_Torch_Purge.py
+python isolated_sims/Hopper_Torch_Purge.py --config other_case.json --check-inputs
+```
+
+It does not run `Hopper.py` or solve the vehicle/combustion model. Keep `torch.enabled`
+false; that flag controls coupling into the main simulation, not this independent run.
+Results go to a unique folder inside `torch.standalone_purge.output_directory`, currently
+`Outputs/Torch_Purge/`. Each folder contains the pressure/flow/valve history, station
+pressures, a pressure ladder, a transition zoom, the summary, and original/replayable
+configs with referenced input files. `--no-plots` skips PNG rendering; `--out` changes
+the output root. Replay with `--config <run-folder>/run_config.json`.
+
+**Edit the entire independent torch timeline in one place:**
+`torch.standalone_purge.sequence`. For example, the transition is one event:
+
+```json
+{
+  "time_s": 2.0,
+  "valves": {"FIMV": 0.0, "OIMV": 0.0, "TFPV": 1.0},
+  "main_chamber_pressure_psia": 300.0,
+  "release_torch_pressure": true
+}
+```
+
+Times are absolute simulation seconds. `0` means closed, `1` open; partial openings
+are allowed. Values hold until changed. At time zero initialize every valve and the
+main pressure. Exactly one event releases the imposed torch pressure; after that,
+mass and energy determine it. `sequence.end_time_s` ends the run. Events must be
+strictly ordered and within the run. The runner prints the resolved timeline;
+`--check-inputs` lets you verify it without running or writing results.
+
+Current events: all valves closed at 0 s; FIMV/OIMV open at 0.2 s; close both and open
+TFPV at 2 s while main pressure becomes 300 psia; close TFPV at 7 s; end at 7.5 s.
+The 7 s purge-close command is an editable example. Physical `open_time_s` and
+`close_time_s` stay with the hardware in `torch.network`: FIMV/TFPV take 80 ms and
+OIMV 100 ms. These are commands, so complete closure occurs after those travel times.
+Feed-valve positions are shown; propellant flow through them remains excluded.
+
+The old `torch.open_time_s`, `duration_s`, and `valve_stroke_s` belong to the legacy
+main-sim torch approximation and do **not** schedule this independent purge. Likewise,
+the top-level `purge.sequence` schedules the vehicle's Fuel Purge/LOX Purge branches,
+not TFPV. Saved cases with per-component `command_events_s` still replay; mixing the
+central sequence with those legacy commands is rejected to avoid hidden overrides.
+
+Each plotted run now includes `torch_component_diagram.svg`/`.png`, generated from
+the loaded topology, plus `torch_connections.csv` for checking individual edges.
+Solid green is the solved purge path; dashed fuel/oxidizer hardware is configured
+but not solved. The tee after FIORF, shared fuel injector, chamber and bidirectional
+throat are explicit. `--diagram-only` archives inputs and draws this network without
+solving. `torch_sequence.csv` records the resolved event commands in every run.
+
+Plots are PNGs by default. `torch_pressure_ladder.png` shows only the purge lifetime,
+with snapshots through opening, steady flow, closing and the tail, and an expanded
+torch-to-main ladder. Configured ladder snapshot times before purge starts are omitted.
+`torch_purge_station_history.png` shows all purge-path station pressures versus time,
+an expanded torch-over-main pressure trace, and purge mdot. The full startup pressure
+excursion remains visible in the history/transition and pressure-margin PNGs. Use
+`--no-plots` only when numeric exports alone are wanted.
+
+`torch.standalone_purge` sets the pressure boundary and solver/output settings:
+
+- Torch pressure is **imposed at 150 psia until 2 s**, using the chamber initial
+  pressure. This phase does not predict combustion or demonstrate a firing capability.
+- Sequence `main_chamber_pressure_psia` values are held steps: currently 14.8 psia,
+  stepping to 300 psia at 2 s. After release, torch mass and internal energy are solved
+  in its configured finite chamber volume; its pressure is no longer imposed.
+- The throat permits reverse flow. Raising main pressure above the initial torch
+  pressure therefore produces a brief main-to-torch backflow. Positive throat mdot
+  means torch-to-main; negative means backflow.
+- A null `purge_supply_pressure_psia` resolves to the initial regulator outlet pressure,
+  limited by initial COPV pressure (currently 764.8 psia). It is held constant for this
+  standalone case. An explicit psia value overrides it.
+- The default 293 K chamber/supply/main-reservoir temperatures and gamma 1.4 are
+  **cold-nitrogen assumptions**. There is no combustion, residual propellant flow,
+  liquid displacement, hot main-chamber-gas chemistry, bottle depletion, regulator
+  droop, check-valve cracking pressure, or trapped line inventory in this model.
+- Purge restrictions are solved individually with a common choked/subcritical gas
+  flow. The shared fuel injector follows FIPORF; FIORF is upstream of the tee and is
+  not another series restriction in the purge path. The pressure ladder follows this
+  path through the torch chamber and throat to the main chamber.
+- `maximum_step_s` caps adaptive integration steps; `save_interval_s` controls output
+  spacing. Valve commands and backpressure changes are integration boundaries. A
+  small, configurable near-zero throat-dP regularization avoids numerical chatter.
+
+To check throat restriction, inspect `torch_pressure_margin.png` and the history
+column `torch_over_main_pressure_psi`, not just absolute torch pressure. Steady purge
+satisfies inlet mdot = throat mdot; chamber pressure is solved from this balance.
+`torch_fully_open_equilibria.csv`/the summary report a fully-open cold-gas equilibrium
+for each post-release main pressure, independent of transient peak pressure. With the
+archived comparison's 4.196 mm² throat and 0.1051 mm² fuel-injector CdA, steady pressure is
+about 300.286 psia against 300 psia main: only **0.286 psi** margin, with an unchoked
+throat. A positive value is not a demonstrated design allowance for backpressure
+fluctuations. No required minimum margin has been supplied, so no pass/fail is implied.
+The 150 -> 300 psia transition initially causes reverse flow regardless of the eventual
+steady pressure. The imposed 150 psia phase is not evidence of torch firing capability.
+
+The latest base config instead has the user's 0.8051 mm² fuel-injector CdA and
+50 mm² FIPORF. Its archived example run reports about 9.502 g/s and 315.693 psia
+torch pressure at 300 psia main. Read a result's saved inputs before comparing it
+with the current config. The 30-second comparison uses separate case files; the
+base config's example purge command window remains 2–7 s. See the November 9
+update in [HANDOFF.md](HANDOFF.md) for exact scenario/result provenance.
+
+OTHX is declared as `HeatedLine`: a tube of specified length and ID (or OD/wall), with
+prescribed temperature rise versus time rather than Pc. For example:
+
+```json
+"temperature_rise": {
+  "time_basis": "torch_open",
+  "time_s_delta_t_k": [[0.0, 0.0], [0.1, 20.0], [0.2, 40.0]]
+}
+```
+
+Time zero is when the torch valves begin opening (`torch.open_time_s`). The curve uses
+linear interpolation and held endpoints; `Tout = Tin + dT`. Before torch opening there
+is no prescribed rise. `simulation` is also accepted as an explicit absolute clock.
+This is not a phase-change or wall-thermal model. OTHX is not evaluated by the
+cold-gas purge runner because neither propellant feed is solved in that calculation.
+
+**The coupled combustion/propellant/OTHX torch network is still pending.** Keep
+`torch.enabled: false`. Enabling the explicit network in the main run raises a clear error instead of
+silently sending the torch liquids directly into the main chamber. The normalized
+unit-suffixed topology is available as `HOPPER_DATA.TORCH_NETWORK`, and is included in
+the normal config/run snapshots. Previous configs using `torch.branches` still load
+with their legacy behavior; mixing both representations in one config is rejected.
 
 ### Two COPV models
 

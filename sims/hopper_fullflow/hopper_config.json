@@ -438,17 +438,6 @@
     },
     {
       "type": "Branch",
-      "name": "Torch Fuel Purge",
-      "source": "PR-REG Outlet",
-      "sink": "Main Chamber",
-      "note": "P&ID: torch fuel line below FIMV -> torch",
-      "elements": [
-        {"type": "Valve", "name": "TFPV", "cda_mm2": 2.0, "schedule": "closed", "note": "EDIT GUESS CdA"},
-        {"type": "CheckValve", "name": "CV-3", "cda_mm2": 5.0, "note": "EDIT GUESS CdA"}
-      ]
-    },
-    {
-      "type": "Branch",
       "name": "OVNT Vent",
       "source": "LOX Ullage",
       "elements": [
@@ -496,33 +485,95 @@
   "torch": {
     "enabled": false,
     "open_time_s": 0.2,
-    "duration_s": 0.2,
+    "duration_s": 1.8,
     "valve_stroke_s": 0.01,
-    "branches": [
-      {
-        "type": "Branch",
-        "name": "Torch Ox",
-        "source": "OTV Inlet",
-        "sink": "Main Chamber",
-        "into_sink": true,
+    "network": {
+      "note": "Explicit torch fluid network. The independent cold-gas purge runner uses its purge leg, shared injector, chamber and throat. Keep torch.enabled false: full vehicle/combustion coupling is pending.",
+      "fuel_leg": {
+        "source": "FTV Inlet",
+        "sink": "Torch Chamber",
         "elements": [
-          {"type": "Valve", "name": "OIMV", "cda_mm2": 2.0, "schedule": "torch", "note": "EDIT GUESS CdA"},
-          {"type": "Orifice", "name": "HX-1", "cda_mm2": 2.0, "note": "EDIT GUESS CdA"},
-          {"type": "Orifice", "name": "Torch Ox Injector", "cda_mm2": 0.08, "note": "EDIT GUESS CdA (~7 g/s LOX at 500 psi)"}
+          {"type": "Valve", "name": "FIMV", "cda_mm2": 2.2, "open_time_s": 0.08, "close_time_s": 0.08, "note": "Commands are in torch.standalone_purge.sequence. The independent purge run plots travel but excludes propellant flow/combustion."},
+          {"type": "CheckValve", "name": "FICK", "cda_mm2": 5, "note": "Fuel igniter check valve; INPUT CdA."},
+          {"type": "Orifice", "name": "FIORF", "cda_mm2": 8.0, "outlet_node": "FIORF Outlet", "note": "User provisional CdA 8 mm2. Purge tees downstream, upstream of the fuel injector."},
+          {"type": "Injector", "name": "Torch Fuel Injector", "cda_mm2": 0.8051, "note": "INPUT torch fuel injector CdA."}
         ]
       },
-      {
-        "type": "Branch",
-        "name": "Torch Fuel",
-        "source": "FTV Inlet",
-        "sink": "Main Chamber",
-        "into_sink": true,
+      "purge_leg": {
+        "source": "PR-REG Outlet",
+        "sink": "FIORF Outlet",
+        "note": "Same regulated GN2 source as the main-line purges. Joins downstream of FIORF; the fuel injector and chamber/throat are shared, not duplicated.",
         "elements": [
-          {"type": "Valve", "name": "FIMV", "cda_mm2": 2.0, "schedule": "torch", "note": "EDIT GUESS CdA"},
-          {"type": "Orifice", "name": "Torch Fuel Injector", "cda_mm2": 0.06, "note": "EDIT GUESS CdA (~4.5 g/s RP-1, torch MR ~1.6)"}
+          {"type": "Valve", "name": "TFPV", "cda_mm2": 2.2, "open_time_s": 0.08, "close_time_s": 0.08, "note": "Renamed FIPV to TFPV. Commands are in torch.standalone_purge.sequence; open/close times here describe hardware travel."},
+          {"type": "CheckValve", "name": "FIPCK", "cda_mm2": 5, "note": "Fuel purge igniter check valve; INPUT CdA."},
+          {"type": "Orifice", "name": "FIPORF", "cda_mm2": 50.0, "note": "Current user-entered CdA 50 mm2; earlier exploratory cases used 8 mm2."}
         ]
+      },
+      "oxidizer_leg": {
+        "source": "OTV Inlet",
+        "sink": "Torch Chamber",
+        "elements": [
+          {"type": "Valve", "name": "OIMV", "cda_mm2": 0.68, "open_time_s": 0.1, "close_time_s": 0.1, "note": "Commands are in torch.standalone_purge.sequence. Propellant flow/combustion is excluded from the independent cold-gas purge run."},
+          {"type": "CheckValve", "name": "OICK", "cda_mm2": 5, "note": "Oxidizer igniter check valve; INPUT CdA."},
+          {"type": "Orifice", "name": "OIORF", "cda_mm2": 8.0, "note": "User provisional CdA 8 mm2."},
+          {
+            "type": "HeatedLine",
+            "name": "OTHX",
+            "length_in": 60,
+            "outer_diameter_in": 0.25,
+            "wall_thickness_in": 0.065,
+            "inner_diameter_in": null,
+            "roughness_in": 0.0005905511811023622,
+            "height_change_in": 0.0,
+            "temperature_rise": {
+              "time_basis": "torch_open",
+              "time_s_delta_t_k": [[1.5, 150]],
+              "note": "INPUT [seconds since torch valves begin opening, Tout minus Tin in K]. Linear interpolation, held endpoints. No heating before torch opening. Unused in the independent cold-gas purge calculation."
+            },
+            "note": "Ox torch heat exchanger treated hydraulically as a tube. INPUT length and ID or OD/wall. Roughness and zero height are placeholders. No vaporization/phase-change model is implied."
+          },
+          {"type": "Injector", "name": "Torch Ox Injector", "cda_mm2": 0.4398, "note": "INPUT torch oxidizer injector CdA."}
+        ]
+      },
+      "chamber": {
+        "name": "Torch Chamber",
+        "volume_l": 0.0019,
+        "initial_pressure_psia": 150.0,
+        "initial_temperature_k": 293.0,
+        "note": "User initial/imposed pressure 150 psia. 293 K is an explicit cold-nitrogen purge assumption, not a combustion temperature."
+      },
+      "throat": {
+        "name": "Torch Throat",
+        "source": "Torch Chamber",
+        "sink": "Main Chamber",
+        "area_in2": 0.006504,
+        "note": "Geometric throat area, no separate discharge coefficient. Independent purge run uses ideal bidirectional compressible throat flow."
       }
-    ]
+    },
+    "standalone_purge": {
+      "sequence": {
+        "note": "EDIT THE ENTIRE TORCH PURGE TIMELINE HERE. Absolute simulation seconds; valves hold their last command (0=closed, 1=open). Torch pressure holds its initial 150 psia until release_torch_pressure. The 7 s purge close is an editable example.",
+        "end_time_s": 7.5,
+        "events": [
+          {"time_s": 0.0, "valves": {"FIMV": 0.0, "OIMV": 0.0, "TFPV": 0.0}, "main_chamber_pressure_psia": 14.8},
+          {"time_s": 0.2, "valves": {"FIMV": 1.0, "OIMV": 1.0}},
+          {"time_s": 2.0, "valves": {"FIMV": 0.0, "OIMV": 0.0, "TFPV": 1.0}, "main_chamber_pressure_psia": 300.0, "release_torch_pressure": true},
+          {"time_s": 7.0, "valves": {"TFPV": 0.0}}
+        ]
+      },
+      "main_chamber_gas_temperature_k": 293.0,
+      "purge_supply_pressure_psia": null,
+      "purge_supply_temperature_k": 293.0,
+      "gamma": 1.4,
+      "maximum_step_s": 0.01,
+      "save_interval_s": 0.001,
+      "relative_tolerance": 1e-6,
+      "absolute_tolerance": 1e-9,
+      "near_zero_pressure_drop_pa": 1.0,
+      "ladder_times_s": [1.99, 2.0, 2.04, 2.1, 3.0, 7.2],
+      "output_directory": "Outputs/Torch_Purge",
+      "note": "Purge-only cold ideal nitrogen model. Edit ALL timing in sequence above. Hold initial torch pressure until the release event, then integrate chamber mass/energy. Main pressure uses held step values. Null supply pressure derives the same regulator outlet as the main purges. No fuel/oxidizer flow, combustion or liquid flushing. Main reservoir is also cold nitrogen; its temperature is editable."
+    }
   },
   "purge": {
     "sequence": [
@@ -573,7 +624,7 @@
     "OQD": "LOX fill quick disconnect below OFD (disconnected in flight)",
     "FQD": "Fuel fill quick disconnect, McMaster 52495K63 (disconnected in flight)",
     "ODiff": "Oxygen diffuser on the OVNT exhaust (sizing)",
-    "Torch spark igniter": "Spark / exciter; torch combustion itself is not modelled (its propellant goes into the main chamber)",
+    "Torch spark igniter": "Spark / exciter and torch combustion are not yet modelled. Explicit fluids topology is configured under torch.network; its solver is pending.",
     "PRPT-1 and sensors": "Instrumentation"
   },
   "monte_carlo": {
@@ -636,9 +687,10 @@
     "purge.sizing.elements": "Elements whose shared CdA is solved for (the purge check valves); every other CdA stays at its config value",
     "purge.sizing.regulator_min_dp_psi": "EDIT GUESS margin the regulator needs above its set pressure to stay in regulation; 0 = ideal",
     "purge.sizing.max_regulator_set_psig": "null = no limit; e.g. the ORV-1 crack pressure minus a margin",
-    "torch.enabled": "Off by default: the torch fires ~0.2 s and barely changes the burn",
-    "torch.open_time_s": "EDIT GUESS OIMV + FIMV open (main valves start at sequence.main_valve_start_s)",
-    "torch.duration_s": "EDIT torch on-time (~0.2 s)",
-    "torch.valve_stroke_s": "EDIT GUESS OIMV / FIMV opening and closing time"
+    "torch.enabled": "Keep false: full vehicle/combustion coupling is pending. The independent torch purge runner works with this false.",
+    "torch.open_time_s": "Legacy main-sim torch window / future OTHX time-reference metadata. Independent purge commands are ONLY in torch.standalone_purge.sequence.",
+    "torch.duration_s": "Legacy main-sim torch window. Does not control the independent purge sequence.",
+    "torch.valve_stroke_s": "Legacy main-sim torch window ramp. Independent physical travel is open_time_s / close_time_s on each torch.network valve.",
+    "torch.standalone_purge.sequence": "EDIT all independent torch event times, valve commands, main pressure steps, pressure release and run end here. This is separate from the vehicle Fuel Purge / LOX Purge sequence."
   }
 }

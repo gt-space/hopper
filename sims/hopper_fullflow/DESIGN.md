@@ -53,6 +53,113 @@ within 0.67 %. The largest difference is COPV end pressure (1703 vs 1714 psia).
 Given a thrust history and configurable hardware, predict feed-system pressures,
 temperatures, flow, inventories, and engine performance over time.
 
+### November 9: explicit torch input topology
+
+The requested fuel, regulated GN2 purge, and oxidizer legs now live under
+`torch.network`. Fuel is FTV Inlet -> FIMV -> FICK -> FIORF -> fuel injector;
+oxidizer is OTV Inlet -> OIMV -> OICK -> OIORF -> OTHX -> oxidizer injector.
+Both terminate at one declared Torch Chamber, followed by one Torch Throat.
+Purge is PR-REG Outlet -> FIPV -> FIPCK -> FIPORF, joining `FIORF Outlet`.
+The previous TFPV/CV-3 branch and HX-1 shortcut were removed from the current
+config; schema-2 archives using legacy `torch.branches` remain loadable.
+
+OTHX is a tube specification plus a time/dT curve, with time zero at the torch
+opening command as confirmed by the user. Interpolation is linear with held
+endpoints; no heating is applied before opening. Missing hardware data remain
+null, while inherited timing/roughness defaults are labeled placeholders.
+The new topology is input-only at this stage. Its dedicated transient builder,
+chamber/throat equations, and nitrogen/liquid purge junction are pending; enabling
+it is rejected explicitly rather than falling back to the old main-chamber
+branch approximation. `Backend/Hopper_Torch_Config.py` validates the topology
+and defines the OTHX temperature interpolation helper. The hardware inventory
+and parameter workbook descriptions identify the configured-but-unsolved parts.
+All 37 tests pass.
+
+### November 9: independent torch purge transient
+
+`isolated_sims/Hopper_Torch_Purge.py` now runs the nitrogen purge independently of
+the vehicle simulation. `Backend/Hopper_Torch_Purge.py` solves each restriction
+in TFPV -> FIPCK -> FIPORF -> shared fuel injector for a common compressible gas
+flow, then integrates chamber mass and internal energy with a bidirectional
+geometric throat to the main chamber. The tee remains downstream of FIORF.
+FIPV was renamed TFPV at the user's request. FIORF/FIPORF/OIORF temporarily use
+8 mm2 each; the throat has no added discharge coefficient.
+
+The selected scenario prescribes 150 psia in the torch before 2 s. At 2 s,
+main backpressure steps from 14.8 to 300 psia, FIMV/OIMV receive close commands,
+and TFPV receives an open command. Per-valve `command_events_s` use absolute
+simulation seconds; actual openings follow full-stroke open/close travel times.
+TFPV closes at 7 s as an editable example, and the run ends at 7.5 s. Each run
+archives original and replayable configs, resolved settings, time histories,
+station pressures, pressure ladder snapshots and transition plots.
+
+This is explicitly a **cold-gas purge model**. Initial chamber and supply/main
+reservoir temperatures are set to an assumed 293 K with constant gamma 1.4.
+The regulated source is held constant (764.8 psia in this case). No combustion,
+liquid displacement, closing-valve residual propellant, hot-gas chemistry,
+check-valve cracking pressure, line gas storage, regulator droop or COPV
+depletion is represented. Feed-valve positions are displayed without predicting
+their propellant flows. OTHX heating is unused in this independent calculation.
+Full torch coupling into `Hopper.py` remains pending; keep `torch.enabled=false`.
+
+Validation compares choked/subcritical orifice flow with FullFlow, checks common
+flow through each series restriction, closed/reverse supply paths, valve travel
+and reversal, the exact backpressure event, finite-volume backflow and mass
+conservation, and timestep refinement. With these inputs, the case completes in
+seconds, gives approximately 1.286 g/s purge and 300.286 psia peak computed torch
+pressure, and predicts about 15.9 mg initial main-to-torch backflow. These are
+conditional cold-gas results, not a combustion or hot-purge validation.
+
+### November 9: consolidated torch sequence, connectivity diagram and pressure margin
+
+All independent-run commands now live in `torch.standalone_purge.sequence`: one
+ordered event list changes valve targets and main pressure, releases the imposed
+torch pressure, and sets the run end. Component definitions keep physical travel
+times only. Old per-valve run archives still replay; mixed formats fail explicitly.
+`--check-inputs` prints the resolved timeline and `torch_sequence.csv` saves it.
+
+`Backend/Hopper_Torch_Diagram.py` generates SVG/PNG drawings and a component-edge
+CSV from the loaded network. It draws the purge tee after FIORF explicitly, shows
+the shared injector and chamber, and marks configured-only feeds with dashed lines.
+`--diagram-only` produces an input snapshot and diagram without a transient solve.
+
+History now includes torch-minus-main pressure, with a dedicated pressure-margin
+plot. A separate fully-open steady equilibrium solves inlet flow = throat outflow,
+with energy balance setting cold-gas chamber temperature to supply temperature.
+The current case gives 0.28637 psi positive steady margin and an unchoked throat;
+the pressure step still causes initial backflow. No minimum required pressure
+margin has been supplied, so the diagnostic does not assign a design pass/fail.
+Tests cover centralized events and invalid/ambiguous timelines, archive-compatible
+schedules, steady flow balance, the effect of reduced throat area, and tee edges.
+
+Purge plots now omit the pre-purge firing phase from the station ladder, sample the
+valve opening/closing and full purge lifetime automatically, and include an expanded
+torch-to-main ladder and PNG station histories. Both 30-second, 300/160 psia comparison
+cases have been re-exported to PNGs from their saved histories without repeating solves.
+
+### November 9 publication snapshot and interpretation
+
+The current base config preserves the user's later fuel-injector CdA of **0.8051
+mm2** and FIPORF CdA of **50 mm2**. These differ from the 0.1051 mm2 injector used
+in the archived 30-second comparison. The later-input run in
+`Outputs/Torch_Purge/20261110T005911_735990Z/` (UTC name, November 9 EST) reports
+9.5020 g/s and 315.6931 psia torch pressure against 300 psia main, with 47.9363 g
+source gas consumed in the example 2-to-7-second command window including travel.
+The base timeline remains that five-second example; thirty-second cases live in
+separate snapshots under `Outputs/Torch_Purge/comparison_30s_20261109T183407_098289Z/`.
+Those smaller-injector cases give 1.2860 g/s and about 38.6759 g source consumption
+at either 300 or 160 psia main, with steady pressure margins 0.2864 and 0.5371 psi.
+
+A positive steady pressure margin does not by itself prove acceptable hot-gas
+ingestion or thermal exposure. The discussed +/-5% peak fluctuation assumption
+and +/-1%/10% sensitivity cases are exploratory; no waveform or acceptance
+criterion is implemented. Frequency, transient reverse-flow mass, local mixing
+and hot-gas properties remain unresolved. Source-pressure scaling and a possible
+downstream purge connection were discussion only, not implemented hardware changes.
+The handoff records the delivered modules, exact scenario differences, replay
+instructions, archived results and model boundaries. Automated physical regression
+inputs are fixed independently of the user's editable injector CdA (54 tests).
+
 ## Current implementation work
 
 - [x] Pressure versus component station, at selectable simulation times.

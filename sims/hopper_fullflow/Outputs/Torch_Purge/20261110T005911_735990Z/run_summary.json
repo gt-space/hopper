@@ -1,0 +1,36 @@
+{
+  "model": "Cold ideal-gas purge; no combustion, propellant flow or liquid displacement",
+  "imposed_pressure_until_s": 2.0,
+  "initial_torch_pressure_psia": 150.0,
+  "purge_source": "PR-REG Outlet",
+  "purge_supply_pressure_psia": 764.8000000000001,
+  "initial_temperature_k": 293.0,
+  "main_reservoir_temperature_k": 293.0,
+  "imposed_phase_purge_admitted_kg": 0.0,
+  "total_purge_admitted_kg": 0.0479363412165453,
+  "main_chamber_backflow_kg": 1.590703137070252e-05,
+  "maximum_mass_balance_error_kg": 7.623322433450859e-11,
+  "peak_purge_mdot_kg_s": 0.009502024216270395,
+  "minimum_throat_mdot_kg_s": -0.02015300786459477,
+  "peak_released_torch_pressure_psia": 315.6931194038429,
+  "fully_open_purge_equilibria": [
+    {
+      "main_chamber_pressure_psia": 300.0,
+      "torch_pressure_psia": 315.6931181016517,
+      "torch_over_main_pressure_psi": 15.693118101651693,
+      "purge_mdot_kg_s": 0.009502024216270393,
+      "throat_back_to_upstream_pressure_ratio": 0.9502899581846489,
+      "throat_choked": false
+    }
+  ],
+  "assumptions": [
+    "Constant regulated pressure source; bottle depletion/regulator droop excluded.",
+    "Both reservoirs and the torch use the same ideal nitrogen model with constant gamma.",
+    "Mass and energy integrate only after the imposed-pressure phase.",
+    "Fuel and oxidizer flow, closing-valve residual propellant and combustion excluded.",
+    "No trapped gas/remaining liquid inventory in the zero-volume purge/fuel line.",
+    "Throat is bidirectional; forward sign is torch to main chamber.",
+    "Near-zero throat pressure drop is linearly regularized below the configured threshold."
+  ],
+  "elapsed_s": 5.211004199984018
+}

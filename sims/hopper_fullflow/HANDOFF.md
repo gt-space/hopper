@@ -1,9 +1,10 @@
-# Hopper FullFlow handoff — November 5, 2026
+# Hopper FullFlow handoff — November 5 and 9, 2026
 
 This document explains the work delivered during this development session,
 the resulting code, the evidence behind the changes, and the remaining work.
-It describes the FullFlow tree published in **`996f8509`**. It is a historical
-handoff, not a replacement for each run's saved inputs or hardware calibration.
+The original November 5 sections describe the tree published in **`996f8509`**;
+the November 9 update below describes the independent torch purge implementation.
+This handoff does not replace each run's saved inputs or hardware calibration.
 Dates and human-readable commit times below use America/New_York (EST).
 Timestamped result-directory names use UTC.
 
@@ -18,6 +19,153 @@ Start with [README.md](README.md) for operating instructions,
 [hopper_config.json](hopper_config.json) for the actual inputs.
 The [complete commit file manifest](docs/handoff_commit_files.txt) lists every
 changed file, including generated outputs, for all three delivered commits.
+
+## November 9, 2026 update: torch topology and independent purge model
+
+This update describes the changes after remote `4797ba36` (November 9 main-purge
+work), building on `b3fe8cc4` (November 7 restoration). The November 5 sections
+below remain historical. Current module paths and behavior are in README/DESIGN.
+The publication commit contains the local changes in `sims/hopper_fullflow` only;
+the separate NESS checkout is outside this work.
+
+### Delivered implementation
+
+- `hopper_config.json` declares the complete torch topology: FTV Inlet -> FIMV ->
+  FICK -> FIORF -> fuel injector -> torch chamber -> throat -> main chamber;
+  OTV Inlet -> OIMV -> OICK -> OIORF -> OTHX -> oxidizer injector -> the same
+  chamber. Regulated GN2 flows through TFPV (renamed from FIPV), FIPCK and FIPORF
+  into **FIORF Outlet**, downstream of FIORF and upstream of the shared injector.
+- `Backend/Hopper_Torch_Config.py` validates topology, units/geometry, unknown or
+  duplicate connections, command schedules, and OTHX's prescribed dT-versus-time.
+  OTHX time zero is torch opening; linear interpolation holds endpoint values.
+  This is input/helper support, not a solved hot oxidizer heat exchanger.
+- `Backend/Hopper_Config.py` and `HOPPER_DATA.py` expose the normalized topology;
+  hardware inventory and parameter-workbook descriptions include all torch parts.
+  Legacy `torch.branches` remains replayable. Enabling the explicit network in
+  the main vehicle solver raises an error instead of silently using the old
+  direct-main-chamber approximation. Keep `torch.enabled=false`.
+- `Backend/Hopper_Torch_Purge.py` independently solves common compressible gas
+  flow and individual station pressures through the purge restrictions and
+  shared fuel injector. After pressure release, BDF integrates log chamber mass
+  and internal energy plus cumulative inlet, outward-throat and reverse-flow
+  masses. Positive throat flow is torch-to-main; reverse flow is permitted.
+  Geometric throat area is used without an extra discharge coefficient. The
+  near-zero pressure-drop regularization is an explicit numeric input.
+- `torch.standalone_purge.sequence` owns the complete event timeline. Each event
+  can change valve commands and main pressure and release imposed torch pressure.
+  Actual valve travel follows separate full-stroke open/close times; partial
+  reversals are supported. Commands hold between events. Legacy per-component
+  command archives still replay, but mixing both formats is rejected.
+- `isolated_sims/Hopper_Torch_Purge.py` is the independent CLI, with `--config`,
+  `--out`, `--check-inputs`, `--diagram-only` and `--no-plots`. It archives exact
+  input JSON, replayable config/assets, derived settings and the resolved event
+  timeline. Histories, component station pressures, steady-equilibrium checks
+  and summaries are exported alongside PNGs.
+- `Backend/Hopper_Torch_Diagram.py` generates SVG/PNG topology drawings and a
+  component-edge CSV. The shared tee is explicit; dashed propellant legs are
+  configured only and the solid purge path is solved. Dimensions are imperial,
+  CdAs are mm2, and throat area/diameter are in2/in.
+- Purge-only pressure ladders span opening, steady flow, closing and the tail.
+  PNGs include a torch-to-main ladder zoom, station histories, pressure-margin
+  history, startup transition, flow/valve history and component diagram. CSVs
+  supplement the PNGs; they do not replace them.
+
+### Current inputs versus archived comparison inputs
+
+The current checked-in config preserves the user's later **fuel injector CdA
+0.8051 mm2** and **FIPORF CdA 50 mm2**. FIORF/OIORF are provisionally 8 mm2.
+FIMV/TFPV travel is 0.08 s and OIMV travel is 0.10 s. OTHX is 60 in long,
+0.25 in OD with 0.065 in wall (derived ID 0.120 in), with its user dT curve.
+Torch volume is 0.0019 L; throat is 0.006504 in2 (about 0.0910 in diameter).
+Initial/imposed torch pressure is 150 psia; initial/source/main-reservoir
+nitrogen temperatures are assumed 293 K with gamma 1.4. The constant source
+resolves to 764.8 psia from the initial regulator/bottle configuration.
+
+The base config still uses the example 5-second purge: open command at 2 s,
+close at 7 s, finish at 7.5 s. At 2 s the feeds receive close commands, main
+pressure steps to 300 psia and imposed torch pressure is released. This is not
+30 seconds: the requested 30-second cases were separate archived configs.
+
+The archived later-input run `Outputs/Torch_Purge/20261110T005911_735990Z/`
+(UTC directory; November 9 EST) used the 0.8051 mm2 injector. Its summary reports
+9.5020 g/s steady purge, 315.6931 psia torch at 300 psia main, and 47.9363 g
+consumed for the example command window including travel/tail. This is distinct
+from the smaller-injector results discussed earlier in the session.
+
+The two requested 30-second cases live under
+`Outputs/Torch_Purge/comparison_30s_20261109T183407_098289Z/`. Their saved inputs
+use **0.1051 mm2 fuel injector CdA** and 50 mm2 FIPORF. TFPV commands open at
+2 s and close at 32 s; integration ends at 32.5 s, including 80 ms closing travel.
+
+- Main 300 psia: 1.2860077 g/s; total source gas 38.6758915 g; steady torch
+  300.2863972 psia, or +0.2863972 psi.
+- Main 160 psia: 1.2860077 g/s; total source gas 38.6759284 g; steady torch
+  160.5370870 psia, or +0.5370870 psi.
+- Ideal instantaneous 30-second consumption is 38.5802304 g in either case.
+  The actual command window plus closing travel produces the slightly larger
+  integrated totals. Maximum mass-balance error was below 3.3e-11 kg.
+- Both cases choke at the fuel injector with fixed upstream pressure and
+  temperature; changing main pressure therefore does not change steady mdot.
+  The torch throat itself is unchoked. A comparison PNG, per-case PNGs, input
+  archives, numeric histories and `comparison_summary.json` are included.
+
+Earlier timestamped directories retain intermediate configurations, so do not
+assume they match today's base config. The first two input-only directories are
+failed development attempts, not completed simulations. Always read each run's
+`input_config.json`, `run_config.json` and `run_summary.json` together.
+
+### Running and validation
+
+From this folder, with dependencies installed:
+
+```bash
+python isolated_sims/Hopper_Torch_Purge.py
+python isolated_sims/Hopper_Torch_Purge.py --check-inputs
+python isolated_sims/Hopper_Torch_Purge.py --diagram-only
+python isolated_sims/Hopper_Torch_Purge.py --config <saved-run>/run_config.json
+python -m unittest discover -s tests
+```
+
+On this workstation, `./.venv-validation/Scripts/python.exe` is the working
+interpreter. Automated checks cover FullFlow agreement for choked/subcritical
+orifice flow, equal restriction flows, closed/reverse supply paths, full/partial
+valve travel, event release/backpressure, mass conservation, timestep refinement,
+central timeline validation and archive compatibility, steady throat balance,
+throat-area sensitivity, topology tee edges and OTHX interpolation. The cold-gas
+regression fixture pins its physical inputs rather than relying on the editable
+fuel-injector CdA. The complete suite contains 54 tests. PNGs were rendered and
+visually checked; the two comparison cases were re-exported from their saved
+histories without re-solving or changing their physical inputs.
+
+### Physical limits and agreed interpretation
+
+This is **cold ideal-gas purge only**, not torch combustion or a coupled vehicle
+purge solve. No residual propellant flow through closing feeds, liquid clearing,
+phase change, OTHX heating, wall thermal dynamics, hot-main-gas chemistry, trapped
+line storage, check cracking pressure, regulator droop or COPV blowdown is modeled.
+Even main-to-torch backflow is represented as the configured cold nitrogen gas.
+
+The 150 psia pre-release phase is imposed; it does not validate torch firing
+performance. Source consumption is nitrogen admitted through the purge inlet,
+not gas entering from the main chamber. The steady pressure margin is an output,
+not an independently imposed pressure or a demonstrated ingestion protection limit.
+A static pressure boundary does not model chamber oscillations, local turbulence,
+diffusion, simultaneous inward/outward throat exchange or hot-gas penetration.
+
+The session discussed +/-5% **peak** main-pressure amplitude (15 psi at 300 psia,
+8 psi at 160 psia), with +/-1% and +/-10% sensitivity cases, as unvalidated
+exploratory assumptions. No fluctuation waveform, RMS/peak conversion, frequency
+spectrum, safety factor or purge acceptance criterion has been implemented.
+Comparing a mean pressure margin with those amplitudes alone does not establish
+reverse-flow mass or thermal protection. The proposed 3x supply-pressure scaling
+was an estimate, not a simulated/qualified case. No hardware topology bypass or
+injector redesign was implemented.
+
+Next work: characterize local main pressure versus time at the torch outlet;
+define allowable reverse-flow mass/thermal exposure and minimum outward flushing;
+then evaluate a transient backpressure envelope. Add gas/thermal realism or full
+combustion/OTHX coupling only as required for those acceptance criteria. There is
+currently no validated minimum purge mdot or automatic hardware pass/fail.
 
 ## Contents
 

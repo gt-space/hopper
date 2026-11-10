@@ -13,6 +13,7 @@ from Backend.Hopper_Inputs import LBF, load_thrust_curve, ramp_profile, table_va
 
 # Unit conversions and solver bindings are code, not vehicle settings.
 from Backend.Hopper_Config_Fields import GROUP_EXTRAS, GROUPS, UNITS
+from Backend.Hopper_Torch_Config import validate_torch_network
 
 ROOT = Path(__file__).resolve().parents[1]   # hopper_fullflow
 SCHEMA_VERSION = 2
@@ -324,22 +325,38 @@ def load_config(filename=None):
 
     # Side paths. schedule "torch" in a valve uses the firing window of the torch section.
     torch = config['torch']
-    _keys(torch, ('enabled','open_time_s','duration_s','valve_stroke_s','branches'), 'torch',
-          ('enabled','open_time_s','duration_s','valve_stroke_s','branches'))
+    _keys(torch, ('enabled','open_time_s','duration_s','valve_stroke_s','branches','network','standalone_purge'), 'torch',
+          ('enabled','open_time_s','duration_s','valve_stroke_s'))
+    if ('branches' in torch) == ('network' in torch):
+        raise ValueError('torch: specify exactly one of network or legacy branches.')
     start, duration, stroke = torch['open_time_s'], torch['duration_s'], torch['valve_stroke_s']
+    if (not isinstance(torch['enabled'], bool) or any(isinstance(x, bool) or not isinstance(x, (int,float))
+            or not math.isfinite(x) for x in (start,duration,stroke))
+            or start < 0 or duration <= 0 or stroke <= 0 or 2*stroke > duration):
+        raise ValueError('torch: enabled must be boolean, start nonnegative, and duration >= 2 positive valve strokes.')
     torch_schedule = ([0.0, start, start + stroke, start + duration - stroke, start + duration], [0.0, 0.0, 1.0, 1.0, 0.0])
     schedules = {'torch': torch_schedule}
     values['REGULATORS'] = [build_component(r) for r in config['regulators']]
     if any(not isinstance(r, elements.Regulator) for r in values['REGULATORS']):
         raise ValueError('regulators: every entry must be type Regulator.')
     values['BRANCHES'] = [build_branch(b, schedules) for b in config['side_paths']]
-    values['TORCH_BRANCHES'] = [build_branch(b, schedules) for b in torch['branches']]
+    sources = {'ambient','Main Chamber','COPV','LOX Ullage','Fuel Ullage','LOX Tank Liquid','Fuel Tank Liquid'}
+    sources.update(e.outlet_node for key in ('LOX_FEED','FUEL_FEED') for e in values[key][:-1])
+    sources.update(r.outlet_node for r in values['REGULATORS'])
+    values['TORCH_NETWORK'] = (validate_torch_network(torch['network'], sources) if 'network' in torch else None)
+    if values['TORCH_NETWORK'] is not None and torch['enabled']:
+        raise ValueError('torch.network is configured but its chamber/throat/purge-tee transient builder is not implemented. '
+                         'Keep torch.enabled=false; run isolated_sims/Hopper_Torch_Purge.py for independent cold-gas purge. '
+                         'The legacy main-chamber shortcut is not used.')
+    values['TORCH_BRANCHES'] = [build_branch(b, schedules) for b in torch.get('branches', [])]
     values['LOX_DRAIN_EXTRA_ELEMENTS'] = [build_component(e, schedules) for e in config['lox_drain']['extra_elements']]
     values['NOT_MODELLED'] = dict(config['not_modelled'])
     values.update(TORCH_ENABLED=torch['enabled'], TORCH_OPEN_TIME=start, TORCH_DURATION=duration,
                   TORCH_VALVE_STROKE=stroke, TORCH_SCHEDULE=torch_schedule)
     if torch['enabled']:
         values['BRANCHES'] = values['BRANCHES'] + values['TORCH_BRANCHES']
+    elif values['TORCH_NETWORK'] is not None:
+        values['NOT_MODELLED']['Torch fluids network'] = 'Configured fuel, oxidizer, OTHX, purge tee, chamber and throat; transient coupling pending.'
     else:
         values['NOT_MODELLED']['OIMV / FIMV / HX-1'] = 'Torch igniter feeds, switched off (torch.enabled = false)'
     values.update(_purge(config['purge'], values['BRANCHES']))
@@ -349,6 +366,10 @@ def load_config(filename=None):
                + values['REGULATORS'] + values['LOX_DRAIN_EXTRA_ELEMENTS']
                + [e for b in values['BRANCHES'] + values['TORCH_BRANCHES'][:0 if torch['enabled'] else None] for e in b.elements])
     names = [e.name for e in objects]
+    if values['TORCH_NETWORK'] is not None:
+        network = values['TORCH_NETWORK']
+        names += [network['chamber']['name'], network['throat']['name']]
+        names += [e['name'] for key in ('fuel_leg','purge_leg','oxidizer_leg') for e in network[key]['elements']]
     if len(set(names)) != len(names):
         raise ValueError(f'All source and component names must be unique: {sorted({n for n in names if names.count(n) > 1})}.')
     values.update(EXPANSION_RATIO=values['EXIT_AREA']/values['THROAT_AREA'],

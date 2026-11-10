@@ -1,0 +1,44 @@
+{
+  "assumptions": {
+    "gas": "nitrogen",
+    "pressure_units": "psia",
+    "purge_supply_pressure_psia": 764.8,
+    "purge_supply_temperature_k": 293.0,
+    "supply_model": "constant pressure; no COPV blowdown",
+    "FIPORF_cda_mm2": 50.0,
+    "TFPV_open_time_s": 0.08,
+    "TFPV_close_time_s": 0.08,
+    "timing": "TFPV open command at 2 s, close command at 32 s, integrate through 32.5 s",
+    "scope": "cold-gas torch purge only; main-line purges excluded; base config and source code unchanged"
+  },
+  "results": [
+    {
+      "main_chamber_pc_psia": 300,
+      "purge_command_on_s": 30.0,
+      "steady_purge_mdot_g_s": 1.2860076806934924,
+      "integrated_total_gas_consumption_g": 38.67589152239058,
+      "gas_admitted_during_command_on_window_g": 38.576639415045086,
+      "gas_admitted_during_closing_tail_g": 0.09925210734549467,
+      "ideal_instantaneous_valve_30s_consumption_g": 38.58023042080477,
+      "steady_torch_pressure_psia": 300.28639722790655,
+      "steady_torch_over_main_pressure_psi": 0.28639722790652616,
+      "maximum_mass_balance_error_kg": 3.218848358314124e-11,
+      "sampled_flow_integral_difference_kg": -1.803200244676617e-08,
+      "run_directory": "C:/Users/vedan/hopper/sims/hopper_fullflow/Outputs/Torch_Purge/comparison_30s_20261109T183407_098289Z/pc_300_psia/20261109T183418_609166Z"
+    },
+    {
+      "main_chamber_pc_psia": 160,
+      "purge_command_on_s": 30.0,
+      "steady_purge_mdot_g_s": 1.2860076806934928,
+      "integrated_total_gas_consumption_g": 38.675928410542824,
+      "gas_admitted_during_command_on_window_g": 38.576641812121146,
+      "gas_admitted_during_closing_tail_g": 0.09928659842167731,
+      "ideal_instantaneous_valve_30s_consumption_g": 38.58023042080478,
+      "steady_torch_pressure_psia": 160.53708696246912,
+      "steady_torch_over_main_pressure_psi": 0.5370869624691132,
+      "maximum_mass_balance_error_kg": 1.0339248057212208e-12,
+      "sampled_flow_integral_difference_kg": -5.1354137775572184e-08,
+      "run_directory": "C:/Users/vedan/hopper/sims/hopper_fullflow/Outputs/Torch_Purge/comparison_30s_20261109T183407_098289Z/pc_160_psia/20261109T183418_609166Z"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+main_chamber_pressure_psia,torch_pressure_psia,torch_over_main_pressure_psi,purge_mdot_kg_s,throat_back_to_upstream_pressure_ratio,throat_choked
+300.0,300.28639722790655,0.28639722790652616,0.0012860076806934923,0.9990462530752295,False

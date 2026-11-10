@@ -92,6 +92,8 @@ REGULATORS = _values['REGULATORS']
 BRANCHES = _values['BRANCHES']
 TORCH_ENABLED = _values['TORCH_ENABLED']
 TORCH_BRANCHES = _values['TORCH_BRANCHES']
+# Explicit, disabled torch topology; unit-suffixed JSON fields are retained as supplied.
+TORCH_NETWORK = _values['TORCH_NETWORK']
 TORCH_OPEN_TIME = _values['TORCH_OPEN_TIME']
 TORCH_DURATION = _values['TORCH_DURATION']
 TORCH_VALVE_STROKE = _values['TORCH_VALVE_STROKE']
