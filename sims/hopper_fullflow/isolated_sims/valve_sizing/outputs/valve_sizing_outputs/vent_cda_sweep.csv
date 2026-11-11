@@ -25,3 +25,16 @@ FVNT,20.0,1.4666
 FVNT,25.0,1.1733
 FVNT,35.0,0.8381
 FVNT,50.0,0.5867
+OFD_conditional_ullage_vent,0.5,72.5707
+OFD_conditional_ullage_vent,1.0,36.2853
+OFD_conditional_ullage_vent,2.0,18.1427
+OFD_conditional_ullage_vent,4.0,9.0713
+OFD_conditional_ullage_vent,6.0,6.0476
+OFD_conditional_ullage_vent,8.0,4.5357
+OFD_conditional_ullage_vent,9.4,3.8601
+OFD_conditional_ullage_vent,12.0,3.0238
+OFD_conditional_ullage_vent,15.0,2.419
+OFD_conditional_ullage_vent,20.0,1.8143
+OFD_conditional_ullage_vent,25.0,1.4514
+OFD_conditional_ullage_vent,35.0,1.0367
+OFD_conditional_ullage_vent,50.0,0.7257

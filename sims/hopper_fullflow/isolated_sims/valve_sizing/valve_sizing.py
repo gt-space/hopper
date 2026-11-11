@@ -194,7 +194,14 @@ def write_svg(path: Path, title: str, x_label: str, y_label: str, series: list[t
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ovnt, fvnt, ofd = side_path_valve("OVNT"), side_path_valve("FVNT"), side_path_valve("OFD")
-    valve_specs = [("OVNT", ovnt, OX_TANK), ("FVNT", fvnt, FUEL_TANK)]
+    # OFD is physically modeled in FullFlow as a liquid-side drain.  The final
+    # entry reports its *conditional* vent capacity as requested: it applies
+    # only when the installed fill/drain plumbing has a path to LOX ullage.
+    valve_specs = [
+        ("OVNT", ovnt, OX_TANK),
+        ("FVNT", fvnt, FUEL_TANK),
+        ("OFD_conditional_ullage_vent", ofd, OX_TANK),
+    ]
     vent_summary, vent_sweep, vent_history = [], [], []
     vent_plot, pressure_plot = [], []
     for tag, valve, tank in valve_specs:
@@ -267,6 +274,7 @@ def main() -> None:
         f"- Effective flow area: use at least the worst-case {max(r['CdA_required_for_target_mm2'] for r in drain_summary):.2f} mm2 for the assumed {DRAIN_TARGET_TIME_S:g} s drain target across the modeled pressure cases; configured candidate is {ofd_cda:.2f} mm2 (water-equivalent Cv about {ofd_cda * CV_PER_CDA_MM2:.2f}).",
         f"- Fluid/service: liquid oxygen at {float(OX_TANK['liquid_temperature_k']):.0f} K. Require LOX compatibility, oxygen cleaning, cryogenic temperature rating, and a rated working pressure of at least {minimum_rating_psia - AMBIENT_PSIA:.0f} psig.",
         "- Function: normally closed fill/drain valve. Confirm whether it also needs a separate ullage vent flow path; the FullFlow P&ID models OFD only on the liquid side.",
+        f"- Conditional vent result: if OFD is plumbed to LOX ullage, its {ofd_cda:.2f} mm2 CdA vents from 500 psia to 1 psig in {next(r['vent_time_to_1psig_s'] for r in vent_summary if r['valve'] == 'OFD_conditional_ullage_vent'):.2f} s. This is not a valid installed-path result until that ullage connection is confirmed.",
         "",
         "## Model limits - do not use this as a qualification report",
         "- No piping losses, valve travel, heat leak, two-phase flashing/cavitation, or back-pressure transient are modeled.",

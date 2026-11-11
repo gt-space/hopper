@@ -35,4 +35,7 @@
 <polyline fill="none" stroke="#d1495b" stroke-width="3" points="103.7,190.7 112.3,362.8 129.6,448.9 164.2,492.0 198.8,506.3 233.4,513.5 257.6,516.7 302.6,520.7 354.5,523.5 441.0,526.4 527.5,528.1 700.5,530.1 960.0,531.6"/>
 <line x1="107" y1="119" x2="135" y2="119" stroke="#d1495b" stroke-width="3"/>
 <text x="143" y="124" font-family="Arial" font-size="13">FVNT</text>
+<polyline fill="none" stroke="#00798c" stroke-width="3" points="103.7,109.1 112.3,322.0 129.6,428.5 164.2,481.8 198.8,499.5 233.4,508.4 257.6,512.3 302.6,517.3 354.5,520.8 441.0,524.4 527.5,526.5 700.5,528.9 960.0,530.7"/>
+<line x1="107" y1="143" x2="135" y2="143" stroke="#00798c" stroke-width="3"/>
+<text x="143" y="148" font-family="Arial" font-size="13">OFD_conditional_ullage_vent</text>
 </svg>
