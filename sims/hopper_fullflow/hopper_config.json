@@ -216,13 +216,13 @@
       {
         "type": "CheckValve",
         "name": "PROCK",
-        "cda_mm2": 12.0,
+        "cda_mm2": 44.2,
         "schedule": null,
         "length_in": null,
         "outlet_node": "PROCK Outlet",
         "open_time_s": 0.0,
         "close_time_s": 0.0,
-        "note": "EDIT"
+        "note": "EDIT 44.2 mm2 candidate (Cv ~2.6, check valve sizing 2026-11-11; was 12)"
       }
     ],
     "fuel_pressurant": [
@@ -260,13 +260,13 @@
       {
         "type": "CheckValve",
         "name": "PRFCK",
-        "cda_mm2": 12.0,
+        "cda_mm2": 44.2,
         "schedule": null,
         "length_in": null,
         "outlet_node": "PRFCK Outlet",
         "open_time_s": 0.0,
         "close_time_s": 0.0,
-        "note": "EDIT"
+        "note": "EDIT 44.2 mm2 candidate (Cv ~2.6, check valve sizing 2026-11-11; was 12)"
       }
     ],
     "oxidizer_feed": [

@@ -1,35 +1,38 @@
-"""PROCK sizer: LOX tank pressurant check valve.
+"""PROCK sizer: LOX tank pressurant check valve. Inputs are in PROCK_Config.py.
 
 Leg:  COPV -> LOX Pressurant Line -> OBB -> OR-1 -> PROCK -> LOX tank.
 Sizing methodology (team): the pressure rating must exceed 5000 psi; CdA is secondary
-because OR-1 sets the leg flow and can be resized. This script checks:
+because OR-1 sets the leg flow and can be resized. This script finds the requirements:
 
   1. Pressure rating   transient max at the check, plus the static worst case (no
                        regulator on this leg, so the check can see full COPV pressure,
                        bounded only by PRRV, whose full-open point is above its crack).
   2. Reverse dP        the back-pressure the seat must hold (tank side high, line vented).
-  3. Crack pressure    forward dP available vs. candidate crack pressures, and how much of
-                       the flowing time the check would sit below full lift (chatter risk).
+  3. Crack pressure    forward dP available vs. crack pressure, and how much of the
+                       flowing time the check would sit below full lift (chatter risk).
   4. Temperature       gas temperature through the check (COPV blowdown cooling) and the
                        static cold bounds for seal / material selection.
   5. Minimum Cv        smallest check that keeps OR-1 the controlling restriction,
                        now and if the orifice is later enlarged.
   6. Cycles            open/close cycles over the flight (bang-bang driven).
+and then checks the candidate valve in the config against them (PASS / FAIL / NOT ENTERED).
 
 How the transient is used. The full FullFlow vehicle model (Hopper.py) lumps OBB,
 OR-1 and PROCK into ONE series restriction from the gas-line outlet to the tank
 ullage, so its "PROCK Upstream Pressure" track is really the OBB inlet (about COPV
 pressure), not the check inlet. This script rebuilds the check's own inlet pressure from
-the simulated leg mass flow with the compressible-orifice equation across the check
-alone (ideal gas, gamma and R of N2 at the inlet state). With OBB shut, the gas trapped
+the simulated leg mass flow with the compressible-orifice equation across the candidate
+check alone (ideal gas, gamma and R of N2 at the inlet state). The flow itself comes from
+the run made with hopper_config.json's PROCK CdA; if the candidate is very different,
+put its CdA in hopper_config.json and rerun Hopper.py. With OBB shut, the gas trapped
 between it and the check bleeds down to tank pressure (the model's check is ideal: zero
 crack, instant), so the check inlet is taken as the tank pressure.
 
-Not covered (state these as requirements separately): material / service compatibility
-(oxygen service on the outlet side: oxygen-compatible, oxygen-cleaned, cryogenic seals), and the reverse leak rate. The model's check seals perfectly.
+Not simulated: material / service compatibility and reverse leak rate (the model's check
+seals perfectly). They are listed as requirements and checked against the config entries.
 
-Run from sims/hopper_fullflow:   python Hopper_PROCK_Sizing.py
-Outputs: Outputs/PROCK_outputs/  (plots + CSVs)
+Run:      python Hopper_PROCK_Sizing.py      (from any folder)
+Outputs:  Outputs/PROCK_outputs/  (plots + CSVs)
 """
 
 import csv
@@ -41,55 +44,13 @@ from pathlib import Path
 
 import numpy as np
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
-os.chdir(HERE)
-
-import HOPPER_DATA as D
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from PROCK_Config import *    # inputs (also puts sims/hopper_fullflow on the path)
 from scipy.constants import psi
 
 
 # =====================================================================================
-# 1. SIZING INPUTS
-#    Hardware values point at hopper_config.json (through HOPPER_DATA). Edit the JSON
-#    for hardware; edit the criteria below for the sizing itself.
-# =====================================================================================
-
-# ---- Run control ---- #
-REUSE_HISTORY = True          # True: use Outputs/Hopper_Prop_System.h5 if it exists and matches the config.
-                              # False (or no/mismatched file): run the full flight sim (python Hopper.py).
-HISTORY_FILE = D.PROP_FILENAME
-TIME_STEP_S = D.PROP_DT       # simulation.maximum_step_s, used when the full sim is run
-SAVE_STEP_S = D.PROP_SAVE_DT  # simulation.save_interval_s
-OUTPUT_DIR = Path(D.PROP_RESULTS_DIRECTORY) / "PROCK_outputs"
-
-# ---- This valve's leg (flow_paths.oxidizer_pressurant and tanks.oxidizer in the JSON) ---- #
-VALVE = "PROCK"
-SIDE = "LOX"
-LEG = D.LOX_PRESSURANT_LEG
-TANK = D.LOX_TANK
-TANK_RELIEF = "ORV"           # relief on this tank's ullage (side_paths)
-
-# ---- Pressure sources and reliefs (from bottles / side_paths in the JSON) ---- #
-AMBIENT_PA = D.AMBIENT_PRESSURE
-COPV_INITIAL_PA = max(c.pressure for c in D.COPVS)
-COPV_MIN_TEMPERATURE_K = min(D.COPV_MIN_TEMPERATURES)
-RELIEFS = {e.name: e for b in D.BRANCHES for e in b.elements if type(e).__name__ == "ReliefValve"}
-COPV_RELIEF = RELIEFS["PRRV"]
-
-# ---- Sizing criteria ---- #
-REQUIRED_RATING_PSI = 5000.0       # methodology: pressure rating must be > this
-RATING_FACTOR_ON_WORST_CASE = 1.0  # multiply the static worst case (e.g. 1.5 for a proof factor)
-CANDIDATE_CRACK_PSI = [1.0, 3.0, 10.0, 25.0]   # crack pressures to check [psid]
-CDA_LOSS_FRACTION = 0.05           # check may cut the leg effective CdA (bang-bang + orifice) by at most this
-ORIFICE_GROWTH_FACTOR = 2.0        # also size the check for an orifice this much bigger than today's
-CV_PER_IN2 = 38.0                  # Cv = 38 * CdA [in^2], the conversion used throughout the config
-CV_SWEEP = np.geomspace(0.01, 5.0, 300)   # check Cv values for the min-Cv plot
-FLOWING_THRESHOLD_KG_S = 1e-5      # leg mass flow above this counts as "check open and flowing"
-
-
-# =====================================================================================
-# 2. LOGIC
+# LOGIC
 # =====================================================================================
 
 IN2 = 0.0254 ** 2
@@ -119,6 +80,15 @@ def series(*cdas):
     return 1.0 / math.sqrt(sum(1.0 / c ** 2 for c in cdas))
 
 
+def candidate_cda():
+    """Candidate check CdA [m^2]: Cv if given, else CdA, else hopper_config.json's value."""
+    if CANDIDATE_CV is not None:
+        return float(cda_from_cv(CANDIDATE_CV)), "candidate Cv"
+    if CANDIDATE_CDA_MM2 is not None:
+        return CANDIDATE_CDA_MM2 * MM2, "candidate CdA"
+    return CHECK.cda_value, "hopper_config.json"
+
+
 def get_history():
     """Open the full-flow run's history; run the full flight sim first if needed."""
     from Backend.Hopper_Plots import HopperRun
@@ -130,7 +100,7 @@ def get_history():
             print(f"Saved history does not match the config ({error}); re-running.")
     print(f"Running the full flight sim (python Hopper.py, dt = {TIME_STEP_S} s, "
           f"save every {SAVE_STEP_S} s). This takes ~10-20 min...", flush=True)
-    subprocess.run([sys.executable, str(HERE / "Hopper.py")], check=True, cwd=HERE)
+    subprocess.run([sys.executable, str(FULLFLOW_DIR / "Hopper.py")], check=True, cwd=FULLFLOW_DIR)
     return HopperRun(HISTORY_FILE)
 
 
@@ -155,7 +125,7 @@ def check_inlet_pressure(mdot, cda, p_down, t0, gamma, r_gas):
     return brentq(f, p_down, high, xtol=1.0)
 
 
-def analyse(run):
+def analyse(run, check_cda):
     from thermoprop import Fluid
     t = run.time
     track = run.track
@@ -173,10 +143,10 @@ def analyse(run):
         if not (np.isfinite(mdot[i]) and np.isfinite(p_tank[i]) and np.isfinite(h_in[i])):
             continue
         if mdot[i] > FLOWING_THRESHOLD_KG_S:
-            upstream = Fluid(D.PRESSURANT, pressure=float(p_bb_inlet[i]), enthalpy=float(h_in[i]))
+            upstream = Fluid(PRESSURANT, pressure=float(p_bb_inlet[i]), enthalpy=float(h_in[i]))
             t0, gamma, r_gas = float(upstream.temperature), float(upstream.gamma), float(upstream.gas_constant)
-            p_check_in[i] = check_inlet_pressure(float(mdot[i]), CHECK.cda_value, float(p_tank[i]), t0, gamma, r_gas)
-            temperature[i] = float(Fluid(D.PRESSURANT, pressure=float(p_check_in[i]), enthalpy=float(h_in[i])).temperature)
+            p_check_in[i] = check_inlet_pressure(float(mdot[i]), check_cda, float(p_tank[i]), t0, gamma, r_gas)
+            temperature[i] = float(Fluid(PRESSURANT, pressure=float(p_check_in[i]), enthalpy=float(h_in[i])).temperature)
     flowing = mdot > FLOWING_THRESHOLD_KG_S
     check_dp = (p_check_in - p_tank) / psi
 
@@ -195,14 +165,13 @@ def analyse(run):
     bb_open = bb_state > 0.5
     available = (p_copv - p_tank) / psi
     min_available_psi = float(np.nanmin(available[bb_open])) if bb_open.any() else float("nan")
-    crack_rows = []
-    for crack in CANDIDATE_CRACK_PSI:
+
+    def crack_row(crack):
         partial = flowing & (check_dp < crack)
-        crack_rows.append({
-            "crack_psid": crack,
-            "forward_margin_psi": min_available_psi - crack,
-            "flowing_time_below_crack_pct": 100.0 * partial.sum() / max(flowing.sum(), 1),
-        })
+        return {"crack_psid": crack, "forward_margin_psi": min_available_psi - crack,
+                "flowing_time_below_crack_pct": 100.0 * partial.sum() / max(flowing.sum(), 1)}
+
+    crack_rows = [crack_row(c) for c in CRACK_SWEEP_PSI]
 
     # 4. Temperature.
     t_min = float(np.nanmin(temperature)) if flowing.any() else float("nan")
@@ -211,6 +180,7 @@ def analyse(run):
     ullage_t_min = float(np.nanmin(ullage_t))
     copv_t_min = float(np.nanmin(track("COPV Temperature [K]")))
     cold_bound = min(COPV_MIN_TEMPERATURE_K, copv_t_min, ullage_t_min, t_min if np.isfinite(t_min) else np.inf)
+    hot_bound = max(COPV_INITIAL_TEMPERATURE_K, float(np.nanmax(ullage_t)), t_max if np.isfinite(t_max) else -np.inf)
 
     # 5. Minimum Cv.
     rest = series(BANG_BANG.cda_value, ORIFICE.cda_value)
@@ -225,8 +195,8 @@ def analyse(run):
     summary = {
         "valve": CHECK.name,
         "tank": TANK.name,
-        "current_cda_mm2": CHECK.cda_value / MM2,
-        "current_cv": float(cv_from_cda(CHECK.cda_value)),
+        "hopper_config_cda_mm2": CHECK.cda_value / MM2,
+        "hopper_config_cv": float(cv_from_cda(CHECK.cda_value)),
         "copv_initial_psig": float(to_psig(COPV_INITIAL_PA)),
         "prrv_crack_psig": relief_crack_psig,
         "prrv_full_open_psig": relief_full_psig,
@@ -247,15 +217,17 @@ def analyse(run):
         "copv_temp_min_k": copv_t_min,
         "ullage_temp_min_k": ullage_t_min,
         "cold_bound_k": cold_bound,
+        "hot_bound_k": hot_bound,
         "orifice": ORIFICE.name,
         "orifice_cda_mm2": ORIFICE.cda_value / MM2,
         "min_check_cda_mm2": min_cda / MM2,
         "min_check_cv": float(cv_from_cda(min_cda)),
         "min_check_cv_future_orifice": float(cv_from_cda(min_cda_future)),
-        "current_leg_cda_fraction": series(rest, CHECK.cda_value) / rest,
         "bang_bang_cycles": bb_cycles,
         "check_open_cycles": check_cycles,
         "peak_mass_flow_g_s": float(np.nanmax(mdot)) * 1e3,
+        "oxygen_clean_required": OXYGEN_CLEAN_REQUIRED,
+        "service_requirement": SERVICE_REQUIREMENT,
     }
     history = {
         "time_s": t,
@@ -274,16 +246,63 @@ def analyse(run):
         "cv": CV_SWEEP,
         "fraction": np.array([series(rest, c) / rest for c in cda_from_cv(CV_SWEEP)]),
         "fraction_future": np.array([series(rest_future, c) / rest_future for c in cda_from_cv(CV_SWEEP)]),
+        "rest": rest,
     }
-    return summary, history, crack_rows, sweep
+    return summary, history, crack_rows, sweep, crack_row
+
+
+def evaluate_candidate(summary, sweep, crack_row, check_cda, cda_source):
+    """PASS / FAIL / NOT ENTERED for each requirement, against the config's candidate valve."""
+    s = summary
+    cv = float(cv_from_cda(check_cda))
+    rows = []
+
+    def add(item, requirement, candidate, verdict):
+        rows.append({"item": item, "requirement": requirement, "candidate": candidate, "verdict": verdict})
+
+    def verdict(value, ok):
+        return "NOT ENTERED" if value is None else ("PASS" if ok else "FAIL")
+
+    add("Part", "-", CANDIDATE_PART or "not entered", "-")
+    add("Pressure rating [psi]", f"> {s['minimum_rating_psi']:.0f}", CANDIDATE_RATED_PSI,
+        verdict(CANDIDATE_RATED_PSI, CANDIDATE_RATED_PSI is not None and CANDIDATE_RATED_PSI > s["minimum_rating_psi"]))
+    add("Cv (today's orifice)", f">= {s['min_check_cv']:.3f}", f"{cv:.3f} ({cda_source})",
+        "PASS" if cv >= s["min_check_cv"] else "FAIL")
+    add(f"Cv ({s['orifice']} x{ORIFICE_GROWTH_FACTOR:g})", f">= {s['min_check_cv_future_orifice']:.3f}",
+        f"{cv:.3f}", "PASS" if cv >= s["min_check_cv_future_orifice"] else "FAIL")
+    add("Leg CdA kept [%]", f">= {100 * (1 - CDA_LOSS_FRACTION):g}",
+        f"{100 * series(sweep['rest'], check_cda) / sweep['rest']:.1f}", "-")
+    if CANDIDATE_CRACK_PSI is None:
+        add("Crack pressure [psid]", f"< {s['min_forward_dp_available_psi']:.0f}, no partial lift", None, "NOT ENTERED")
+    else:
+        row = crack_row(CANDIDATE_CRACK_PSI)
+        ok = row["forward_margin_psi"] > 0 and row["flowing_time_below_crack_pct"] == 0.0
+        add("Crack pressure [psid]", f"< {s['min_forward_dp_available_psi']:.0f}, no partial lift",
+            f"{CANDIDATE_CRACK_PSI:g} (below full lift {row['flowing_time_below_crack_pct']:.1f} % of flowing time)",
+            "PASS" if ok else "FAIL")
+    add("Min temperature [K]", f"<= {s['cold_bound_k']:.0f}", CANDIDATE_MIN_TEMP_K,
+        verdict(CANDIDATE_MIN_TEMP_K, CANDIDATE_MIN_TEMP_K is not None and CANDIDATE_MIN_TEMP_K <= s["cold_bound_k"]))
+    add("Max temperature [K]", f">= {s['hot_bound_k']:.0f}", CANDIDATE_MAX_TEMP_K,
+        verdict(CANDIDATE_MAX_TEMP_K, CANDIDATE_MAX_TEMP_K is not None and CANDIDATE_MAX_TEMP_K >= s["hot_bound_k"]))
+    if OXYGEN_CLEAN_REQUIRED:
+        add("Oxygen clean", "required", CANDIDATE_OXYGEN_CLEAN, verdict(CANDIDATE_OXYGEN_CLEAN, bool(CANDIDATE_OXYGEN_CLEAN)))
+    else:
+        add("Oxygen clean", "not required", CANDIDATE_OXYGEN_CLEAN, "-")
+    add("Seal material", SERVICE_REQUIREMENT, CANDIDATE_SEAL_MATERIAL,
+        "NOT ENTERED" if CANDIDATE_SEAL_MATERIAL is None else "REVIEW")
+    add("Reverse leak", f"seals at {s['static_reverse_dp_psi']:.0f} psid", CANDIDATE_LEAK_RATING,
+        "NOT ENTERED" if CANDIDATE_LEAK_RATING is None else "REVIEW")
+    return rows, cv
 
 
 run = get_history()
-summary, history, crack_rows, sweep = analyse(run)
+CHECK_CDA, CDA_SOURCE = candidate_cda()
+summary, history, crack_rows, sweep, crack_row = analyse(run, CHECK_CDA)
+candidate_rows, candidate_cv = evaluate_candidate(summary, sweep, crack_row, CHECK_CDA, CDA_SOURCE)
 
 
 # =====================================================================================
-# 3. PLOTS AND SAVING
+# PLOTS AND SAVING
 # =====================================================================================
 
 import matplotlib
@@ -299,6 +318,11 @@ with open(OUTPUT_DIR / f"{prefix}_requirements.csv", "w", newline="") as stream:
     writer = csv.writer(stream)
     writer.writerow(["quantity", "value"])
     writer.writerows(summary.items())
+
+with open(OUTPUT_DIR / f"{prefix}_candidate_check.csv", "w", newline="") as stream:
+    writer = csv.DictWriter(stream, fieldnames=["item", "requirement", "candidate", "verdict"])
+    writer.writeheader()
+    writer.writerows(candidate_rows)
 
 with open(OUTPUT_DIR / f"{prefix}_crack_pressure.csv", "w", newline="") as stream:
     writer = csv.writer(stream)
@@ -316,11 +340,13 @@ with open(OUTPUT_DIR / f"{prefix}_history.csv", "w", newline="") as stream:
 fig, ax = plt.subplots(figsize=(11, 5))
 ax.plot(t, history["copv_psia"], label="COPV")
 ax.plot(t, history["bb_inlet_psia"], label=f"{BANG_BANG.name} inlet (check sees this if blocked)", alpha=0.7)
-ax.plot(t, history["check_inlet_psia"], label=f"{VALVE} inlet (rebuilt)")
+ax.plot(t, history["check_inlet_psia"], label=f"{VALVE} inlet (rebuilt, Cv {candidate_cv:.2f})")
 ax.plot(t, history["tank_psia"], label=f"{VALVE} outlet = {TANK.name} ullage")
 ax.axhline(REQUIRED_RATING_PSI, color="k", ls="--", lw=1, label=f"{REQUIRED_RATING_PSI:g} psi requirement")
 ax.axhline(summary["prrv_crack_psig"], color="tab:red", ls=":", lw=1, label="PRRV crack")
 ax.axhline(summary["prrv_full_open_psig"], color="tab:red", ls="--", lw=1, label="PRRV full open")
+if CANDIDATE_RATED_PSI is not None:
+    ax.axhline(CANDIDATE_RATED_PSI, color="tab:green", lw=1.5, label=f"candidate rating {CANDIDATE_RATED_PSI:g} psi")
 ax.set_xlabel("Time [s]")
 ax.set_ylabel("Pressure [psi]")
 ax.set_title(f"{VALVE} ({SIDE} pressurant check) pressures")
@@ -335,10 +361,12 @@ fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True)
 axes[0].plot(t, history["check_dp_psi"], label=f"{VALVE} forward dP (flowing)")
 axes[0].plot(t, np.maximum(history["reverse_dp_psi"], 0.0), ls="--",
              label=f"{VALVE} reverse dP (tank above line; 0 = never)")
-for crack in CANDIDATE_CRACK_PSI:
+for crack in CRACK_SWEEP_PSI:
     axes[0].axhline(crack, color="grey", lw=0.6, ls=":")
+if CANDIDATE_CRACK_PSI is not None:
+    axes[0].axhline(CANDIDATE_CRACK_PSI, color="tab:green", lw=1.2, label=f"candidate crack {CANDIDATE_CRACK_PSI:g} psid")
 axes[0].set_ylabel("dP across check [psi]")
-axes[0].set_title(f"{VALVE} dP (dotted lines: candidate cracks {CANDIDATE_CRACK_PSI} psid)")
+axes[0].set_title(f"{VALVE} dP (dotted lines: cracks {CRACK_SWEEP_PSI} psid)")
 axes[1].plot(t, 1e3 * history["mass_flow_kg_s"], label=f"{VALVE} mass flow")
 axes[1].set_ylabel("Mass flow [g/s]")
 axes[1].set_xlabel("Time [s]")
@@ -354,6 +382,9 @@ fig, ax = plt.subplots(figsize=(11, 4.5))
 ax.plot(t, history["gas_temperature_k"], ".", ms=4, label=f"{VALVE} gas (saved samples while flowing)")
 ax.plot(t, history["ullage_temperature_k"], lw=1, label=f"{TANK.name} ullage ({VALVE} back side)")
 ax.axhline(COPV_MIN_TEMPERATURE_K, color="tab:red", ls=":", label="COPV minimum temperature (config)")
+for bound, name in ((CANDIDATE_MIN_TEMP_K, "min"), (CANDIDATE_MAX_TEMP_K, "max")):
+    if bound is not None:
+        ax.axhline(bound, color="tab:green", lw=1.2, label=f"candidate {name} rating {bound:g} K")
 ax.set_xlabel("Time [s]")
 ax.set_ylabel("Temperature [K]")
 ax.set_title(f"{VALVE} gas temperatures")
@@ -368,7 +399,9 @@ fig, ax = plt.subplots(figsize=(9, 5))
 o = ORIFICE.name
 ax.semilogx(sweep["cv"], sweep["fraction"], label=f"{o} = {summary['orifice_cda_mm2']:g} mm2 (today)")
 ax.semilogx(sweep["cv"], sweep["fraction_future"], ls="--", label=f"{o} x{ORIFICE_GROWTH_FACTOR:g}")
-ax.axvline(summary["current_cv"], color="grey", ls=":", lw=1, label=f"current {VALVE}, Cv {summary['current_cv']:.2f}")
+ax.axvline(summary["hopper_config_cv"], color="grey", ls=":", lw=1,
+           label=f"hopper_config {VALVE}, Cv {summary['hopper_config_cv']:.2f}")
+ax.axvline(candidate_cv, color="tab:green", lw=1.5, label=f"candidate ({CDA_SOURCE}), Cv {candidate_cv:.2f}")
 ax.plot(summary["min_check_cv"], 1 - CDA_LOSS_FRACTION, "o", color="tab:blue",
         label=f"min Cv {summary['min_check_cv']:.2f}")
 ax.plot(summary["min_check_cv_future_orifice"], 1 - CDA_LOSS_FRACTION, "s", color="tab:orange",
@@ -396,13 +429,15 @@ print(f"  Reverse dP: {s['run_max_reverse_dp_psi']:.1f} psi in the run (line sta
       f"{s['run_min_line_above_tank_psi']:.0f} psi above the tank), {s['static_reverse_dp_psi']:.0f} psi static "
       f"(tank at {TANK_RELIEF} full open, line vented).")
 print(f"  Forward dP available with {BANG_BANG.name} open >= {s['min_forward_dp_available_psi']:.0f} psi; "
-      f"flowing check dP up to {s['max_flowing_check_dp_psi']:.1f} psi (ideal check).")
+      f"flowing check dP up to {s['max_flowing_check_dp_psi']:.1f} psi at Cv {candidate_cv:.3f}.")
 print(f"  Gas temperature {s['gas_temp_min_k']:.0f}-{s['gas_temp_max_k']:.0f} K while flowing; COPV min "
       f"{s['copv_temp_min_k']:.0f} K (config minimum {COPV_MIN_TEMPERATURE_K:g} K), ullage min "
-      f"{s['ullage_temp_min_k']:.0f} K; cold bound {s['cold_bound_k']:.0f} K.")
+      f"{s['ullage_temp_min_k']:.0f} K; rated range must cover {s['cold_bound_k']:.0f}-{s['hot_bound_k']:.0f} K.")
 print(f"  Min Cv {s['min_check_cv']:.3f} ({s['min_check_cda_mm2']:.2f} mm2), {s['min_check_cv_future_orifice']:.3f} "
-      f"for {o} x{ORIFICE_GROWTH_FACTOR:g}; current Cv {s['current_cv']:.3f} keeps "
-      f"{100 * s['current_leg_cda_fraction']:.1f} % of leg CdA.")
+      f"for {o} x{ORIFICE_GROWTH_FACTOR:g}.")
 print(f"  Cycles: {s['bang_bang_cycles']} {BANG_BANG.name} openings, {s['check_open_cycles']} check openings; "
       f"peak flow {s['peak_mass_flow_g_s']:.1f} g/s.")
+print(f"\n  Candidate check ({VALVE}_Config.py):")
+for row in candidate_rows:
+    print(f"    {row['item']:<24} {row['verdict']:<12} need {row['requirement']}; candidate {row['candidate']}")
 print(f"\nResults written to {OUTPUT_DIR}/")

@@ -1,0 +1,12 @@
+item,requirement,candidate,verdict
+Part,-,not entered,-
+Pressure rating [psi],> 5445,,NOT ENTERED
+Cv (today's orifice),>= 1.175,2.603 (candidate CdA),PASS
+Cv (OR-1 x2),>= 2.008,2.603,PASS
+Leg CdA kept [%],>= 95,98.9,-
+Crack pressure [psid],"< 850, no partial lift",,NOT ENTERED
+Min temperature [K],<= 150,,NOT ENTERED
+Max temperature [K],>= 293,,NOT ENTERED
+Oxygen clean,required,,NOT ENTERED
+Seal material,"oxygen-compatible, cryogenic-rated seals (outlet sees LOX ullage)",,NOT ENTERED
+Reverse leak,seals at 605 psid,,NOT ENTERED
