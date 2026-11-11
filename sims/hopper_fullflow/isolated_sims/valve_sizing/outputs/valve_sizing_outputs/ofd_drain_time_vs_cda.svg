@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620">
+<rect width="100%" height="100%" fill="white"/>
+<text x="500.0" y="35" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold">OFD LOX drain time versus effective CdA</text>
+<line x1="95" y1="535.0" x2="960" y2="535.0" stroke="#d8dee4"/>
+<line x1="95.0" y1="75" x2="95.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="540.0" text-anchor="end" font-family="Arial" font-size="13">0</text>
+<text x="95.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">0</text>
+<line x1="95" y1="443.0" x2="960" y2="443.0" stroke="#d8dee4"/>
+<line x1="268.0" y1="75" x2="268.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="448.0" text-anchor="end" font-family="Arial" font-size="13">3.1e+03</text>
+<text x="268.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">10</text>
+<line x1="95" y1="351.0" x2="960" y2="351.0" stroke="#d8dee4"/>
+<line x1="441.0" y1="75" x2="441.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="356.0" text-anchor="end" font-family="Arial" font-size="13">6.2e+03</text>
+<text x="441.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">20</text>
+<line x1="95" y1="259.0" x2="960" y2="259.0" stroke="#d8dee4"/>
+<line x1="614.0" y1="75" x2="614.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="264.0" text-anchor="end" font-family="Arial" font-size="13">9.3e+03</text>
+<text x="614.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">30</text>
+<line x1="95" y1="167.0" x2="960" y2="167.0" stroke="#d8dee4"/>
+<line x1="787.0" y1="75" x2="787.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="172.0" text-anchor="end" font-family="Arial" font-size="13">1.2e+04</text>
+<text x="787.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">40</text>
+<line x1="95" y1="75.0" x2="960" y2="75.0" stroke="#d8dee4"/>
+<line x1="960.0" y1="75" x2="960.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="80.0" text-anchor="end" font-family="Arial" font-size="13">1.6e+04</text>
+<text x="960.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">50</text>
+<line x1="95" y1="535" x2="960" y2="535" stroke="#1f2933" stroke-width="2"/>
+<line x1="95" y1="75" x2="95" y2="535" stroke="#1f2933" stroke-width="2"/>
+<text x="527.5" y="598" text-anchor="middle" font-family="Arial" font-size="16">Effective CdA [mm2]</text>
+<text transform="translate(24 305.0) rotate(-90)" text-anchor="middle" font-family="Arial" font-size="16">Time to 1% LOX remaining [s]</text>
+<polyline fill="none" stroke="#006d77" stroke-width="3" points="103.7,109.1 112.3,322.0 129.6,428.5 164.2,481.8 198.8,499.5 233.4,508.4 257.6,512.3 302.6,517.3 354.5,520.8 441.0,524.4 527.5,526.5 700.5,528.9 960.0,530.7"/>
+<line x1="107" y1="95" x2="135" y2="95" stroke="#006d77" stroke-width="3"/>
+<text x="143" y="100" font-family="Arial" font-size="13">0 psig</text>
+<polyline fill="none" stroke="#d1495b" stroke-width="3" points="103.7,461.4 112.3,498.2 129.6,516.6 164.2,525.8 198.8,528.9 233.4,530.4 257.6,531.1 302.6,531.9 354.5,532.5 441.0,533.2 527.5,533.5 700.5,533.9 960.0,534.3"/>
+<line x1="107" y1="119" x2="135" y2="119" stroke="#d1495b" stroke-width="3"/>
+<text x="143" y="124" font-family="Arial" font-size="13">10 psig</text>
+<polyline fill="none" stroke="#00798c" stroke-width="3" points="103.7,488.1 112.3,511.5 129.6,523.3 164.2,529.1 198.8,531.1 233.4,532.1 257.6,532.5 302.6,533.0 354.5,533.4 441.0,533.8 527.5,534.1 700.5,534.3 960.0,534.5"/>
+<line x1="107" y1="143" x2="135" y2="143" stroke="#00798c" stroke-width="3"/>
+<text x="143" y="148" font-family="Arial" font-size="13">25 psig</text>
+<polyline fill="none" stroke="#6a4c93" stroke-width="3" points="103.7,501.7 112.3,518.3 129.6,526.7 164.2,530.8 198.8,532.2 233.4,532.9 257.6,533.2 302.6,533.6 354.5,533.9 441.0,534.2 527.5,534.3 700.5,534.5 960.0,534.7"/>
+<line x1="107" y1="167" x2="135" y2="167" stroke="#6a4c93" stroke-width="3"/>
+<text x="143" y="172" font-family="Arial" font-size="13">50 psig</text>
+<polyline fill="none" stroke="#ee964b" stroke-width="3" points="103.7,524.3 112.3,529.6 129.6,532.3 164.2,533.7 198.8,534.1 233.4,534.3 257.6,534.4 302.6,534.6 354.5,534.6 441.0,534.7 527.5,534.8 700.5,534.8 960.0,534.9"/>
+<line x1="107" y1="191" x2="135" y2="191" stroke="#ee964b" stroke-width="3"/>
+<text x="143" y="196" font-family="Arial" font-size="13">485.2 psig</text>
+</svg>
