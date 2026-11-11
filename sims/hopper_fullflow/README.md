@@ -52,7 +52,6 @@ The sections are:
 - `tanks`: each with its own bang-bang band and ullage collapse factor;
 - `flow_paths`: the pressurant legs and feed lines, as P&ID element lists (below);
 - `regulators`, `side_paths`, `torch`: every vent, relief, purge and drain on the P&ID;
-- `vent`, `lox_drain`, `tank_sweep`: inputs of the isolated calculators;
 - `not_modelled`: P&ID items with no flow path, for the component table and schematic;
 - `monte_carlo`: runs, seed, dispersions.
 
@@ -307,23 +306,14 @@ The results are written there, then copied to `Outputs/`, and the raw history mo
     (OTV/FTV below 100 % of max CdA);
   - `cda_table.csv`: per thrust-profile point, target and achieved thrust, Pc, MR, flows,
     OTV/FTV CdA and % of max, injector dP, tank and COPV pressure;
-  - `vent_times.csv`: each tank vent's blow-down time, full and empty tank, against
-    `vent.time_requirements_s` (`isolated_sims/Hopper_Vent.py`);
-  - `lox_drain_times.csv`: time to drain the loaded LOX through OFD (plus any
-    `lox_drain.extra_elements` such as OQD) with the ullage held at each test pressure, from a
-    small FullFlow transient with the liquid head (`isolated_sims/Hopper_Drain.py`);
-  - `tank_pressure_sweep.csv` / `.png`: the throttle-valve CdA each tank set pressure needs to
-    fly every point of the thrust profile, against the valve and a design margin; gives the
-    lowest usable tank pressure (`isolated_sims/Hopper_Tank_Pressure_Sweep.py`, steady state);
-  - `purge_flow.csv` / `.png`: whether the LOX and fuel GN2 purges can match each propellant's
-    peak volumetric flow, with the COPV at its end-of-run state
-    (`isolated_sims/Hopper_Purge.py`);
   - `component_table.csv` / `.md`: every P&ID item with type, CdA, set points and source;
   - `schematic.png`: the simulated network, drawn from the element lists;
   - `Hopper_Parameters.xlsx`: every input with status (GUESS / EDIT), owner team, every
     component, the modelling assumptions and the open items.
 
-Each isolated calculator also runs on its own, for example `python isolated_sims/Hopper_Drain.py`.
+The isolated tools run on their own: `python isolated_sims/Hopper_Hotfire.py` (test-stand
+hotfire), `python isolated_sims/Hopper_Torch_Purge.py` (standalone torch purge) and
+`python isolated_sims/Hopper_Results_Page.py` (results page from the latest run).
 
 ## Monte Carlo: WORK IN PROGRESS
 

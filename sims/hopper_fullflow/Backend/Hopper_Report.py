@@ -15,13 +15,6 @@ From a FullFlow results file and the thrust targets it flew:
                       sustained demonstrated thrust, residuals, COPV temperature
                       limits and validity flags, from the metadata saved in the
                       results file
-Vent times come from Hopper_Vent.py (vent_times.csv), LOX drain times from
-Hopper_Drain.py (lox_drain_times.csv), and the tank pressure vs throttle CdA
-sweep from Hopper_Tank_Pressure_Sweep.py (tank_pressure_sweep.csv / .png), and
-the purge flow check from Hopper_Purge.py (purge_flow.csv / .png), and the purge
-check-valve and regulator-set sizing from Hopper_Purge_Sizing.py (purge_sizing.csv / .png), and
-the minimum regulator CdA / Cv from Hopper_Regulator_Sizing.py (regulator_sizing.csv / .png).
-
     python Backend/Hopper_Report.py [results.h5]
 """
 
@@ -303,8 +296,8 @@ def run_summary(filename, targets, table=None):
     return summary
 
 
-def write_report(filename, targets, directory=D.PROP_RESULTS_DIRECTORY, vents=True):
-    """Write cda_table.csv, run_summary.csv (and vent_times.csv); returns the summary."""
+def write_report(filename, targets, directory=D.PROP_RESULTS_DIRECTORY):
+    """Write cda_table.csv and run_summary.csv; returns the summary."""
     os.makedirs(directory, exist_ok=True)
     table = cda_table(filename, targets)
     with open(os.path.join(directory, "cda_table.csv"), "w", newline="", encoding="utf-8") as file:
@@ -312,21 +305,6 @@ def write_report(filename, targets, directory=D.PROP_RESULTS_DIRECTORY, vents=Tr
         writer.writeheader()
         writer.writerows(table)
     summary = run_summary(filename, targets, table)
-    if vents:
-        from isolated_sims.Hopper_Vent import vent_times
-        for row in vent_times(directory)[0]:
-            summary[f"{row['Vent']} time, {row['Case']} tank [s]"] = row["Vent time [s]"]
-        from isolated_sims.Hopper_Drain import drain_times
-        for row in drain_times(directory)[0]:
-            summary[f"LOX drain time at {row['Ullage [psig]']:g} psig [s]"] = row["Drain time [s]"]
-        from isolated_sims.Hopper_Tank_Pressure_Sweep import tank_pressure_sweep
-        summary.update(tank_pressure_sweep(targets, directory))
-        from isolated_sims.Hopper_Purge import purge_check
-        summary.update(purge_check(filename, directory))
-        from isolated_sims.Hopper_Purge_Sizing import purge_sizing
-        summary.update(purge_sizing(filename, directory))
-        from isolated_sims.Hopper_Regulator_Sizing import regulator_sizing
-        summary.update(regulator_sizing(filename, directory))
     with open(os.path.join(directory, "run_summary.csv"), "w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(["Metric", "Value"])

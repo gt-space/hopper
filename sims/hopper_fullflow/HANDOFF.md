@@ -154,6 +154,17 @@ removed; with `enabled` false the network is listed as not modelled, as before.
   `shutdown_sequence` (torch and MCC Pc with every sequenced valve's opening).
 - `ASSUMPTIONS.txt` and `.gitignore` (`Outputs/Hotfire/**/*.h5`) updated.
 
+### Removed on November 11
+
+The isolated sizing calculators were deleted (judged not good enough to keep):
+`Hopper_Purge.py` (purge check), `Hopper_Purge_Sizing.py`, `Hopper_Regulator_Sizing.py`,
+`Hopper_Vent.py`, `Hopper_Drain.py` and `Hopper_Tank_Pressure_Sweep.py`, with their report
+hooks, their config inputs (`vent`, `lox_drain`, `tank_sweep`, and `purge`'s
+`required_fraction_of_peak_flow`, `back_pressure_psia` and `sizing`), their `HOPPER_DATA`
+names, their parameter-workbook rows and their outputs. The descriptions of them above are
+historical. The run report now writes only `run_summary.csv` and `cda_table.csv`. Kept:
+`Hopper_Hotfire.py`, `Hopper_Results_Page.py` and Vedanth's `Hopper_Torch_Purge.py`.
+
 ### Open items
 
 - Pick a purge regulator with Cv ≥ ~0.2, set between about 760 and 800 psig (under

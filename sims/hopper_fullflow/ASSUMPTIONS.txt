@@ -103,14 +103,6 @@ Margin         Fully open equilibrium solves inlet mdot = throat mdot. Latest ba
 
 SEPARATE CALCULATIONS
 ---------------------
-Vent           Adiabatic from 505 psia to 1 psig, no LOX boil-off.
-Drain          OFD only, with no ground-side plumbing, so times are optimistic.
-Tank sweep     Steady state with tanks at set - 5 psi; valve design limit is
-               80 % open.
-Purge check    Steady flow from the end-of-burn COPV through an ideal regulator,
-               compared by volume at feed-line pressure.
-Reg sizing     Same blowdown as purge sizing; for each set, the smallest reg
-               CdA that keeps every purge at its request (reg at set - droop).
 Hotfire        isolated_sims/Hopper_Hotfire.py: test stand with 1000 psia constant
                run tanks, vehicle engine and feed lines. Torch burns on the same
                chamber map into a zero-volume torch chamber; OTHX is a plain tube.

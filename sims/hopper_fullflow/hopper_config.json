@@ -596,41 +596,7 @@
       {"branch": "Fuel Purge", "open_after_shutdown_s": 0.1, "duration_s": 2.0, "note": "FPV opens as the main fuel valve closes"}
     ],
     "valve_stroke_s": 0.01,
-    "simulate_in_transient": true,
-    "required_fraction_of_peak_flow": 1.0,
-    "back_pressure_psia": null,
-    "sizing": {
-      "elements": ["CV-4", "CV-5"],
-      "cda_range_mm2": [0.2, 100.0],
-      "regulator_min_dp_psi": 0.0,
-      "max_regulator_set_psig": null,
-      "time_step_s": 0.25
-    }
-  },
-  "vent": {
-    "end_gauge_pressure_psi": 1.0,
-    "time_requirements_s": {
-      "OVNT Vent": 60.0,
-      "FVNT Vent": 30.0
-    },
-    "time_step_s": 0.1,
-    "max_time_s": 300.0
-  },
-  "lox_drain": {
-    "tank_height_in": 20.454,
-    "branch": "OFD Drain",
-    "extra_elements": [],
-    "outlet_drop_in": 0.0,
-    "ullage_pressures_psig": [0.0, 10.0, 25.0, 50.0],
-    "end_fraction": 0.01,
-    "time_requirement_s": null,
-    "steps": 400,
-    "max_time_s": 3600.0
-  },
-  "tank_sweep": {
-    "pressures_psia": [380, 385, 390, 395, 400, 405, 410, 415, 420, 425, 430, 435, 440, 445, 450, 455, 460, 465, 470, 475, 480, 485, 490, 495, 500, 505, 510, 515, 520, 525, 530, 535, 540, 545, 550],
-    "valve_cda_mm2": 50.0,
-    "valve_margin_fraction": 0.8
+    "simulate_in_transient": true
   },
   "not_modelled": {
     "PRQD": "Pressurant fill quick disconnect (disconnected in flight)",
@@ -689,21 +655,8 @@
     "sequence.ramp_breakpoint_spacing_s": "Solver steps no longer than this through the opening / closing ramps",
     "sequence.tail_off_s": "Simulated after OTV/FTV have closed",
     "outputs.keep_run_history": "false keeps only the latest raw history (Outputs/Hopper_Prop_System.h5, ~220 MB); true also keeps one in every run archive",
-    "vent.end_gauge_pressure_psi": "EDIT GUESS: vented = 1 psig",
-    "vent.time_requirements_s": "Sheet OVNT target vent time, sheet FVNT vent time",
-    "lox_drain.extra_elements": "EDIT ground side of the drain (OQD, GSE line) once known",
-    "lox_drain.outlet_drop_in": "EDIT GUESS drain exit below the tank bottom",
-    "lox_drain.ullage_pressures_psig": "EDIT GUESS test pressures; 0 = vented, gravity only",
-    "lox_drain.tank_height_in": "LOX total length (tank dimensions table); cross-section = tank volume / height",
-    "lox_drain.time_requirement_s": "EDIT null = no requirement",
-    "tank_sweep.valve_margin_fraction": "EDIT design limit: valve at most this fraction of full open",
     "purge.sequence": "Shutdown (user, 2026-11-10): OPV opens with the OTV close, FPV with the FTV close, 2 s each; times from the shutdown request (end of the thrust profile). Was fuel 5 s then LOX 5 s (2026-11-08)",
     "purge.simulate_in_transient": "true opens the purge valves in the full transient after shutdown, so the COPV drain is simulated",
-    "purge.required_fraction_of_peak_flow": "Purge gas volume flow at back pressure must be at least this fraction of the propellant's peak volume flow, for the whole purge",
-    "purge.back_pressure_psia": "null = each feed line's pressure at peak propellant flow, from the run (conservative); a number uses that pressure for both",
-    "purge.sizing.elements": "Elements whose shared CdA is solved for (the purge check valves); every other CdA stays at its config value",
-    "purge.sizing.regulator_min_dp_psi": "EDIT GUESS margin the regulator needs above its set pressure to stay in regulation; 0 = ideal",
-    "purge.sizing.max_regulator_set_psig": "null = no limit; e.g. the ORV-1 crack pressure minus a margin",
     "torch.enabled": "true: the flight sim solves torch.network (torch chamber, throat into the main chamber, TFPV purge) on torch.sequence. false: torch not in the flight sim. The independent torch purge runner works either way.",
     "torch.open_time_s": "Legacy torch.branches window only; the network uses torch.sequence",
     "torch.duration_s": "Legacy torch.branches window only; the network uses torch.sequence",

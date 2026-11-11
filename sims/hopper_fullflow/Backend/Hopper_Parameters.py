@@ -31,7 +31,7 @@ from Backend.Hopper_Hardware import COLUMNS as COMPONENT_COLUMNS, hardware_rows
 OWNERS = {   # section in hopper_config.json -> team that owns those numbers
     "simulation": "Sim", "files": "Sim", "outputs": "Sim", "report": "Sim", "numerics": "Sim", "maximum_thrust": "Sim",
     "monte_carlo": "Sim", "thrust_profile": "GNC / trajectory", "fluids": "Fluids", "bottles": "Fluids", "tanks": "Fluids",
-    "pressurization": "Fluids", "vent": "Fluids", "lox_drain": "Fluids", "tank_sweep": "Fluids", "torch": "Engines",
+    "pressurization": "Fluids", "torch": "Engines",
     "engine": "Engines", "chamber_map": "Engines", "sequence": "Avionics / engines",
 }
 SECTIONS_ON_OTHER_SHEETS = {"schema_version", "description", "notes", "flow_paths", "regulators", "side_paths", "not_modelled"}
@@ -84,12 +84,6 @@ ASSUMPTIONS = [
                "line or chamber flow. All purges are closed during the nominal burn."),
     ("Relief valves", "Opening rises linearly from crack to full-open dP (default 110 % of crack)."),
     ("Side paths", "Vent, relief, purge and drain flows only leave their source (no back-flow)."),
-    ("Vent time", "Adiabatic blowdown of the ullage gas through the vent's CdA from set + upper limit to "
-                  "1 psig, for a full tank (loaded ullage) and an empty tank. No LOX boil-off during the vent."),
-    ("LOX drain", "OFD (same Jaksa valve as OVNT) plus any lox_drain.extra_elements as one CdA; ullage held at "
-                  "each test pressure; outlet pressure = ullage + liquid head over a uniform cross-section "
-                  "(tank volume / height). Incompressible LOX, no boil-off or flashing; the vented case is "
-                  "optimistic because near-saturated LOX will partly flash in the valve."),
     ("Ambient", "Constant 14.8 psia (no altitude change during a hop)."),
     ("Hardware not modelled", "Quick disconnects (disconnected in flight), oxygen diffuser, torch spark "
                               "igniter, sensors."),
@@ -108,16 +102,11 @@ OPEN_ITEMS = [
     ("ORV sizing", "RegO PRV9432T550 has a 0.062 in orifice (about 1.95 mm2 geometric); the sheet requires "
                    "30.8 mm2 CdA (20.5 mm2 minimum). The chosen part looks undersized; check the RegO flow table."),
     ("FRV set pressure", "Sheet FRV tab says 525 psi; the part (PRV9432T550) is 550 psig. Model uses 550."),
-    ("OVNT vent time", "With the Jaksa 9.4 mm2, an empty 15.867 L LOX tank takes about 51 s to vent from 505 psia to "
-                       "1 psig (requirement 60 s)."),
     ("Start-up tank spike", "Both tanks start at set pressure with the bang-bang solenoid open, so the first step "
                             "overshoots to about 570 psia, past the 565 psia relief crack. Start with "
                             "bang_bang_initial_state = 0?"),
     ("Vendor flow data", "No published Cv found for Marotta PLV34, Swagelok SS-4R3A, Check-All BUDSSTF.125SS or the "
                          "UNOX 3/8 NO solenoid. Need datasheets or flow tests."),
-    ("LOX drain path", "Drain time uses only the OFD valve (9.4 mm2). OQD and the GSE drain line will slow it; add "
-                       "them to lox_drain.extra_elements. Drain exit height below the tank and the drain ullage "
-                       "pressure are GUESSes."),
     ("Nozzle note", "LinearizedNozzle docstring says Pc = Pa + 1 psi; nozzle_linear_pressure_drop_psi is 0.5."),
     ("Collapse factor", "LOX 2.0 / fuel 1.1 are assumed. Waiting on Luca for conservative and Vespula values."),
 ]

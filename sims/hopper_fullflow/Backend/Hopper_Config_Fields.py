@@ -61,27 +61,11 @@ GROUPS = {'simulation': {'maximum_step_s': ['PROP_DT', 1],
  'maximum_thrust': {'sustained_duration_s': ['MAX_THRUST_HOLD_TIME', 1],
                     'tracking_tolerance_fraction': ['MAX_THRUST_TRACKING_TOLERANCE', 1]},
  'report': {'thrust_on_fraction': ['REPORT_THRUST_ON_FRACTION', 1],
-            'thrust_tolerance_fraction': ['REPORT_THRUST_TOLERANCE', 1]},
- 'vent': {'end_gauge_pressure_psi': ['VENT_END_GAUGE_PRESSURE', PSI],
-          'time_requirements_s': ['VENT_TIME_REQUIREMENTS', 1],
-          'time_step_s': ['VENT_DT', 1],
-          'max_time_s': ['VENT_MAX_TIME', 1]},
- 'lox_drain': {'tank_height_in': ['LOX_TANK_HEIGHT', INCH],
-               'branch': ['LOX_DRAIN_BRANCH', 1],
-               'outlet_drop_in': ['LOX_DRAIN_OUTLET_DROP', INCH],
-               'ullage_pressures_psig': ['LOX_DRAIN_ULLAGE_PRESSURES', PSI],
-               'end_fraction': ['LOX_DRAIN_END_FRACTION', 1],
-               'time_requirement_s': ['LOX_DRAIN_TIME_REQUIREMENT', 1],
-               'steps': ['DRAIN_STEPS', 1],
-               'max_time_s': ['DRAIN_MAX_TIME', 1]},
- 'tank_sweep': {'pressures_psia': ['TANK_SWEEP_PRESSURES', PSI],
-                'valve_cda_mm2': ['TANK_SWEEP_VALVE_CDA', 1e-06],
-                'valve_margin_fraction': ['TANK_SWEEP_VALVE_MARGIN', 1]}}
+            'thrust_tolerance_fraction': ['REPORT_THRUST_TOLERANCE', 1]}}
 
 # Keys inside a group above that the loader handles itself.
 GROUP_EXTRAS = {'engine': {'cstar_efficiency', 'cf_efficiency'},
-                'numerics': {'controller_steps_per_period', 'valve_steps_per_stroke'},
-                'lox_drain': {'extra_elements'}}
+                'numerics': {'controller_steps_per_period', 'valve_steps_per_stroke'}}
 
 UNITS = {'volume': ['volume_l', 0.001],
  'pressure': ['pressure_psia', PSI],
