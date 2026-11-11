@@ -1,0 +1,65 @@
+{
+  "fullflow_config_relative": "../../hopper_config.json",
+  "sizing_config": "valve_sizing_config.json",
+  "source_values": {
+    "oxidizer_tank": {
+      "type": "Tank",
+      "name": "LOX Tank",
+      "propellant": "LOX",
+      "volume_l": 15.867,
+      "liquid_mass_kg": 15.9982029,
+      "liquid_temperature_k": 90.0,
+      "pressure_psia": 500.0,
+      "ullage_temperature_k": 150.0,
+      "collapse_factor": 2.0,
+      "set_pressure_psia": 500.0,
+      "deadband_high_psi": 5.0,
+      "deadband_low_psi": 5.0,
+      "bang_bang_initial_state": 1.0,
+      "note": "EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 45.54 - 10.27 lb wet - dry"
+    },
+    "fuel_tank": {
+      "type": "Tank",
+      "name": "Fuel Tank",
+      "propellant": "RP-1",
+      "volume_l": 17.929,
+      "liquid_mass_kg": 12.9999573,
+      "liquid_temperature_k": 293.0,
+      "pressure_psia": 500.0,
+      "ullage_temperature_k": 293.0,
+      "collapse_factor": 1.1,
+      "set_pressure_psia": 500.0,
+      "deadband_high_psi": 5.0,
+      "deadband_low_psi": 5.0,
+      "bang_bang_initial_state": 1.0,
+      "note": "EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 42.22 - 13.56 lb wet - dry"
+    },
+    "OVNT": {
+      "type": "Valve",
+      "name": "OVNT",
+      "cda_mm2": 9.4,
+      "schedule": "closed",
+      "note": "Jaksa 2/2 cryo solenoid (info), 9.4 mm^2 (sheet OVNT)"
+    },
+    "FVNT": {
+      "type": "Valve",
+      "name": "FVNT",
+      "cda_mm2": 15.0,
+      "schedule": "closed",
+      "note": "UNOX 3/8 NO solenoid (info); target CdA (sheet FVNT)"
+    },
+    "OFD": {
+      "type": "Valve",
+      "name": "OFD",
+      "cda_mm2": 9.4,
+      "schedule": "closed",
+      "note": "Same valve as OVNT (Jaksa 2/2 cryo solenoid)"
+    }
+  },
+  "assumptions": {
+    "vent_gas": "Nitrogen; the FullFlow config identifies nitrogen as the pressurant.",
+    "vent_process": "Adiabatic ideal-gas blowdown to ambient through the valve CdA; no piping restriction, heat transfer, or two-phase flow.",
+    "drain_process": "Incompressible LOX discharge to ambient at the listed fixed ullage gauge pressures; no flashing, piping restriction, or outlet back-pressure.",
+    "tank_inside_diameter_in": "FullFlow notes 8.5 in OD. This isolated drain model uses 8.5 in as an unverified effective ID."
+  }
+}

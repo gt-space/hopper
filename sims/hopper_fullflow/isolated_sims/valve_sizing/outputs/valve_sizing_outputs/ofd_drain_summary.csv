@@ -1,0 +1,6 @@
+valve,mode,configured_CdA_mm2,water_equivalent_Cv,ullage_gauge_pressure_psig,LOX_load_kg,drain_time_to_1pct_residual_s,CdA_required_for_target_mm2,meets_60s_target
+OFD,LOX liquid drain,9.4,0.553,0.0,15.9982029,979.613,120.0,False
+OFD,LOX liquid drain,9.4,0.553,10.0,15.9982029,132.281,20.724,False
+OFD,LOX liquid drain,9.4,0.553,25.0,15.9982029,84.429,13.227,False
+OFD,LOX liquid drain,9.4,0.553,50.0,15.9982029,59.885,9.382,True
+OFD,LOX liquid drain,9.4,0.553,485.2,15.9982029,19.278,3.02,True

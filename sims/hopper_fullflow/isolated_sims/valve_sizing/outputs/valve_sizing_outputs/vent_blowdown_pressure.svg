@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620">
+<rect width="100%" height="100%" fill="white"/>
+<text x="500.0" y="35" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold">Tank pressure during vent blowdown</text>
+<line x1="95" y1="535.0" x2="960" y2="535.0" stroke="#d8dee4"/>
+<line x1="95.0" y1="75" x2="95.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="540.0" text-anchor="end" font-family="Arial" font-size="13">0</text>
+<text x="95.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">0</text>
+<line x1="95" y1="443.0" x2="960" y2="443.0" stroke="#d8dee4"/>
+<line x1="268.0" y1="75" x2="268.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="448.0" text-anchor="end" font-family="Arial" font-size="13">1.1e+02</text>
+<text x="268.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">0.77</text>
+<line x1="95" y1="351.0" x2="960" y2="351.0" stroke="#d8dee4"/>
+<line x1="441.0" y1="75" x2="441.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="356.0" text-anchor="end" font-family="Arial" font-size="13">2.2e+02</text>
+<text x="441.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">1.5</text>
+<line x1="95" y1="259.0" x2="960" y2="259.0" stroke="#d8dee4"/>
+<line x1="614.0" y1="75" x2="614.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="264.0" text-anchor="end" font-family="Arial" font-size="13">3.2e+02</text>
+<text x="614.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">2.3</text>
+<line x1="95" y1="167.0" x2="960" y2="167.0" stroke="#d8dee4"/>
+<line x1="787.0" y1="75" x2="787.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="172.0" text-anchor="end" font-family="Arial" font-size="13">4.3e+02</text>
+<text x="787.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">3.1</text>
+<line x1="95" y1="75.0" x2="960" y2="75.0" stroke="#d8dee4"/>
+<line x1="960.0" y1="75" x2="960.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="80.0" text-anchor="end" font-family="Arial" font-size="13">5.4e+02</text>
+<text x="960.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">3.8</text>
+<line x1="95" y1="535" x2="960" y2="535" stroke="#1f2933" stroke-width="2"/>
+<line x1="95" y1="75" x2="95" y2="535" stroke="#1f2933" stroke-width="2"/>
+<text x="527.5" y="598" text-anchor="middle" font-family="Arial" font-size="16">Time [s]</text>
+<text transform="translate(24 305.0) rotate(-90)" text-anchor="middle" font-family="Arial" font-size="16">Pressure [psia]</text>
+<polyline fill="none" stroke="#006d77" stroke-width="3" points="95.0,109.1 119.8,161.5 142.3,202.8 164.8,238.9 187.3,270.7 209.8,298.6 232.3,323.2 254.8,344.9 277.3,364.1 299.8,381.1 322.3,396.2 344.8,409.6 367.3,421.6 389.8,432.3 412.3,441.8 434.8,450.4 457.3,458.0 479.8,464.9 502.3,471.1 524.8,476.7 549.6,482.2 574.3,487.1 599.1,491.5 623.8,495.4 648.6,498.9 673.3,502.1 698.1,505.0 722.8,507.6 747.6,509.9 772.4,512.0 797.1,513.9 821.9,515.6 846.6,517.1 871.4,518.4 896.1,519.5 920.9,520.4 945.6,521.2 960.0,521.5"/>
+<line x1="107" y1="95" x2="135" y2="95" stroke="#006d77" stroke-width="3"/>
+<text x="143" y="100" font-family="Arial" font-size="13">OVNT</text>
+<polyline fill="none" stroke="#d1495b" stroke-width="3" points="95.0,109.1 118.0,199.7 141.8,271.0 165.0,324.2 188.9,366.7 212.1,398.7 235.9,424.7 258.8,444.4 282.4,460.6 306.6,473.9 329.8,484.1 353.5,492.6 377.9,499.7 401.0,505.2 424.6,509.8 448.8,513.7 472.2,516.8 496.9,519.3 519.4,520.9 532.0,521.5"/>
+<line x1="107" y1="119" x2="135" y2="119" stroke="#d1495b" stroke-width="3"/>
+<text x="143" y="124" font-family="Arial" font-size="13">FVNT</text>
+</svg>

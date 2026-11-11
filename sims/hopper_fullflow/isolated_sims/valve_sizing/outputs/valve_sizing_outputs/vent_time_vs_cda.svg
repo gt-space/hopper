@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620">
+<rect width="100%" height="100%" fill="white"/>
+<text x="500.0" y="35" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold">OVNT and FVNT vent time versus effective CdA</text>
+<line x1="95" y1="535.0" x2="960" y2="535.0" stroke="#d8dee4"/>
+<line x1="95.0" y1="75" x2="95.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="540.0" text-anchor="end" font-family="Arial" font-size="13">0</text>
+<text x="95.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">0</text>
+<line x1="95" y1="443.0" x2="960" y2="443.0" stroke="#d8dee4"/>
+<line x1="268.0" y1="75" x2="268.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="448.0" text-anchor="end" font-family="Arial" font-size="13">16</text>
+<text x="268.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">10</text>
+<line x1="95" y1="351.0" x2="960" y2="351.0" stroke="#d8dee4"/>
+<line x1="441.0" y1="75" x2="441.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="356.0" text-anchor="end" font-family="Arial" font-size="13">31</text>
+<text x="441.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">20</text>
+<line x1="95" y1="259.0" x2="960" y2="259.0" stroke="#d8dee4"/>
+<line x1="614.0" y1="75" x2="614.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="264.0" text-anchor="end" font-family="Arial" font-size="13">47</text>
+<text x="614.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">30</text>
+<line x1="95" y1="167.0" x2="960" y2="167.0" stroke="#d8dee4"/>
+<line x1="787.0" y1="75" x2="787.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="172.0" text-anchor="end" font-family="Arial" font-size="13">63</text>
+<text x="787.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">40</text>
+<line x1="95" y1="75.0" x2="960" y2="75.0" stroke="#d8dee4"/>
+<line x1="960.0" y1="75" x2="960.0" y2="535" stroke="#eef1f4"/>
+<text x="85" y="80.0" text-anchor="end" font-family="Arial" font-size="13">78</text>
+<text x="960.0" y="559" text-anchor="middle" font-family="Arial" font-size="13">50</text>
+<line x1="95" y1="535" x2="960" y2="535" stroke="#1f2933" stroke-width="2"/>
+<line x1="95" y1="75" x2="95" y2="535" stroke="#1f2933" stroke-width="2"/>
+<text x="527.5" y="598" text-anchor="middle" font-family="Arial" font-size="16">Effective CdA [mm2]</text>
+<text transform="translate(24 305.0) rotate(-90)" text-anchor="middle" font-family="Arial" font-size="16">Time to 1 psig above ambient [s]</text>
+<polyline fill="none" stroke="#006d77" stroke-width="3" points="103.7,109.1 112.3,322.0 129.6,428.5 164.2,481.8 198.8,499.5 233.4,508.4 257.6,512.3 302.6,517.3 354.5,520.8 441.0,524.4 527.5,526.5 700.5,528.9 960.0,530.7"/>
+<line x1="107" y1="95" x2="135" y2="95" stroke="#006d77" stroke-width="3"/>
+<text x="143" y="100" font-family="Arial" font-size="13">OVNT</text>
+<polyline fill="none" stroke="#d1495b" stroke-width="3" points="103.7,190.7 112.3,362.8 129.6,448.9 164.2,492.0 198.8,506.3 233.4,513.5 257.6,516.7 302.6,520.7 354.5,523.5 441.0,526.4 527.5,528.1 700.5,530.1 960.0,531.6"/>
+<line x1="107" y1="119" x2="135" y2="119" stroke="#d1495b" stroke-width="3"/>
+<text x="143" y="124" font-family="Arial" font-size="13">FVNT</text>
+</svg>
