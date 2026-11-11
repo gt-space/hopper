@@ -1,0 +1,16 @@
+{
+  "source_fullflow_config": "../../hopper_config.json",
+  "output_subdirectory": "valve_sizing_outputs",
+  "time_step_s": 0.01,
+  "vent_end_gauge_psig": 1.0,
+  "vent_target_time_s": 60.0,
+  "drain_target_time_s": 60.0,
+  "initial_ullage_fraction": 0.10,
+  "tank_inside_diameter_in": 8.5,
+  "drain_ullage_gauge_pressure_cases_psig": [0.0, 10.0, 25.0, 50.0, 485.2],
+  "minimum_component_pressure_rating_factor": 1.25,
+  "minimum_temperature_margin_k": 10.0,
+  "candidate_cda_sweep_mm2": [0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 9.4, 12.0, 15.0, 20.0, 25.0, 35.0, 50.0],
+  "liquid_properties": {"LOX_density_kg_m3": 1141.0, "RP1_density_kg_m3": 810.0},
+  "assumptions": {"vent_gas": "Nitrogen; FullFlow config pressurant.", "vent_process": "Adiabatic ideal-gas blowdown, no piping restriction.", "drain_process": "Incompressible LOX drain, no flashing or piping restriction.", "tank_inside_diameter_in": "8.5 in OD used as unverified effective ID."}
+}
