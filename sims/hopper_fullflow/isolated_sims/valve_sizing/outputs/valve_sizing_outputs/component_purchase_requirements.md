@@ -1,7 +1,7 @@
 # Purchase requirements generated from Hopper FullFlow
 
 Source config (relative to this script): ../../hopper_config.json
-Run settings: dt=0.01 s; vent target=60 s; drain target=60 s.
+Run settings: dt=0.01 s; vent target=60 s; drain target=60 s; fill target=60 s.
 
 ## Common pressure requirement
 - Minimum working-pressure rating: 625 psia (610 psig), using 1.25x the configured 500 psia operating pressure.
@@ -19,6 +19,7 @@ Run settings: dt=0.01 s; vent target=60 s; drain target=60 s.
 
 ## OFD (LOX fill/drain)
 - Effective flow area: use at least the worst-case 120.00 mm2 for the assumed 60 s drain target across the modeled pressure cases; configured candidate is 9.40 mm2 (water-equivalent Cv about 0.55).
+- Fill capacity: use at least the worst-case 9.35 mm2 to transfer 15.68 kg from 1% to 99% of the Hopper LOX load in the assumed 60 s, across the modeled 50-250 psig supply cases. This is an isolated-valve result, not a validated Hopper fill requirement.
 - Fluid/service: liquid oxygen at 90 K. Require LOX compatibility, oxygen cleaning, cryogenic temperature rating, and a rated working pressure of at least 610 psig.
 - Function: normally closed fill/drain valve. Confirm whether it also needs a separate ullage vent flow path; the FullFlow P&ID models OFD only on the liquid side.
 - Conditional vent result: if OFD is plumbed to LOX ullage, its 9.40 mm2 CdA vents from 500 psia to 1 psig in 3.84 s. This is not a valid installed-path result until that ullage connection is confirmed.
@@ -26,5 +27,5 @@ Run settings: dt=0.01 s; vent target=60 s; drain target=60 s.
 ## Model limits - do not use this as a qualification report
 - No piping losses, valve travel, heat leak, two-phase flashing/cavitation, or back-pressure transient are modeled.
 - The 8.5 in tank OD is used as an unverified effective ID for liquid-head calculation.
-- The 60 s vent/drain targets are explicit sizing assumptions because the supplied configuration does not state these requirements.
+- The 60 s vent/drain/fill targets are explicit sizing assumptions because the supplied Hopper configuration does not state these requirements.
 - Catalog Cv is only a water-flow comparison. Use vendor cryogenic/gas flow curves and tested valve CdA before selecting hardware.
