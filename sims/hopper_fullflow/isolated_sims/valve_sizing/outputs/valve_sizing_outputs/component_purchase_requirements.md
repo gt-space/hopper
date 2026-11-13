@@ -19,7 +19,7 @@ Run settings: dt=0.01 s; vent target=60 s; drain target=60 s; fill target=2880 s
 
 ## OFD (LOX fill/drain)
 - Effective flow area: use at least the worst-case 120.00 mm2 for the assumed 60 s drain target across the modeled pressure cases; configured candidate is 9.40 mm2 (water-equivalent Cv about 0.55).
-- Fill capacity: the fixed 50.00 mm2 ground path and 9.40 mm2 reference OFD require a calculated supply pressure of 3.514 psig to transfer 14.40 kg from 0% to 90% of the Hopper LOX load. The model applies 44.4 min of configurable chilldown/boiloff delay plus 3.6 min of liquid transfer to reproduce the 48.0 min reference total. With that supply pressure held fixed, OFD CdA must be at least 9.40 mm2 to meet the target.
+- Fill capacity: the fixed 2.77 mm2 ground path and 9.40 mm2 reference OFD require a calculated supply pressure of 39.471 psig to transfer 14.40 kg from 0% to 90% of the Hopper LOX load. The model applies 44.4 min of configurable chilldown/boiloff delay plus 3.6 min of liquid transfer to reproduce the 48.0 min reference total. With that supply pressure held fixed, OFD CdA must be at least 9.40 mm2 to meet the target.
 - Fluid/service: liquid oxygen at 90 K. Require LOX compatibility, oxygen cleaning, cryogenic temperature rating, and a rated working pressure of at least 610 psig.
 - Function: normally closed fill/drain valve. Confirm whether it also needs a separate ullage vent flow path; the FullFlow P&ID models OFD only on the liquid side.
 - Conditional vent result: if OFD is plumbed to LOX ullage, its 9.40 mm2 CdA vents from 500 psia to 1 psig in 3.84 s. This is not a valid installed-path result until that ullage connection is confirmed.

@@ -35,7 +35,9 @@ INITIAL_ULLAGE_FRACTION = float(SIZING_CONFIG["initial_ullage_fraction"])
 TANK_INSIDE_DIAMETER_IN = float(SIZING_CONFIG["tank_inside_diameter_in"])
 DRAIN_PRESSURE_CASES_PSIG = list(SIZING_CONFIG["drain_ullage_gauge_pressure_cases_psig"])
 GROUND_FILL_PATH_CDA_MM2 = float(SIZING_CONFIG["ground_fill_path_cda_mm2"])
+OQD_CDA_MM2 = float(SIZING_CONFIG["oqd_cda_mm2"])
 FILL_REFERENCE_OFD_CDA_MM2 = float(SIZING_CONFIG["fill_reference_ofd_cda_mm2"])
+FILL_TIME_TARGETS_S = list(SIZING_CONFIG["fill_time_targets_s"])
 CHILLDOWN_AND_BOILOFF_DELAY_S = float(SIZING_CONFIG["chilldown_and_boiloff_delay_s"])
 FILL_TANK_ULLAGE_GAUGE_PSIG = float(SIZING_CONFIG["fill_tank_ullage_gauge_pressure_psig"])
 FILL_START_LIQUID_FRACTION = float(SIZING_CONFIG["fill_start_liquid_fraction"])
@@ -160,7 +162,7 @@ def fill_flow_kg_s(liquid_mass_kg: float, supply_gauge_psig: float, ofd_cda_mm2:
     liquid_height_m = liquid_mass_kg / (LOX_DENSITY_KG_M3 * tank_area_m2)
     delta_p_pa = ((supply_gauge_psig - FILL_TANK_ULLAGE_GAUGE_PSIG) * PSI_TO_PA
                   - LOX_DENSITY_KG_M3 * G_M_S2 * liquid_height_m)
-    total_cda_mm2 = series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, ofd_cda_mm2)
+    total_cda_mm2 = series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, OQD_CDA_MM2, ofd_cda_mm2)
     if liquid_mass_kg < 0.0 or total_cda_mm2 <= 0.0 or delta_p_pa <= 0.0:
         return 0.0
     return total_cda_mm2 * 1.0e-6 * math.sqrt(2.0 * LOX_DENSITY_KG_M3 * delta_p_pa)
@@ -215,7 +217,7 @@ def fill_duration_closed_form_s(ofd_cda_mm2: float, supply_gauge_psig: float) ->
     This is used only to solve the calibrated supply pressure and the required
     OFD CdA quickly.  The reported fill history still comes from simulate_fill.
     """
-    total_cda_m2 = series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, ofd_cda_mm2) * 1.0e-6
+    total_cda_m2 = series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, OQD_CDA_MM2, ofd_cda_mm2) * 1.0e-6
     if total_cda_m2 <= 0.0:
         return math.inf
     full_mass_kg = float(OX_TANK["liquid_mass_kg"])
@@ -259,19 +261,22 @@ def calculate_fill_supply_pressure_psig() -> float:
     return high_psig
 
 
-def required_ofd_cda_for_fill_target(supply_gauge_psig: float) -> float:
+def required_ofd_cda_for_fill_target(supply_gauge_psig: float, total_fill_target_time_s: float = FILL_TARGET_TIME_S) -> float:
     """Find the least OFD CdA that meets the target with the fixed ground path."""
+    hydraulic_target_time_s = total_fill_target_time_s - CHILLDOWN_AND_BOILOFF_DELAY_S
+    if hydraulic_target_time_s <= 0.0:
+        return math.nan
     def duration_or_infinity(ofd_cda_mm2: float) -> float:
         return fill_duration_closed_form_s(ofd_cda_mm2, supply_gauge_psig)
 
     low_cda_mm2, high_cda_mm2 = 1.0e-6, 1.0
-    while duration_or_infinity(high_cda_mm2) > FILL_HYDRAULIC_TARGET_TIME_S:
+    while duration_or_infinity(high_cda_mm2) > hydraulic_target_time_s:
         high_cda_mm2 *= 2.0
         if high_cda_mm2 > 1.0e6:
             return math.nan
     for _ in range(45):
         middle_cda_mm2 = 0.5 * (low_cda_mm2 + high_cda_mm2)
-        if duration_or_infinity(middle_cda_mm2) > FILL_HYDRAULIC_TARGET_TIME_S:
+        if duration_or_infinity(middle_cda_mm2) > hydraulic_target_time_s:
             low_cda_mm2 = middle_cda_mm2
         else:
             high_cda_mm2 = middle_cda_mm2
@@ -367,15 +372,20 @@ def main() -> None:
     fill_plot = []
     duration, history = simulate_fill(ofd_cda, calculated_fill_supply_psig, keep_history=True)
     required = required_ofd_cda_for_fill_target(calculated_fill_supply_psig)
-    fill_summary.append({"valve": "OFD", "mode": "LOX liquid fill", "configured_CdA_mm2": ofd_cda, "water_equivalent_Cv": round(ofd_cda * CV_PER_CDA_MM2, 3), "ground_fill_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "combined_path_CdA_mm2": round(series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, ofd_cda), 4), "reference_OFD_CdA_mm2": FILL_REFERENCE_OFD_CDA_MM2, "calculated_supply_gauge_pressure_psig": round(calculated_fill_supply_psig, 6), "tank_ullage_gauge_pressure_psig": FILL_TANK_ULLAGE_GAUGE_PSIG, "LOX_mass_added_kg": round((FILL_END_LIQUID_FRACTION - FILL_START_LIQUID_FRACTION) * float(OX_TANK["liquid_mass_kg"]), 5), "fill_start_fraction": FILL_START_LIQUID_FRACTION, "fill_end_fraction": FILL_END_LIQUID_FRACTION, "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(duration, 3), "total_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + duration, 3), "OFD_CdA_required_for_target_mm2": round(required, 3), "meets_target": CHILLDOWN_AND_BOILOFF_DELAY_S + duration <= FILL_TARGET_TIME_S})
+    fill_summary.append({"valve": "OFD", "mode": "LOX liquid fill", "configured_CdA_mm2": ofd_cda, "water_equivalent_Cv": round(ofd_cda * CV_PER_CDA_MM2, 3), "LFS_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "OQD_CdA_mm2": OQD_CDA_MM2, "combined_path_CdA_mm2": round(series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, OQD_CDA_MM2, ofd_cda), 4), "reference_OFD_CdA_mm2": FILL_REFERENCE_OFD_CDA_MM2, "calculated_supply_gauge_pressure_psig": round(calculated_fill_supply_psig, 6), "tank_ullage_gauge_pressure_psig": FILL_TANK_ULLAGE_GAUGE_PSIG, "LOX_mass_added_kg": round((FILL_END_LIQUID_FRACTION - FILL_START_LIQUID_FRACTION) * float(OX_TANK["liquid_mass_kg"]), 5), "fill_start_fraction": FILL_START_LIQUID_FRACTION, "fill_end_fraction": FILL_END_LIQUID_FRACTION, "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(duration, 3), "total_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + duration, 3), "OFD_CdA_required_for_target_mm2": round(required, 3), "meets_target": CHILLDOWN_AND_BOILOFF_DELAY_S + duration <= FILL_TARGET_TIME_S})
     points = []
     for trial_cda in CDA_SWEEP_MM2:
         trial_time, _ = simulate_fill(trial_cda, calculated_fill_supply_psig)
         points.append((trial_cda, trial_time))
-        fill_sweep.append({"ground_fill_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "calculated_supply_gauge_pressure_psig": round(calculated_fill_supply_psig, 6), "OFD_CdA_mm2": trial_cda, "combined_path_CdA_mm2": round(series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, trial_cda), 4), "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(trial_time, 4), "total_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + trial_time, 4)})
-    fill_plot.append((f"Ground CdA {GROUND_FILL_PATH_CDA_MM2:g} mm2", [(cda, CHILLDOWN_AND_BOILOFF_DELAY_S + time_s) for cda, time_s in points]))
+        fill_sweep.append({"LFS_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "OQD_CdA_mm2": OQD_CDA_MM2, "calculated_supply_gauge_pressure_psig": round(calculated_fill_supply_psig, 6), "OFD_CdA_mm2": trial_cda, "combined_path_CdA_mm2": round(series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, OQD_CDA_MM2, trial_cda), 4), "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(trial_time, 4), "total_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + trial_time, 4)})
+    fill_plot.append((f"LFS {GROUND_FILL_PATH_CDA_MM2:g} mm2; OQD {OQD_CDA_MM2:g} mm2", [(cda, CHILLDOWN_AND_BOILOFF_DELAY_S + time_s) for cda, time_s in points]))
     for t, mass, flow in history:
-        fill_history.append({"ground_fill_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "configured_OFD_CdA_mm2": ofd_cda, "calculated_supply_gauge_pressure_psig": round(calculated_fill_supply_psig, 6), "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(t, 4), "elapsed_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + t, 4), "LOX_mass_in_tank_kg": round(mass, 5), "LOX_fill_fraction": round(mass / float(OX_TANK["liquid_mass_kg"]), 6), "LOX_mdot_kg_s": round(flow, 6)})
+        fill_history.append({"LFS_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "OQD_CdA_mm2": OQD_CDA_MM2, "configured_OFD_CdA_mm2": ofd_cda, "calculated_supply_gauge_pressure_psig": round(calculated_fill_supply_psig, 6), "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(t, 4), "elapsed_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + t, 4), "LOX_mass_in_tank_kg": round(mass, 5), "LOX_fill_fraction": round(mass / float(OX_TANK["liquid_mass_kg"]), 6), "LOX_mdot_kg_s": round(flow, 6)})
+
+    fill_targets = []
+    for target_time_s in FILL_TIME_TARGETS_S:
+        required_target_cda = required_ofd_cda_for_fill_target(calculated_fill_supply_psig, target_time_s)
+        fill_targets.append({"total_fill_time_target_s": target_time_s, "total_fill_time_target_min": round(target_time_s / 60.0, 3), "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "LFS_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "OQD_CdA_mm2": OQD_CDA_MM2, "calculated_supply_gauge_pressure_psig": round(calculated_fill_supply_psig, 6), "required_OFD_CdA_mm2": round(required_target_cda, 4) if math.isfinite(required_target_cda) else "unachievable", "note": "unachievable means the fixed LFS/OQD path limits flow before OFD can meet this target" if not math.isfinite(required_target_cda) else ""})
 
     write_csv(OUTPUT_DIR / "vent_summary.csv", vent_summary)
     write_csv(OUTPUT_DIR / "vent_cda_sweep.csv", vent_sweep)
@@ -386,6 +396,7 @@ def main() -> None:
     write_csv(OUTPUT_DIR / "ofd_fill_summary.csv", fill_summary)
     write_csv(OUTPUT_DIR / "ofd_fill_cda_sweep.csv", fill_sweep)
     write_csv(OUTPUT_DIR / "ofd_fill_history.csv", fill_history)
+    write_csv(OUTPUT_DIR / "ofd_fill_required_cda_by_target.csv", fill_targets)
     write_svg(OUTPUT_DIR / "vent_time_vs_cda.svg", "OVNT and FVNT vent time versus effective CdA", "Effective CdA [mm2]", "Time to 1 psig above ambient [s]", vent_plot)
     write_svg(OUTPUT_DIR / "vent_blowdown_pressure.svg", "Tank pressure during vent blowdown", "Time [s]", "Pressure [psia]", pressure_plot)
     write_svg(OUTPUT_DIR / "ofd_drain_time_vs_cda.svg", "OFD LOX drain time versus effective CdA", "Effective CdA [mm2]", "Time to 1% LOX remaining [s]", drain_plot)
