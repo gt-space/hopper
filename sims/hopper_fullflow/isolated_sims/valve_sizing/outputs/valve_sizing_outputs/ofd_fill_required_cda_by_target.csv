@@ -1,7 +1,7 @@
 total_fill_time_target_s,total_fill_time_target_min,chilldown_and_boiloff_delay_s,LFS_path_CdA_mm2,OQD_CdA_mm2,LFS_supply_gauge_pressure_psig,required_OFD_CdA_mm2,note
-2700.0,45.0,2661.3,2.7677,203.91,250.0,unachievable,unachievable means the fixed LFS/OQD path limits flow before OFD can meet this target
-2880.0,48.0,2661.3,2.7677,203.91,250.0,1.1353,
-3000.0,50.0,2661.3,2.7677,203.91,250.0,0.6995,
-3300.0,55.0,2661.3,2.7677,203.91,250.0,0.3627,
-3600.0,60.0,2661.3,2.7677,203.91,250.0,0.2457,
-4500.0,75.0,2661.3,2.7677,203.91,250.0,0.1251,
+2700.0,45.0,2661.3,2.7677,50.0,250.0,unachievable,unachievable means the fixed LFS/OQD path limits flow before OFD can meet this target
+2880.0,48.0,2661.3,2.7677,50.0,250.0,1.1355,
+3000.0,50.0,2661.3,2.7677,50.0,250.0,0.6996,
+3300.0,55.0,2661.3,2.7677,50.0,250.0,0.3627,
+3600.0,60.0,2661.3,2.7677,50.0,250.0,0.2457,
+4500.0,75.0,2661.3,2.7677,50.0,250.0,0.1251,

@@ -29,7 +29,7 @@
 <line x1="95" y1="75" x2="95" y2="535" stroke="#1f2933" stroke-width="2"/>
 <text x="527.5" y="598" text-anchor="middle" font-family="Arial" font-size="16">OFD effective CdA [mm2]</text>
 <text transform="translate(24 305.0) rotate(-90)" text-anchor="middle" font-family="Arial" font-size="16">Total time to 90% LOX load [s]</text>
-<polyline fill="none" stroke="#006d77" stroke-width="3" points="103.7,109.1 112.3,139.4 129.6,153.3 164.2,158.9 198.8,160.2 233.4,160.7 257.6,160.9 302.6,161.0 354.5,161.1 441.0,161.2 527.5,161.3 700.5,161.3 960.0,161.3"/>
+<polyline fill="none" stroke="#006d77" stroke-width="3" points="103.7,109.1 112.3,139.4 129.6,153.3 164.2,158.9 198.8,160.2 233.4,160.7 257.6,160.8 302.6,161.0 354.5,161.1 441.0,161.2 527.5,161.3 700.5,161.3 960.0,161.3"/>
 <line x1="107" y1="95" x2="135" y2="95" stroke="#006d77" stroke-width="3"/>
-<text x="143" y="100" font-family="Arial" font-size="13">LFS 2.7677 mm2; OQD 203.91 mm2</text>
+<text x="143" y="100" font-family="Arial" font-size="13">LFS 2.7677 mm2; OQD 50 mm2</text>
 </svg>
