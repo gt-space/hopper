@@ -11,6 +11,7 @@ Run settings: dt=0.01 s; vent target=60 s; drain target=60 s; OFD fill is a CdA-
 - Effective flow area: at least 0.60 mm2 for the assumed 60 s vent target; configured candidate is 9.40 mm2 (water-equivalent Cv about 0.55).
 - Fluid/service: dry nitrogen ullage in LOX service; materials and seals must be oxygen-clean and compatible with LOX-adjacent hardware. Minimum modeled temperature: 80 K (-193 C), including margin.
 - Function: normally closed on-off vent valve, venting 500 psia initial tank pressure to ambient. Verify the required electrical actuation, default state, cycle life, and vent-line plumbing with the vehicle team.
+- Initial-fill boiloff screen: at 5 psig tank control pressure, candidate OVNT capacity is compared with displaced ullage gas plus GOX boiloff. The configurable heat-load sweep spans 0 to 500 W; replace it with Hopper thermal data before using the result for selection.
 
 ## FVNT (fuel ullage nitrogen vent)
 - Effective flow area: at least 0.49 mm2 for the assumed 60 s vent target; configured candidate is 15.00 mm2 (water-equivalent Cv about 0.88).

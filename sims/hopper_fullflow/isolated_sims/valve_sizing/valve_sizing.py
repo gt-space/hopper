@@ -41,6 +41,11 @@ CHILLDOWN_AND_BOILOFF_DELAY_S = float(SIZING_CONFIG["chilldown_and_boiloff_delay
 FILL_TANK_ULLAGE_GAUGE_PSIG = float(SIZING_CONFIG["fill_tank_ullage_gauge_pressure_psig"])
 FILL_START_LIQUID_FRACTION = float(SIZING_CONFIG["fill_start_liquid_fraction"])
 FILL_END_LIQUID_FRACTION = float(SIZING_CONFIG["fill_end_liquid_fraction"])
+FILL_BOILOFF_HEAT_LOAD_SWEEP_W = list(SIZING_CONFIG["fill_boiloff_heat_load_sweep_w"])
+FILL_BOILOFF_LATENT_HEAT_J_KG = float(SIZING_CONFIG["fill_boiloff_latent_heat_j_kg"])
+FILL_BOILOFF_GAS_TEMPERATURE_K = float(SIZING_CONFIG["fill_boiloff_gas_temperature_k"])
+FILL_BOILOFF_VENT_CONTROL_GAUGE_PSIG = float(SIZING_CONFIG["fill_boiloff_vent_control_gauge_pressure_psig"])
+FILL_BOILOFF_OVNT_CDA_SWEEP_MM2 = list(SIZING_CONFIG["fill_boiloff_ovnt_cda_sweep_mm2"])
 PRESSURE_RATING_FACTOR = float(SIZING_CONFIG["minimum_component_pressure_rating_factor"])
 TEMPERATURE_MARGIN_K = float(SIZING_CONFIG["minimum_temperature_margin_k"])
 CDA_SWEEP_MM2 = list(SIZING_CONFIG["candidate_cda_sweep_mm2"])
@@ -57,6 +62,8 @@ INCH_TO_M = 0.0254
 G_M_S2 = 9.80665
 N2_GAMMA = 1.4
 N2_R_J_KG_K = 296.8
+GOX_GAMMA = 1.4
+GOX_R_J_KG_K = 259.8
 GPM_PER_M3_S = 15850.3231415
 # For water at 1 psi, Cv = 0.05885 * CdA[mm2]. This is only a catalog bridge.
 CV_PER_CDA_MM2 = 0.05885
@@ -82,21 +89,27 @@ def initial_ullage_volume_m3(tank: dict) -> float:
     return tank_volume_m3(tank) * INITIAL_ULLAGE_FRACTION
 
 
-def gas_orifice_mdot_kg_s(cda_mm2: float, pressure_psia: float, temperature_k: float) -> float:
-    """Ideal nitrogen discharge to ambient through a CdA, including choking."""
+def gas_orifice_mdot_kg_s(
+    cda_mm2: float,
+    pressure_psia: float,
+    temperature_k: float,
+    gamma: float = N2_GAMMA,
+    gas_constant_j_kg_k: float = N2_R_J_KG_K,
+) -> float:
+    """Ideal-gas discharge to ambient through a CdA, including choking."""
     cda_m2 = cda_mm2 * 1.0e-6
     p_up = pressure_psia * PSI_TO_PA
     p_down = AMBIENT_PSIA * PSI_TO_PA
     if cda_m2 <= 0.0 or p_up <= p_down or temperature_k <= 0.0:
         return 0.0
     ratio = p_down / p_up
-    critical_ratio = (2.0 / (N2_GAMMA + 1.0)) ** (N2_GAMMA / (N2_GAMMA - 1.0))
+    critical_ratio = (2.0 / (gamma + 1.0)) ** (gamma / (gamma - 1.0))
     if ratio <= critical_ratio:
-        factor = math.sqrt(N2_GAMMA / (N2_R_J_KG_K * temperature_k))
-        factor *= (2.0 / (N2_GAMMA + 1.0)) ** ((N2_GAMMA + 1.0) / (2.0 * (N2_GAMMA - 1.0)))
+        factor = math.sqrt(gamma / (gas_constant_j_kg_k * temperature_k))
+        factor *= (2.0 / (gamma + 1.0)) ** ((gamma + 1.0) / (2.0 * (gamma - 1.0)))
         return cda_m2 * p_up * factor
-    subcritical = ratio ** (2.0 / N2_GAMMA) - ratio ** ((N2_GAMMA + 1.0) / N2_GAMMA)
-    return cda_m2 * p_up * math.sqrt(2.0 * N2_GAMMA * subcritical / (N2_R_J_KG_K * temperature_k * (N2_GAMMA - 1.0)))
+    subcritical = ratio ** (2.0 / gamma) - ratio ** ((gamma + 1.0) / gamma)
+    return cda_m2 * p_up * math.sqrt(2.0 * gamma * subcritical / (gas_constant_j_kg_k * temperature_k * (gamma - 1.0)))
 
 
 def simulate_vent(tank: dict, cda_mm2: float, keep_history: bool = False) -> tuple[float, list[tuple[float, float, float]]]:
@@ -147,7 +160,12 @@ def series_cda_mm2(*cda_values_mm2: float) -> float:
     return 1.0 / math.sqrt(sum(1.0 / cda ** 2 for cda in cda_values_mm2))
 
 
-def fill_flow_kg_s(liquid_mass_kg: float, supply_gauge_psig: float, ofd_cda_mm2: float) -> float:
+def fill_flow_kg_s(
+    liquid_mass_kg: float,
+    supply_gauge_psig: float,
+    ofd_cda_mm2: float,
+    tank_ullage_gauge_psig: float | None = None,
+) -> float:
     """Incompressible LOX flow from a ground supply into the bottom of the tank.
 
     The tank ullage is held at the configured pressure by the separate OVNT
@@ -158,12 +176,51 @@ def fill_flow_kg_s(liquid_mass_kg: float, supply_gauge_psig: float, ofd_cda_mm2:
     """
     tank_area_m2 = math.pi * (TANK_INSIDE_DIAMETER_IN * INCH_TO_M) ** 2 / 4.0
     liquid_height_m = liquid_mass_kg / (LOX_DENSITY_KG_M3 * tank_area_m2)
-    delta_p_pa = ((supply_gauge_psig - FILL_TANK_ULLAGE_GAUGE_PSIG) * PSI_TO_PA
+    ullage_gauge_psig = FILL_TANK_ULLAGE_GAUGE_PSIG if tank_ullage_gauge_psig is None else tank_ullage_gauge_psig
+    delta_p_pa = ((supply_gauge_psig - ullage_gauge_psig) * PSI_TO_PA
                   - LOX_DENSITY_KG_M3 * G_M_S2 * liquid_height_m)
     total_cda_mm2 = series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, OQD_CDA_MM2, ofd_cda_mm2)
     if liquid_mass_kg < 0.0 or total_cda_mm2 <= 0.0 or delta_p_pa <= 0.0:
         return 0.0
     return total_cda_mm2 * 1.0e-6 * math.sqrt(2.0 * LOX_DENSITY_KG_M3 * delta_p_pa)
+
+
+def fill_boiloff_pressure_screen(heat_load_w: float, ovnt_cda_mm2: float) -> dict:
+    """Screen OVNT capacity against ullage displacement plus generated GOX."""
+    liquid_mdot = fill_flow_kg_s(
+        0.0,
+        LFS_SUPPLY_GAUGE_PSIG,
+        FILL_HISTORY_OFD_CDA_MM2,
+        FILL_BOILOFF_VENT_CONTROL_GAUGE_PSIG,
+    )
+    tank_pressure_psia = AMBIENT_PSIA + FILL_BOILOFF_VENT_CONTROL_GAUGE_PSIG
+    gox_density = tank_pressure_psia * PSI_TO_PA / (GOX_R_J_KG_K * FILL_BOILOFF_GAS_TEMPERATURE_K)
+    displaced_ullage_mdot = gox_density * liquid_mdot / LOX_DENSITY_KG_M3
+    boiloff_mdot = max(0.0, heat_load_w) / FILL_BOILOFF_LATENT_HEAT_J_KG
+    required_vent_mdot = displaced_ullage_mdot + boiloff_mdot
+    vent_capacity_mdot = gas_orifice_mdot_kg_s(
+        ovnt_cda_mm2,
+        tank_pressure_psia,
+        FILL_BOILOFF_GAS_TEMPERATURE_K,
+        GOX_GAMMA,
+        GOX_R_J_KG_K,
+    )
+    return {
+        "liquid_fill_mdot_kg_s": liquid_mdot,
+        "displaced_ullage_gas_mdot_kg_s": displaced_ullage_mdot,
+        "boiloff_gox_mdot_kg_s": boiloff_mdot,
+        "required_vent_mdot_kg_s": required_vent_mdot,
+        "ovnt_vent_capacity_mdot_kg_s": vent_capacity_mdot,
+        "vent_capacity_margin_kg_s": vent_capacity_mdot - required_vent_mdot,
+        "meets_steady_pressure_control": vent_capacity_mdot >= required_vent_mdot,
+    }
+
+
+def required_ovnt_cda_for_fill_boiloff(heat_load_w: float) -> float:
+    """Return the ideal-gas OVNT CdA that balances generated and displaced gas."""
+    required_mdot = fill_boiloff_pressure_screen(heat_load_w, 0.0)["required_vent_mdot_kg_s"]
+    unit_capacity = fill_boiloff_pressure_screen(heat_load_w, 1.0)["ovnt_vent_capacity_mdot_kg_s"]
+    return required_mdot / unit_capacity if unit_capacity > 0.0 else math.inf
 
 
 def simulate_drain(cda_mm2: float, ullage_gauge_psig: float, keep_history: bool = False) -> tuple[float, list[tuple[float, float, float]]]:
@@ -329,6 +386,27 @@ def main() -> None:
     for t, mass, flow in history:
         fill_history.append({"LFS_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "OQD_CdA_mm2": OQD_CDA_MM2, "example_OFD_CdA_mm2": FILL_HISTORY_OFD_CDA_MM2, "LFS_supply_gauge_pressure_psig": LFS_SUPPLY_GAUGE_PSIG, "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(t, 4), "elapsed_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + t, 4), "LOX_mass_in_tank_kg": round(mass, 5), "LOX_fill_fraction": round(mass / float(OX_TANK["liquid_mass_kg"]), 6), "LOX_mdot_kg_s": round(flow, 6)})
 
+    boiloff_screen_rows, boiloff_required_cda = [], []
+    for heat_load_w in FILL_BOILOFF_HEAT_LOAD_SWEEP_W:
+        boiloff_required_cda_mm2 = required_ovnt_cda_for_fill_boiloff(heat_load_w)
+        boiloff_required_cda.append((heat_load_w, boiloff_required_cda_mm2))
+        for trial_ovnt_cda in FILL_BOILOFF_OVNT_CDA_SWEEP_MM2:
+            screen = fill_boiloff_pressure_screen(heat_load_w, trial_ovnt_cda)
+            boiloff_screen_rows.append({
+                "heat_load_into_LOX_W": heat_load_w,
+                "tank_control_gauge_pressure_psig": FILL_BOILOFF_VENT_CONTROL_GAUGE_PSIG,
+                "OVNT_CdA_mm2": trial_ovnt_cda,
+                "reference_OFD_CdA_mm2": FILL_HISTORY_OFD_CDA_MM2,
+                "liquid_fill_mdot_kg_s": round(screen["liquid_fill_mdot_kg_s"], 8),
+                "displaced_ullage_gas_mdot_kg_s": round(screen["displaced_ullage_gas_mdot_kg_s"], 8),
+                "boiloff_GOX_mdot_kg_s": round(screen["boiloff_gox_mdot_kg_s"], 8),
+                "required_vent_mdot_kg_s": round(screen["required_vent_mdot_kg_s"], 8),
+                "OVNT_vent_capacity_mdot_kg_s": round(screen["ovnt_vent_capacity_mdot_kg_s"], 8),
+                "vent_capacity_margin_kg_s": round(screen["vent_capacity_margin_kg_s"], 8),
+                "required_OVNT_CdA_mm2": round(boiloff_required_cda_mm2, 6),
+                "meets_steady_pressure_control": screen["meets_steady_pressure_control"],
+            })
+
     write_csv(OUTPUT_DIR / "vent_summary.csv", vent_summary)
     write_csv(OUTPUT_DIR / "vent_cda_sweep.csv", vent_sweep)
     write_csv(OUTPUT_DIR / "vent_history.csv", vent_history)
@@ -338,10 +416,12 @@ def main() -> None:
     write_csv(OUTPUT_DIR / "ofd_fill_summary.csv", fill_summary)
     write_csv(OUTPUT_DIR / "ofd_fill_cda_sweep.csv", fill_sweep)
     write_csv(OUTPUT_DIR / "ofd_fill_history.csv", fill_history)
+    write_csv(OUTPUT_DIR / "ovnt_fill_boiloff_capacity_sweep.csv", boiloff_screen_rows)
     write_svg(OUTPUT_DIR / "vent_time_vs_cda.svg", "OVNT and FVNT vent time versus effective CdA", "Effective CdA [mm2]", "Time to 1 psig above ambient [s]", vent_plot)
     write_svg(OUTPUT_DIR / "vent_blowdown_pressure.svg", "Tank pressure during vent blowdown", "Time [s]", "Pressure [psia]", pressure_plot)
     write_svg(OUTPUT_DIR / "ofd_drain_time_vs_cda.svg", "OFD LOX drain time versus effective CdA", "Effective CdA [mm2]", "Time to 1% LOX remaining [s]", drain_plot)
     write_svg(OUTPUT_DIR / "ofd_fill_time_vs_cda.svg", "OFD total LOX fill operation time versus CdA", "OFD effective CdA [mm2]", f"Total time to {FILL_END_LIQUID_FRACTION:.0%} LOX load [s]", fill_plot)
+    write_svg(OUTPUT_DIR / "ovnt_required_cda_vs_boiloff_heat.svg", "OVNT CdA required during initial LOX fill", "Heat load into LOX [W]", "Required OVNT CdA [mm2]", [(f"{FILL_BOILOFF_VENT_CONTROL_GAUGE_PSIG:g} psig control", boiloff_required_cda)])
 
     max_pressure_psia = max(float(OX_TANK["pressure_psia"]), float(FUEL_TANK["pressure_psia"]))
     minimum_rating_psia = max_pressure_psia * PRESSURE_RATING_FACTOR
@@ -360,6 +440,7 @@ def main() -> None:
         f"- Effective flow area: at least {next(r['CdA_required_for_target_mm2'] for r in vent_summary if r['valve'] == 'OVNT'):.2f} mm2 for the assumed {VENT_TARGET_TIME_S:g} s vent target; configured candidate is {float(ovnt['cda_mm2']):.2f} mm2 (water-equivalent Cv about {float(ovnt['cda_mm2']) * CV_PER_CDA_MM2:.2f}).",
         f"- Fluid/service: dry nitrogen ullage in LOX service; materials and seals must be oxygen-clean and compatible with LOX-adjacent hardware. Minimum modeled temperature: {cold_limit_k:.0f} K ({cold_limit_k - 273.15:.0f} C), including margin.",
         "- Function: normally closed on-off vent valve, venting 500 psia initial tank pressure to ambient. Verify the required electrical actuation, default state, cycle life, and vent-line plumbing with the vehicle team.",
+        f"- Initial-fill boiloff screen: at {FILL_BOILOFF_VENT_CONTROL_GAUGE_PSIG:g} psig tank control pressure, candidate OVNT capacity is compared with displaced ullage gas plus GOX boiloff. The configurable heat-load sweep spans {min(FILL_BOILOFF_HEAT_LOAD_SWEEP_W):g} to {max(FILL_BOILOFF_HEAT_LOAD_SWEEP_W):g} W; replace it with Hopper thermal data before using the result for selection.",
         "",
         "## FVNT (fuel ullage nitrogen vent)",
         f"- Effective flow area: at least {next(r['CdA_required_for_target_mm2'] for r in vent_summary if r['valve'] == 'FVNT'):.2f} mm2 for the assumed {VENT_TARGET_TIME_S:g} s vent target; configured candidate is {float(fvnt['cda_mm2']):.2f} mm2 (water-equivalent Cv about {float(fvnt['cda_mm2']) * CV_PER_CDA_MM2:.2f}).",
