@@ -1,2 +1,2 @@
 valve,mode,example_OFD_CdA_mm2,LFS_path_CdA_mm2,OQD_CdA_mm2,combined_path_CdA_mm2,LFS_supply_gauge_pressure_psig,tank_ullage_gauge_pressure_psig,LOX_mass_added_kg,fill_start_fraction,fill_end_fraction,chilldown_and_boiloff_delay_s,liquid_transfer_time_s,total_fill_operation_time_s,OFD_CdA_required_for_target_mm2,meets_target
-OFD,LOX liquid fill,4.0,2.7677,50.0,2.2736,250.0,0.0,14.39838,0.0,0.9,2661.3,101.03,2762.33,1.136,True
+OFD,LOX liquid fill,4.0,2.7677,203.91,2.2758,250.0,0.0,14.39838,0.0,0.9,2661.3,100.931,2762.231,1.135,True
