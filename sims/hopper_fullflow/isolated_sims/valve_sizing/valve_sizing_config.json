@@ -11,7 +11,8 @@
   "drain_ullage_gauge_pressure_cases_psig": [0.0, 10.0, 25.0, 50.0, 485.2],
   "ground_fill_path_cda_mm2": 2.7677,
   "oqd_cda_mm2": 50.0,
-  "fill_reference_ofd_cda_mm2": 9.4,
+  "lfs_supply_gauge_pressure_psig": 250.0,
+  "fill_history_ofd_cda_mm2": 4.0,
   "fill_time_targets_s": [2700.0, 2880.0, 3000.0, 3300.0, 3600.0, 4500.0],
   "chilldown_and_boiloff_delay_s": 2661.3,
   "fill_tank_ullage_gauge_pressure_psig": 0.0,
@@ -28,7 +29,7 @@
     "vent_gas": "Nitrogen; the FullFlow config identifies nitrogen as the pressurant.",
     "vent_process": "Adiabatic ideal-gas blowdown to ambient through the valve CdA; no piping restriction, heat transfer, or two-phase flow.",
     "drain_process": "Incompressible LOX discharge to ambient at the listed fixed ullage gauge pressures; no flashing, piping restriction, or outlet back-pressure.",
-    "fill_process": "Incompressible LOX fill through the fixed LFS path, OQD, and OFD in series, to a tank held at the listed fixed ullage gauge pressure. The script solves the supply pressure needed for fill_reference_ofd_cda_mm2 to reach the liquid-transfer portion of fill_target_time_s after subtracting chilldown_and_boiloff_delay_s, then holds that calculated supply pressure fixed while sweeping OFD CdA. The delay is a first-pass lumped representation of chilldown, boiloff, and conditioning; it is calibrated so the reference case reaches the documented 48 min total 90% fill time. ground_fill_path_cda_mm2 is the 0.00429 in2 (2.7677 mm2) LFS Fill System CdA reported by the LOX Fill GFSSP Sim. OQD CdA is not documented in the retrieved Notion material, so oqd_cda_mm2 is temporarily a 50 mm2 3/8 in valve estimate (0.375 in bore, Cd about 0.70). Hydrostatic pressure of the rising liquid column is included. No other hose, QD, line, vent, heat-leak, flashing, or back-pressure restrictions are included.",
+    "fill_process": "Incompressible LOX fill through the fixed LFS path, OQD, and OFD in series, to a tank held at the listed fixed ullage gauge pressure. LFS supply pressure is the 250 psig value reported by the LOX Fill GFSSP Sim; it is not derived from any OFD value. ground_fill_path_cda_mm2 is that page's 0.00429 in2 (2.7677 mm2) LFS Fill System CdA. The script uses these fixed LFS inputs and solves only for the OFD CdA needed to reach each configured fill-time target. OQD CdA is not documented in the retrieved Notion material, so oqd_cda_mm2 is temporarily a 50 mm2 3/8 in valve estimate (0.375 in bore, Cd about 0.70). chilldown_and_boiloff_delay_s is a separate configurable first-pass delay, not a valve restriction. Hydrostatic pressure of the rising liquid column is included. No other hose, QD, line, vent, heat-leak, flashing, or back-pressure restrictions are included.",
     "fill_delay_calibration": "The 48 min Elytra reference corresponds to about 0.0658 kg/s for its 418 lbm 90% fill. Applying that average liquid-transfer rate to the 14.398 kg Hopper 90% fill gives 218.7 s of liquid transfer; the remaining 2661.3 s is modeled as the configurable conditioning delay.",
     "tank_inside_diameter_in": "FullFlow notes 8.5 in OD. This isolated drain model uses 8.5 in as an unverified effective ID."
   }
