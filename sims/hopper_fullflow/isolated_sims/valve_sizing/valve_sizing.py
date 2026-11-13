@@ -30,7 +30,6 @@ TIME_STEP_S = float(SIZING_CONFIG["time_step_s"])
 VENT_END_GAUGE_PSIG = float(SIZING_CONFIG["vent_end_gauge_psig"])
 VENT_TARGET_TIME_S = float(SIZING_CONFIG["vent_target_time_s"])
 DRAIN_TARGET_TIME_S = float(SIZING_CONFIG["drain_target_time_s"])
-FILL_TARGET_TIME_S = float(SIZING_CONFIG["fill_target_time_s"])
 INITIAL_ULLAGE_FRACTION = float(SIZING_CONFIG["initial_ullage_fraction"])
 TANK_INSIDE_DIAMETER_IN = float(SIZING_CONFIG["tank_inside_diameter_in"])
 DRAIN_PRESSURE_CASES_PSIG = list(SIZING_CONFIG["drain_ullage_gauge_pressure_cases_psig"])
@@ -38,7 +37,6 @@ GROUND_FILL_PATH_CDA_MM2 = float(SIZING_CONFIG["ground_fill_path_cda_mm2"])
 OQD_CDA_MM2 = float(SIZING_CONFIG["oqd_cda_mm2"])
 LFS_SUPPLY_GAUGE_PSIG = float(SIZING_CONFIG["lfs_supply_gauge_pressure_psig"])
 FILL_HISTORY_OFD_CDA_MM2 = float(SIZING_CONFIG["fill_history_ofd_cda_mm2"])
-FILL_TIME_TARGETS_S = list(SIZING_CONFIG["fill_time_targets_s"])
 CHILLDOWN_AND_BOILOFF_DELAY_S = float(SIZING_CONFIG["chilldown_and_boiloff_delay_s"])
 FILL_TANK_ULLAGE_GAUGE_PSIG = float(SIZING_CONFIG["fill_tank_ullage_gauge_pressure_psig"])
 FILL_START_LIQUID_FRACTION = float(SIZING_CONFIG["fill_start_liquid_fraction"])
@@ -214,8 +212,8 @@ def simulate_fill(cda_mm2: float, supply_gauge_psig: float, keep_history: bool =
 def fill_duration_closed_form_s(ofd_cda_mm2: float, supply_gauge_psig: float) -> float:
     """Integrate the same fixed-pressure liquid-fill equation without time stepping.
 
-    This is used only to solve the calibrated supply pressure and the required
-    OFD CdA quickly.  The reported fill history still comes from simulate_fill.
+    This is used only for rapid fill-time trade studies. The reported fill
+    history still comes from simulate_fill.
     """
     total_cda_m2 = series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, OQD_CDA_MM2, ofd_cda_mm2) * 1.0e-6
     if total_cda_m2 <= 0.0:
@@ -232,28 +230,6 @@ def fill_duration_closed_form_s(ofd_cda_mm2: float, supply_gauge_psig: float) ->
         return math.inf
     return (2.0 * (math.sqrt(start_delta_p_pa) - math.sqrt(end_delta_p_pa))
             / (total_cda_m2 * mass_pressure_slope_pa_kg * math.sqrt(2.0 * LOX_DENSITY_KG_M3)))
-
-
-def required_ofd_cda_for_fill_target(supply_gauge_psig: float, total_fill_target_time_s: float = FILL_TARGET_TIME_S) -> float:
-    """Find the least OFD CdA that meets the target with the fixed ground path."""
-    hydraulic_target_time_s = total_fill_target_time_s - CHILLDOWN_AND_BOILOFF_DELAY_S
-    if hydraulic_target_time_s <= 0.0:
-        return math.nan
-    def duration_or_infinity(ofd_cda_mm2: float) -> float:
-        return fill_duration_closed_form_s(ofd_cda_mm2, supply_gauge_psig)
-
-    low_cda_mm2, high_cda_mm2 = 1.0e-6, 1.0
-    while duration_or_infinity(high_cda_mm2) > hydraulic_target_time_s:
-        high_cda_mm2 *= 2.0
-        if high_cda_mm2 > 1.0e6:
-            return math.nan
-    for _ in range(45):
-        middle_cda_mm2 = 0.5 * (low_cda_mm2 + high_cda_mm2)
-        if duration_or_infinity(middle_cda_mm2) > hydraulic_target_time_s:
-            low_cda_mm2 = middle_cda_mm2
-        else:
-            high_cda_mm2 = middle_cda_mm2
-    return high_cda_mm2
 
 
 def required_cda(reference_time_s: float, target_time_s: float) -> float:
@@ -343,8 +319,7 @@ def main() -> None:
     fill_summary, fill_sweep, fill_history = [], [], []
     fill_plot = []
     duration, history = simulate_fill(FILL_HISTORY_OFD_CDA_MM2, LFS_SUPPLY_GAUGE_PSIG, keep_history=True)
-    required = required_ofd_cda_for_fill_target(LFS_SUPPLY_GAUGE_PSIG)
-    fill_summary.append({"valve": "OFD", "mode": "LOX liquid fill", "example_OFD_CdA_mm2": FILL_HISTORY_OFD_CDA_MM2, "LFS_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "OQD_CdA_mm2": OQD_CDA_MM2, "combined_path_CdA_mm2": round(series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, OQD_CDA_MM2, FILL_HISTORY_OFD_CDA_MM2), 4), "LFS_supply_gauge_pressure_psig": LFS_SUPPLY_GAUGE_PSIG, "tank_ullage_gauge_pressure_psig": FILL_TANK_ULLAGE_GAUGE_PSIG, "LOX_mass_added_kg": round((FILL_END_LIQUID_FRACTION - FILL_START_LIQUID_FRACTION) * float(OX_TANK["liquid_mass_kg"]), 5), "fill_start_fraction": FILL_START_LIQUID_FRACTION, "fill_end_fraction": FILL_END_LIQUID_FRACTION, "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(duration, 3), "total_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + duration, 3), "OFD_CdA_required_for_target_mm2": round(required, 3), "meets_target": CHILLDOWN_AND_BOILOFF_DELAY_S + duration <= FILL_TARGET_TIME_S})
+    fill_summary.append({"valve": "OFD", "mode": "LOX liquid fill trade study", "example_OFD_CdA_mm2": FILL_HISTORY_OFD_CDA_MM2, "LFS_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "OQD_CdA_mm2": OQD_CDA_MM2, "combined_path_CdA_mm2": round(series_cda_mm2(GROUND_FILL_PATH_CDA_MM2, OQD_CDA_MM2, FILL_HISTORY_OFD_CDA_MM2), 4), "LFS_supply_gauge_pressure_psig": LFS_SUPPLY_GAUGE_PSIG, "tank_ullage_gauge_pressure_psig": FILL_TANK_ULLAGE_GAUGE_PSIG, "LOX_mass_added_kg": round((FILL_END_LIQUID_FRACTION - FILL_START_LIQUID_FRACTION) * float(OX_TANK["liquid_mass_kg"]), 5), "fill_start_fraction": FILL_START_LIQUID_FRACTION, "fill_end_fraction": FILL_END_LIQUID_FRACTION, "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(duration, 3), "total_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + duration, 3)})
     points = []
     for trial_cda in CDA_SWEEP_MM2:
         trial_time, _ = simulate_fill(trial_cda, LFS_SUPPLY_GAUGE_PSIG)
@@ -353,11 +328,6 @@ def main() -> None:
     fill_plot.append((f"LFS {GROUND_FILL_PATH_CDA_MM2:g} mm2; OQD {OQD_CDA_MM2:g} mm2", [(cda, CHILLDOWN_AND_BOILOFF_DELAY_S + time_s) for cda, time_s in points]))
     for t, mass, flow in history:
         fill_history.append({"LFS_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "OQD_CdA_mm2": OQD_CDA_MM2, "example_OFD_CdA_mm2": FILL_HISTORY_OFD_CDA_MM2, "LFS_supply_gauge_pressure_psig": LFS_SUPPLY_GAUGE_PSIG, "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "liquid_transfer_time_s": round(t, 4), "elapsed_fill_operation_time_s": round(CHILLDOWN_AND_BOILOFF_DELAY_S + t, 4), "LOX_mass_in_tank_kg": round(mass, 5), "LOX_fill_fraction": round(mass / float(OX_TANK["liquid_mass_kg"]), 6), "LOX_mdot_kg_s": round(flow, 6)})
-
-    fill_targets = []
-    for target_time_s in FILL_TIME_TARGETS_S:
-        required_target_cda = required_ofd_cda_for_fill_target(LFS_SUPPLY_GAUGE_PSIG, target_time_s)
-        fill_targets.append({"total_fill_time_target_s": target_time_s, "total_fill_time_target_min": round(target_time_s / 60.0, 3), "chilldown_and_boiloff_delay_s": CHILLDOWN_AND_BOILOFF_DELAY_S, "LFS_path_CdA_mm2": GROUND_FILL_PATH_CDA_MM2, "OQD_CdA_mm2": OQD_CDA_MM2, "LFS_supply_gauge_pressure_psig": LFS_SUPPLY_GAUGE_PSIG, "required_OFD_CdA_mm2": round(required_target_cda, 4) if math.isfinite(required_target_cda) else "unachievable", "note": "unachievable means the fixed LFS/OQD path limits flow before OFD can meet this target" if not math.isfinite(required_target_cda) else ""})
 
     write_csv(OUTPUT_DIR / "vent_summary.csv", vent_summary)
     write_csv(OUTPUT_DIR / "vent_cda_sweep.csv", vent_sweep)
@@ -368,7 +338,6 @@ def main() -> None:
     write_csv(OUTPUT_DIR / "ofd_fill_summary.csv", fill_summary)
     write_csv(OUTPUT_DIR / "ofd_fill_cda_sweep.csv", fill_sweep)
     write_csv(OUTPUT_DIR / "ofd_fill_history.csv", fill_history)
-    write_csv(OUTPUT_DIR / "ofd_fill_required_cda_by_target.csv", fill_targets)
     write_svg(OUTPUT_DIR / "vent_time_vs_cda.svg", "OVNT and FVNT vent time versus effective CdA", "Effective CdA [mm2]", "Time to 1 psig above ambient [s]", vent_plot)
     write_svg(OUTPUT_DIR / "vent_blowdown_pressure.svg", "Tank pressure during vent blowdown", "Time [s]", "Pressure [psia]", pressure_plot)
     write_svg(OUTPUT_DIR / "ofd_drain_time_vs_cda.svg", "OFD LOX drain time versus effective CdA", "Effective CdA [mm2]", "Time to 1% LOX remaining [s]", drain_plot)
@@ -381,7 +350,7 @@ def main() -> None:
         "# Purchase requirements generated from Hopper FullFlow",
         "",
         f"Source config (relative to this script): {SIZING_CONFIG['source_fullflow_config']}",
-        f"Run settings: dt={TIME_STEP_S:g} s; vent target={VENT_TARGET_TIME_S:g} s; drain target={DRAIN_TARGET_TIME_S:g} s; fill target={FILL_TARGET_TIME_S:g} s.",
+        f"Run settings: dt={TIME_STEP_S:g} s; vent target={VENT_TARGET_TIME_S:g} s; drain target={DRAIN_TARGET_TIME_S:g} s; OFD fill is a CdA-versus-time trade study with no target fill time.",
         "",
         "## Common pressure requirement",
         f"- Minimum working-pressure rating: {minimum_rating_psia:.0f} psia ({minimum_rating_psia - AMBIENT_PSIA:.0f} psig), using {PRESSURE_RATING_FACTOR:g}x the configured 500 psia operating pressure.",
@@ -399,7 +368,7 @@ def main() -> None:
         "",
         "## OFD (LOX fill/drain)",
         f"- Effective flow area: use at least the worst-case {max(r['CdA_required_for_target_mm2'] for r in drain_summary):.2f} mm2 for the assumed {DRAIN_TARGET_TIME_S:g} s drain target across the modeled pressure cases; configured candidate is {ofd_cda:.2f} mm2 (water-equivalent Cv about {ofd_cda * CV_PER_CDA_MM2:.2f}).",
-        f"- Fill capacity: fixed LFS inputs are {LFS_SUPPLY_GAUGE_PSIG:.0f} psig supply and {GROUND_FILL_PATH_CDA_MM2:.2f} mm2 LFS path CdA. The OQD is a separate provisional {OQD_CDA_MM2:.2f} mm2 input. OFD CdA is the only swept sizing variable; for the configured {FILL_TARGET_TIME_S / 60.0:.1f} min total target, it must be at least {required:.2f} mm2.",
+        f"- Fill trade study: fixed LFS inputs are {LFS_SUPPLY_GAUGE_PSIG:.0f} psig supply and {GROUND_FILL_PATH_CDA_MM2:.2f} mm2 LFS path CdA. The OQD is a separate configurable {OQD_CDA_MM2:.2f} mm2 input. OFD CdA is swept and the resulting fill times are reported; no fill-time requirement or recommended valve size is imposed by this script.",
         f"- Fluid/service: liquid oxygen at {float(OX_TANK['liquid_temperature_k']):.0f} K. Require LOX compatibility, oxygen cleaning, cryogenic temperature rating, and a rated working pressure of at least {minimum_rating_psia - AMBIENT_PSIA:.0f} psig.",
         "- Function: normally closed fill/drain valve. Confirm whether it also needs a separate ullage vent flow path; the FullFlow P&ID models OFD only on the liquid side.",
         f"- Conditional vent result: if OFD is plumbed to LOX ullage, its {ofd_cda:.2f} mm2 CdA vents from 500 psia to 1 psig in {next(r['vent_time_to_1psig_s'] for r in vent_summary if r['valve'] == 'OFD_conditional_ullage_vent'):.2f} s. This is not a valid installed-path result until that ullage connection is confirmed.",

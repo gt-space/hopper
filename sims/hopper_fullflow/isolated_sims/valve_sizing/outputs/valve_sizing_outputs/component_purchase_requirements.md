@@ -1,7 +1,7 @@
 # Purchase requirements generated from Hopper FullFlow
 
 Source config (relative to this script): ../../hopper_config.json
-Run settings: dt=0.01 s; vent target=60 s; drain target=60 s; fill target=2880 s.
+Run settings: dt=0.01 s; vent target=60 s; drain target=60 s; OFD fill is a CdA-versus-time trade study with no target fill time.
 
 ## Common pressure requirement
 - Minimum working-pressure rating: 625 psia (610 psig), using 1.25x the configured 500 psia operating pressure.
@@ -19,7 +19,7 @@ Run settings: dt=0.01 s; vent target=60 s; drain target=60 s; fill target=2880 s
 
 ## OFD (LOX fill/drain)
 - Effective flow area: use at least the worst-case 120.00 mm2 for the assumed 60 s drain target across the modeled pressure cases; configured candidate is 9.40 mm2 (water-equivalent Cv about 0.55).
-- Fill capacity: fixed LFS inputs are 250 psig supply and 2.77 mm2 LFS path CdA. The OQD is a separate provisional 50.00 mm2 input. OFD CdA is the only swept sizing variable; for the configured 48.0 min total target, it must be at least 1.14 mm2.
+- Fill trade study: fixed LFS inputs are 250 psig supply and 2.77 mm2 LFS path CdA. The OQD is a separate configurable 50.00 mm2 input. OFD CdA is swept and the resulting fill times are reported; no fill-time requirement or recommended valve size is imposed by this script.
 - Fluid/service: liquid oxygen at 90 K. Require LOX compatibility, oxygen cleaning, cryogenic temperature rating, and a rated working pressure of at least 610 psig.
 - Function: normally closed fill/drain valve. Confirm whether it also needs a separate ullage vent flow path; the FullFlow P&ID models OFD only on the liquid side.
 - Conditional vent result: if OFD is plumbed to LOX ullage, its 9.40 mm2 CdA vents from 500 psia to 1 psig in 3.84 s. This is not a valid installed-path result until that ullage connection is confirmed.
