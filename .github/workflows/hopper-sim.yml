@@ -163,8 +163,20 @@ jobs:
           release: ${{ env.MATLAB_RELEASE }}
           products: ${{ env.MATLAB_PRODUCTS }}
           cache: true
+      # The comparison report renders model screenshots, which hang without
+      # a display on the headless runner (the step never finished in CI,
+      # yet takes ~16 s on a desktop). Give MATLAB a virtual one.
+      - name: Virtual display
+        if: steps.changed.outputs.count != '0'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
+          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
       - name: Simulink comparison reports
         if: steps.changed.outputs.count != '0'
+        # fail fast instead of eating the whole job timeout if it hangs again
+        timeout-minutes: 15
         uses: matlab-actions/run-command@v2
         with:
           command: >-

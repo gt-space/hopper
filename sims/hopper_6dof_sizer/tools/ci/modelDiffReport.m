@@ -33,7 +33,10 @@ for k = 1:numel(changed)
         fprintf('%s: new file\n', rel); continue
     end
     try
+        % timestamps in the CI log show which half is slow if it stalls
+        fprintf('%s: comparing (%s)\n', rel, char(datetime('now', Format='HH:mm:ss')));
         comp = visdiff(oldFile, newFile);
+        fprintf('%s: publishing (%s)\n', rel, char(datetime('now', Format='HH:mm:ss')));
         html = publish(comp, Format='html', OutputFolder=outDir, ...
             Name=matlab.lang.makeValidName(erase(rel, '.slx')));
         reports{end+1} = html; %#ok<AGROW>
