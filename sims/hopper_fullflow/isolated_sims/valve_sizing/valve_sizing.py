@@ -30,7 +30,9 @@ TIME_STEP_S = float(SIZING_CONFIG["time_step_s"])
 VENT_END_GAUGE_PSIG = float(SIZING_CONFIG["vent_end_gauge_psig"])
 VENT_TARGET_TIME_S = float(SIZING_CONFIG["vent_target_time_s"])
 DRAIN_TARGET_TIME_S = float(SIZING_CONFIG["drain_target_time_s"])
-INITIAL_ULLAGE_FRACTION = float(SIZING_CONFIG["initial_ullage_fraction"])
+VENT_EOL_RESIDUALS_PATH = (SCRIPT_DIR / SIZING_CONFIG["vent_eol_residuals_csv"]).resolve()
+VENT_EOL_STATE_PATH = (SCRIPT_DIR / SIZING_CONFIG["vent_eol_state_csv"]).resolve()
+VENT_EOL_SUMMARY_PATH = (SCRIPT_DIR / SIZING_CONFIG["vent_eol_summary_csv"]).resolve()
 TANK_INSIDE_DIAMETER_IN = float(SIZING_CONFIG["tank_inside_diameter_in"])
 DRAIN_PRESSURE_CASES_PSIG = list(SIZING_CONFIG["drain_ullage_gauge_pressure_cases_psig"])
 GROUND_FILL_PATH_CDA_MM2 = float(SIZING_CONFIG["ground_fill_path_cda_mm2"])
@@ -50,6 +52,7 @@ PRESSURE_RATING_FACTOR = float(SIZING_CONFIG["minimum_component_pressure_rating_
 TEMPERATURE_MARGIN_K = float(SIZING_CONFIG["minimum_temperature_margin_k"])
 CDA_SWEEP_MM2 = list(SIZING_CONFIG["candidate_cda_sweep_mm2"])
 LOX_DENSITY_KG_M3 = float(SIZING_CONFIG["liquid_properties"]["LOX_density_kg_m3"])
+RP1_DENSITY_KG_M3 = float(SIZING_CONFIG["liquid_properties"]["RP1_density_kg_m3"])
 
 AMBIENT_PSIA = float(FULLFLOW_CONFIG["fluids"]["ambient_pressure_psia"])
 PRESSURANT_NAME = str(FULLFLOW_CONFIG["fluids"]["pressurant"])
@@ -85,8 +88,56 @@ def tank_volume_m3(tank: dict) -> float:
     return float(tank["volume_l"]) * LITER_TO_M3
 
 
-def initial_ullage_volume_m3(tank: dict) -> float:
-    return tank_volume_m3(tank) * INITIAL_ULLAGE_FRACTION
+def read_run_summary_value(path: Path, metric: str) -> float:
+    with path.open(newline="", encoding="utf-8") as stream:
+        for row in csv.DictReader(stream):
+            if row["Metric"] == metric:
+                return float(row["Value"])
+    raise KeyError(f"{metric!r} is not present in {path}")
+
+
+def load_eol_vent_states() -> dict[str, dict]:
+    """Read main-burn residual masses and the matching FullFlow tank states."""
+    with VENT_EOL_RESIDUALS_PATH.open(newline="", encoding="utf-8") as stream:
+        residuals = {row["propellant"]: float(row["profile_end_kg"]) for row in csv.DictReader(stream)}
+    burn_time_s = read_run_summary_value(VENT_EOL_SUMMARY_PATH, "Burn time [s]")
+    with VENT_EOL_STATE_PATH.open(newline="", encoding="utf-8") as stream:
+        state_rows = list(csv.DictReader(stream))
+    state = min(state_rows, key=lambda row: abs(float(row["Time [s]"]) - burn_time_s))
+    source_time_s = float(state["Time [s]"])
+    return {
+        "LOX": {
+            "liquid_mass_kg": residuals["LOX"],
+            "pressure_psia": float(state["LOX tank [psia]"]),
+            "temperature_k": float(state["LOX ullage [K]"]),
+            "source_burn_time_s": burn_time_s,
+            "source_state_time_s": source_time_s,
+        },
+        "Fuel": {
+            "liquid_mass_kg": residuals["Fuel"],
+            "pressure_psia": float(state["Fuel tank [psia]"]),
+            "temperature_k": float(state["Fuel ullage [K]"]),
+            "source_burn_time_s": burn_time_s,
+            "source_state_time_s": source_time_s,
+        },
+    }
+
+
+EOL_VENT_STATES = load_eol_vent_states()
+
+
+def eol_vent_state(tank: dict) -> dict:
+    propellant = str(tank["propellant"])
+    key = "LOX" if propellant == "LOX" else "Fuel"
+    density_kg_m3 = LOX_DENSITY_KG_M3 if key == "LOX" else RP1_DENSITY_KG_M3
+    state = dict(EOL_VENT_STATES[key])
+    liquid_volume_m3 = state["liquid_mass_kg"] / density_kg_m3
+    state["liquid_volume_m3"] = liquid_volume_m3
+    state["ullage_volume_m3"] = tank_volume_m3(tank) - liquid_volume_m3
+    if state["ullage_volume_m3"] <= 0.0:
+        raise ValueError(f"EOL liquid mass exceeds available tank volume for {tank['name']}")
+    state["ullage_fraction"] = state["ullage_volume_m3"] / tank_volume_m3(tank)
+    return state
 
 
 def gas_orifice_mdot_kg_s(
@@ -113,10 +164,11 @@ def gas_orifice_mdot_kg_s(
 
 
 def simulate_vent(tank: dict, cda_mm2: float, keep_history: bool = False) -> tuple[float, list[tuple[float, float, float]]]:
-    """Adiabatic ullage blowdown to the target near-ambient pressure."""
-    volume = initial_ullage_volume_m3(tank)
-    pressure_psia = float(tank["pressure_psia"])
-    temperature_k = float(tank["ullage_temperature_k"])
+    """Adiabatic EOL ullage blowdown to the target near-ambient pressure."""
+    state = eol_vent_state(tank)
+    volume = state["ullage_volume_m3"]
+    pressure_psia = state["pressure_psia"]
+    temperature_k = state["temperature_k"]
     end_pressure_psia = AMBIENT_PSIA + VENT_END_GAUGE_PSIG
     mass_kg = pressure_psia * PSI_TO_PA * volume / (N2_R_J_KG_K * temperature_k)
     history = [(0.0, pressure_psia, 0.0)] if keep_history else []
@@ -342,10 +394,11 @@ def main() -> None:
     vent_plot, pressure_plot = [], []
     for tag, valve, tank in valve_specs:
         cda = float(valve["cda_mm2"])
+        eol_state = eol_vent_state(tank)
         duration, history = simulate_vent(tank, cda, keep_history=True)
         reference_time, _ = simulate_vent(tank, 1.0)
         required = required_cda(reference_time, VENT_TARGET_TIME_S)
-        vent_summary.append({"valve": tag, "fluid": PRESSURANT_NAME, "tank": tank["name"], "configured_CdA_mm2": cda, "water_equivalent_Cv": round(cda * CV_PER_CDA_MM2, 3), "start_pressure_psia": tank["pressure_psia"], "ullage_temperature_K": tank["ullage_temperature_k"], "initial_ullage_volume_L": round(initial_ullage_volume_m3(tank) / LITER_TO_M3, 3), "vent_time_to_1psig_s": round(duration, 3), "CdA_required_for_target_mm2": round(required, 3), "meets_60s_target": duration <= VENT_TARGET_TIME_S})
+        vent_summary.append({"valve": tag, "fluid": PRESSURANT_NAME, "tank": tank["name"], "configured_CdA_mm2": cda, "water_equivalent_Cv": round(cda * CV_PER_CDA_MM2, 3), "EOL_liquid_mass_kg": round(eol_state["liquid_mass_kg"], 5), "EOL_liquid_volume_L": round(eol_state["liquid_volume_m3"] / LITER_TO_M3, 3), "EOL_ullage_volume_L": round(eol_state["ullage_volume_m3"] / LITER_TO_M3, 3), "EOL_ullage_fraction": round(eol_state["ullage_fraction"], 6), "start_pressure_psia": round(eol_state["pressure_psia"], 3), "ullage_temperature_K": round(eol_state["temperature_k"], 3), "source_burn_time_s": eol_state["source_burn_time_s"], "source_state_time_s": eol_state["source_state_time_s"], "vent_time_to_1psig_s": round(duration, 3), "CdA_required_for_target_mm2": round(required, 3), "meets_60s_target": duration <= VENT_TARGET_TIME_S})
         points = []
         for trial_cda in CDA_SWEEP_MM2:
             trial_time = reference_time / trial_cda
@@ -439,13 +492,15 @@ def main() -> None:
         "## OVNT (LOX ullage nitrogen vent)",
         f"- Effective flow area: at least {next(r['CdA_required_for_target_mm2'] for r in vent_summary if r['valve'] == 'OVNT'):.2f} mm2 for the assumed {VENT_TARGET_TIME_S:g} s vent target; configured candidate is {float(ovnt['cda_mm2']):.2f} mm2 (water-equivalent Cv about {float(ovnt['cda_mm2']) * CV_PER_CDA_MM2:.2f}).",
         f"- Fluid/service: dry nitrogen ullage in LOX service; materials and seals must be oxygen-clean and compatible with LOX-adjacent hardware. Minimum modeled temperature: {cold_limit_k:.0f} K ({cold_limit_k - 273.15:.0f} C), including margin.",
-        "- Function: normally closed on-off vent valve, venting 500 psia initial tank pressure to ambient. Verify the required electrical actuation, default state, cycle life, and vent-line plumbing with the vehicle team.",
+        f"- EOL starting state: {next(r['EOL_ullage_fraction'] for r in vent_summary if r['valve'] == 'OVNT'):.1%} ullage at {next(r['start_pressure_psia'] for r in vent_summary if r['valve'] == 'OVNT'):.1f} psia. This uses the FullFlow main-burn residual mass, not the 10% loaded ullage fraction.",
+        "- Function: normally closed on-off vent valve to ambient. Verify the required electrical actuation, default state, cycle life, and vent-line plumbing with the vehicle team.",
         f"- Initial-fill boiloff screen: at {FILL_BOILOFF_VENT_CONTROL_GAUGE_PSIG:g} psig tank control pressure, candidate OVNT capacity is compared with displaced ullage gas plus GOX boiloff. The configurable heat-load sweep spans {min(FILL_BOILOFF_HEAT_LOAD_SWEEP_W):g} to {max(FILL_BOILOFF_HEAT_LOAD_SWEEP_W):g} W; replace it with Hopper thermal data before using the result for selection.",
         "",
         "## FVNT (fuel ullage nitrogen vent)",
         f"- Effective flow area: at least {next(r['CdA_required_for_target_mm2'] for r in vent_summary if r['valve'] == 'FVNT'):.2f} mm2 for the assumed {VENT_TARGET_TIME_S:g} s vent target; configured candidate is {float(fvnt['cda_mm2']):.2f} mm2 (water-equivalent Cv about {float(fvnt['cda_mm2']) * CV_PER_CDA_MM2:.2f}).",
         f"- Fluid/service: nitrogen ullage above RP-1 at {float(FUEL_TANK['ullage_temperature_k']):.0f} K. Verify wetted materials/seals for RP-1 vapor exposure and pressure rating.",
-        "- Function: normally closed on-off vent valve, venting 500 psia initial tank pressure to ambient. Confirm electrical actuation, default state, cycle life, and port geometry.",
+        f"- EOL starting state: {next(r['EOL_ullage_fraction'] for r in vent_summary if r['valve'] == 'FVNT'):.1%} ullage at {next(r['start_pressure_psia'] for r in vent_summary if r['valve'] == 'FVNT'):.1f} psia. This uses the FullFlow main-burn residual mass, not the 10% loaded ullage fraction.",
+        "- Function: normally closed on-off vent valve to ambient. Confirm electrical actuation, default state, cycle life, and port geometry.",
         "",
         "## OFD (LOX fill/drain)",
         f"- Effective flow area: use at least the worst-case {max(r['CdA_required_for_target_mm2'] for r in drain_summary):.2f} mm2 for the assumed {DRAIN_TARGET_TIME_S:g} s drain target across the modeled pressure cases; configured candidate is {ofd_cda:.2f} mm2 (water-equivalent Cv about {ofd_cda * CV_PER_CDA_MM2:.2f}).",
