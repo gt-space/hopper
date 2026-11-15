@@ -163,16 +163,11 @@ jobs:
           release: ${{ env.MATLAB_RELEASE }}
           products: ${{ env.MATLAB_PRODUCTS }}
           cache: true
-      # The comparison report renders model screenshots, which hang without
-      # a display on the headless runner (the step never finished in CI,
-      # yet takes ~16 s on a desktop). Give MATLAB a virtual one.
-      - name: Virtual display
-        if: steps.changed.outputs.count != '0'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb
-          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+      # The comparison only needs two files, not the project: opening the
+      # project on this job's full-history checkout is the lead suspect for
+      # the step stalling (it never finished in CI, yet takes ~16 s on a
+      # desktop). modelDiffReport writes outputs/model-diffs/progress.log
+      # step by step, uploaded below even if this step fails or times out.
       - name: Simulink comparison reports
         if: steps.changed.outputs.count != '0'
         # fail fast instead of eating the whole job timeout if it hangs again
@@ -180,10 +175,10 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: >-
-            cd('${{ env.PROJECT }}'); openProject(pwd); addpath(fullfile(pwd, 'tools', 'ci'));
+            cd('${{ env.PROJECT }}'); addpath(fullfile(pwd, 'tools', 'ci'), fullfile(pwd, 'src', 'util'));
             modelDiffReport('origin/${{ github.base_ref }}')
       - name: Upload model diff reports
-        if: steps.changed.outputs.count != '0'
+        if: always() && steps.changed.outputs.count != '0'
         uses: actions/upload-artifact@v4
         with:
           name: model-diffs
