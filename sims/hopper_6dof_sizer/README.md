@@ -16,8 +16,8 @@ It also runs seeded Monte Carlo campaigns against the mission requirements.
 
 ## Quick start
 
-1. **Use MATLAB R2026a.** The release is named in [`TEAM_RELEASE`](TEAM_RELEASE). CI runs it, and models must be saved in it.
-   - If you have several releases, check which one opens. On a machine where `matlab` on the PATH is a newer release, start R2026a by its full path.
+1. **Use MATLAB R2026b.** The release is named in [`TEAM_RELEASE`](TEAM_RELEASE). CI runs it, and models must be saved in it.
+   - If you have several releases, check which one opens. On a machine where `matlab` on the PATH is a newer release, start R2026b by its full path.
 2. **Open the project.** Double-click `HopperSim.prj`, or run:
    ```matlab
    openProject('sims/hopper_6dof_sizer')
