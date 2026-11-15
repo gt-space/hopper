@@ -187,15 +187,41 @@ jobs:
           release: ${{ env.MATLAB_RELEASE }}
           products: ${{ env.MATLAB_PRODUCTS }}
           cache: true
+      # git run from MATLAB (system()) on the runner never returned: the
+      # progress log stopped right after "start". So this shell step does
+      # the git work, extracting the merge-base version of each changed
+      # model, and MATLAB only compares files already on disk. The
+      # comparison needs two files, not the open project.
+      - name: Extract base models
+        if: steps.changed.outputs.count != '0'
+        working-directory: ${{ env.PROJECT }}
+        run: |
+          base=$(git merge-base "origin/${{ github.base_ref }}" HEAD)
+          dir="$RUNNER_TEMP/base-models"
+          mkdir -p "$dir"
+          git diff --name-only --relative "$base"...HEAD -- '*.slx' | while read -r rel; do
+            if git cat-file -e "$base:./$rel" 2>/dev/null; then
+              mkdir -p "$dir/$(dirname "$rel")"
+              git show "$base:./$rel" > "$dir/$rel"
+              echo "base: $rel"
+            else
+              echo "new:  $rel"
+            fi
+          done
+          echo "BASE_MODELS=$dir" >> "$GITHUB_ENV"
+      # modelDiffReport writes outputs/model-diffs/progress.log step by
+      # step, uploaded below even if this step fails or times out.
       - name: Simulink comparison reports
         if: steps.changed.outputs.count != '0'
+        # fail fast instead of eating the whole job timeout if it hangs again
+        timeout-minutes: 15
         uses: matlab-actions/run-command@v2
         with:
           command: >-
-            cd('${{ env.PROJECT }}'); openProject(pwd); addpath(fullfile(pwd, 'tools', 'ci'));
-            modelDiffReport('origin/${{ github.base_ref }}')
+            cd('${{ env.PROJECT }}'); addpath(fullfile(pwd, 'tools', 'ci'), fullfile(pwd, 'src', 'util'));
+            modelDiffReport([], fullfile(pwd, 'outputs', 'model-diffs'), BaseDir=getenv('BASE_MODELS'))
       - name: Upload model diff reports
-        if: steps.changed.outputs.count != '0'
+        if: always() && steps.changed.outputs.count != '0'
         uses: actions/upload-artifact@v4
         with:
           name: model-diffs
