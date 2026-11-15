@@ -1,7 +1,8 @@
-function reports = modelDiffReport(baseRef, outDir)
+function reports = modelDiffReport(baseRef, outDir, opts)
 %MODELDIFFREPORT  HTML Simulink comparison of every .slx changed since baseRef.
 %   reports = modelDiffReport('origin/main')
 %   reports = modelDiffReport(baseRef, outDir)   default outDir outputs/model-diffs
+%   reports = modelDiffReport([], outDir, BaseDir=dir)
 %
 %   For each model under this project that differs between baseRef and the
 %   working tree, the baseRef version is extracted with git show and
@@ -9,38 +10,61 @@ function reports = modelDiffReport(baseRef, outDir)
 %   folder as an artifact on pull requests so reviewers can see what changed
 %   inside binary models.
 %
+%   BaseDir: a folder holding the base versions of the changed models at
+%   their project-relative paths, already extracted. The changed list is
+%   then every .slx in it and git is not called at all. CI uses this: git
+%   run through system() from MATLAB on the Linux runner never returned, so
+%   the workflow's shell step does the git work instead.
+%
 %   Needs only tools/ci and src/util on the path, not the open project: it
 %   compares two files. Every step is also appended, with a timestamp, to
-%   progress.log in outDir and flushed at once, so if the run stalls or is
-%   killed the uploaded log shows how far it got.
+%   progress.log in outDir, so if the run stalls or is killed the uploaded
+%   log shows how far it got.
 
-if nargin < 2, outDir = hopperRoot('outputs', 'model-diffs'); end
+arguments
+    baseRef = 'origin/main'
+    outDir = hopperRoot('outputs', 'model-diffs')
+    opts.BaseDir {mustBeTextScalar} = ""
+end
 if ~isfolder(outDir), mkdir(outDir); end
 logFile = fullfile(outDir, 'progress.log');
 note = @(fmt, varargin) progress(logFile, fmt, varargin{:});
-note('start, base %s, MATLAB %s', baseRef, version);
-
 root = hopperRoot();
-[st, changed] = system(sprintf('git -C "%s" diff --name-only --relative "%s" -- "*.slx"', root, baseRef));
-assert(st == 0, 'git diff failed: %s', changed);
-changed = splitlines(strtrim(changed));
-changed = changed(~cellfun(@isempty, changed));
+useGit = strlength(opts.BaseDir) == 0;
+if useGit
+    note('start, base %s, MATLAB %s', baseRef, version);
+    [st, changed] = system(sprintf('git -C "%s" diff --name-only --relative "%s" -- "*.slx"', root, baseRef));
+    assert(st == 0, 'git diff failed: %s', changed);
+    changed = splitlines(strtrim(changed));
+    changed = changed(~cellfun(@isempty, changed));
+else
+    baseDir = char(opts.BaseDir);
+    note('start, base models in %s, MATLAB %s', baseDir, version);
+    files = dir(fullfile(baseDir, '**', '*.slx'));
+    changed = cellfun(@(f, n) erase(fullfile(f, n), [baseDir filesep]), ...
+        {files.folder}, {files.name}, 'UniformOutput', false);
+end
 note('%d changed model(s)', numel(changed));
-
-reports = {};
 tmp = tempname; mkdir(tmp);
 cleanup = onCleanup(@() rmdir(tmp, 's'));
+
+reports = {};
 for k = 1:numel(changed)
     rel = changed{k};
     newFile = fullfile(root, rel);
-    [~, name] = fileparts(rel);
     if ~isfile(newFile)
         note('%s: deleted', rel); continue
     end
+    % renamed: two models with the same name cannot both be loaded
+    [~, name] = fileparts(rel);
     oldFile = fullfile(tmp, [name '_base.slx']);
-    st = system(sprintf('git -C "%s" show "%s:./%s" > "%s"', root, baseRef, strrep(rel, '\', '/'), oldFile));
-    if st ~= 0
-        note('%s: new file', rel); continue
+    if useGit
+        st = system(sprintf('git -C "%s" show "%s:./%s" > "%s"', root, baseRef, strrep(rel, '\', '/'), oldFile));
+        if st ~= 0
+            note('%s: new file', rel); continue
+        end
+    else
+        copyfile(fullfile(baseDir, rel), oldFile);
     end
     try
         note('%s: comparing', rel);
