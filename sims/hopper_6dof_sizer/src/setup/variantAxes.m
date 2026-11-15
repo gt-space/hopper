@@ -41,6 +41,12 @@ function A = variantAxes()
 %                             runs on the shared Sensors block; its estimate
 %                             is logged and checked, truth still flies
 %               gmekf         the controller and FDIR fly on the estimate
+%   TVC_MODEL   second_order  PDR 6DOF chain: delay, quantizer, rate limit,
+%                             saturation, 2nd-order lag (Actuators_TVC_RCS)
+%               ag9113        Erhardt+Leimer AG 9113 voltage-to-angle model
+%                             (src/tvc, GNC PDR slide 170) on the recommended
+%                             layout; rate and accel limits come from the motor
+%               ag9313        the same model for the AG 9313
 
 A.VEHICLE    = ["hopper", "ctv"];
 A.SLOSH      = ["full", "off"];
@@ -51,4 +57,5 @@ A.CONTROLLER = ["lqr_sched", "lqi", "lqr_sched_legacy"];
 A.FDIR       = ["off", "on"];
 A.FAULT_INJECTION = ["off", "on"];
 A.NAVIGATION = ["none", "gmekf_shadow", "gmekf"];
+A.TVC_MODEL  = ["second_order", "ag9113", "ag9313"];
 end
