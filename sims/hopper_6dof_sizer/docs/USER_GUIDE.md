@@ -347,7 +347,6 @@ offset = arrayfun(@(o) hypot(o.x.Data(end), o.y.Data(end)), outs);
 | `'X' reads 'Y', which the setup did not create` | A model variable that no setup step makes, often from a new block parameter. Create it in the vehicle config, the mission inputs or `hopperWorkspace`. |
 | Run button: undefined variable `VARIANT_...` or `IN` | The model isn't fed from the base workspace. See [Running from the Simulink window](#running-from-the-simulink-window). |
 | `buildSimInput` fails in `Simulink.findVars` | The model has an input applied (`applyToModel`) or unsaved edits that break compilation. `close_system('hopper_6dof', 0)` and retry. |
-| `y = logical ...` printed many times | Known console noise, harmless ([KNOWN_ISSUES.md](KNOWN_ISSUES.md)). |
 | CI `guards` fails: model newer than the team release | Saved from a newer MATLAB. Re-save with `Simulink.exportToVersion(model, 'tmp.slx', teamRelease())` and replace the file. |
 | A `.slx.r2026b` file appeared | Simulink backed up a model it upgraded on save, meaning you saved from a newer release. Delete the backup and re-save from R2026b. |
 | `Unable to create a test suite` | Run `openProject` first: the tests need the project path. |

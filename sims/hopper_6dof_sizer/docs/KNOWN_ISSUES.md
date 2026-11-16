@@ -40,7 +40,6 @@ What's wrong, unfinished or surprising in the sim today (2026-10-31), and what t
 
 ## Tooling and workflow
 
-- **`y = logical ...` prints to the console** many times per run. It's harmless, and the source hasn't been found yet. It's most likely an expression missing its semicolon in code that runs while the model compiles or simulates; bisecting by variant choice is the next step.
 - **The Run button doesn't work on a freshly opened harness.** The model's variables come from `buildSimInput`, not the base workspace.
   - Workaround: `buildSimInput(...).applyToModel()`, then press Run. Close the model without saving afterwards ([User guide](USER_GUIDE.md#running-from-the-simulink-window)).
   - `sim_setup` predates the variants and doesn't set their controls.
