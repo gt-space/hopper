@@ -31,12 +31,13 @@ sp.baro.noise_std = 0;
 sp.lidar.noise_std_1 = 0;
 sp.lidar.noise_std_2 = 0;
 sp.diffGps.noise_std = zeros(3,1);
+sp.mag.noise_std = zeros(3,1);
 nav_sensor_params(sp);
 restoreParams = onCleanup(@() nav_sensor_params('reset'));
 clear gps_model imu_model barometer_model lidar_model_base diffGps_model
 
 nTrials = 200;
-simErr = struct('baro', 0, 'gyro', 0, 'gps', 0, 'lidar', 0, 'diffGps', 0);
+simErr = struct('baro', 0, 'gyro', 0, 'gps', 0, 'lidar', 0, 'diffGps', 0, 'mag', 0);
 lidarGeomErr = 0;
 lidarParams = lidar_frames;
 for k = 1:nTrials
@@ -66,13 +67,15 @@ for k = 1:nTrials
 
     meas = diffGps_model(x, t, gps_frame);
     simErr.diffGps = max(simErr.diffGps, norm(diffGps_update_model(x, meas, gps_frame)));
+    meas = mag_model(x, t);
+    simErr.mag = max(simErr.mag, norm(mag_update_model(x, meas, 0)));
 end
-fprintf('1. noise-off max |innovation|: baro %.1e, gyro %.1e, gps %.1e, lidar %.1e, diffGps %.1e\n', ...
-    simErr.baro, simErr.gyro, simErr.gps, simErr.lidar, simErr.diffGps);
+fprintf('1. noise-off max |innovation|: baro %.1e, gyro %.1e, gps %.1e, lidar %.1e, diffGps %.1e, mag %.1e\n', ...
+    simErr.baro, simErr.gyro, simErr.gps, simErr.lidar, simErr.diffGps, simErr.mag);
 fprintf('2. LIDAR sim vs independent ray intersection: max %.1e m\n', lidarGeomErr);
 
 % Finite-difference Jacobians through state_injection
-jacErr = struct('baro', 0, 'gyro', 0, 'gps', 0, 'lidar', 0, 'diffGps', 0);
+jacErr = struct('baro', 0, 'gyro', 0, 'gps', 0, 'lidar', 0, 'diffGps', 0, 'mag', 0);
 gpsParams.r_b = gps_lever_arm(gps_frame) + [0.1; 0.05; 0];
 for k = 1:50
     x = random_state();
@@ -84,9 +87,10 @@ for k = 1:50
         jacErr.lidar = max(jacErr.lidar, fd_error(@lidar_update_model, x, struct('distance', 0), lidarParams));
     end
     jacErr.diffGps = max(jacErr.diffGps, fd_error(@diffGps_update_model, x, struct('basisVec', zeros(3,1)), gps_frame));
+    jacErr.mag = max(jacErr.mag, fd_error(@mag_update_model, x, struct('bfield_meas', zeros(3,1), 'bfield_E', zeros(3,1)), struct()));
 end
-fprintf('3. max |H - H_fd|: baro %.1e, gyro %.1e, gps %.1e, lidar %.1e, diffGps %.1e\n', ...
-    jacErr.baro, jacErr.gyro, jacErr.gps, jacErr.lidar, jacErr.diffGps);
+fprintf('3. max |H - H_fd|: baro %.1e, gyro %.1e, gps %.1e, lidar %.1e, diffGps %.1e, mag %.1e\n', ...
+    jacErr.baro, jacErr.gyro, jacErr.gps, jacErr.lidar, jacErr.diffGps, jacErr.mag);
 
 Simulink.data.dictionary.closeAll('-discard');
 cd(startDir);
