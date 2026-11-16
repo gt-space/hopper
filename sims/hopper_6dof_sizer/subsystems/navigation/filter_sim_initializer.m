@@ -104,6 +104,9 @@ barometer_st = 0.05;    % sample time (s)
 % baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
 % baro_params.bias = 0.5;                 % Placeholder
 
+% Magnetometer parameters
+mag_st = 0.01; % sample time
+
 % LIDAR parameters
 lidar_st = 0.01;        % sample time (s)
 % --- Barometer Sensor Parameters (SJ-GU-TF-Luna A03)---

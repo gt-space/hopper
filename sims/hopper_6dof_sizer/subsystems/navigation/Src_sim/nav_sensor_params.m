@@ -71,4 +71,11 @@ function P = defaults()
     P.diffGps.noise_std = [0.007; 0.007; 0.012];          % Baseline jitter per NED axis (m)
     P.diffGps.covariance = diag([0.007; 0.007; 0.012].^2); % Filter measurement covariance
     P.diffGps.packet_invalid_prob = 0.0;                  % Set to 0 for now
+
+    % --- 3-axis magnetometer (LIS2MDL) ---
+    P.mag.noise_std = 3.0;                  % Per-axis (mgauss)
+    P.mag.covariance = 9.0*10;              % Per-axis, inflated x10 (mgauss)
+    P.mag.packet_invalid_prob = 0.0;        % Set to 0 for now
+    P.mag.bfield_E = [227.5; -22.4; 423.0]; % Approx vector for Atlanta, GA (mgauss, NED frame)
+
 end
