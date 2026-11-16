@@ -2,13 +2,6 @@
 % gmekf_correct_hopper.m
 %
 % Function to apply sensor measurements to correct the state propagation.
-% Hopper version of gmekf_correct.m: differential GPS instead of the
-% magnetometer, and the GPS lever arm taken from the antenna frame.
-%
-% KEEP IN SYNC WITH gmekf_correct.m: pull regularly and copy any new
-% sensor handling from gmekf_correct.m into this file.
-%
-% Based on gmekf_correct.m (David Meisinger, 10/18/26)
 %
 % Inputs:
 %   xnp1: np1 propagated state vector (20x1)

@@ -1,11 +1,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% gmekf_correct.m
-% 
+% gmekf_correct_ctv.m
+%
 % Function to apply sensor measurements to correct the state propagation.
-% 
-% Author: David Meisinger
-% Date: 10/18/26
-% 
+%
 % Inputs:
 %   xnp1: np1 propagated state vector (20x1)
 %   Pnp1: np1 propagated covariance (19x19)
@@ -15,17 +12,18 @@
 %   meas_LID: LIDAR measurement struct
 %   lidar_frames: LIDAR frame measurement struct
 %   meas_mag: magnetometer measurement struct
-% 
+%   gps_frame: GPS antenna positions from COM (gpsFrameBus)
+%
 % Outputs:
 %   xnp1_c: n+1 corrected state (20x1)
 %   Pnp1_c: n+1 corrected covariance (19x19)
 %   diagnostics: per-sensor accepted flags and NIS (16x1, see below)
-% 
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
+function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct_ctv( ...
     xnp1, Pnp1, meas_posvel, ...
-    meas_angvel, meas_baro, meas_LID, lidar_frames, meas_mag)
+    meas_angvel, meas_baro, meas_LID, lidar_frames, meas_mag, gps_frame)
 
     % Declare persistent timestamps for last sensor read
     persistent gps_timestamp;
@@ -43,10 +41,10 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
         mag_timestamp = -1;
     end
 
-    % Per-sensor update diagnostics, as in gmekf_correct_hopper: baro, gyro,
-    % GPS, LIDAR 1-4, then slot 8 (the magnetometer).
-    % diagnostics(1:8): 1 accepted, 0 gated out, -1 no new sample this step;
-    % diagnostics(9:16): its NIS (-1 none).
+    % Per-sensor update diagnostics, in update order: baro, gyro, GPS,
+    % LIDAR 1-4, differential GPS. diagnostics(1:8): 1 accepted, 0 gated
+    % out, -1 no new sample this step; diagnostics(9:16): its NIS (-1 none).
+    % FDIR's estimator checks read them.
     diagnostics = -ones(16, 1);
 
     % initialize corrected outputs with propagated values
@@ -54,13 +52,11 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
     Pnp1_c = Pnp1;
 
     % Innovation gate thresholds
-    baroGateThreshold = 6.635;   % 99%, 1 DOF
-    gyroGateThreshold = 11.345;  % 99%, 3 DOF
-    gpsGateThreshold  = 16.812;  % 99%, 6 DOF
-    lidarGateThreshold = 6.635;  % 99%, 1 DOF (per beam)
-    magGateThreshold  = 11.345;  % 99%, 3 DOF
-
-    gpsLeverArmBody = [0.1; 0; -0.2];
+    baroGateThreshold = 6.635;      % 99%, 1 DOF
+    gyroGateThreshold = 11.345;     % 99%, 3 DOF
+    gpsGateThreshold  = 16.812;     % 99%, 6 DOF
+    lidarGateThreshold = 6.635;     % 99%, 1 DOF (per beam)
+    magGateThreshold = 11.345;      % 99%, 3 DOF
 
     % Check if each sensor should be incorporated
     gps_incorp = meas_posvel.validity && meas_posvel.timestamp > gps_timestamp;
@@ -71,7 +67,6 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
     lid3_incorp = meas_LID.validity(3) && meas_LID.timestamp > lid_timestamp;
     lid4_incorp = meas_LID.validity(4) && meas_LID.timestamp > lid_timestamp;
     mag_incorp = meas_mag.validity && meas_mag.timestamp > mag_timestamp;
-
 
     % Barometer correction
     if baro_incorp
@@ -111,7 +106,7 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
         gpsParams.gateThreshold = gpsGateThreshold;
 
         % Antenna lever arm in body coordinates
-        gpsParams.r_b = gpsLeverArmBody;
+        gpsParams.r_b = gps_lever_arm(gps_frame);
 
         % TEMPORARY until the GPS bus refactor: gpsBus carries separate
         % position/velocity covariances, update() needs one covariance
@@ -130,7 +125,7 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
 
     end
 
-    % TODO: LIDAR correction
+    % LIDAR correction
     lidarParams = lidar_frames;
     lidarParams.gateThreshold = lidarGateThreshold;
     lidarParams.lidarIndex = 0;
@@ -139,7 +134,7 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
         meas_lid1.distance = meas_LID.distance(1);
         meas_lid1.covariance = meas_LID.covariance(1);
         lidarParams.lidarIndex = 1;
-        
+
         [xnp1_c, Pnp1_c, acc, nis] = update( ...
             xnp1_c, ...
             Pnp1_c, ...
@@ -203,9 +198,7 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
 
     end
 
-
-    % Magnetometer correction: the only heading measurement the CTV has
-    % (no differential GPS); without it rotation about the long axis drifts
+    % Magnetometer correction
     if mag_incorp
 
         magParams.gateThreshold = magGateThreshold;
@@ -221,7 +214,5 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct( ...
         mag_timestamp = meas_mag.timestamp;
 
     end
-
-    % TODO: Differential GPS
 
 end
