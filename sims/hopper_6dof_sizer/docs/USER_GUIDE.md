@@ -21,13 +21,13 @@ How to run, configure, debug and analyse the hopper 6DOF sim. The [README](../RE
 
 Do this once per machine:
 
-1. **Install MATLAB R2026a** (the release in [`TEAM_RELEASE`](../TEAM_RELEASE)) with these products:
+1. **Install MATLAB R2026b** (the release in [`TEAM_RELEASE`](../TEAM_RELEASE)) with these products:
    - Simulink, Aerospace Blockset
    - DSP System, Communications, Signal Processing, Control System, Optimization, and Statistics and Machine Learning Toolbox
    - Simscape and Simscape Fluids, for `PROPULSION=fluid_network`
    - Parallel Computing Toolbox, optional, for parallel Monte Carlo
 
-   Other releases can sit alongside, but only **save** models from R2026a; CI rejects anything newer. If `matlab` on your PATH is a newer release, start R2026a from its own shortcut or its full path, for example `C:\Program Files\MATLAB\R2026a\bin\matlab.exe`.
+   Other releases can sit alongside, but only **save** models from R2026b; CI rejects anything newer. If `matlab` on your PATH is a newer release, start R2026b from its own shortcut or its full path, for example `C:\Program Files\MATLAB\R2026b\bin\matlab.exe`.
 2. **Install Python with CoolProp**, needed only for Monte Carlo (`prop_system` calls it every run). In MATLAB, `pyenv` should show your Python.
    ```bash
    pip install CoolProp
@@ -173,7 +173,7 @@ V = variantConfig('SCOPES', 'all');
    - `'<bus>.<element>'`, optionally followed by `:deg`, `:diag` or `:i1-3`
    - `'ref.<variable>'` for a reference timeseries
    - The element names are in [HARNESS.md](HARNESS.md#bus-elements).
-2. Run `tools/refactor/buildLoggingScopes` in R2026a. It rebuilds every group.
+2. Run `tools/refactor/buildLoggingScopes` in R2026b. It rebuilds every group.
 3. Save the model and commit both files.
 
 **Signal log:** every signal between the groups, written to a MAT file.
@@ -347,11 +347,9 @@ offset = arrayfun(@(o) hypot(o.x.Data(end), o.y.Data(end)), outs);
 | `'X' reads 'Y', which the setup did not create` | A model variable that no setup step makes, often from a new block parameter. Create it in the vehicle config, the mission inputs or `hopperWorkspace`. |
 | Run button: undefined variable `VARIANT_...` or `IN` | The model isn't fed from the base workspace. See [Running from the Simulink window](#running-from-the-simulink-window). |
 | `buildSimInput` fails in `Simulink.findVars` | The model has an input applied (`applyToModel`) or unsaved edits that break compilation. `close_system('hopper_6dof', 0)` and retry. |
-| `y = logical ...` printed many times | Known console noise, harmless ([KNOWN_ISSUES.md](KNOWN_ISSUES.md)). |
 | CI `guards` fails: model newer than the team release | Saved from a newer MATLAB. Re-save with `Simulink.exportToVersion(model, 'tmp.slx', teamRelease())` and replace the file. |
-| A `.slx.r2026a` file appeared | Simulink backed up a model it upgraded on save, meaning you saved from a newer release. Delete the backup and re-save from R2026a. |
+| A `.slx.r2026b` file appeared | Simulink backed up a model it upgraded on save, meaning you saved from a newer release. Delete the backup and re-save from R2026b. |
 | `Unable to create a test suite` | Run `openProject` first: the tests need the project path. |
 | Monte Carlo fails with a Python or CoolProp error | Install CoolProp into the Python `pyenv` points at. |
 | Parallel pool runs out of memory | Pass `Workers=` with a smaller number. Each worker needs ~3.3 GB. |
 | A file you added isn't found on another machine | Run `syncProjectFiles` so the project lists it, and commit `resources/project`. |
-| "Model was exported from R2026b" message in tests | `throttle_valve_simulink.slx` was saved in R2026b ([KNOWN_ISSUES.md](KNOWN_ISSUES.md)). Harmless; don't save it from R2026a by accident. |

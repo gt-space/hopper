@@ -40,12 +40,11 @@ What's wrong, unfinished or surprising in the sim today (2026-10-31), and what t
 
 ## Tooling and workflow
 
-- **`y = logical ...` prints to the console** many times per run. It's harmless, and the source hasn't been found yet. It's most likely an expression missing its semicolon in code that runs while the model compiles or simulates; bisecting by variant choice is the next step.
 - **The Run button doesn't work on a freshly opened harness.** The model's variables come from `buildSimInput`, not the base workspace.
   - Workaround: `buildSimInput(...).applyToModel()`, then press Run. Close the model without saving afterwards ([User guide](USER_GUIDE.md#running-from-the-simulink-window)).
   - `sim_setup` predates the variants and doesn't set their controls.
-- **A newer MATLAB on the PATH silently saves models in the wrong release.** On machines with several releases, `matlab` from a terminal may be R2026b. A model saved from it fails CI's release check and leaves a `.slx.r2026a` backup. Start R2026a explicitly for anything that saves.
-- **`throttle_valve_simulink.slx` was saved in R2026b.** R2026a exports it on load, which prints a notice in the tests. Its owners need to re-save it from R2026a (`Simulink.exportToVersion`).
+- **A newer MATLAB on the PATH silently saves models in the wrong release.** On machines with several releases, `matlab` from a terminal may be newer than R2026b. A model saved from it fails CI's release check and leaves a `.slx.r2026b` backup. Start R2026b explicitly for anything that saves.
+- **`throttle_valve_simulink.slx` still carries an export notice.** It was exported from R2026b back to R2026a when R2026a was the team release, so loading it prints "exported from R2026b to R2026a" in the tests. Its owners can re-save it from R2026b to clear the notice.
 - **The top-level layout is automatic.** `arrangeSystem` places the seven groups on a diagonal. No line crosses a block, but it isn't hand-arranged.
 - **The signal log is large.** About 42 MB per hopper flight, mostly `nav_bus.p_cov`, with no decimation option. Keep `LOG` off in big Monte Carlos.
 - **Scope groups haven't been exercised in the GUI.** `VariantHarnessTest` builds and flies all nine with the log on, but nobody has yet checked how their windows look interactively.
