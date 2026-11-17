@@ -50,18 +50,18 @@ GRAPHS = {
              ("COPV gas mass", "COPV Gas Mass [kg]", 1, "kg")],
     "Pressurant flow": [("LOX pressurant (OBB)", "LOX Pressurant Mass Flow [kg/s]", 1000, "g/s"),
                         ("Fuel pressurant (FBB)", "Fuel Pressurant Mass Flow [kg/s]", 1000, "g/s")],
-    "Purge regulator": [("PR-REG outlet", "PR-REG Outlet Pressure [psia]", 1, "psia"),
-                        ("PR-REG opening", "PR-REG Opening", 100, "%"),
-                        ("PR-REG flow", "PR-REG Mass Flow [kg/s]", 1000, "g/s")],
+    "Purge regulator": [("PUREG outlet", "PUREG Outlet Pressure [psia]", 1, "psia"),
+                        ("PUREG opening", "PUREG Opening", 100, "%"),
+                        ("PUREG flow", "PUREG Mass Flow [kg/s]", 1000, "g/s")],
     "Purge flow": [("LOX purge (OPV)", "LOX Purge Mass Flow [kg/s]", 1000, "g/s"),
                    ("Fuel purge (FPV)", "Fuel Purge Mass Flow [kg/s]", 1000, "g/s"),
-                   ("Torch purge (TFPV)", "Torch Purge Mass Flow [kg/s]", 1000, "g/s")],
+                   ("Torch purge (FIPV)", "Torch Purge Mass Flow [kg/s]", 1000, "g/s")],
     "Regen": [("Regen outlet temperature", "Regen Jacket Outlet Temperature [K]", 1, "K"),
               ("Regen jacket dP", "Regen Jacket dP [psi]", 1, "psi")],
     "Relief flow": [("ORV (LOX tank)", "ORV Relief Mass Flow [kg/s]", 1000, "g/s"),
                     ("FRV (fuel tank)", "FRV Relief Mass Flow [kg/s]", 1000, "g/s"),
                     ("PRRV (COPV)", "PRRV Relief Mass Flow [kg/s]", 1000, "g/s"),
-                    ("ORV-1 (purge reg)", "ORV-1 Relief Mass Flow [kg/s]", 1000, "g/s")],
+                    ("PURV (purge reg)", "PURV Relief Mass Flow [kg/s]", 1000, "g/s")],
 }
 
 
@@ -230,7 +230,7 @@ def inputs_markdown(config):
             ["FTV (main fuel) starts opening", f"T+{sequence['main_fuel_open_s']:g} s", notes.get("sequence.main_fuel_open_s", "")],
             ["OTV (main ox) starts opening", f"T+{sequence['main_ox_open_s']:g} s", notes.get("sequence.main_ox_open_s", "")],
             ["Main ignition (profile start)", f"T+{ignition:g} s", notes.get("sequence.main_ignition_s", "")],
-            ["TFPV (torch purge) opens", f"T+{ignition + torch_seq.get('purge_open_after_ignition_s', 0):g} s", ""],
+            ["FIPV (torch purge) opens", f"T+{ignition + torch_seq.get('purge_open_after_ignition_s', 0):g} s", ""],
             ["OIMV / FIMV close", f"T+{ignition + torch_seq.get('close_after_ignition_s', 0):g} s", ""]]
     md += ["## Start-up sequence", table(["Event", "Time", "Notes"], rows)]
     rows = [["OTV closes", f"shutdown + {sequence['ox_close_after_shutdown_s']:g} s",
@@ -241,7 +241,7 @@ def inputs_markdown(config):
     for leg in config["purge"]["sequence"]:
         rows.append([f"{leg['branch']} open", f"shutdown + {leg['open_after_shutdown_s']:g} s for {leg['duration_s']:g} s",
                      leg.get("note", "")])
-    rows.append(["TFPV closes", f"{torch_seq.get('purge_close_after_main_purges_s', 0):g} s after the last main purge", ""])
+    rows.append(["FIPV closes", f"{torch_seq.get('purge_close_after_main_purges_s', 0):g} s after the last main purge", ""])
     rows.append(["Simulated after the last valve closes", f"{sequence['tail_off_s']:g} s", ""])
     md += ["## Shutdown sequence", "Shutdown request = the end of the thrust profile.",
            table(["Event", "Time", "Notes"], rows)]

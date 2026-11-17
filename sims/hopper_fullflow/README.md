@@ -86,7 +86,7 @@ network, tracks and plots follow automatically. The element types are in
 | `BangBangValve`, `CheckValve`, gas `Orifice` | members of the leg's `SeriesCdA` feeding one `CompressibleOrifice` |
 | `Branch` | a side path off a node (COPV, ullage, tank liquid, regulator outlet) to ambient, the chamber or a feed junction: one `SeriesCdA` into one `CompressibleOrifice` (gas) or `DischargeCoefficient` (liquid) |
 | `ReliefValve` | branch restriction opening linearly from crack to full-open dP |
-| `Regulator` | ideal regulator off a gas node; its outlet (`"PR-REG Outlet"`) feeds branches |
+| `Regulator` | ideal regulator off a gas node; its outlet (`"PUREG Outlet"`) feeds branches |
 
 Valves and valve-like elements also take `open_time_s` / `close_time_s`, full-stroke travel
 times (0 = instant; partial strokes take proportionate time). Nonzero travel caps the time
@@ -111,7 +111,7 @@ the current config instead declares the separate torch network below.
 
 ```text
 FTV Inlet -> FIMV -> FICK -> FIORF -> Torch Fuel Injector -> Torch Chamber
-PR-REG Outlet -> TFPV -> FIPCK -> FIPORF -> FIORF Outlet (fuel-injector inlet)
+PUREG Outlet -> FIPV -> FIPCK -> FIPORF -> FIORF Outlet (fuel-injector inlet)
 OTV Inlet -> OIMV -> OICK -> OIORF -> OTHX -> Torch Ox Injector -> Torch Chamber
 Torch Chamber -> Torch Throat -> Main Chamber
 ```
@@ -150,7 +150,7 @@ the output root. Replay with `--config <run-folder>/run_config.json`.
 ```json
 {
   "time_s": 2.0,
-  "valves": {"FIMV": 0.0, "OIMV": 0.0, "TFPV": 1.0},
+  "valves": {"FIMV": 0.0, "OIMV": 0.0, "FIPV": 1.0},
   "main_chamber_pressure_psia": 300.0,
   "release_torch_pressure": true
 }
@@ -164,16 +164,16 @@ strictly ordered and within the run. The runner prints the resolved timeline;
 `--check-inputs` lets you verify it without running or writing results.
 
 Current events: all valves closed at 0 s; FIMV/OIMV open at 0.2 s; close both and open
-TFPV at 2 s while main pressure becomes 300 psia; close TFPV at 7 s; end at 7.5 s.
+FIPV at 2 s while main pressure becomes 300 psia; close FIPV at 7 s; end at 7.5 s.
 The 7 s purge-close command is an editable example. Physical `open_time_s` and
-`close_time_s` stay with the hardware in `torch.network`: FIMV/TFPV take 80 ms and
+`close_time_s` stay with the hardware in `torch.network`: FIMV/FIPV take 80 ms and
 OIMV 100 ms. These are commands, so complete closure occurs after those travel times.
 Feed-valve positions are shown; propellant flow through them remains excluded.
 
 The old `torch.open_time_s`, `duration_s`, and `valve_stroke_s` belong to the legacy
 main-sim torch approximation and do **not** schedule this independent purge. Likewise,
 the top-level `purge.sequence` schedules the vehicle's Fuel Purge/LOX Purge branches,
-not TFPV. Saved cases with per-component `command_events_s` still replay; mixing the
+not FIPV. Saved cases with per-component `command_events_s` still replay; mixing the
 central sequence with those legacy commands is rejected to avoid hidden overrides.
 
 Each plotted run now includes `torch_component_diagram.svg`/`.png`, generated from

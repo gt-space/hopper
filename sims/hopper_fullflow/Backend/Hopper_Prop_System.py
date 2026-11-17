@@ -23,7 +23,7 @@ Kinds of equations
   * Valves, orifices, nozzle: algebraic flow-vs-pressure relations.
   * Junctions and the main chamber: zero-volume nodes.
 
-Side paths (vents, reliefs, the PR-REG regulator, GN2 purges, OFD and the
+Side paths (vents, reliefs, the PUREG regulator, GN2 purges, OFD and the
 torch feeds OIMV / HX-1 / FIMV) are built from BRANCHES / REGULATORS by
 build_branches. The torch branches deliver their propellant into the chamber.
 
@@ -653,7 +653,7 @@ def _torch_path(network, name, elements, shared, upstream, fluid, downstream, ga
 def build_torch(network, feeds, tanks, nodes, chamber_pressure, outflows):
     """The torch igniter from TORCH_LEGS: LOX from a LOX feed node and fuel from a fuel
     feed node into a zero-volume torch chamber that burns on the main chamber map;
-    the TFPV purge gas (from its regulator outlet, through the shared torch fuel
+    the FIPV purge gas (from its regulator outlet, through the shared torch fuel
     injector) also enters it. The torch throat carries the mixture into the main
     chamber (ideal, subsonic or choked, either direction). Draws are appended to
     outflows (feed junctions, regulator outlet)."""
@@ -791,7 +791,7 @@ def HopperPropSystem(targets: list,
     profile_start, profile_end, shutdown_end = burn_timeline(targets)
     # The purges open at their delays after the shutdown request (purge section of the config).
     purge_end = schedule_purges(profile_end) if PURGE_IN_TRANSIENT and PURGE_SEQUENCE else shutdown_end
-    # Torch startup and the TFPV purge, which stays open until after the main purges.
+    # Torch startup and the FIPV purge, which stays open until after the main purges.
     torch_end = schedule_torch(purge_end) if TORCH_LEGS else 0.0
     if t_final is None:
         t_final = max(shutdown_end, purge_end, torch_end) + TAIL_OFF_TIME
@@ -878,7 +878,7 @@ def HopperPropSystem(targets: list,
     # per 0.1 s step toward that value.)
     # Main injectors plus anything a branch delivers into the chamber (the torch).
     # The torch's LOX and fuel count in the chamber's flow and MR (they reach it as torch
-    # products through the torch throat). The TFPV nitrogen pressurizes the torch and
+    # products through the torch throat). The FIPV nitrogen pressurizes the torch and
     # flows out of its throat, but is not counted in the main chamber: the chamber map
     # would treat it as hot combustion gas and overstate Pc and thrust (~1.8 %).
     torch_ox, torch_fuel = ([torch["ox"]], [torch["fuel"]]) if torch else ([], [])

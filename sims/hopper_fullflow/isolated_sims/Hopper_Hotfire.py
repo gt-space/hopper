@@ -12,7 +12,7 @@ Network (test-stand P&ID)
     Kerosene reservoir -> fuel line -> FTV -> line -> regen -> FINJ --------> Main Chamber
     OTV Inlet -> OIMV -> OICK -> OIORF -> OTHX -> torch ox injector  --> Torch Chamber
     FTV Inlet -> FIMV -> FICK -> FIORF -> torch fuel injector       --> Torch Chamber -> torch throat -> Main Chamber
-    GN2 supply -> Purge Reg -> Purge RV (relief to ambient)
+    GN2 supply -> PUREG -> PURV (relief to ambient)
                             -> OPV  -> OPCK  -> below OTV
                             -> FPV  -> FPCK  -> below FTV
                             -> FIPV -> FIPCK -> FIPORF -> torch fuel injector -> Torch Chamber
@@ -338,7 +338,7 @@ COLUMNS = {   # CSV column -> track
     "Mixture Ratio": "Mixture Ratio", "Torch Mixture Ratio": "Torch Mixture Ratio",
     "LOX Purge [kg/s]": "LOX Purge Mass Flow [kg/s]", "Fuel Purge [kg/s]": "Fuel Purge Mass Flow [kg/s]",
     "Torch Purge [kg/s]": "Torch Purge Mass Flow [kg/s]", "Purge Relief [kg/s]": "Purge Relief Mass Flow [kg/s]",
-    "Purge Reg Outlet [psia]": "Purge Reg Outlet Pressure [psia]",
+    "PUREG Outlet [psia]": "PUREG Outlet Pressure [psia]",
 }
 
 

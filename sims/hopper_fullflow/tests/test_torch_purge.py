@@ -173,7 +173,7 @@ class CentralSequenceTests(unittest.TestCase):
         self.assertEqual(model.final_time,7.5)
         self.assertEqual(model.main_pressure(1.9)/psi,14.8)
         self.assertEqual(model.main_pressure(2.)/psi,300.)
-        self.assertAlmostEqual(valve_position(model.valves['TFPV'],2.04),.5)
+        self.assertAlmostEqual(valve_position(model.valves['FIPV'],2.04),.5)
         self.assertAlmostEqual(valve_position(model.valves['FIMV'],2.04),.5)
         self.assertAlmostEqual(valve_position(model.valves['OIMV'],2.04),.6)
         event=self.config['torch']['standalone_purge']['sequence']['events'][2]
@@ -181,7 +181,7 @@ class CentralSequenceTests(unittest.TestCase):
         changed=TorchPurgeModel(self.config,self.values)
         self.assertEqual(changed.release,3.)
         self.assertEqual(changed.main_pressure(2.)/psi,14.8)
-        self.assertEqual(valve_position(changed.valves['TFPV'],2.5),0.)
+        self.assertEqual(valve_position(changed.valves['FIPV'],2.5),0.)
 
     def test_ambiguous_or_incomplete_sequences_fail(self):
         mutations=[
@@ -190,7 +190,7 @@ class CentralSequenceTests(unittest.TestCase):
             lambda c:c['torch']['standalone_purge']['sequence']['events'][2]['valves'].update(TYPO=1),
             lambda c:c['torch']['standalone_purge']['sequence']['events'][2].update(time_s=.1),
             lambda c:c['torch']['standalone_purge']['sequence']['events'][2].pop('release_torch_pressure'),
-            lambda c:c['torch']['standalone_purge']['sequence']['events'][0]['valves'].pop('TFPV'),
+            lambda c:c['torch']['standalone_purge']['sequence']['events'][0]['valves'].pop('FIPV'),
             lambda c:c['torch']['standalone_purge']['sequence']['events'][2].update(release_torch_pressure=False),
         ]
         for mutation in mutations:

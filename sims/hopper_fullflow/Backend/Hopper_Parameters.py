@@ -67,7 +67,7 @@ ASSUMPTIONS = [
                "previous step's Pc (one 0.05 s lag, under 0.1 % effect). Target MR 1.25. The chamber has no volume; propellant ignites as soon as it arrives."),
     ("Torch", "The current torch.network declares fuel FIMV -> FICK -> FIORF -> injector, oxidizer "
               "OIMV -> OICK -> OIORF -> OTHX -> injector, a shared torch chamber and throat, and purge "
-              "TFPV -> FIPCK -> FIPORF into FIORF Outlet. OTHX is a tube with prescribed dT versus time "
+              "FIPV -> FIPCK -> FIPORF into FIORF Outlet. OTHX is a tube with prescribed dT versus time "
               "since torch opening. The independent Hopper_Torch_Purge.py solves cold ideal-gas purge "
               "with a finite chamber and bidirectional geometric throat, no combustion or liquid displacement. "
               "Full vehicle coupling remains pending; keep torch.enabled false. Older "
@@ -77,9 +77,9 @@ ASSUMPTIONS = [
                          "steps through both ramps."),
     ("Bang-bang", "Each tank's solenoid closes above set + upper and opens below set - lower, sampled every "
                   "0.05 s, so pressure overshoots the band slightly. Solenoids switch instantly."),
-    ("Regulator", "PR-REG is ideal: outlet = min(COPV, ambient + 750 psig) at the COPV gas temperature, no droop or lock-up."),
+    ("Regulator", "PUREG opens linearly from shut at its set to fully open its droop below it; its CdA caps the combined flow of every purge and relief it feeds. Gas throttles at constant enthalpy. Dome loading not modelled."),
     ("Purges", "Purge GN2 is drawn from the COPV; OPV joins the LOX line below OTV, FPV the fuel line below FTV, "
-               "Torch purge TFPV tees into FIORF Outlet and is solved only in the independent cold-gas case. Main purge "
+               "Torch purge FIPV tees into FIORF Outlet and is solved only in the independent cold-gas case. Main purge "
                "gas only sees its feed-line back pressure; it is not added to the "
                "line or chamber flow. All purges are closed during the nominal burn."),
     ("Relief valves", "Opening rises linearly from crack to full-open dP (default 110 % of crack)."),
@@ -105,8 +105,9 @@ OPEN_ITEMS = [
     ("Start-up tank spike", "Both tanks start at set pressure with the bang-bang solenoid open, so the first step "
                             "overshoots to about 570 psia, past the 565 psia relief crack. Start with "
                             "bang_bang_initial_state = 0?"),
-    ("Vendor flow data", "No published Cv found for Marotta PLV34, Swagelok SS-4R3A, Check-All BUDSSTF.125SS or the "
-                         "UNOX 3/8 NO solenoid. Need datasheets or flow tests."),
+    ("Vendor flow data", "No published Cv found for Marotta PLV34, Swagelok SS-4R3A or the UNOX 3/8 NO solenoid. "
+                         "Need datasheets or flow tests. (Check-All BUDSSTF.125SS: CdA 44.2 mm2 from the user, "
+                         "2026-11-15, now used for PROCK / PRFCK.)"),
     ("Nozzle note", "LinearizedNozzle docstring says Pc = Pa + 1 psi; nozzle_linear_pressure_drop_psi is 0.5."),
     ("Collapse factor", "LOX 2.0 / fuel 1.1 are assumed. Waiting on Luca for conservative and Vespula values."),
 ]
