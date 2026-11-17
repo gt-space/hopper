@@ -21,7 +21,7 @@ Run settings: dt=0.01 s; vent target=60 s; drain target=60 s; OFD fill is a CdA-
 - Function: normally closed on-off vent valve to ambient. Confirm electrical actuation, default state, cycle life, and port geometry.
 
 ## OFD (LOX fill/drain)
-- Effective flow area: use at least the worst-case 120.00 mm2 for the assumed 60 s drain target across the modeled pressure cases; configured candidate is 9.40 mm2 (water-equivalent Cv about 0.55).
+- Effective flow area: use at least the worst-case 153.47 mm2 for the assumed 60 s drain target across the modeled pressure cases; configured candidate is 9.40 mm2 (water-equivalent Cv about 0.55).
 - Fill trade study: fixed LFS inputs are 250 psig supply and 2.77 mm2 LFS path CdA. The OQD is a separate configurable 50.00 mm2 input. OFD CdA is swept and the resulting fill times are reported; no fill-time requirement or recommended valve size is imposed by this script.
 - Fluid/service: liquid oxygen at 90 K. Require LOX compatibility, oxygen cleaning, cryogenic temperature rating, and a rated working pressure of at least 610 psig.
 - Function: normally closed fill/drain valve. Confirm whether it also needs a separate ullage vent flow path; the FullFlow P&ID models OFD only on the liquid side.

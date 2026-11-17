@@ -281,7 +281,10 @@ def simulate_drain(cda_mm2: float, ullage_gauge_psig: float, keep_history: bool 
     end_mass_kg = 0.01 * mass_kg
     time_s = 0.0
     history = [(0.0, mass_kg, drain_flow_kg_s(mass_kg, ullage_gauge_psig, cda_mm2))] if keep_history else []
-    while mass_kg > end_mass_kg and time_s < 7200.0:
+    # Low-pressure, small-CdA drains can exceed two hours.  Keep the integration
+    # horizon comfortably above the largest sizing-sweep case instead of treating
+    # a timeout as a completed drain.
+    while mass_kg > end_mass_kg and time_s < 86400.0:
         mdot = drain_flow_kg_s(mass_kg, ullage_gauge_psig, cda_mm2)
         if mdot <= 0.0:
             return math.nan, history
@@ -419,7 +422,9 @@ def main() -> None:
         drain_summary.append({"valve": "OFD", "mode": "LOX liquid drain", "configured_CdA_mm2": ofd_cda, "water_equivalent_Cv": round(ofd_cda * CV_PER_CDA_MM2, 3), "ullage_gauge_pressure_psig": pressure_case, "LOX_load_kg": OX_TANK["liquid_mass_kg"], "drain_time_to_1pct_residual_s": round(duration, 3), "CdA_required_for_target_mm2": round(required, 3), "meets_60s_target": duration <= DRAIN_TARGET_TIME_S})
         points = []
         for trial_cda in CDA_SWEEP_MM2:
-            trial_time = reference_time / trial_cda
+            # Run each CdA rather than scaling a possibly time-limited reference
+            # result. This is important for near-zero ullage-pressure drain cases.
+            trial_time, _ = simulate_drain(trial_cda, pressure_case)
             points.append((trial_cda, trial_time))
             drain_sweep.append({"ullage_gauge_pressure_psig": pressure_case, "CdA_mm2": trial_cda, "drain_time_s": round(trial_time, 4)})
         drain_plot.append((f"{pressure_case:g} psig", points))
@@ -471,6 +476,8 @@ def main() -> None:
     write_csv(OUTPUT_DIR / "ofd_fill_history.csv", fill_history)
     write_csv(OUTPUT_DIR / "ovnt_fill_boiloff_capacity_sweep.csv", boiloff_screen_rows)
     write_svg(OUTPUT_DIR / "vent_time_vs_cda.svg", "OVNT and FVNT vent time versus effective CdA", "Effective CdA [mm2]", "Time to 1 psig above ambient [s]", vent_plot)
+    fvnt_plot = [(tag, points) for tag, points in vent_plot if tag == "FVNT"]
+    write_svg(OUTPUT_DIR / "fvnt_vent_time_vs_cda.svg", "FVNT EOL vent time versus effective CdA", "Effective CdA [mm2]", "Time to 1 psig above ambient [s]", fvnt_plot)
     write_svg(OUTPUT_DIR / "vent_blowdown_pressure.svg", "Tank pressure during vent blowdown", "Time [s]", "Pressure [psia]", pressure_plot)
     write_svg(OUTPUT_DIR / "ofd_drain_time_vs_cda.svg", "OFD LOX drain time versus effective CdA", "Effective CdA [mm2]", "Time to 1% LOX remaining [s]", drain_plot)
     write_svg(OUTPUT_DIR / "ofd_fill_time_vs_cda.svg", "OFD total LOX fill operation time versus CdA", "OFD effective CdA [mm2]", f"Total time to {FILL_END_LIQUID_FRACTION:.0%} LOX load [s]", fill_plot)
