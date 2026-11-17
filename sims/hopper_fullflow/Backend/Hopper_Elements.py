@@ -556,7 +556,7 @@ class Branch:
 
     source  "COPV", "LOX Ullage", "Fuel Ullage" (gas), "LOX Tank Liquid",
             "Fuel Tank Liquid" or any feed junction ("OTV Inlet") (liquid), or
-            a Regulator outlet ("PR-REG Outlet")
+            a Regulator outlet ("PUREG Outlet")
     sink    "ambient", "Main Chamber", or any feed junction ("OTV Outlet");
             the sink sets the back pressure and the flow leaves the model there
     into_sink  True (liquid branches into "Main Chamber" only): the flow is

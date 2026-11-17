@@ -154,6 +154,27 @@ removed; with `enabled` false the network is listed as not modelled, as before.
   `shutdown_sequence` (torch and MCC Pc with every sequenced valve's opening).
 - `ASSUMPTIONS.txt` and `.gitignore` (`Outputs/Hotfire/**/*.h5`) updated.
 
+### Removed on November 11
+
+The isolated sizing calculators were deleted (judged not good enough to keep):
+`Hopper_Purge.py` (purge check), `Hopper_Purge_Sizing.py`, `Hopper_Regulator_Sizing.py`,
+`Hopper_Vent.py`, `Hopper_Drain.py` and `Hopper_Tank_Pressure_Sweep.py`, with their report
+hooks, their config inputs (`vent`, `lox_drain`, `tank_sweep`, and `purge`'s
+`required_fraction_of_peak_flow`, `back_pressure_psia` and `sizing`), their `HOPPER_DATA`
+names, their parameter-workbook rows and their outputs. The descriptions of them above are
+historical. The run report now writes only `run_summary.csv` and `cda_table.csv`. Kept:
+`Hopper_Hotfire.py`, `Hopper_Results_Page.py` and Vedanth's `Hopper_Torch_Purge.py`.
+
+### Renamed and changed on November 15
+
+Components now use the latest P&ID names: COPV 1/2 -> COPV-1/2, LOX Tank / Fuel Tank -> OTANK /
+FTANK, PRVNT -> OVNT-1, OR-1 / OR-2 -> OBBORF / FBBORF, PR-REG -> PUREG (outlet node PUREG
+Outlet), ORV-1 -> PURV, CV-5 / CV-4 -> OPCK / FPCK and TFPV -> FIPV (also in the standalone torch
+purge sequence and its tests). Track names follow the component names, so old result files and
+plots use the old names. PUREG is now the TESCOM 44-1500 (Cv 0.3 = 5.09 mm2, set 400 psig, top of
+its spring range) and PROCK / PRFCK the Check-All BUDSSTF.125SS (44.2 mm2). The P&ID shows PRRV set
+4550 psi; the config still cracks it at 4950 psig.
+
 ### Open items
 
 - Pick a purge regulator with Cv ≥ ~0.2, set between about 760 and 800 psig (under

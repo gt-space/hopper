@@ -9,7 +9,6 @@ How it runs (each step can be switched in the JSON):
   4. Results: CSVs (vehicle_sim.py formats) and the plots listed in outputs.plots.
   5. Report (outputs.report): run_summary.csv (burn time, residuals, COPV use,
      margins, thrust checks), cda_table.csv (OTV/FTV CdA per thrust point),
-     vent_times.csv, lox_drain_times.csv, tank_pressure_sweep.csv/.png, purge_flow.csv/.png,
      component_table.csv/.md, schematic.png and Hopper_Parameters.xlsx.
 
 Each solve is archived with its exact inputs in Hopper_Results/<UTC time>/, and the

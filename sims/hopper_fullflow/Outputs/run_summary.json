@@ -1,45 +1,45 @@
 {
   "profile": "52m_free",
   "hold_time_s": 0.5,
-  "demonstrated_maximum_N": 1686.3478853134882,
-  "demonstrated_maximum_lbf": 379.1060857957571,
+  "demonstrated_maximum_N": 1686.3478463007068,
+  "demonstrated_maximum_lbf": 379.10607702533497,
   "interval_s": [
     3.099999999999997,
     3.599999999999995
   ],
-  "peak_thrust_N": 1688.8974798464492,
+  "peak_thrust_N": 1688.9015461721299,
   "capacity_shortfall_demonstrated": false,
   "interpretation": "No sustained capacity shortfall demonstrated; achieved thrust is a lower bound, not the system maximum.",
   "residuals": {
     "LOX": {
       "initial_kg": 15.9982029,
-      "profile_end_kg": 2.320358881386724,
-      "final_kg": 2.2791194450455357,
-      "consumed_kg": 13.719083454954465,
-      "remaining_percent": 14.246096635301052
+      "profile_end_kg": 2.321711884089489,
+      "final_kg": 2.280472443534616,
+      "consumed_kg": 13.717730456465384,
+      "remaining_percent": 14.254553825758867
     },
     "Fuel": {
       "initial_kg": 12.9999573,
-      "profile_end_kg": 2.027562684238397,
-      "final_kg": 1.9598431857489966,
-      "consumed_kg": 11.040114114251004,
-      "remaining_percent": 15.075766331547849
+      "profile_end_kg": 2.025654598714293,
+      "final_kg": 1.9579351001968215,
+      "consumed_kg": 11.042022199803178,
+      "remaining_percent": 15.061088702166902
     }
   },
   "copv_temperatures": [
     {
-      "name": "COPV 1",
-      "minimum_observed_K": 206.5129499369734,
+      "name": "COPV-1",
+      "minimum_observed_K": 212.5453886348192,
       "limit_K": 220,
       "violated": true,
-      "first_crossing_s": 26.95
+      "first_crossing_s": 28.8
     },
     {
-      "name": "COPV 2",
-      "minimum_observed_K": 206.5129499369734,
+      "name": "COPV-2",
+      "minimum_observed_K": 212.5453886348192,
       "limit_K": 220,
       "violated": true,
-      "first_crossing_s": 26.95
+      "first_crossing_s": 28.8
     }
   ],
   "invalid_inventory": false,
