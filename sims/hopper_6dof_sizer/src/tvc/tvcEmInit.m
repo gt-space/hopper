@@ -6,5 +6,7 @@ S.xd = zeros(2, 1);      % m/s, rod speed
 S.I  = zeros(2, 1);      % rad s, servo integrator
 S.dg = zeros(2, 1);      % rad, gimbal angle (after backlash)
 S.V  = zeros(2, 1);      % V, held servo output
+S.ref = zeros(2, 1);     % rad, profiled servo setpoint (acceleration limit)
+S.vref = zeros(2, 1);    % rad/s, its rate
 S.buf = zeros(101, 2);   % command delay line, one row per servo period
 end

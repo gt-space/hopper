@@ -73,6 +73,23 @@ classdef TvcModelTest < matlab.unittest.TestCase
             end
             tc.verifyEqual(d, [0; 0], 'AbsTol', 1e-12);
         end
+
+        function accelerationRampBoundsTheSetpoint(tc)
+            % the drive's ramp: setpoint acceleration <= limit, time-optimal
+            % 2 deg move takes 2*sqrt(A/a), then settles on the command
+            a = deg2rad(300);  A = deg2rad(2);
+            T = tvcEmParams(tvcActuatorParams('AG9113', Layout='recommended'), AccelLimit=a);
+            S = tvcEmInit();  n = 600;  ref = zeros(n, 1);  v = zeros(n + 1, 1);  d = 0;
+            for k = 1:n
+                [S, d] = tvcEmUpdate(S, [A; 0], 0, T);
+                ref(k) = S.ref(1);  v(k + 1) = S.vref(1);
+            end
+            tc.verifyLessThanOrEqual(max(abs(diff(v))) / T.dt_c, a * (1 + 1e-9));
+            t90 = find(ref >= 0.999 * A, 1) * T.dt_c;
+            tc.verifyGreaterThanOrEqual(t90, 0.95 * 2 * sqrt(A / a));
+            tc.verifyEqual(ref(end), A, 'AbsTol', 1e-9);
+            tc.verifyEqual(d(1), A, 'AbsTol', deg2rad(0.05));
+        end
     end
 
     methods (Static)

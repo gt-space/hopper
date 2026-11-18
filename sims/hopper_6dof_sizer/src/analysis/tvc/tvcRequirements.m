@@ -25,12 +25,22 @@ REQ.A_lin_deg = 2;
 REQ.rate_dps  = 25;
 
 % ---- Acceleration ----
-% reach full rate within ~1/wn of the actuator (28 ms): 25 deg/s * 36 rad/s
-REQ.accel_dps2 = 900;
+% follow the same linear amplitude as the rate requirement at crossover:
+% A_lin * wc^2 = 2 deg * 12.25^2 = 300 deg/s^2.  Was 900 (25 deg/s * 36
+% rad/s, full rate within one actuator time constant), which the TVC team
+% cannot reach and the vehicle does not need: with the drive's acceleration
+% ramp at 150-900 deg/s^2 (AG 9113 recommended, 120 in-loop runs, results/
+% tvc_accel_loop.mat) landing is unchanged to 1 mm in every MC and stress
+% case; only transient tracking error grows (2.5 cm offset worst 0.43 deg
+% unlimited, 0.87 at 300). Below ~200 the 2 Hz response to a 2 deg swing
+% collapses (phase past -150 deg), so 300 is the floor, not 150.
+% Set the drive's acceleration ramp no higher than the demonstrated value.
+REQ.accel_dps2 = 300;
 
 % ---- Response / resolution / load ----
-REQ.rise05_ms    = 60;     % 0.5 deg step, 10-90 %, latency excluded
-REQ.phase2Hz_deg = -40;    % actuator phase at 2 Hz no worse than this (current 6DOF -56)
+REQ.rise05_ms    = 65;     % 0.5 deg step, 10-90 %, latency excluded (63 ms at the 300 deg/s^2 ramp; was 60)
+REQ.phase2Hz_deg = -40;    % actuator phase at 2 Hz, sine amplitude <= 1 deg, no worse than this (current 6DOF -56)
+                           % (flight swings at crossover are well under 1 deg: peak in-loop rate 6.7 deg/s)
 REQ.res_deg      = 0.05;   % <= half the 6DOF 0.1 deg quantizer; 4x below deadband 0.2
 REQ.force_margin = 1.5;    % rated force / worst hinge load (2.5 cm stress offset, 8 deg, 1.1x thrust)
 REQ.force_margin_nom = 2.5;% rated force / nominal hinge load (1 cm offset)

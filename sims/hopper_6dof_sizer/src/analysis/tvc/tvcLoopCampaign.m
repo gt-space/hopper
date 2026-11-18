@@ -110,7 +110,9 @@ else
     W = hopperWorkspace(r.scenario, V);
 end
 if r.cfg.model ~= "second_order"
-    W = tvcWorkspace(W, V, Layout=char(r.cfg.layout), Offset=r.cfg.offset);
+    alim = Inf;
+    if isfield(r.cfg, 'accel_dps2') && ~isempty(r.cfg.accel_dps2), alim = deg2rad(r.cfg.accel_dps2); end
+    W = tvcWorkspace(W, V, Layout=char(r.cfg.layout), Offset=r.cfg.offset, AccelLimit=alim);
 end
 in = buildSimInput(in, [], W, V);
 end
