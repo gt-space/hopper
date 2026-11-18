@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,71 @@ DEFAULT_HOPPER_CONFIG = FULLFLOW_ROOT / "hopper_config.json"
 
 class ORVConfigError(ValueError):
     """An ORV input is absent, ambiguous, or physically inconsistent."""
+
+
+ORV_INPUT_SOURCES: dict[str, tuple[tuple[str, ...], str]] = {
+    "hopper_config_path": (("paths", "hopper_config"), "hopper_config.json"),
+    "output_directory": (("paths", "output_directory"), "files.results_directory + relief_sizing.orv.output_subdirectory"),
+    "pressurant_name": (("pressurant", "name"), "fluids.pressurant"),
+    "ambient_pressure_psia": (("ambient_pressure_psia",), "fluids.ambient_pressure_psia"),
+    "source_names": (("source", "names"), "bottles[*].name"),
+    "source_pressures_psia": (("source", "pressure_psia"), "bottles[*].pressure_psia"),
+    "source_temperatures_k": (("source", "temperature_k"), "bottles[*].temperature_k"),
+    "source_outlet_cdas_mm2": (("source", "outlet_cda_mm2"), "bottles[*].outlet_cda_mm2"),
+    "tank_name": (("tank", "name"), "tanks.oxidizer.name"),
+    "tank_propellant": (("tank", "propellant"), "tanks.oxidizer.propellant"),
+    "tank_initial_pressure_psia": (("tank", "initial_pressure_psia"), "tanks.oxidizer.pressure_psia"),
+    "tank_liquid_temperature_k": (("tank", "liquid_temperature_k"), "tanks.oxidizer.liquid_temperature_k"),
+    "tank_meop_psia": (("tank", "meop_psia"), "tanks.oxidizer.set_pressure_psia"),
+    "tank_mawp_psia": (("tank", "mawp_psia"), "relief_sizing.orv.tank_mawp_psia"),
+    "provisional_relieving_temperature_k": (("thermal", "provisional_relieving_temperature_k"), "tanks.oxidizer.ullage_temperature_k"),
+    "liquid_to_ullage_ua_w_k": (("thermal", "liquid_to_ullage_ua_w_k"), "relief_sizing.orv.liquid_to_ullage_ua_w_k"),
+    "wall_to_ullage_ua_w_k": (("thermal", "wall_to_ullage_ua_w_k"), "relief_sizing.orv.wall_to_ullage_ua_w_k"),
+    "tank_wall_temperature_k": (("thermal", "tank_wall_temperature_k"), "relief_sizing.orv.tank_wall_temperature_k"),
+    "net_external_sensible_heat_rate_w": (("thermal", "net_external_sensible_heat_rate_w"), "relief_sizing.orv.net_external_sensible_heat_rate_w"),
+    "tank_volume_l": (("thermal", "tank_volume_l"), "tanks.oxidizer.volume_l"),
+    "initial_liquid_mass_kg": (("thermal", "initial_liquid_mass_kg"), "tanks.oxidizer.liquid_mass_kg"),
+    "collapse_factor": (("thermal", "collapse_factor"), "tanks.oxidizer.collapse_factor"),
+    "failure_scenario": (("failure", "name"), "relief_sizing.orv.failure_scenario"),
+    "simulation_maximum_gn2_inflow_kg_s": (("failure", "simulation_maximum_gn2_inflow_kg_s"), "relief_sizing.orv.simulation_maximum_gn2_inflow_kg_s"),
+    "simulation_inflow_status": (("failure", "simulation_inflow_status"), "relief_sizing.orv.simulation_inflow_status"),
+    "pressurant_line": (("failure", "pressurant_line"), "flow_paths.oxidizer_pressurant[LOX Pressurant Line]"),
+    "obb_cda_mm2": (("failure", "obb_cda_mm2"), "flow_paths.oxidizer_pressurant[OBB].cda_mm2"),
+    "orifice_name": (("failure", "failing_orifice_name"), "flow_paths.oxidizer_pressurant[OR-1 or OBBORF].name"),
+    "orifice_cda_mm2": (("failure", "orifice_cda_mm2"), "flow_paths.oxidizer_pressurant[OR-1 or OBBORF].cda_mm2"),
+    "check_valve_cda_mm2": (("failure", "check_valve_cda_mm2"), "flow_paths.oxidizer_pressurant[PROCK].cda_mm2"),
+    "gn2_mass_flow_safety_factor": (("failure", "gn2_mass_flow_safety_factor"), "relief_sizing.shared.mass_flow_safety_factor"),
+    "orv_source": (("orv", "source"), "side_paths[ORV Relief].source"),
+    "orv_set_pressure_psia": (("orv", "proposed_set_pressure_psia"), "side_paths[ORV Relief].elements[ORV].crack_pressure_psig + fluids.ambient_pressure_psia"),
+    "orv_relieving_pressure_psia": (("orv", "evaluated_relieving_pressure_psia"), "side_paths[ORV Relief].elements[ORV].full_open_pressure_psig + fluids.ambient_pressure_psia"),
+    "orv_candidate_cda_mm2": (("orv", "candidate_cda_mm2"), "side_paths[ORV Relief].elements[ORV].cda_mm2"),
+    "orv_crack_pressure_psig": (("orv", "configured_crack_pressure_psig"), "side_paths[ORV Relief].elements[ORV].crack_pressure_psig"),
+    "gox_fluid_name": (("gox", "fluid_name"), "constant Oxygen identity"),
+    "gox_generation_kg_s": (("gox", "provisional_generation_kg_s"), "relief_sizing.orv.provisional_gox_generation_kg_s"),
+    "effective_heat_transfer_rate_w": (("gox", "effective_heat_transfer_rate_w"), "relief_sizing.orv.effective_heat_transfer_rate_w"),
+    "heat_to_vaporization_fraction": (("gox", "heat_to_vaporization_fraction"), "relief_sizing.orv.heat_to_vaporization_fraction"),
+    "pressure_sweep_points": (("analysis", "pressure_sweep_points"), "relief_sizing.shared.pressure_sweep_points"),
+}
+
+
+@dataclass(frozen=True)
+class ORVInputs:
+    """Named, read-only view of one freshly loaded JSON configuration."""
+
+    _solver_config: dict[str, Any]
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            path, _ = ORV_INPUT_SOURCES[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+        value: Any = self._solver_config
+        for key in path:
+            value = value[key]
+        return value
+
+    def as_solver_config(self) -> dict[str, Any]:
+        return self._solver_config
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -186,6 +252,11 @@ def load_orv_config(config_path: str | Path = DEFAULT_HOPPER_CONFIG) -> dict[str
     }
     validate_orv_config(config)
     return config
+
+
+def load_orv_inputs(config_path: str | Path = DEFAULT_HOPPER_CONFIG) -> ORVInputs:
+    """Reload JSON and expose every ORV input through a named attribute."""
+    return ORVInputs(load_orv_config(config_path))
 
 
 def validate_orv_config(config: dict[str, Any]) -> None:

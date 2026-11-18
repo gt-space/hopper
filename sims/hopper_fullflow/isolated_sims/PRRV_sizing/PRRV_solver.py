@@ -19,7 +19,10 @@ try:
 except ImportError:
     PropsSI = None
 
-from PRRV_config import DEFAULT_HOPPER_CONFIG, load_prrv_config
+try:
+    from .PRRV_config import DEFAULT_HOPPER_CONFIG, load_prrv_inputs
+except ImportError:  # Direct execution of a copied two-file handoff.
+    from PRRV_config import DEFAULT_HOPPER_CONFIG, load_prrv_inputs
 
 PSI_TO_PA = 6894.757293168
 MM2_TO_M2 = 1e-6
@@ -192,7 +195,7 @@ def print_report(config: dict[str, Any], result: dict[str, Any], written: list[P
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_HOPPER_CONFIG)
-    config = load_prrv_config(parser.parse_args().config)
+    config = load_prrv_inputs(parser.parse_args().config).as_solver_config()
     warnings.warn("PRRV results are theoretical screening, not certified relief capacity", stacklevel=2)
     result = calculate(config); written = write_outputs(config, result); print_report(config, result, written)
     return 0

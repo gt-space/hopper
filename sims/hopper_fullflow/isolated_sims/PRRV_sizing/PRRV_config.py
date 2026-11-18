@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,58 @@ DEFAULT_HOPPER_CONFIG = FULLFLOW_ROOT / "hopper_config.json"
 
 class PRRVConfigError(ValueError):
     """A PRRV input is missing, ambiguous, or physically invalid."""
+
+
+PRRV_INPUT_SOURCES: dict[str, tuple[tuple[str, ...], str]] = {
+    "hopper_config_path": (("paths", "hopper_config"), "hopper_config.json"),
+    "output_directory": (("paths", "output_directory"), "files.results_directory + relief_sizing.prrv.output_subdirectory"),
+    "fluid_name": (("fluid", "name"), "fluids.pressurant"),
+    "ambient_pressure_psia": (("ambient_pressure_psia",), "fluids.ambient_pressure_psia"),
+    "copv_names": (("copvs", "names"), "bottles[*].name"),
+    "copv_volumes_l": (("copvs", "volume_l"), "bottles[*].volume_l"),
+    "copv_pressures_psia": (("copvs", "configured_pressure_psia"), "bottles[*].pressure_psia"),
+    "copv_temperatures_k": (("copvs", "configured_temperature_k"), "bottles[*].temperature_k"),
+    "failure_scenario": (("failure", "name"), "relief_sizing.prrv.failure_scenario"),
+    "maximum_fill_mass_flow_kg_s": (("failure", "maximum_fill_mass_flow_kg_s"), "relief_sizing.prrv.maximum_lfs_fill_flow_kg_s"),
+    "maximum_fill_flow_status": (("failure", "maximum_fill_flow_status"), "relief_sizing.prrv.maximum_lfs_fill_flow_status"),
+    "mass_flow_factor": (("failure", "mass_flow_factor"), "relief_sizing.shared.mass_flow_safety_factor"),
+    "fill_hardware_context": (("failure", "fill_hardware_context"), "not_modelled.PRQD and not_modelled.PRNV"),
+    "copv_meop_psia": (("pressure", "meop_value_psi"), "max(bottles[*].pressure_psia)"),
+    "copv_mawp_psia": (("pressure", "mawp_value_psi"), "relief_sizing.prrv.copv_mawp_psia"),
+    "copv_mawp_status": (("pressure", "mawp_reference"), "relief_sizing.prrv.copv_mawp_status"),
+    "prrv_set_pressure_psia": (("pressure", "set_value_psi"), "side_paths[PRRV Relief].elements[PRRV].crack_pressure_psig + fluids.ambient_pressure_psia"),
+    "relieving_temperature_k": (("relief", "temperature_k"), "min(bottles[*].temperature_k)"),
+    "downstream_pressure_psia": (("relief", "downstream_pressure_psia"), "fluids.ambient_pressure_psia"),
+    "prrv_name": (("candidate", "name"), "side_paths[PRRV Relief].elements[PRRV].name"),
+    "prrv_source": (("candidate", "source"), "side_paths[PRRV Relief].source"),
+    "prrv_cda_mm2": (("candidate", "configured_cda_mm2"), "side_paths[PRRV Relief].elements[PRRV].cda_mm2"),
+    "prrv_crack_pressure_psig": (("candidate", "configured_crack_pressure_psig"), "side_paths[PRRV Relief].elements[PRRV].crack_pressure_psig"),
+    "trade_fill_flow_min_kg_s": (("analysis", "trade_fill_flow_min_kg_s"), "relief_sizing.prrv.trade_fill_flow_min_kg_s"),
+    "trade_fill_flow_max_kg_s": (("analysis", "trade_fill_flow_max_kg_s"), "relief_sizing.prrv.trade_fill_flow_max_kg_s"),
+    "trade_fill_flow_points": (("analysis", "trade_fill_flow_points"), "relief_sizing.prrv.trade_fill_flow_points"),
+    "target_fill_time_minutes": (("analysis", "target_fill_time_minutes"), "relief_sizing.prrv.target_fill_time_minutes"),
+    "real_gas_pressure_points": (("analysis", "real_gas_pressure_points"), "relief_sizing.prrv.real_gas_pressure_points"),
+}
+
+
+@dataclass(frozen=True)
+class PRRVInputs:
+    """Named, read-only view of one freshly loaded JSON configuration."""
+
+    _solver_config: dict[str, Any]
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            path, _ = PRRV_INPUT_SOURCES[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+        value: Any = self._solver_config
+        for key in path:
+            value = value[key]
+        return value
+
+    def as_solver_config(self) -> dict[str, Any]:
+        return self._solver_config
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -89,6 +142,11 @@ def load_prrv_config(config_path: str | Path = DEFAULT_HOPPER_CONFIG) -> dict[st
     }
     validate_prrv_config(config)
     return config
+
+
+def load_prrv_inputs(config_path: str | Path = DEFAULT_HOPPER_CONFIG) -> PRRVInputs:
+    """Reload JSON and expose every PRRV input through a named attribute."""
+    return PRRVInputs(load_prrv_config(config_path))
 
 
 def validate_prrv_config(config: dict[str, Any]) -> None:

@@ -43,7 +43,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sims.hopper_fullflow.isolated_sims.FRV_sizing.frv_config import DEFAULT_HOPPER_CONFIG, load_frv_config
+try:
+    from .frv_config import DEFAULT_HOPPER_CONFIG, load_frv_inputs
+except ImportError:  # Direct execution of a copied two-file handoff.
+    from frv_config import DEFAULT_HOPPER_CONFIG, load_frv_inputs
 
 
 PSI_TO_PA = 6894.757293168
@@ -428,7 +431,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_HOPPER_CONFIG, help="Hopper JSON input (read-only)")
     arguments = parser.parse_args()
-    config = load_frv_config(arguments.config)
+    config = load_frv_inputs(arguments.config).as_solver_config()
     if config["source"]["model"] != "lumped":
         warnings.warn("Non-lumped COPVs require a shared-header solution; max-P/min-T is screening only", stacklevel=2)
     if config["tank"]["mawp_psia"] is None:

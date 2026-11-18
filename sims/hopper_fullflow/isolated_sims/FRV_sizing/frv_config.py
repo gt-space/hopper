@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,79 @@ DEFAULT_HOPPER_CONFIG = HERE.parents[1] / "hopper_config.json"
 
 class FRVConfigError(ValueError):
     """An FRV input is absent, ambiguous, or physically invalid."""
+
+
+# Public attribute name -> (validated solver-config path, hopper_config.json key).
+# Values are never stored here; this is only the traceable wiring diagram.
+FRV_INPUT_SOURCES: dict[str, tuple[tuple[str, ...], str]] = {
+    "hopper_config_path": (("paths", "hopper_config"), "hopper_config.json"),
+    "output_directory": (("paths", "output_directory"), "files.results_directory + relief_sizing.frv.output_subdirectory"),
+    "pressurant_name": (("pressurant", "name"), "fluids.pressurant"),
+    "pressurant_model": (("pressurant", "model"), "relief_sizing.frv.pressurant_model"),
+    "specific_gas_constant_j_kg_k": (("pressurant", "specific_gas_constant_j_kg_k"), "CoolProp(fluids.pressurant, bottles[*])"),
+    "specific_heat_ratio": (("pressurant", "specific_heat_ratio"), "CoolProp(fluids.pressurant, bottles[*])"),
+    "ambient_pressure_psia": (("ambient_pressure_psia",), "fluids.ambient_pressure_psia"),
+    "source_names": (("source", "names"), "bottles[*].name"),
+    "source_volumes_l": (("source", "volume_l"), "bottles[*].volume_l"),
+    "source_pressures_psia": (("source", "pressure_psia"), "bottles[*].pressure_psia"),
+    "source_temperatures_k": (("source", "temperature_k"), "bottles[*].temperature_k"),
+    "source_outlet_cdas_mm2": (("source", "outlet_cda_mm2"), "bottles[*].outlet_cda_mm2"),
+    "source_model": (("source", "model"), "pressurization.copv_model"),
+    "source_header_volume_l": (("source", "header_volume_l"), "pressurization.header_volume_l"),
+    "tank_name": (("tank", "name"), "tanks.fuel.name"),
+    "tank_propellant": (("tank", "propellant"), "tanks.fuel.propellant"),
+    "tank_total_volume_l": (("tank", "total_volume_l"), "tanks.fuel.volume_l"),
+    "tank_initial_liquid_mass_kg": (("tank", "initial_liquid_mass_kg"), "tanks.fuel.liquid_mass_kg"),
+    "tank_initial_pressure_psia": (("tank", "initial_pressure_psia"), "tanks.fuel.pressure_psia"),
+    "tank_ullage_temperature_k": (("tank", "ullage_temperature_k"), "tanks.fuel.ullage_temperature_k"),
+    "tank_control_set_pressure_psia": (("tank", "control_set_pressure_psia"), "tanks.fuel.set_pressure_psia"),
+    "tank_meop_psia": (("tank", "meop_psia"), "tanks.fuel.set_pressure_psia"),
+    "tank_mawp_psia": (("tank", "mawp_psia"), "relief_sizing.frv.tank_mawp_psia"),
+    "maximum_relieving_pressure_psia": (("tank", "maximum_allowable_relieving_pressure_psia"), "side_paths[FRV Relief].elements[FRV].full_open_pressure_psig + fluids.ambient_pressure_psia"),
+    "failure_scenario": (("failure", "name"), "relief_sizing.frv.failure_scenario"),
+    "simulation_maximum_gn2_inflow_kg_s": (("failure", "simulation_maximum_gn2_inflow_kg_s"), "relief_sizing.frv.simulation_maximum_gn2_inflow_kg_s"),
+    "simulation_inflow_status": (("failure", "simulation_inflow_status"), "relief_sizing.frv.simulation_inflow_status"),
+    "pressurant_line": (("failure", "pressurant_line"), "flow_paths.fuel_pressurant[Fuel Pressurant Line]"),
+    "fbb_cda_mm2": (("failure", "fbb_cda_mm2"), "flow_paths.fuel_pressurant[FBB].cda_mm2"),
+    "fbb_open_time_s": (("failure", "fbb_open_time_s"), "flow_paths.fuel_pressurant[FBB].open_time_s"),
+    "fbb_close_time_s": (("failure", "fbb_close_time_s"), "flow_paths.fuel_pressurant[FBB].close_time_s"),
+    "orifice_name": (("failure", "orifice_name"), "flow_paths.fuel_pressurant[OR-2 or FBBORF].name"),
+    "orifice_cda_mm2": (("failure", "orifice_cda_mm2"), "flow_paths.fuel_pressurant[OR-2 or FBBORF].cda_mm2"),
+    "check_valve_cda_mm2": (("failure", "check_valve_cda_mm2"), "flow_paths.fuel_pressurant[PRFCK].cda_mm2"),
+    "sizing_margin_fraction": (("failure", "sizing_margin_fraction"), "relief_sizing.shared.mass_flow_safety_factor - 1"),
+    "frv_name": (("frv", "name"), "side_paths[FRV Relief].elements[FRV].name"),
+    "frv_source": (("frv", "source"), "side_paths[FRV Relief].source"),
+    "frv_set_pressure_psia": (("frv", "proposed_set_pressure_psia"), "side_paths[FRV Relief].elements[FRV].crack_pressure_psig + fluids.ambient_pressure_psia"),
+    "frv_crack_pressure_psig": (("frv", "configured_hardware_crack_pressure_psig"), "side_paths[FRV Relief].elements[FRV].crack_pressure_psig"),
+    "frv_full_open_cda_mm2": (("frv", "configured_full_open_cda_mm2"), "side_paths[FRV Relief].elements[FRV].cda_mm2"),
+    "frv_lift_model": (("frv", "lift_model"), "relief_sizing.frv.lift_model"),
+    "regulator_name": (("context", "regulator_name"), "regulators[PR-REG or PUREG].name"),
+    "regulator_set_pressure_psig": (("context", "regulator_set_pressure_psig"), "regulators[PR-REG or PUREG].set_pressure_psig"),
+    "regulator_cda_mm2": (("context", "regulator_cda_mm2"), "regulators[PR-REG or PUREG].cda_mm2"),
+    "analysis_mode": (("analysis", "mode"), "relief_sizing.frv.analysis_mode"),
+    "pressure_sweep_points": (("analysis", "pressure_sweep_points"), "relief_sizing.shared.pressure_sweep_points"),
+}
+
+
+@dataclass(frozen=True)
+class FRVInputs:
+    """Named, read-only view of one freshly loaded JSON configuration."""
+
+    _solver_config: dict[str, Any]
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            path, _ = FRV_INPUT_SOURCES[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+        value: Any = self._solver_config
+        for key in path:
+            value = value[key]
+        return value
+
+    def as_solver_config(self) -> dict[str, Any]:
+        """Return the validated mapping used by the unchanged calculations."""
+        return self._solver_config
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -302,6 +376,11 @@ def load_frv_config(
     }
     validate_frv_config(config)
     return config
+
+
+def load_frv_inputs(config_path: str | Path = DEFAULT_HOPPER_CONFIG) -> FRVInputs:
+    """Reload JSON and expose every FRV input through a named attribute."""
+    return FRVInputs(load_frv_config(config_path))
 
 
 def validate_frv_config(config: dict[str, Any]) -> None:

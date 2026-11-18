@@ -25,7 +25,10 @@ try:
 except ImportError:
     PropsSI = None
 
-from ORV_config import DEFAULT_HOPPER_CONFIG, ORVConfigError, load_orv_config
+try:
+    from .ORV_config import DEFAULT_HOPPER_CONFIG, ORVConfigError, load_orv_inputs
+except ImportError:  # Direct execution of a copied two-file handoff.
+    from ORV_config import DEFAULT_HOPPER_CONFIG, ORVConfigError, load_orv_inputs
 
 PSI_TO_PA = 6894.757293168
 INCH_TO_M = 0.0254
@@ -620,7 +623,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_HOPPER_CONFIG, help="Read-only Hopper JSON path")
     arguments = parser.parse_args()
-    config = load_orv_config(arguments.config)
+    config = load_orv_inputs(arguments.config).as_solver_config()
     warnings.warn("SeriesCdA and ideal-gas homogeneous relief are preliminary screening approximations", stacklevel=2)
     result = calculate_sizing(config)
     written = write_outputs(config, result)
