@@ -109,7 +109,9 @@ def hardware_rows():
     for regulator in D.REGULATORS:
         rows.append([f"{regulator.source} side path", regulator.name, "Regulator",
                      "" if not regulator.cda_value else f"{regulator.cda_value / milli**2:.2f}",
-                     f"ideal, set {regulator.set_pressure / psi:.0f} psig", _note(regulator)])
+                     (f"set {regulator.set_pressure / psi:.0f} psig, fully open {regulator.droop / psi:.0f} psi "
+                      f"below; flow capped by its CdA" if regulator.cda_value
+                      else f"ideal, set {regulator.set_pressure / psi:.0f} psig"), _note(regulator)])
     for branch in D.BRANCHES:
         for element in branch.elements:
             add(f"{branch.name}: {branch.source} -> {branch.sink}", element)

@@ -46,8 +46,8 @@
     "note": "EDIT GUESS ground GN2 supply upstream of the purge regulator, held constant."
   },
   "purge_regulator": {
-    "type": "Regulator", "name": "Purge Reg", "source": "Purge Supply", "set_pressure_psig": 750.0, "cda_mm2": 5.0,
-    "note": "PR-REG values from hopper_config.json (set 750 psig; CdA GUESS). Ideal: outlet = min(supply, ambient + set)."
+    "type": "Regulator", "name": "PUREG", "source": "Purge Supply", "set_pressure_psig": 750.0, "cda_mm2": 5.0,
+    "note": "PUREG values from hopper_config.json (set 750 psig; CdA GUESS). Ideal: outlet = min(supply, ambient + set)."
   },
   "oxidizer_feed": [
     {"type": "Line", "name": "LOX Tank to OTV Line", "outer_diameter_in": 0.375, "wall_thickness_in": 0.01,
@@ -99,13 +99,13 @@
     ]
   },
   "purge_branches": [
-    {"type": "Branch", "name": "Purge Relief", "source": "Purge Reg Outlet", "sink": "ambient",
+    {"type": "Branch", "name": "Purge Relief", "source": "PUREG Outlet", "sink": "ambient",
      "note": "Purge relief valve on the regulator outlet",
      "elements": [
-       {"type": "ReliefValve", "name": "Purge RV", "cda_mm2": 2.0, "crack_pressure_psig": 825.0,
-        "note": "ORV-1 values from hopper_config.json (GUESS: 10 % above the regulator set)"}
+       {"type": "ReliefValve", "name": "PURV", "cda_mm2": 2.0, "crack_pressure_psig": 825.0,
+        "note": "PURV values from hopper_config.json (GUESS: 10 % above the regulator set)"}
      ]},
-    {"type": "Branch", "name": "LOX Purge", "source": "Purge Reg Outlet", "sink": "OTV Outlet",
+    {"type": "Branch", "name": "LOX Purge", "source": "PUREG Outlet", "sink": "OTV Outlet",
      "note": "P&ID: joins the LOX line below OTV",
      "elements": [
        {"type": "GasLine", "name": "LOX Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.035,
@@ -113,7 +113,7 @@
        {"type": "Valve", "name": "OPV", "cda_mm2": 1.86, "schedule": "main_purge"},
        {"type": "CheckValve", "name": "OPCK", "cda_mm2": 8.5, "note": "GUESS Cv ~0.5"}
      ]},
-    {"type": "Branch", "name": "Fuel Purge", "source": "Purge Reg Outlet", "sink": "FTV Outlet",
+    {"type": "Branch", "name": "Fuel Purge", "source": "PUREG Outlet", "sink": "FTV Outlet",
      "note": "P&ID: joins the kerosene line below FTV",
      "elements": [
        {"type": "GasLine", "name": "Fuel Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.035,
@@ -121,12 +121,12 @@
        {"type": "Valve", "name": "FPV", "cda_mm2": 1.86, "schedule": "main_purge"},
        {"type": "CheckValve", "name": "FPCK", "cda_mm2": 8.5, "note": "GUESS Cv ~0.5"}
      ]},
-    {"type": "Branch", "name": "Torch Purge", "source": "Purge Reg Outlet", "sink": "Torch Chamber",
+    {"type": "Branch", "name": "Torch Purge", "source": "PUREG Outlet", "sink": "Torch Chamber",
      "note": "P&ID: FIPV -> FIPCK -> FIPORF tees in below FIORF, then through the torch fuel injector into the torch",
      "elements": [
        {"type": "GasLine", "name": "Torch Purge Line", "outer_diameter_in": 0.25, "wall_thickness_in": 0.035,
         "length_in": 39.37007874015748, "roughness_in": 0.0005905511811023622, "note": "1/4 in x 0.035 in. Length GUESS"},
-       {"type": "Valve", "name": "FIPV", "cda_mm2": 2.2, "schedule": "torch_purge", "note": "TFPV in hopper_config.json"},
+       {"type": "Valve", "name": "FIPV", "cda_mm2": 2.2, "schedule": "torch_purge", "note": "Same name as in hopper_config.json"},
        {"type": "CheckValve", "name": "FIPCK", "cda_mm2": 5.0},
        {"type": "Orifice", "name": "FIPORF", "cda_mm2": 50.0},
        {"type": "Orifice", "name": "Torch Fuel Injector (purge gas)", "cda_mm2": 0.8051,

@@ -33,6 +33,7 @@ if nargin < 3 || isempty(W), W = hopperWorkspace(scenario, variants); end
 for f = fieldnames(variants)'
     W.(f{1}) = variants.(f{1});   % only models with variants read these
 end
+W = tvcWorkspace(W, variants);       % TVCEM for the TVC_MODEL variant (keeps one already in W)
 if variants.VARIANT_FDIR == 2 || variants.VARIANT_NAVIGATION > 1 || variants.VARIANT_FAULT_INJECTION == 2
     W = sensorWorkspace(W, variants); % the shared Sensors block: FDIR and navigation read it
 end                                   % (keeps a fault table already in W.faults)

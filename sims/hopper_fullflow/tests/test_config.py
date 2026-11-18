@@ -28,10 +28,11 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(set(data) - named, set())
 
     def test_side_paths_and_csv_curves_load(self):
-        _, data, _ = load_config(ROOT/'hopper_config.json')
+        config, data, _ = load_config(ROOT/'hopper_config.json')
         branches = {branch.name: branch for branch in data['BRANCHES']}
-        self.assertEqual(data['REGULATORS'][0].outlet_node, 'PR-REG Outlet')
-        self.assertAlmostEqual(data['REGULATORS'][0].set_pressure, 750*6894.757293168361)
+        self.assertEqual(data['REGULATORS'][0].outlet_node, 'PUREG Outlet')
+        self.assertAlmostEqual(data['REGULATORS'][0].set_pressure,
+                               config['regulators'][0]['set_pressure_psig']*6894.757293168361)
         relief = branches['PRRV Relief'].elements[0]
         self.assertAlmostEqual(relief.crack_pressure, 4950*6894.757293168361)
         self.assertAlmostEqual(relief.full_open_pressure, 1.1*relief.crack_pressure)

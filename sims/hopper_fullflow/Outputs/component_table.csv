@@ -1,47 +1,47 @@
 Path,Tag,Type,CdA [mm2],Details,Source / note
-Pressurant,COPV 1,COPV,,"9 L, 4503 psia, 293 K Nitrogen, lumped as one volume","GUESS outlet CdA and minimum temperature (Vedanth, 2026-11-05)"
-Pressurant,COPV 2,COPV,,"9 L, 4503 psia, 293 K Nitrogen, lumped as one volume","GUESS outlet CdA and minimum temperature (Vedanth, 2026-11-05)"
-LOX Tank,LOX Tank,Tank,,"15.867 L, 16.00 kg LOX, set 500 psia +5/-5, collapse factor 2","EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 45.54 - 10.27 lb wet - dry"
-Fuel Tank,Fuel Tank,Tank,,"17.929 L, 13.00 kg RP-1, set 500 psia +5/-5, collapse factor 1.1","EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 42.22 - 13.56 lb wet - dry"
+Pressurant,COPV-1,COPV,,"9 L, 4503 psia, 293 K Nitrogen, lumped as one volume","GUESS outlet CdA and minimum temperature (Vedanth, 2026-11-05)"
+Pressurant,COPV-2,COPV,,"9 L, 4503 psia, 293 K Nitrogen, lumped as one volume","GUESS outlet CdA and minimum temperature (Vedanth, 2026-11-05)"
+OTANK,OTANK,Tank,,"15.867 L, 16.00 kg LOX, set 500 psia +5/-5, collapse factor 2","EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 45.54 - 10.27 lb wet - dry"
+FTANK,FTANK,Tank,,"17.929 L, 13.00 kg RP-1, set 500 psia +5/-5, collapse factor 1.1","EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 42.22 - 13.56 lb wet - dry"
 LOX pressurant leg,LOX Pressurant Line,Gas line,5.75,"0.25 in x 0.035 in wall, ID 4.57 mm, L 1.219 m; lumped (fully rough)","EDIT (Vedanth, 2026-11-05; was 4.92 mm ID, 1.0 m)"
-LOX pressurant leg,OBB,Bang-bang solenoid,18.68,opened/closed by the tank bang-bang band,"Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke"
-LOX pressurant leg,OR-1,Orifice,7.00,,"EDIT (user, 2026-11-03; was 2.04 from vehicle_sim)"
-LOX pressurant leg,PROCK,Check valve,12.00,,EDIT
+LOX pressurant leg,OBB,Bang-bang solenoid,18.68,"opened/closed by the tank bang-bang band; travel: open 0.05 s, close 0.05 s","OBB actuation 50 ms (user, 2026-11-16). Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke"
+LOX pressurant leg,OBBORF,Orifice,7.00,,"EDIT (user, 2026-11-03; was 2.04 from vehicle_sim)"
+LOX pressurant leg,PROCK,Check valve,44.20,,"Check-All BUDSSTF.125SS bushing check (user, 2026-11-15): 1/2 x 3/8 in, 316 SS body and spring, PTFE seal, 1/8 psi crack; CdA 44.2 mm2 (user). Was 12 mm2 EDIT"
 Fuel pressurant leg,Fuel Pressurant Line,Gas line,5.75,"0.25 in x 0.035 in wall, ID 4.57 mm, L 1.219 m; lumped (fully rough)","EDIT (Vedanth, 2026-11-05; was 4.92 mm ID, 1.0 m)"
-Fuel pressurant leg,FBB,Bang-bang solenoid,18.68,opened/closed by the tank bang-bang band,"Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke"
-Fuel pressurant leg,OR-2,Orifice,3.00,,"EDIT (user, 2026-11-03; was 1.02 from vehicle_sim)"
-Fuel pressurant leg,PRFCK,Check valve,12.00,,EDIT
-LOX feed,LOX Tank to OTV Line,Line,,"0.375 in x 0.01 in wall, ID 9.02 mm, L 1.219 m","EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 1.0 m)"
-LOX feed,OTV,Throttle valve,50.00,max CdA; CdA set to hit the flow target,"EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
-LOX feed,OTV to LOX Injector Line,Line,,"0.375 in x 0.01 in wall, ID 9.02 mm, L 0.254 m","EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m)"
+Fuel pressurant leg,FBB,Bang-bang solenoid,18.68,"opened/closed by the tank bang-bang band; travel: open 0.05 s, close 0.05 s","FBB actuation 50 ms (user, 2026-11-16). Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke"
+Fuel pressurant leg,FBBORF,Orifice,3.00,,"EDIT (user, 2026-11-03; was 1.02 from vehicle_sim)"
+Fuel pressurant leg,PRFCK,Check valve,44.20,,"Check-All BUDSSTF.125SS bushing check (user, 2026-11-15): 1/2 x 3/8 in, 316 SS body and spring, PTFE seal, 1/8 psi crack; CdA 44.2 mm2 (user). Was 12 mm2 EDIT"
+LOX feed,LOX Tank to OTV Line,Line,,"0.375 in x 0.028 in wall, ID 8.10 mm, L 1.219 m","EDIT 3/8 in x 0.028 in wall (user, 2026-11-16; was 0.010) (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 1.0 m)"
+LOX feed,OTV,Throttle valve,50.00,"max CdA; CdA set to hit the flow target; travel: open 0.18 s, close 0.18 s","OTV actuation 180 ms (user, 2026-11-16). EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
+LOX feed,OTV to LOX Injector Line,Line,,"0.375 in x 0.028 in wall, ID 8.10 mm, L 0.254 m","EDIT 3/8 in x 0.028 in wall (user, 2026-11-16; was 0.010) (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m)"
 LOX feed,OINJ,Injector,16.60,passage length 0.010 m,"EDIT LOX stem (user, 2026-10-30; was 15.3 from vehicle_sim)"
-Fuel feed,Fuel Tank to FTV Line,Line,,"0.375 in x 0.01 in wall, ID 9.02 mm, L 0.305 m","EDIT 3/8 in x 0.01 in wall (user, 2026-11-03; was 1/4 in from vehicle_sim)"
-Fuel feed,FTV,Throttle valve,50.00,max CdA; CdA set to hit the flow target,"EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
-Fuel feed,FTV to Regen Line,Line,,"0.375 in x 0.01 in wall, ID 9.02 mm, L 0.305 m","EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m)"
+Fuel feed,Fuel Tank to FTV Line,Line,,"0.375 in x 0.028 in wall, ID 8.10 mm, L 0.305 m","EDIT 3/8 in x 0.028 in wall (user, 2026-11-16; was 0.010) (user, 2026-11-03; was 1/4 in from vehicle_sim)"
+Fuel feed,FTV,Throttle valve,50.00,"max CdA; CdA set to hit the flow target; travel: open 0.18 s, close 0.18 s","FTV actuation 180 ms (user, 2026-11-16). EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
+Fuel feed,FTV to Regen Line,Line,,"0.375 in x 0.028 in wall, ID 8.10 mm, L 0.305 m","EDIT 3/8 in x 0.028 in wall (user, 2026-11-16; was 0.010) (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m)"
 Fuel feed,Regen Jacket,Regen,30.00,fuel heated +82 K; passage length 0.300 m,"EDIT CdA (user, 2026-11-03; was 25). EDIT heating: 293 K in, 375 K at the injector inlet (user, 2026-11-04); Vedanth's curve was +51 K at 150 psia, +44 K at 300 psia. Passage length is flow inertia, needed so the solver does not stall at shutdown"
 Fuel feed,FINJ,Injector,15.00,passage length 0.010 m,"EDIT fuel manifold (user, 2026-10-30; was 10.6 from vehicle_sim)"
-COPV side path,PR-REG,Regulator,0.85,"ideal, set 750 psig","Droop GUESS (not on the datasheet): outlet falls 10 psi from lock-up to fully open. Aqua Environment 1026 dome-loaded reducing regulator (user, 2026-11-10): Cv 0.05 (0.07 in orifice) = 0.849 mm2, 6000 psi rated, 0-6000 psi out, 1/4 in NPT, 17 psi outlet rise per 1000 psi inlet drop. Set 750 psig EDIT (applies at the starting COPV pressure); dome loading not modelled. Was 5 mm2 GUESS"
-PRVNT Vent: COPV -> ambient,PRVNT,Valve,1.07,closed all run,Marotta PLV34 (info); 1x PLV34 = 1.07 mm^2 (sheet FRV tab)
+COPV side path,PUREG,Regulator,5.09,"set 400 psig, fully open 10 psi below; flow capped by its CdA","TESCOM 44-1500 low-pressure regulator (user, 2026-11-15): Cv 0.3 = 5.093 mm2 (CdA = Cv/38 in^2), 6000 psig max inlet, outlet 0-200 / 0-400 psig spring loaded, 0-600 psig air/dome loaded, 3/8 or 1/2 in ports, 316 SS or brass body. Set EDIT 400 psig (user, 2026-11-15) = top of the spring-loaded range (was 750 psig with the Aqua 1026). Supply-pressure effect and droop are not on the product page: effect 0, droop 10 psi GUESS. Was Aqua 1026, Cv 0.05"
+OVNT-1 Vent: COPV -> ambient,OVNT-1,Valve,1.07,closed all run,Marotta PLV34 (info); 1x PLV34 = 1.07 mm^2 (sheet FRV tab)
 PRRV Relief: COPV -> ambient,PRRV,Relief valve,5.00,"crack 4950 psig, full open 5445 psig","EDIT GUESS: Swagelok SS-4R3A (info), sheet tab empty"
-ORV-1 Relief: PR-REG Outlet -> ambient,ORV-1,Relief valve,2.00,"crack 825 psig, full open 908 psig",EDIT GUESS: 10 % above PR-REG set
-LOX Purge: PR-REG Outlet -> OTV Outlet,LOX Purge Line,Gas line,6.26,"0.25 in x 0.035 in wall, ID 4.57 mm, L 1.000 m; lumped (fully rough)","EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS"
-LOX Purge: PR-REG Outlet -> OTV Outlet,OPV,Valve,1.86,"scheduled [(0.0, 0.0), (30.2, 0.0), (30.21, 1.0), (32.2, 1.0), (32.21, 0.0)]","EDIT candidate Chinese solenoid (user, 2026-10-31)"
-LOX Purge: PR-REG Outlet -> OTV Outlet,CV-5,Check valve,8.50,,"EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2)"
-Fuel Purge: PR-REG Outlet -> FTV Outlet,Fuel Purge Line,Gas line,6.26,"0.25 in x 0.035 in wall, ID 4.57 mm, L 1.000 m; lumped (fully rough)","EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS"
-Fuel Purge: PR-REG Outlet -> FTV Outlet,FPV,Valve,1.86,"scheduled [(0.0, 0.0), (30.3, 0.0), (30.310000000000002, 1.0), (32.3, 1.0), (32.309999999999995, 0.0)]","EDIT candidate Chinese solenoid (user, 2026-10-31)"
-Fuel Purge: PR-REG Outlet -> FTV Outlet,CV-4,Check valve,8.50,,"EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2)"
+PURV Relief: PUREG Outlet -> ambient,PURV,Relief valve,2.00,"crack 825 psig, full open 908 psig",EDIT GUESS: 10 % above PUREG set
+LOX Purge: PUREG Outlet -> OTV Outlet,LOX Purge Line,Gas line,6.26,"0.25 in x 0.035 in wall, ID 4.57 mm, L 1.000 m; lumped (fully rough)","EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS"
+LOX Purge: PUREG Outlet -> OTV Outlet,OPV,Valve,1.86,"scheduled [(0.0, 0.0), (30.2, 0.0), (30.21, 1.0), (32.2, 1.0), (32.21, 0.0)]","EDIT candidate Chinese solenoid (user, 2026-10-31)"
+LOX Purge: PUREG Outlet -> OTV Outlet,OPCK,Check valve,8.50,,"EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2)"
+Fuel Purge: PUREG Outlet -> FTV Outlet,Fuel Purge Line,Gas line,6.26,"0.25 in x 0.035 in wall, ID 4.57 mm, L 1.000 m; lumped (fully rough)","EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS"
+Fuel Purge: PUREG Outlet -> FTV Outlet,FPV,Valve,1.86,"scheduled [(0.0, 0.0), (30.3, 0.0), (30.310000000000002, 1.0), (32.3, 1.0), (32.309999999999995, 0.0)]","EDIT candidate Chinese solenoid (user, 2026-10-31)"
+Fuel Purge: PUREG Outlet -> FTV Outlet,FPCK,Check valve,8.50,,"EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2)"
 OVNT Vent: LOX Ullage -> ambient,OVNT,Valve,9.40,closed all run,"Jaksa 2/2 cryo solenoid (info), 9.4 mm^2 (sheet OVNT)"
-ORV Relief: LOX Ullage -> ambient,ORV,Relief valve,30.80,"crack 550 psig, full open 605 psig",RegO PRV9432T550 (info); target CdA (sheet ORV)
+ORV Relief: LOX Ullage -> ambient,ORV,Relief valve,30.80,"crack 585 psig, full open 644 psig","Crack 600 psia (user, 2026-11-16; was 550 psig). RegO PRV9432T550 (info); target CdA (sheet ORV)"
 OFD Drain: LOX Tank Liquid -> ambient,OFD,Valve,9.40,closed all run,Same valve as OVNT (Jaksa 2/2 cryo solenoid)
 FVNT Vent: Fuel Ullage -> ambient,FVNT,Valve,15.00,closed all run,UNOX 3/8 NO solenoid (info); target CdA (sheet FVNT)
-FRV Relief: Fuel Ullage -> ambient,FRV,Relief valve,14.67,"crack 550 psig, full open 605 psig",EDIT PRV9432T550 = 550 psig (info); sheet FRV says 525
+FRV Relief: Fuel Ullage -> ambient,FRV,Relief valve,14.67,"crack 585 psig, full open 644 psig","Crack 600 psia (user, 2026-11-16; was 550 psig). EDIT PRV9432T550 = 550 psig (info); sheet FRV says 525"
 Torch fuel_leg: FTV Inlet -> Torch Chamber,FIMV,Valve,2.2,Solved in the flight transient (torch.sequence),Commands are in torch.standalone_purge.sequence. The independent purge run plots travel but excludes propellant flow/combustion.
 Torch fuel_leg: FTV Inlet -> Torch Chamber,FICK,CheckValve,5,Solved in the flight transient (torch.sequence),Fuel igniter check valve; INPUT CdA.
 Torch fuel_leg: FTV Inlet -> Torch Chamber,FIORF,Orifice,8.0,Solved in the flight transient (torch.sequence),"User provisional CdA 8 mm2. Purge tees downstream, upstream of the fuel injector."
 Torch fuel_leg: FTV Inlet -> Torch Chamber,Torch Fuel Injector,Injector,0.8051,Solved in the flight transient (torch.sequence),INPUT torch fuel injector CdA.
-Torch purge_leg: PR-REG Outlet -> FIORF Outlet,TFPV,Valve,2.2,Solved in the flight transient (torch.sequence),Renamed FIPV to TFPV. Commands are in torch.standalone_purge.sequence; open/close times here describe hardware travel.
-Torch purge_leg: PR-REG Outlet -> FIORF Outlet,FIPCK,CheckValve,5,Solved in the flight transient (torch.sequence),Fuel purge igniter check valve; INPUT CdA.
-Torch purge_leg: PR-REG Outlet -> FIORF Outlet,FIPORF,Orifice,50.0,Solved in the flight transient (torch.sequence),Current user-entered CdA 50 mm2; earlier exploratory cases used 8 mm2.
+Torch purge_leg: PUREG Outlet -> FIORF Outlet,FIPV,Valve,2.2,Solved in the flight transient (torch.sequence),P&ID name FIPV (was TFPV until 2026-11-15). Commands are in torch.standalone_purge.sequence; open/close times here describe hardware travel.
+Torch purge_leg: PUREG Outlet -> FIORF Outlet,FIPCK,CheckValve,5,Solved in the flight transient (torch.sequence),Fuel purge igniter check valve; INPUT CdA.
+Torch purge_leg: PUREG Outlet -> FIORF Outlet,FIPORF,Orifice,50.0,Solved in the flight transient (torch.sequence),Current user-entered CdA 50 mm2; earlier exploratory cases used 8 mm2.
 Torch oxidizer_leg: OTV Inlet -> Torch Chamber,OIMV,Valve,0.68,Solved in the flight transient (torch.sequence),Commands are in torch.standalone_purge.sequence. Propellant flow/combustion is excluded from the independent cold-gas purge run.
 Torch oxidizer_leg: OTV Inlet -> Torch Chamber,OICK,CheckValve,5,Solved in the flight transient (torch.sequence),Oxidizer igniter check valve; INPUT CdA.
 Torch oxidizer_leg: OTV Inlet -> Torch Chamber,OIORF,Orifice,8.0,Solved in the flight transient (torch.sequence),User provisional CdA 8 mm2.
