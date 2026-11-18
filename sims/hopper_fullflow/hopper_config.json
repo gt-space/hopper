@@ -605,7 +605,7 @@
     },
     "frv": {
       "failure_scenario": "FBB_fail_open_alone",
-      "simulation_maximum_gn2_inflow_kg_s": 0.314,
+      "simulation_maximum_gn2_inflow_kg_s": 0.198,
       "simulation_inflow_status": "authoritative_latest_free_flight_simulation_result",
       "tank_mawp_psia": 850.0,
       "pressurant_model": "ideal_gas_constant_gamma",
