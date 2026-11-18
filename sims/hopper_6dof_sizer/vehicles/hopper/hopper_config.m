@@ -113,6 +113,32 @@ VC.legs.stiffness   = 16970822.627420306;      % N/m per leg: sizer 2026-10 (buc
 VC.legs.damping     = 1.0;                     % strut damping constant (x sqrt(wet mass))
 VC.legs.mass        = 3.4856003663531885;      % kg, all legs: sizer 2026-10
 VC.legs.intertank_mass = 3;                    % kg, sizer 2026-10 (guess)
+% The flight model's feet above (foot_radius, azimuth, stiffness) still
+% follow the sizer. The landing-loads model (src/analysis/landing) reads
+% the as-drawn leg below instead.
+%
+% As-drawn leg (Updated Vehicle Assy.STL, CAD 2026-10-29): leg 1 in body
+% axes (m, x up from the footpad bottoms). Legs 2-4 are leg 1 turned 90,
+% 180 and 270 deg about body x. Strut ends are the tube-end centres; the
+% foot node is the centroid of the three lower tube ends. Pin-clevis
+% offsets are not modelled. The three struts lie within 10 deg of each
+% other, so the leg carries vertical load mostly through the main strut
+% in compression against the aux struts in tension.
+VC.legs.geom.node        = [0.0551; 0.7488; 0.3846];   % foot node, az 27.18 deg
+VC.legs.geom.pad         = [0.0;    0.7635; 0.3921];   % footpad bottom centre
+VC.legs.geom.pad_diameter = 0.175;                     % m, flat footpad
+VC.legs.geom.upper = [0.7185 0.6156  0.6156;           % upper tube ends, columns main, auxA, auxB
+                      0.2003 0.0807  0.1524;
+                      0.1028 0.1297 -0.0100];
+VC.legs.geom.turns = [0 90 180 270];                   % deg about body x, leg 1 -> legs 1-4
+% Strut tubes, measured in the STL (Al 6061-T6). The hand-calc sheet's aux
+% ID is 0.5 in; the CAD tube is 0.75 in.
+VC.legs.strut.od = [1.5 1.0 1.0] * 0.0254;             % m, main, auxA, auxB
+VC.legs.strut.id = [1.0 0.75 0.75] * 0.0254;           % m
+VC.legs.strut.E     = 69e9;                            % Pa
+VC.legs.strut.sy    = 276e6;                           % Pa, 6061-T6 yield
+VC.legs.strut.rho   = 2700;                            % kg/m^3
+VC.legs.foot_fitting_mass = 0.5;                       % kg per foot, pad + fitting (ASSUMPTION, not in CAD export)
 
 % ---- Other components (the pre-CAD dry block; not used while dry_cg is set) ----
 VC.components.structures = struct('mass', 34.26, 'cg_x', 1.193);    % kg, m (CAD)
