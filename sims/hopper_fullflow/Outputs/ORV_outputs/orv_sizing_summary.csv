@@ -1,0 +1,50 @@
+section,metric,value,unit,note
+Requirements,failure_scenario,oxidizer_bang_bang_valves_failed_open,-,Only modeled failure
+Requirements,protected_system,OTANK,-,LOX tank
+Requirements,tank_meop,500.0,psia,Maximum expected operating pressure
+Requirements,tank_mawp,850.0,psia,Safety constraint; not operating target
+Requirements,proposed_set_pressure,600.0,psia,Not approved
+Requirements,evaluated_relieving_pressure,658.5200000000001,psia,Matches configured maximum relieving pressure
+Requirements,maximum_relieving_pressure,658.5200000000001,psia,derived_from_configured_relief_full_open_pressure_pending_code_approval
+Requirements,pressure_reference_convention,absolute unless explicitly psig,-,Evaluated and maximum relieving pressures are both absolute
+Inputs,gn2_source_pressure,4503.2,psia,hopper_config.json
+Inputs,gn2_source_temperature,293.0,K,hopper_config.json
+Inputs,failed_open_path_cda,4.300466535889269,mm^2,Derived SeriesCdA
+Inputs,upstream_orifice_cda,7.0,mm^2,OBBORF from hopper_config.json
+Inputs,obb_cda,18.68,mm^2,OBB from hopper_config.json
+Inputs,simulation_maximum_gn2_inflow,0.314,kg/s,authoritative_latest_free_flight_simulation_result
+Inputs,analytical_maximum_gn2_inflow,0.31000002992143044,kg/s,Independent SeriesCdA screening estimate
+Inputs,analytical_minus_simulation,-1.2738758212004966,%,Does not replace governing simulation load
+Inputs,orv_downstream_pressure,14.8,psia,Plumbing loss/backpressure neglected
+Inputs,lox_temperature,90.0,K,hopper_config.json
+Inputs,selected_relieving_temperature,150.0,K,not calculated; 150 K configured ullage assumption retained
+Inputs,gox_generation,0.024847,kg/s,provisional GOX retained; no validated heat input
+Inputs,candidate_valve_cda,30.8,mm^2,Analytical effective area; not certified capacity
+Assumptions,gn2_mass_flow_safety_factor,1.5,-,Applied once to GN2 only
+Assumptions,mixture_model,CoolProp component CP0 ideal-gas homogeneous mixture,-,Gas-only screening
+Assumptions,analysis_model,steady_state_gas_only,-,No transient or two-phase model
+Assumptions,temperature_method,provisional_assumption_missing_thermal_closure,-,Well-mixed energy-balance framework; selected result depends on thermal closure
+Assumptions,missing_thermal_inputs,"liquid-to-ullage UA or validated equivalent heat-transfer model; wall-to-ullage UA and relief-event wall temperature; net sensible heat rate to ullage, distinct from vaporization energy",-,See orv_thermal_balance.csv
+Assumptions,bounding_method,simulation-derived maximum GN2 inflow combined with capacity at the configured 658.520 psia maximum relieving pressure,-,Explicit conservative bound
+Methodology,maximum_gn2_inflow,isentropic compressible flow through repository SeriesCdA,-,Choked/unchoked selected automatically
+Methodology,combined_relief_load,1.5 * GN2 + GOX,kg/s,Safety factor is not applied twice
+Methodology,required_cda,combined design flow / mixture unit-area capacity,-,Uses inlet/outlet absolute pressures
+Methodology,candidate_comparison,candidate CdA - required CdA and ratio,-,Analytical screening only
+Results,maximum_gn2_inflow,0.314,kg/s,Simulation-derived governing load
+Results,combined_design_relief_flow,0.495847,kg/s,Linked GN2 factor and GOX load
+Results,governing_relieving_pressure,658.5200000000001,psia,Matches provisional maximum; still pending approval
+Results,relieving_temperature,150.0,K,provisional_assumption_missing_thermal_closure
+Results,net_ullage_heat_transfer,,W,Unresolved when no thermal closure is supplied
+Results,implied_heat_transfer_at_selected_temperature,-46702.62972124013,W,Heat into gas required to sustain selected temperature; negative means removal; not a predicted heat-transfer rate
+Results,temperature_sensitivity_range,90.0 to 293.0,K,LOX-to-GN2 source-temperature bracket
+Results,temperature_sensitivity_required_cda_range,25.9484 to 46.8265,mm^2,Detailed points in orv_temperature_sensitivity.csv
+Results,gn2_only_required_orv_cda,31.967065898928098,mm^2,Regression comparison; linked safety factor on GN2
+Results,required_orv_cda,33.49947431054503,mm^2,Preliminary analytical requirement
+Results,required_equivalent_effective_diameter,6.530915358510294,mm,Derived from effective CdA
+Results,candidate_orv_cda,30.8,mm^2,Not certified capacity
+Results,candidate_theoretical_mass_flow_capacity,0.45589036587337195,kg/s,Fully-open homogeneous-mixture screen
+Results,candidate_cda_margin,-2.699474310545032,mm^2,Negative means shortfall
+Results,candidate_to_required_ratio,0.919417412777272,-,Ratio below one fails screening
+Results,preliminary_sizing_status,FAIL_ANALYTICAL_SCREENING,-,Not approval or flight certification
+Results,thermal_model_validation_status,UNVALIDATED_PROVISIONAL_150_K,-,Thermal closure unavailable
+Results,final_validation_status,UNRESOLVED,-,"Certified capacity, pressure approval, thermal closure, and two-phase applicability unresolved"

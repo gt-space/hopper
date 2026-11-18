@@ -1,0 +1,26 @@
+section,metric,value,unit,note
+Requirements,failure_scenario,LFS_fill_valves_failed_open,-,Only LFS fill valves failed open
+Requirements,protected_system,two GN2 COPVs and common manifold,-,Ground-side filling
+Requirements,copv_meop,4503.2,psi,psia
+Requirements,copv_mawp,4500.0,psi,unconfirmed
+Requirements,prrv_cracking_pressure_target,4964.8,psi,Derived from configured PRRV crack pressure and ambient; conflicts with documented MAWP
+Requirements,evaluated_relieving_pressure,4964.8,psia,Setpoint converted explicitly
+Inputs,maximum_LFS_fill_flow,,kg/s,unresolved_pending_LFS_team
+Inputs,analysis_mode,B_fill_flow_trade_study,-,Known-flow mode is automatic when maximum flow is supplied
+Inputs,gn2_relieving_temperature,293.0,K,Minimum configured COPV temperature
+Inputs,atmospheric_discharge_pressure,14.8,psia,hopper_config.json
+Inputs,total_copv_volume,18.0,L,Two repository COPVs
+Inputs,candidate_valve_cda,5.0,mm^2,Configured guess; not certified
+Inputs,PRQD_or_LFS_orifice_cda,,mm^2,Unresolved; not invented
+Assumptions,mass_flow_factor,1.5,-,Applied exactly once to each trial flow
+Assumptions,gas_property_model,CoolProp real-gas Nitrogen,-,293 K
+Assumptions,steady_state_limitations,Fully-open theoretical capacity only,-,No immediate full capacity assumed at crack
+Methodology,required_cda,1.5 * trial LFS flow / real-gas mass flux,-,Choked state determined along isentrope
+Results,maximum_LFS_fill_flow_status,unresolved_pending_LFS_team,-,0.316 kg/s is not treated as authoritative
+Results,required_design_relief_flow,,kg/s,Blank until maximum flow is supplied
+Results,required_effective_cda,,mm^2,Blank in unresolved-flow Mode B
+Results,candidate_theoretical_mass_flow_capacity,0.4237906559886278,kg/s,At 4964.8 psia and 293.0 K
+Results,candidate_screening,UNRESOLVED_MAXIMUM_FLOW,-,Per-flow results in trade CSV
+Results,fill_time_status,UNRESOLVED_MISSING_INITIAL_STATE_AND_TRANSIENT_FILL_FLOW_MODEL,-,No volume-only or unjustified constant-flow estimate
+Results,final_validation_status,UNRESOLVED,-,"LFS flow, MAWP conflict, and certified valve data unresolved"
+Results,missing_inputs_preventing_final_sizing,"LFS maximum fill mass flow as a function of COPV pressure; Ground-fill supply pressure and temperature histories; Selected LFS orifice CdA and certified flow data; PRQD and fill-valve effective CdAs / flow-capacity data; COPV initial fill pressure and temperature for mass-inventory and fill-time calculation; Justified transient fill-flow model; constant flow throughout filling is not assumed; Resolution of the configured PRRV setpoint versus COPV MAWP conflict; Manufacturer-certified PRRV GN2 capacity and lift curve at high pressure; PRRV discharge losses, allowable backpressure, and applicable relief code",-,Engineering action list
