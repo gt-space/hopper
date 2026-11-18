@@ -31,12 +31,12 @@ class ReliefSizingConfigLinkTests(unittest.TestCase):
         raw["tanks"]["oxidizer"]["set_pressure_psia"] = 515.0
 
         fuel_path = raw["flow_paths"]["fuel_pressurant"]
-        fuel_orifice = next(item for item in fuel_path if item["name"] == "OR-2")
+        fuel_orifice = next(item for item in fuel_path if item["name"] in {"OR-2", "FBBORF"})
         fuel_orifice["name"] = "FBBORF"
         fuel_orifice["cda_mm2"] = 4.25
         next(item for item in fuel_path if item["name"] == "PRFCK")["cda_mm2"] = 44.2
         oxidizer_path = raw["flow_paths"]["oxidizer_pressurant"]
-        oxidizer_orifice = next(item for item in oxidizer_path if item["name"] == "OR-1")
+        oxidizer_orifice = next(item for item in oxidizer_path if item["name"] in {"OR-1", "OBBORF"})
         oxidizer_orifice["name"] = "OBBORF"
         oxidizer_orifice["cda_mm2"] = 8.75
         next(item for item in oxidizer_path if item["name"] == "PROCK")["cda_mm2"] = 44.2

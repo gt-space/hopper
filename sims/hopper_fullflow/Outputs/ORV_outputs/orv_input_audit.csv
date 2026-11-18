@@ -7,4 +7,4 @@ relieving_gn2_gamma,1.3999097011922945,-,CoolProp CP0 at relieving temperature
 mixture_R,294.09288139707803,J/(kg K),Mass-weighted ideal mixture
 mixture_gamma,1.3999005987429394,-,Derived cp/cv
 relief_is_choked,1,0_or_1,Calculated
-candidate_capacity,0.4290846880403266,kg/s,Analytical mixture capacity
+candidate_capacity,0.45589036587337195,kg/s,Analytical mixture capacity

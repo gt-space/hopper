@@ -4,15 +4,15 @@ selected_relieving_temperature,150.0,K,Used for ORV CdA
 gn2_physical_mass_flow,0.314,kg/s,Safety factor intentionally excluded from energy balance
 gn2_inlet_temperature,293.0,K,COPV stagnation temperature; throttling treated as isenthalpic
 gox_physical_mass_flow,0.024847,kg/s,provisional GOX retained; no validated heat input
-gox_inlet_temperature,150.32717497750738,K,Saturated-vapor state; latent heat not counted again
+gox_inlet_temperature,151.87443018492684,K,Saturated-vapor state; latent heat not counted again
 lox_temperature,90.0,K,hopper_config.json
 liquid_to_ullage_ua,,W/K,Missing
 wall_to_ullage_ua,,W/K,Missing
 tank_wall_temperature,,K,Missing
 net_external_sensible_heat_rate,,W,Missing; must exclude vaporization energy already represented by GOX flow
-adiabatic_well_mixed_limiting_temperature,283.74344787041264,K,Calculated limiting case; not selected without thermal justification
+adiabatic_well_mixed_limiting_temperature,283.8436221777192,K,Calculated limiting case; not selected without thermal justification
 calculated_relieving_temperature,,K,Blank when thermal closure is unavailable
 calculated_net_heat_transfer,,W,Positive into ullage gas
-implied_heat_transfer_at_selected_temperature,-46667.653102183904,W,"Required by selected temperature, not supported by a UA/wall model"
+implied_heat_transfer_at_selected_temperature,-46702.62972124013,W,"Required by selected temperature, not supported by a UA/wall model"
 energy_balance_residual,,W,Numerical convergence check
 missing_inputs,"liquid-to-ullage UA or validated equivalent heat-transfer model; wall-to-ullage UA and relief-event wall temperature; net sensible heat rate to ullage, distinct from vaporization energy",-,Blocks calculated temperature selection
