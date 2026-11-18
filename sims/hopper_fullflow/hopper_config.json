@@ -222,7 +222,7 @@
         "outlet_node": "PROCK Outlet",
         "open_time_s": 0.0,
         "close_time_s": 0.0,
-        "note": "Check-All BUDSSTF.125SS bushing check (user, 2026-11-15): 1/2 x 3/8 in, 316 SS body and spring, PTFE seal, 1/8 psi crack; CdA 44.2 mm2 (user). Was 12 mm2 EDIT"
+        "note": "EDIT 44.2 mm2 candidate (Cv ~2.6, check valve sizing 2026-11-11; was 12)"
       }
     ],
     "fuel_pressurant": [
@@ -266,7 +266,7 @@
         "outlet_node": "PRFCK Outlet",
         "open_time_s": 0.0,
         "close_time_s": 0.0,
-        "note": "Check-All BUDSSTF.125SS bushing check (user, 2026-11-15): 1/2 x 3/8 in, 316 SS body and spring, PTFE seal, 1/8 psi crack; CdA 44.2 mm2 (user). Was 12 mm2 EDIT"
+        "note": "EDIT 44.2 mm2 candidate (Cv ~2.6, check valve sizing 2026-11-11; was 12)"
       }
     ],
     "oxidizer_feed": [
