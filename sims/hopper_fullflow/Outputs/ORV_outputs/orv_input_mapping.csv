@@ -1,0 +1,18 @@
+python_variable,source_path,units,purpose
+pressurant.name,fluids.pressurant,-,CoolProp fluid identity
+ambient_pressure_psia,fluids.ambient_pressure_psia,psia,ORV outlet pressure; plumbing loss neglected
+source.pressure_psia,bottles[*].pressure_psia,psia,Failed-open source stagnation pressure
+source.temperature_k,bottles[*].temperature_k,K,Failed-open source stagnation temperature
+source.outlet_cda_mm2,bottles[*].outlet_cda_mm2,mm^2,Parallel COPV outlets
+tank.initial_pressure_psia,tanks.oxidizer.pressure_psia,psia,Configured operating pressure
+thermal.provisional_relieving_temperature_k,tanks.oxidizer.ullage_temperature_k,K,Provisional selection when thermal closure is unavailable
+tank.liquid_temperature_k,tanks.oxidizer.liquid_temperature_k,K,LOX subcooling check
+failure.pressurant_line,flow_paths.oxidizer_pressurant[name=LOX Pressurant Line],configured,Steady line restriction
+failure.obb_cda_mm2,flow_paths.oxidizer_pressurant[name=OBB].cda_mm2,mm^2,Failed-open OBB restriction
+failure.orifice_cda_mm2,flow_paths.oxidizer_pressurant[name=OR-1 or OBBORF].cda_mm2,mm^2,Series restriction
+failure.check_valve_cda_mm2,flow_paths.oxidizer_pressurant[name=PROCK].cda_mm2,mm^2,Series restriction
+failure.simulation_maximum_gn2_inflow_kg_s,relief_sizing.orv.simulation_maximum_gn2_inflow_kg_s,kg/s,Authoritative latest free-flight maximum
+orv.candidate_cda_mm2,side_paths[name=ORV Relief].elements[name=ORV].cda_mm2,mm^2,Candidate analytical CdA
+requirements.*,relief_sizing.shared and relief_sizing.orv,configured,ORV-specific requirements and assumptions
+pressurant.properties,CoolProp from fluid identity and source temperature,SI,"Calculated GN2 R, cp, cv, gamma"
+mixture.properties,CoolProp ideal-gas component properties and mass fractions,SI,Calculated GN2/GOX mixture

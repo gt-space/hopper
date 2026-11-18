@@ -24,7 +24,7 @@ TYPES = {name: getattr(elements, name) for name in (
 # Top-level sections besides GROUPS.
 SECTIONS = {'schema_version', 'thrust_profile', 'bottles', 'tanks', 'flow_paths', 'regulators',
             'side_paths', 'torch', 'purge', 'not_modelled', 'monte_carlo'}
-OPTIONAL_SECTIONS = {'description', 'notes'}
+OPTIONAL_SECTIONS = {'description', 'notes', 'relief_sizing'}
 
 
 def _keys(value, allowed, where, required=()):

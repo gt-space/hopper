@@ -1,0 +1,13 @@
+input_requiring_engineering_confirmation
+Approval of the configured ORV crack and full-open pressures
+Manufacturer-certified ORV capacity and lift curve
+"Validated OBB, OBBORF/OR-1, PROCK, COPV-outlet, and candidate-valve flow coefficients"
+ORV inlet/outlet pressure losses and maximum backpressure (currently neglected)
+Validated multi-restriction compressible-flow model and intermediate pressures
+Liquid-to-ullage UA or equivalent validated sensible heat-transfer model
+Wall-to-ullage UA and tank wall temperature during relief
+Net external sensible heat rate to the ullage (separate from LOX vaporization energy)
+150 K configured ullage temperature remains a provisional ORV-inlet assumption
+0.024847 kg/s GOX generation (not derived from a validated tank heat load)
+Gas-only homogeneous-mixture applicability and absence of two-phase carryover
+Applicable relief design code and approving authority

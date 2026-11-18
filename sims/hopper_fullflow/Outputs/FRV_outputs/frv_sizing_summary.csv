@@ -1,0 +1,32 @@
+section,metric,value,unit,note
+Requirements,failure_scenario,FBB_fail_open_alone,-,FBB fails open
+Requirements,protected_system,Fuel Tank,-,Fuel tank
+Requirements,tank_meop,500.0,psia,hopper_config.json
+Requirements,tank_mawp,850.0,psia,relief_sizing.frv.tank_mawp_psia
+Requirements,set_pressure,564.8,psia,derived_from_configured_hardware_crack_pressure
+Requirements,evaluated_relieving_pressure,619.8,psia,Configured relief full-open pressure; not approved MARP
+Requirements,pressure_reference_convention,absolute unless explicitly psig,-,Set/full-open gauge pressures are converted with configured ambient pressure
+Inputs,simulation_maximum_gn2_inflow,0.314,kg/s,authoritative_latest_free_flight_simulation_result
+Inputs,analytical_maximum_gn2_inflow,0.18537881316778884,kg/s,Independent SeriesCdA screening estimate
+Inputs,analytical_minus_simulation,-40.962161411532215,%,Difference is not used to overwrite governing load
+Inputs,analytical_inflow_discrepancy_flag,SIGNIFICANT,-,Likely reflects SeriesCdA/multistage-model limitations or differing simulation conditions
+Inputs,upstream_orifice_cda,3.0,mm^2,OR-2 from hopper_config.json
+Inputs,fbb_cda,18.68,mm^2,FBB from hopper_config.json
+Inputs,combined_path_effective_cda,2.571662275945584,mm^2,"Includes outlets, line, FBB, OR-2, PRFCK; SeriesCdA approximation"
+Inputs,gn2_relieving_temperature,293.0,K,Fuel ullage assumption
+Inputs,atmospheric_discharge_pressure,14.8,psia,Discharge losses neglected
+Inputs,candidate_valve_cda,14.67,mm^2,Configured theoretical fully-open CdA
+Assumptions,mass_flow_factor,1.5,-,Applied exactly once
+Assumptions,gas_property_model,ideal_gas_constant_gamma,-,Constant-gamma GN2 screening
+Assumptions,steady_state_limitations,SeriesCdA and fully-open capacity are screening approximations,-,Not certified multistage or valve-lift performance
+Methodology,governing_relief_load,1.5 * simulation maximum GN2 inflow,-,Analytical inflow retained only as validation
+Methodology,compressible_flow,isentropic choked/unchoked,-,Absolute pressures
+Results,maximum_governing_inflow,0.314,kg/s,authoritative_latest_free_flight_simulation_result
+Results,required_design_relief_flow,0.471,kg/s,Linked maximum inflow times linked safety factor
+Results,required_effective_cda,47.47275190531622,mm^2,At evaluated relieving pressure
+Results,equivalent_effective_diameter,7.774585842554583,mm,From required CdA
+Results,candidate_effective_cda,14.67,mm^2,Not certified
+Results,candidate_theoretical_mass_flow_capacity,0.14554812440157344,kg/s,Exploratory full-lift envelope
+Results,capacity_margin,-69.09806275975086,%,Against design flow
+Results,candidate_screening,FAIL,-,Analytical only
+Results,final_validation_status,UNRESOLVED,-,"Certified capacity, approved relieving pressure, and inlet/outlet losses unavailable"

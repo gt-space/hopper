@@ -1,0 +1,11 @@
+unresolved_engineering_input
+Lead/code approval of relief_sizing.frv.tank_mawp_psia
+Lead/code approval of the configured FRV crack and full-open pressures
+Manufacturer FRV full-lift pressure or certified capacity curve
+Manufacturer-certified GN2 relieving capacity and applicable coefficient
+FRV inlet/outlet plumbing geometry and maximum backpressure
+Validated real-gas relief method/properties at the COPV condition
+Validated multirestriction compressible-flow method or intermediate pressures
+"Validated flow data for COPV outlets, FBB, FBBORF/OR-2, and PRFCK"
+Fuel-ullage relieving temperature
+"Fuel ullage volume, thermal model, valve dynamics, timestep, and end time for a transient"

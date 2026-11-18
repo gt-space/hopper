@@ -12,6 +12,37 @@ python Hopper.py --results-only                    # redo every output from Outp
 From Git Bash, `bash run_hopper.sh` finds a working project environment (`.venv`,
 `.venv-validation`, `venv`) and forwards the same arguments.
 
+### Preliminary oxidizer relief-valve sizing
+
+Run the standalone steady-state oxidizer bang-bang-valves-failed-open screening
+from this folder:
+
+```bash
+python isolated_sims/ORV_sizing/ORV_solver.py
+python isolated_sims/ORV_sizing/ORV_solver.py --config other_case.json
+python -m unittest tests/test_orv_sizing.py
+```
+
+The sizer reads current COPV, tank, flow-path, ambient, candidate-valve, and
+ORV-specific requirement data from the selected Hopper JSON. Results are written to
+`Outputs/ORV_outputs/`. This is a preliminary gas-only analytical screen, not a
+transient model, certified valve-capacity calculation, or flight approval.
+The ORV solver contains a steady, well-mixed ullage enthalpy balance. It selects
+a calculated relieving temperature only when a defensible sensible heat-transfer
+closure is supplied; otherwise the configured 150 K ullage value remains explicitly
+provisional and `orv_temperature_sensitivity.csv` brackets the result from the LOX
+temperature to the GN2 source temperature. `orv_thermal_balance.csv` records the
+available inputs, missing UA/wall data, adiabatic limiting case, and energy residual.
+
+All FRV, ORV, and PRRV numeric inputs have one JSON source of truth. Hardware and
+operating values come directly from `bottles`, `tanks`, `flow_paths`, `regulators`,
+and `side_paths`; sizing-only requirements and unresolved study bounds live under
+`relief_sizing`. The sizers do not keep numeric input copies in Python or a separate
+assumptions file. FRV and ORV set/full-open pressures are derived from the configured
+relief valve (`crack_pressure_psig`, optional `full_open_pressure_psig`) plus ambient
+pressure. Both the legacy `OR-1`/`OR-2`/`PR-REG` names and the current
+`OBBORF`/`FBBORF`/`PUREG` P&ID names are accepted during the naming transition.
+
 ### Folder layout
 
 | Where | What | Edit it? |

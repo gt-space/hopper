@@ -598,6 +598,49 @@
     "valve_stroke_s": 0.01,
     "simulate_in_transient": true
   },
+  "relief_sizing": {
+    "shared": {
+      "mass_flow_safety_factor": 1.5,
+      "pressure_sweep_points": 351
+    },
+    "frv": {
+      "failure_scenario": "FBB_fail_open_alone",
+      "simulation_maximum_gn2_inflow_kg_s": 0.314,
+      "simulation_inflow_status": "authoritative_latest_free_flight_simulation_result",
+      "tank_mawp_psia": 850.0,
+      "pressurant_model": "ideal_gas_constant_gamma",
+      "lift_model": "configured_relief_valve_linear",
+      "analysis_mode": "steady_state",
+      "output_subdirectory": "FRV_outputs"
+    },
+    "orv": {
+      "failure_scenario": "oxidizer_bang_bang_valves_failed_open",
+      "simulation_maximum_gn2_inflow_kg_s": 0.314,
+      "simulation_inflow_status": "authoritative_latest_free_flight_simulation_result",
+      "tank_mawp_psia": 850.0,
+      "provisional_gox_generation_kg_s": 0.024847,
+      "effective_heat_transfer_rate_w": null,
+      "heat_to_vaporization_fraction": 1.0,
+      "liquid_to_ullage_ua_w_k": null,
+      "wall_to_ullage_ua_w_k": null,
+      "tank_wall_temperature_k": null,
+      "net_external_sensible_heat_rate_w": null,
+      "output_subdirectory": "ORV_outputs"
+    },
+    "prrv": {
+      "failure_scenario": "LFS_fill_valves_failed_open",
+      "maximum_lfs_fill_flow_kg_s": null,
+      "maximum_lfs_fill_flow_status": "unresolved_pending_LFS_team",
+      "copv_mawp_psia": 4500.0,
+      "copv_mawp_status": "unconfirmed",
+      "trade_fill_flow_min_kg_s": 0.025,
+      "trade_fill_flow_max_kg_s": 0.50,
+      "trade_fill_flow_points": 40,
+      "target_fill_time_minutes": 30.0,
+      "real_gas_pressure_points": 800,
+      "output_subdirectory": "PRRV_outputs"
+    }
+  },
   "not_modelled": {
     "PRQD": "Pressurant fill quick disconnect (disconnected in flight)",
     "OQD": "LOX fill quick disconnect below OFD (disconnected in flight)",

@@ -31,7 +31,7 @@ from Backend.Hopper_Hardware import COLUMNS as COMPONENT_COLUMNS, hardware_rows
 OWNERS = {   # section in hopper_config.json -> team that owns those numbers
     "simulation": "Sim", "files": "Sim", "outputs": "Sim", "report": "Sim", "numerics": "Sim", "maximum_thrust": "Sim",
     "monte_carlo": "Sim", "thrust_profile": "GNC / trajectory", "fluids": "Fluids", "bottles": "Fluids", "tanks": "Fluids",
-    "pressurization": "Fluids", "torch": "Engines",
+    "pressurization": "Fluids", "relief_sizing": "Fluids", "torch": "Engines",
     "engine": "Engines", "chamber_map": "Engines", "sequence": "Avionics / engines",
 }
 SECTIONS_ON_OTHER_SHEETS = {"schema_version", "description", "notes", "flow_paths", "regulators", "side_paths", "not_modelled"}
