@@ -8,7 +8,7 @@ Which sims run is set in the config's sims section; any combination can run:
   ovnt_vent   LOX ullage venting through OVNT alone
   fvnt_vent   fuel ullage venting through FVNT alone
 The vents start at BOL (loaded config state) or EOL (end of the saved burn history),
-per sims.vent_start_state, and run adiabatic and isothermal (<vent>_blowdown.png/.csv).
+per vent (sims.<vent>_start_state), and run adiabatic and isothermal (<vent>_blowdown.png/.csv).
 
 The burn (each step can be switched in the JSON):
   1. Chamber map: build Backend/Hopper_Chamber_Map.h5 if asked to or if it is missing.
@@ -200,7 +200,7 @@ if SIM_BURN:
 
 # ---- Vent blowdowns ---- #
 # sims.prvnt_vent / ovnt_vent / fvnt_vent: separate FullFlow sims, each gas volume through its
-# vent valve alone, from BOL or the end of the burn history (sims.vent_start_state).
+# vent valve alone, from BOL or the end of the burn history (sims.<vent>_start_state).
 VENT_BLOWDOWNS = [valve for valve, run in (("PRVNT", SIM_PRVNT_VENT), ("OVNT", SIM_OVNT_VENT),
                                            ("FVNT", SIM_FVNT_VENT)) if run]
 if VENT_BLOWDOWNS:

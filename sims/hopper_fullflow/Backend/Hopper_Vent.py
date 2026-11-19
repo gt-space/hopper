@@ -1,8 +1,9 @@
 """Vent blowdowns in FullFlow: one gas volume emptying through one vent valve alone.
 
 Switched on per vent in the config's sims section: prvnt_vent, ovnt_vent and
-fvnt_vent. Separate from the burn: every other valve is closed. Where the gas
-starts is set by sims.vent_start_state:
+fvnt_vent. Separate from the burn: every other valve is closed. Where each vent's gas
+starts is set per vent by sims.prvnt_vent_start_state / ovnt_vent_start_state /
+fvnt_vent_start_state:
 
     BOL  the loaded config state
            PRVNT  COPV -> ambient         all bottles (volume_l, pressure_psia, temperature_k)
@@ -40,7 +41,8 @@ from thermoprop import Fluid
 
 import HOPPER_DATA
 from HOPPER_DATA import (AMBIENT_PRESSURE, BRANCHES, COPV_MIN_TEMPERATURES, COPV_VOLUME, COPVS, FUEL_TANK,
-                         LOX_TANK, PRESSURANT, VENT_START_STATE)
+                         LOX_TANK, PRESSURANT, FVNT_VENT_START_STATE, OVNT_VENT_START_STATE,
+                         PRVNT_VENT_START_STATE)
 from Backend.Hopper_Elements import Branch, Valve
 from Backend.Hopper_Prop_System import build_branches, liquid_properties
 from Backend.Hopper_Solver import transient_solver
@@ -74,13 +76,17 @@ def eol_tracks():
         return {d.attrs["name"]: float(d[-1]) for d in base["tracks"].values()}, float(base["time"][-1])
 
 
-def source_state(source):
+START_STATES = {"PRVNT": PRVNT_VENT_START_STATE, "OVNT": OVNT_VENT_START_STATE,
+                "FVNT": FVNT_VENT_START_STATE}
+
+
+def source_state(source, start):
     """Starting pressure [Pa], temperature [K], gas volume [m^3], label and minimum temperature,
     at BOL (the loaded config state) or EOL (the end of the burn history)."""
     tanks = {"LOX Ullage": ("LOX", LOX_TANK), "Fuel Ullage": ("Fuel", FUEL_TANK)}
     if source != "COPV" and source not in tanks:
         raise ValueError(f"vent source {source!r}: only COPV, LOX Ullage and Fuel Ullage are supported.")
-    if VENT_START_STATE == "EOL":
+    if start == "EOL":
         tracks, time = eol_tracks()
         if source == "COPV":
             return (tracks["COPV Pressure [psia]"] * PSI, tracks["COPV Temperature [K]"], COPV_VOLUME,
@@ -109,7 +115,7 @@ def run_time(pressure, temperature, volume, cda):
 
 def build(valve, case):
     branch, _ = vent_branch(valve)
-    pressure, temperature, volume, _, _ = source_state(branch.source)
+    pressure, temperature, volume, _, _ = source_state(branch.source, START_STATES[valve])
     network = Network(f"{valve} Vent {case}")
     if case == "adiabatic":
         h0 = Fluid(PRESSURANT, pressure=pressure, temperature=temperature).enthalpy
@@ -162,7 +168,7 @@ def crossing(time, values, level):
 
 def simulate(valve, results_directory):
     branch, cda = vent_branch(valve)
-    pressure, temperature, volume, label, t_min = source_state(branch.source)
+    pressure, temperature, volume, label, t_min = source_state(branch.source, START_STATES[valve])
     t_final = run_time(pressure, temperature, volume, cda)
     dt = t_final / STEPS
     print(f"{valve} vent blowdown (FullFlow): {label}, {(pressure - AMBIENT_PRESSURE) / PSI:.0f} psig, "
@@ -239,7 +245,7 @@ def simulate(valve, results_directory):
 
 
 def write(results_directory, valves):
-    if VENT_START_STATE == "EOL":
+    if any(START_STATES[valve] == "EOL" for valve in valves):
         _, time = eol_tracks()
         print(f"Vent EOL state from {HOPPER_DATA.PROP_FILENAME} (last saved point, {time:.2f} s)")
     for valve in valves:

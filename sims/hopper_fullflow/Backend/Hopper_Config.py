@@ -281,9 +281,9 @@ def load_config(filename=None):
     sims.setdefault('burn', True)
     for key in ('prvnt_vent', 'ovnt_vent', 'fvnt_vent'):
         sims.setdefault(key, False)
-    sims.setdefault('vent_start_state', 'BOL')
-    if sims['vent_start_state'] not in ('BOL', 'EOL'):
-        raise ValueError('sims.vent_start_state must be "BOL" or "EOL".')
+        sims.setdefault(f'{key}_start_state', 'BOL')
+        if sims[f'{key}_start_state'] not in ('BOL', 'EOL'):
+            raise ValueError(f'sims.{key}_start_state must be "BOL" or "EOL".')
     _keys(config, set(GROUPS) | SECTIONS | OPTIONAL_SECTIONS, 'config', set(GROUPS) | SECTIONS)
     # Backward-compatible default, materialized in every new run snapshot.
     config['simulation'].setdefault('nonlinear_max_evaluations', 20)

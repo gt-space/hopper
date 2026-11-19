@@ -34,9 +34,11 @@
   "sims": {
     "burn": true,
     "prvnt_vent": true,
+    "prvnt_vent_start_state": "EOL",
     "ovnt_vent": true,
+    "ovnt_vent_start_state": "EOL",
     "fvnt_vent": true,
-    "vent_start_state": "EOL"
+    "fvnt_vent_start_state": "EOL"
   },
   "report": {
     "thrust_on_fraction": 0.1,
@@ -397,7 +399,7 @@
       "source": "COPV",
       "elements": [
         {"type": "Valve", "name": "PRVNT", "cda_mm2": 0.33755, "schedule": "closed",
-         "note": "Marotta PLV34 (info). CdA = Cd 0.43 x A 0.785 mm^2 (user, 2026-11-19; was 1.07 from the sheet FRV tab). Named PRVNT (user, 2026-11-19; was OVNT-1 from 2026-11-15)"}
+         "note": "Jaksa XD2NNO, normally open (open when de-energised), order code 329940: G1/4, 1.0 mm orifice, Kv 0.29 l/min, 0-400 bar dP, INOX body, PCTFE seal, 24 V DC, 0.52 kg (user, 2026-11-19). CdA = Cd 0.43 x A 0.785 mm^2 (Kv 0.29 l/min gives 0.342 mm^2, Cd 0.435). Was Marotta PLV34, 1.07 mm^2 from the sheet FRV tab. Named PRVNT (user, 2026-11-19; was OVNT-1 from 2026-11-15)"}
       ]
     },
     {
@@ -692,7 +694,7 @@
     "sims": "Which sims Hopper.py runs. burn: the FullFlow burn (chamber map, thrust targets, transient, results, report; simulation.solve false reuses the saved history). The others are separate FullFlow sims, each with its own outputs; any combination can run, e.g. only ovnt_vent (user, 2026-11-19)",
     "sims.prvnt_vent": "true: run a FullFlow vent of the COPVs through PRVNT alone, from the bottles' fill state, separate from the burn. Adiabatic and isothermal on the same plots; writes prvnt_blowdown.png/.csv (user, 2026-11-19)",
     "sims.ovnt_vent": "true: same for the OTANK ullage through OVNT, from the loaded tank (pressure_psia, ullage_temperature_k; ullage = volume - liquid volume); writes ovnt_blowdown.png/.csv (user, 2026-11-19)",
-    "sims.vent_start_state": "Where the vent blowdowns start. BOL: the loaded config state (bottles; tank pressure_psia, ullage_temperature_k, ullage = volume - liquid volume). EOL: the last saved point of the burn history (files.history, after shutdown and tail-off): COPV and tank-ullage pressure, gas temperature and ullage volume (user, 2026-11-19)",
+    "sims.<vent>_start_state": "Where each vent blowdown starts, set per vent. BOL: the loaded config state (bottles; tank pressure_psia, ullage_temperature_k, ullage = volume - liquid volume). EOL: the last saved point of the burn history (files.history, after shutdown and tail-off): COPV and tank-ullage pressure, gas temperature and ullage volume (user, 2026-11-19)",
     "sims.fvnt_vent": "true: same for the FTANK ullage through FVNT; writes fvnt_blowdown.png/.csv (user, 2026-11-19)",
     "simulation.maximum_step_s": "0.05 s gives the same engine results as 0.01 s in ~40 % of the time; the bang-bang is sampled less often, so tank pressure overshoots ~10 psi more. Use 0.01 to study the tank band.",
     "pressurization.copv_model": "lumped: all bottles as one volume (user, needs identical bottles). header: each bottle feeding a common header (Vedanth, 2026-11-05), for bottles that differ; stiff, so it needs maximum_step_s near 0.005",
