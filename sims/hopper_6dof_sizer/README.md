@@ -58,7 +58,7 @@ The sim used to be a flat folder of ~120 files. Every feature was a full copy of
 | **Variant axes** | `variantConfig` selects VEHICLE, SLOSH, PROPULSION, GROUND, MASS_PROPS, CONTROLLER, FDIR, FAULT_INJECTION and NAVIGATION. A typo is an error, not a silent default. See [VARIANTS.md](docs/VARIANTS.md). |
 | **Vehicle config files** | `vehicles/<vehicle>/<vehicle>_config.m` is the one source of geometry, masses and hardware. The conceptual sizer no longer runs in setup. See [VEHICLE_CONFIG.md](docs/VEHICLE_CONFIG.md). |
 | **CTV as a vehicle** | `variantConfig('VEHICLE', 'ctv')`: its own CAD mass properties, EDF thrust, roll props and mission, flown in the same harness. |
-| **Navigation** | The nav team's GMEKF runs in the harness, fed by the shared sensor model. `gmekf_shadow` runs it beside truth; `gmekf` flies on it. The hopper and the CTV both land on the estimate. |
+| **Navigation** | The nav team's GMEKF runs in the harness, fed by the shared sensor models. `gmekf_shadow` runs it beside truth; `gmekf` flies on it. The hopper and the CTV both land on the estimate. |
 | **FDIR and fault injection** | The PDR mode manager, sensor, GNC and estimator monitors, responses R0–R4, and a fault table that drives sensor and actuator faults. See [FDIR_ARCHITECTURE.md](docs/FDIR_ARCHITECTURE.md). |
 | **Debug scopes and logs** | Nine scope groups you can switch on, and a log of every bus signal to a MAT file: `variantConfig('SCOPES', ..., 'LOG', 'on')`. Both are off by default and cost nothing then. |
 | **Monte Carlo** | `runMonteCarlo(n, ...)`: seeded, serial or `parsim`, scored against CI regression limits and, separately, against the mission requirements. |
