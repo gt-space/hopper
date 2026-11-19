@@ -165,7 +165,7 @@ historical. The run report now writes only `run_summary.csv` and `cda_table.csv`
 ### Renamed and changed on November 15
 
 Components now use the latest P&ID names: COPV 1/2 -> COPV-1/2, LOX Tank / Fuel Tank -> OTANK /
-FTANK, PRVNT -> OVNT-1, OR-1 / OR-2 -> OBBORF / FBBORF, PR-REG -> PUREG (outlet node PUREG
+FTANK, PRVNT -> OVNT-1 (renamed back to PRVNT on November 19), OR-1 / OR-2 -> OBBORF / FBBORF, PR-REG -> PUREG (outlet node PUREG
 Outlet), ORV-1 -> PURV, CV-5 / CV-4 -> OPCK / FPCK and TFPV -> FIPV (also in the standalone torch
 purge sequence and its tests). Track names follow the component names, so old result files and
 plots use the old names. PUREG is now the TESCOM 44-1500 (Cv 0.3 = 5.09 mm2, set 400 psig, top of

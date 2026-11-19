@@ -276,6 +276,14 @@ def load_config(filename=None):
     if config.get('schema_version') != SCHEMA_VERSION:
         raise ValueError(f'Unsupported config schema_version {config.get("schema_version")!r} (this code reads '
                          f'{SCHEMA_VERSION}). A run archived by an older version replays with that version\'s code.')
+    # Which sims run (older configs have no sims section: the burn only).
+    sims = config.setdefault('sims', {})
+    sims.setdefault('burn', True)
+    for key in ('prvnt_vent', 'ovnt_vent', 'fvnt_vent'):
+        sims.setdefault(key, False)
+    sims.setdefault('vent_start_state', 'BOL')
+    if sims['vent_start_state'] not in ('BOL', 'EOL'):
+        raise ValueError('sims.vent_start_state must be "BOL" or "EOL".')
     _keys(config, set(GROUPS) | SECTIONS | OPTIONAL_SECTIONS, 'config', set(GROUPS) | SECTIONS)
     # Backward-compatible default, materialized in every new run snapshot.
     config['simulation'].setdefault('nonlinear_max_evaluations', 20)

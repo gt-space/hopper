@@ -2,7 +2,15 @@
 
 Every input is in hopper_config.json; HOPPER_DATA.py loads it into Python names.
 
-How it runs (each step can be switched in the JSON):
+Which sims run is set in the config's sims section; any combination can run:
+  burn        the FullFlow burn, steps 1-5 below
+  prvnt_vent  COPV venting through PRVNT alone     (FullFlow, Backend/Hopper_Vent.py)
+  ovnt_vent   LOX ullage venting through OVNT alone
+  fvnt_vent   fuel ullage venting through FVNT alone
+The vents start at BOL (loaded config state) or EOL (end of the saved burn history),
+per sims.vent_start_state, and run adiabatic and isothermal (<vent>_blowdown.png/.csv).
+
+The burn (each step can be switched in the JSON):
   1. Chamber map: build Backend/Hopper_Chamber_Map.h5 if asked to or if it is missing.
   2. Thrust targets: Pc and propellant flows for every thrust-profile point.
   3. Prop system: the FullFlow transient of the whole vehicle P&ID.
@@ -11,7 +19,7 @@ How it runs (each step can be switched in the JSON):
      margins, thrust checks), cda_table.csv (OTV/FTV CdA per thrust point),
      component_table.csv/.md, schematic.png and Hopper_Parameters.xlsx.
 
-Each solve is archived with its exact inputs in Hopper_Results/<UTC time>/, and the
+Each burn solve is archived with its exact inputs in Hopper_Results/<UTC time>/, and the
 results are copied to Outputs/ for viewing.
 
 Run from this folder:  python Hopper.py
@@ -41,7 +49,7 @@ if args.config:
 
 import HOPPER_DATA as data
 
-if args.results_only:
+if args.results_only or not data.SIM_BURN:
     data.PROP_SOLVE_PROP_SYSTEM = False
 if data.PROP_SOLVE_PROP_SYSTEM:
     for tank in (data.LOX_TANK, data.FUEL_TANK):
@@ -56,7 +64,7 @@ if data.PROP_SOLVE_PROP_SYSTEM:
 
 from HOPPER_DATA import *
 
-if not PROP_SOLVE_PROP_SYSTEM and not os.path.exists(PROP_FILENAME):
+if SIM_BURN and not PROP_SOLVE_PROP_SYSTEM and not os.path.exists(PROP_FILENAME):
     raise SystemExit(f"No saved history at {PROP_FILENAME}. Only the latest run keeps one (in Outputs/), unless "
                      "outputs.keep_run_history is true; rerun without --results-only to make it again.")
 
@@ -79,105 +87,135 @@ from Backend.Hopper_Plots import HopperRun, make_plots
 
 
 
-# ---- Chamber Map ---- #
-if PROP_GENERATE_CHAMBER_MAP or not os.path.exists(CHAMBER_MAP_FILENAME):
+# ---- Burn ---- #
+# sims.burn: the FullFlow burn and everything built from it.
+if SIM_BURN:
 
-    print("Generating chamber Pc/MR map...")
+    # ---- Chamber Map ---- #
+    if PROP_GENERATE_CHAMBER_MAP or not os.path.exists(CHAMBER_MAP_FILENAME):
 
-    HopperChamberMap(filename=CHAMBER_MAP_FILENAME)
+        print("Generating chamber Pc/MR map...")
 
-if PROP_SOLVE_PROP_SYSTEM:
-    write_resolved(data)
+        HopperChamberMap(filename=CHAMBER_MAP_FILENAME)
 
-
-
-
-# ---- Thrust Targets ---- #
-# The flows OTV and FTV will be commanded to, one set per profile point.
-print("Solving thrust targets...")
-
-targets = HopperThrustTargets(
-    PROP_THRUST_CURVE,
-    chamber_map_filename=CHAMBER_MAP_FILENAME,
-)
-
-os.makedirs(PROP_RESULTS_DIRECTORY, exist_ok=True)
-if PROP_COMPONENT_DIAGRAM:
-    hardware_diagram(PROP_RESULTS_DIRECTORY)
-ExportEngineTargets(targets, os.path.join(PROP_RESULTS_DIRECTORY, "engine_targets.csv"))
+    if PROP_SOLVE_PROP_SYSTEM:
+        write_resolved(data)
 
 
 
 
-# ---- Prop System ---- #
-if PROP_SOLVE_PROP_SYSTEM:
+    # ---- Thrust Targets ---- #
+    # The flows OTV and FTV will be commanded to, one set per profile point.
+    print("Solving thrust targets...")
 
-    print("Solving propulsion system...")
-    start = time.perf_counter()
-
-    HopperPropSystem(
-        targets,
-        dt=PROP_DT,
-        save_dt=PROP_SAVE_DT,
-        filename=PROP_FILENAME,
+    targets = HopperThrustTargets(
+        PROP_THRUST_CURVE,
         chamber_map_filename=CHAMBER_MAP_FILENAME,
-        profile_interpolation=PROP_PROFILE_INTERPOLATION,
-        rtol=PROP_RTOL,
-        jacobian_method=PROP_JACOBIAN_METHOD,
-        verbose=PROP_VERBOSE,
-        statistics=PROP_STATISTICS,
     )
 
-    print(f"Propulsion system solved in {time.perf_counter() - start:.1f} s.")
-
-if PROP_SOLVE_PROP_SYSTEM or PROP_EXPORT_RESULTS:
-    if read_metadata(PROP_FILENAME) is not None:
-        export_summary(PROP_FILENAME, PROP_RESULTS_DIRECTORY)
-    else:
-        print("Saved run predates summary metadata; rerun to obtain maximum-thrust and residual reports.")
+    os.makedirs(PROP_RESULTS_DIRECTORY, exist_ok=True)
+    if PROP_COMPONENT_DIAGRAM:
+        hardware_diagram(PROP_RESULTS_DIRECTORY)
+    ExportEngineTargets(targets, os.path.join(PROP_RESULTS_DIRECTORY, "engine_targets.csv"))
 
 
 
 
-# ---- Results ---- #
-if PROP_EXPORT_RESULTS:
+    # ---- Prop System ---- #
+    if PROP_SOLVE_PROP_SYSTEM:
 
-    print("Exporting results...")
+        print("Solving propulsion system...")
+        start = time.perf_counter()
 
-    ExportActualPerformance(PROP_FILENAME, os.path.join(PROP_RESULTS_DIRECTORY, "actual_performance.csv"))
-    make_plots(
-        HopperRun(PROP_FILENAME),
-        PROP_PLOTS,
-        PROP_RESULTS_DIRECTORY,
-        units=PROP_PLOT_UNITS,
-        csv_out=PROP_PLOT_CSV,
-        profile_time=PROP_PLOT_PROFILE_TIME,
-        show=PROP_SHOW_PLOTS,
-    )
+        HopperPropSystem(
+            targets,
+            dt=PROP_DT,
+            save_dt=PROP_SAVE_DT,
+            filename=PROP_FILENAME,
+            chamber_map_filename=CHAMBER_MAP_FILENAME,
+            profile_interpolation=PROP_PROFILE_INTERPOLATION,
+            rtol=PROP_RTOL,
+            jacobian_method=PROP_JACOBIAN_METHOD,
+            verbose=PROP_VERBOSE,
+            statistics=PROP_STATISTICS,
+        )
 
-    print(f"Results written to {PROP_RESULTS_DIRECTORY}/")
+        print(f"Propulsion system solved in {time.perf_counter() - start:.1f} s.")
+
+    if PROP_SOLVE_PROP_SYSTEM or PROP_EXPORT_RESULTS:
+        if read_metadata(PROP_FILENAME) is not None:
+            export_summary(PROP_FILENAME, PROP_RESULTS_DIRECTORY)
+        else:
+            print("Saved run predates summary metadata; rerun to obtain maximum-thrust and residual reports.")
 
 
 
 
-# ---- Report ---- #
-if PROP_REPORT:
+    # ---- Results ---- #
+    if PROP_EXPORT_RESULTS:
 
-    print("Writing report...")
+        print("Exporting results...")
 
-    from Backend.Hopper_Report import write_report
-    from Backend.Hopper_Hardware import write_table
-    from Backend.Hopper_Schematic import draw
-    from Backend.Hopper_Parameters import write_workbook
+        ExportActualPerformance(PROP_FILENAME, os.path.join(PROP_RESULTS_DIRECTORY, "actual_performance.csv"))
+        make_plots(
+            HopperRun(PROP_FILENAME),
+            PROP_PLOTS,
+            PROP_RESULTS_DIRECTORY,
+            units=PROP_PLOT_UNITS,
+            csv_out=PROP_PLOT_CSV,
+            profile_time=PROP_PLOT_PROFILE_TIME,
+            show=PROP_SHOW_PLOTS,
+        )
 
-    summary = write_report(PROP_FILENAME, targets, PROP_RESULTS_DIRECTORY)
-    write_table(PROP_RESULTS_DIRECTORY)
-    draw(os.path.join(PROP_RESULTS_DIRECTORY, "schematic.png"))
-    write_workbook(PROP_RESULTS_DIRECTORY)
+        print(f"Results written to {PROP_RESULTS_DIRECTORY}/")
 
-    width = max(map(len, summary))
-    for key, value in summary.items():
-        print(f"  {key:<{width}}  {value}")
+
+
+
+    # ---- Report ---- #
+    if PROP_REPORT:
+
+        print("Writing report...")
+
+        from Backend.Hopper_Report import write_report
+        from Backend.Hopper_Hardware import write_table
+        from Backend.Hopper_Schematic import draw
+        from Backend.Hopper_Parameters import write_workbook
+
+        summary = write_report(PROP_FILENAME, targets, PROP_RESULTS_DIRECTORY)
+        write_table(PROP_RESULTS_DIRECTORY)
+        draw(os.path.join(PROP_RESULTS_DIRECTORY, "schematic.png"))
+        write_workbook(PROP_RESULTS_DIRECTORY)
+
+        width = max(map(len, summary))
+        for key, value in summary.items():
+            print(f"  {key:<{width}}  {value}")
+
+
+
+
+
+
+
+
+# ---- Vent blowdowns ---- #
+# sims.prvnt_vent / ovnt_vent / fvnt_vent: separate FullFlow sims, each gas volume through its
+# vent valve alone, from BOL or the end of the burn history (sims.vent_start_state).
+VENT_BLOWDOWNS = [valve for valve, run in (("PRVNT", SIM_PRVNT_VENT), ("OVNT", SIM_OVNT_VENT),
+                                           ("FVNT", SIM_FVNT_VENT)) if run]
+if VENT_BLOWDOWNS:
+
+    print(f"Solving vent blowdowns: {', '.join(VENT_BLOWDOWNS)}...")
+
+    from Backend.Hopper_Vent import write as write_vent_blowdowns
+
+    write_vent_blowdowns(PROP_RESULTS_DIRECTORY, VENT_BLOWDOWNS)
+
+
+
+
+if not SIM_BURN and not VENT_BLOWDOWNS:
+    print("No sims selected: turn one on in the config's sims section.")
 
 
 

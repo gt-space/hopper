@@ -31,6 +31,13 @@
     "station_times_s": null,
     "nozzle_separation_ratio": 0.4
   },
+  "sims": {
+    "burn": true,
+    "prvnt_vent": true,
+    "ovnt_vent": true,
+    "fvnt_vent": true,
+    "vent_start_state": "EOL"
+  },
   "report": {
     "thrust_on_fraction": 0.1,
     "thrust_tolerance_fraction": 0.02
@@ -131,9 +138,9 @@
       "volume_l": 9.0,
       "pressure_psia": 4503.2,
       "temperature_k": 293.0,
-      "minimum_temperature_k": 220,
+      "minimum_temperature_k": 233.15,
       "outlet_cda_mm2": 100.0,
-      "note": "GUESS outlet CdA and minimum temperature (Vedanth, 2026-11-05)"
+      "note": "Acecare 9 L carbon-fiber cylinder (Amazon B07S1FTK24, user 2026-11-19): 300 bar WP, CE EN12245, 6061 aluminum liner + carbon wrap (Type III), 4.9 kg empty, 560 mm long, 175 mm OD, 162 mm ID, service -40/60 C (minimum temperature 233.15 K; was 220 GUESS). GUESS outlet CdA (Vedanth, 2026-11-05)"
     },
     {
       "type": "COPVSource",
@@ -141,9 +148,9 @@
       "volume_l": 9.0,
       "pressure_psia": 4503.2,
       "temperature_k": 293.0,
-      "minimum_temperature_k": 220,
+      "minimum_temperature_k": 233.15,
       "outlet_cda_mm2": 100.0,
-      "note": "GUESS outlet CdA and minimum temperature (Vedanth, 2026-11-05)"
+      "note": "Acecare 9 L carbon-fiber cylinder (Amazon B07S1FTK24, user 2026-11-19): 300 bar WP, CE EN12245, 6061 aluminum liner + carbon wrap (Type III), 4.9 kg empty, 560 mm long, 175 mm OD, 162 mm ID, service -40/60 C (minimum temperature 233.15 K; was 220 GUESS). GUESS outlet CdA (Vedanth, 2026-11-05)"
     }
   ],
   "tanks": {
@@ -386,11 +393,11 @@
   "side_paths": [
     {
       "type": "Branch",
-      "name": "OVNT-1 Vent",
+      "name": "PRVNT Vent",
       "source": "COPV",
       "elements": [
-        {"type": "Valve", "name": "OVNT-1", "cda_mm2": 1.07, "schedule": "closed",
-         "note": "Marotta PLV34 (info); 1x PLV34 = 1.07 mm^2 (sheet FRV tab)"}
+        {"type": "Valve", "name": "PRVNT", "cda_mm2": 0.33755, "schedule": "closed",
+         "note": "Marotta PLV34 (info). CdA = Cd 0.43 x A 0.785 mm^2 (user, 2026-11-19; was 1.07 from the sheet FRV tab). Named PRVNT (user, 2026-11-19; was OVNT-1 from 2026-11-15)"}
       ]
     },
     {
@@ -646,8 +653,8 @@
     "OQD": "LOX fill quick disconnect below OFD (disconnected in flight)",
     "FQD": "Fuel fill quick disconnect, McMaster 52495K63 (disconnected in flight)",
     "ODiff": "Oxygen diffuser on the OVNT exhaust (sizing)",
-    "Torch spark igniter": "Spark / exciter and torch combustion are not yet modelled. Explicit fluids topology is configured under torch.network; its solver is pending.",
-    "PRPT-1 and sensors": "Instrumentation"
+    "Igniter": "Torch spark igniter. Spark / exciter and torch combustion are not yet modelled. Explicit fluids topology is configured under torch.network; its solver is pending.",
+    "PRPT and sensors": "Instrumentation (P&ID: PRPT, PUPT, OTPT, OTPRTC, FTPT, FTPRTC, OTVPTA/B, OTVTC, FTVPTA/B, FTVTC, OIPT, OITC, FIPT, FITC, TCHPT, MCCHPT, FRMPT)"
   },
   "monte_carlo": {
     "runs": 100,
@@ -682,6 +689,11 @@
     }
   },
   "notes": {
+    "sims": "Which sims Hopper.py runs. burn: the FullFlow burn (chamber map, thrust targets, transient, results, report; simulation.solve false reuses the saved history). The others are separate FullFlow sims, each with its own outputs; any combination can run, e.g. only ovnt_vent (user, 2026-11-19)",
+    "sims.prvnt_vent": "true: run a FullFlow vent of the COPVs through PRVNT alone, from the bottles' fill state, separate from the burn. Adiabatic and isothermal on the same plots; writes prvnt_blowdown.png/.csv (user, 2026-11-19)",
+    "sims.ovnt_vent": "true: same for the OTANK ullage through OVNT, from the loaded tank (pressure_psia, ullage_temperature_k; ullage = volume - liquid volume); writes ovnt_blowdown.png/.csv (user, 2026-11-19)",
+    "sims.vent_start_state": "Where the vent blowdowns start. BOL: the loaded config state (bottles; tank pressure_psia, ullage_temperature_k, ullage = volume - liquid volume). EOL: the last saved point of the burn history (files.history, after shutdown and tail-off): COPV and tank-ullage pressure, gas temperature and ullage volume (user, 2026-11-19)",
+    "sims.fvnt_vent": "true: same for the FTANK ullage through FVNT; writes fvnt_blowdown.png/.csv (user, 2026-11-19)",
     "simulation.maximum_step_s": "0.05 s gives the same engine results as 0.01 s in ~40 % of the time; the bang-bang is sampled less often, so tank pressure overshoots ~10 psi more. Use 0.01 to study the tank band.",
     "pressurization.copv_model": "lumped: all bottles as one volume (user, needs identical bottles). header: each bottle feeding a common header (Vedanth, 2026-11-05), for bottles that differ; stiff, so it needs maximum_step_s near 0.005",
     "pressurization.header_volume_l": "GUESS used only by copv_model header; placeholder (Vedanth, 2026-11-05), needs measured plumbing",
