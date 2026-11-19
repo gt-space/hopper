@@ -583,7 +583,7 @@ def plot_engine(run, units="E", profile_time=False, window=None):
 SEQUENCE_VALVES = {   # valve -> (label, colour, line style) for the start-up / shutdown sequence plots
     "OIMV": ("Torch oxidizer (OIMV)", "tab:blue", (0, (8, 3))),
     "FIMV": ("Torch fuel (FIMV)", "tab:purple", (0, (4, 2))),
-    "TFPV": ("GN2 torch purge (TFPV)", "teal", "-."),
+    "FIPV": ("GN2 torch purge (FIPV)", "teal", "-."),
     "OTV": ("Main oxidizer (OTV)", "saddlebrown", (0, (10, 4))),
     "FTV": ("Main fuel (FTV)", "hotpink", (0, (2, 2))),
     "OPV": ("Oxidizer purge (OPV)", "tab:cyan", (0, (6, 2, 1, 2))),

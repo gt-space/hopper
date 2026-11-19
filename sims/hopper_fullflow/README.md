@@ -12,6 +12,37 @@ python Hopper.py --results-only                    # redo every output from Outp
 From Git Bash, `bash run_hopper.sh` finds a working project environment (`.venv`,
 `.venv-validation`, `venv`) and forwards the same arguments.
 
+### Preliminary oxidizer relief-valve sizing
+
+Run the standalone steady-state oxidizer bang-bang-valves-failed-open screening
+from this folder:
+
+```bash
+python isolated_sims/ORV_sizing/ORV_solver.py
+python isolated_sims/ORV_sizing/ORV_solver.py --config other_case.json
+python -m unittest tests/test_orv_sizing.py
+```
+
+The sizer reads current COPV, tank, flow-path, ambient, candidate-valve, and
+ORV-specific requirement data from the selected Hopper JSON. Results are written to
+`Outputs/ORV_outputs/`. This is a preliminary gas-only analytical screen, not a
+transient model, certified valve-capacity calculation, or flight approval.
+The ORV solver contains a steady, well-mixed ullage enthalpy balance. It selects
+a calculated relieving temperature only when a defensible sensible heat-transfer
+closure is supplied; otherwise the configured 150 K ullage value remains explicitly
+provisional and `orv_temperature_sensitivity.csv` brackets the result from the LOX
+temperature to the GN2 source temperature. `orv_thermal_balance.csv` records the
+available inputs, missing UA/wall data, adiabatic limiting case, and energy residual.
+
+All FRV, ORV, and PRRV numeric inputs have one JSON source of truth. Hardware and
+operating values come directly from `bottles`, `tanks`, `flow_paths`, `regulators`,
+and `side_paths`; sizing-only requirements and unresolved study bounds live under
+`relief_sizing`. The sizers do not keep numeric input copies in Python or a separate
+assumptions file. FRV and ORV set/full-open pressures are derived from the configured
+relief valve (`crack_pressure_psig`, optional `full_open_pressure_psig`) plus ambient
+pressure. Both the legacy `OR-1`/`OR-2`/`PR-REG` names and the current
+`OBBORF`/`FBBORF`/`PUREG` P&ID names are accepted during the naming transition.
+
 ### Folder layout
 
 | Where | What | Edit it? |
@@ -86,7 +117,7 @@ network, tracks and plots follow automatically. The element types are in
 | `BangBangValve`, `CheckValve`, gas `Orifice` | members of the leg's `SeriesCdA` feeding one `CompressibleOrifice` |
 | `Branch` | a side path off a node (COPV, ullage, tank liquid, regulator outlet) to ambient, the chamber or a feed junction: one `SeriesCdA` into one `CompressibleOrifice` (gas) or `DischargeCoefficient` (liquid) |
 | `ReliefValve` | branch restriction opening linearly from crack to full-open dP |
-| `Regulator` | ideal regulator off a gas node; its outlet (`"PR-REG Outlet"`) feeds branches |
+| `Regulator` | ideal regulator off a gas node; its outlet (`"PUREG Outlet"`) feeds branches |
 
 Valves and valve-like elements also take `open_time_s` / `close_time_s`, full-stroke travel
 times (0 = instant; partial strokes take proportionate time). Nonzero travel caps the time
@@ -111,7 +142,7 @@ the current config instead declares the separate torch network below.
 
 ```text
 FTV Inlet -> FIMV -> FICK -> FIORF -> Torch Fuel Injector -> Torch Chamber
-PR-REG Outlet -> TFPV -> FIPCK -> FIPORF -> FIORF Outlet (fuel-injector inlet)
+PUREG Outlet -> FIPV -> FIPCK -> FIPORF -> FIORF Outlet (fuel-injector inlet)
 OTV Inlet -> OIMV -> OICK -> OIORF -> OTHX -> Torch Ox Injector -> Torch Chamber
 Torch Chamber -> Torch Throat -> Main Chamber
 ```
@@ -150,7 +181,7 @@ the output root. Replay with `--config <run-folder>/run_config.json`.
 ```json
 {
   "time_s": 2.0,
-  "valves": {"FIMV": 0.0, "OIMV": 0.0, "TFPV": 1.0},
+  "valves": {"FIMV": 0.0, "OIMV": 0.0, "FIPV": 1.0},
   "main_chamber_pressure_psia": 300.0,
   "release_torch_pressure": true
 }
@@ -164,16 +195,16 @@ strictly ordered and within the run. The runner prints the resolved timeline;
 `--check-inputs` lets you verify it without running or writing results.
 
 Current events: all valves closed at 0 s; FIMV/OIMV open at 0.2 s; close both and open
-TFPV at 2 s while main pressure becomes 300 psia; close TFPV at 7 s; end at 7.5 s.
+FIPV at 2 s while main pressure becomes 300 psia; close FIPV at 7 s; end at 7.5 s.
 The 7 s purge-close command is an editable example. Physical `open_time_s` and
-`close_time_s` stay with the hardware in `torch.network`: FIMV/TFPV take 80 ms and
+`close_time_s` stay with the hardware in `torch.network`: FIMV/FIPV take 80 ms and
 OIMV 100 ms. These are commands, so complete closure occurs after those travel times.
 Feed-valve positions are shown; propellant flow through them remains excluded.
 
 The old `torch.open_time_s`, `duration_s`, and `valve_stroke_s` belong to the legacy
 main-sim torch approximation and do **not** schedule this independent purge. Likewise,
 the top-level `purge.sequence` schedules the vehicle's Fuel Purge/LOX Purge branches,
-not TFPV. Saved cases with per-component `command_events_s` still replay; mixing the
+not FIPV. Saved cases with per-component `command_events_s` still replay; mixing the
 central sequence with those legacy commands is rejected to avoid hidden overrides.
 
 Each plotted run now includes `torch_component_diagram.svg`/`.png`, generated from

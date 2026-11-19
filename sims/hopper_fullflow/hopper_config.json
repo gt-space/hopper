@@ -2,7 +2,7 @@
   "schema_version": 2,
   "description": "Hopper FullFlow inputs. Unit suffixes are authoritative; pressures are absolute (psia) unless a difference (psi) or gauge (psig). Paths are relative to this file. Null tube OD/wall means unmeasured; ID is then required. Tag values with a \"note\" on the component, or in the notes section by JSON path: \"EDIT\" = expected to change, \"GUESS\" = nobody has confirmed it. Notes feed the component table and the parameter workbook.",
   "simulation": {
-    "maximum_step_s": 0.05,
+    "maximum_step_s": 0.015,
     "nonlinear_max_evaluations": 20,
     "save_interval_s": 0.05,
     "residual_tolerance": 1e-06,
@@ -58,7 +58,7 @@
     "nozzle_linear_pressure_drop_psi": 0.5,
     "regen_temperature_points": 101,
     "controller_steps_per_period": 1,
-    "valve_steps_per_stroke": 10
+    "valve_steps_per_stroke": 2
   },
   "engine": {
     "mixture_ratio": 1.25,
@@ -127,7 +127,7 @@
   "bottles": [
     {
       "type": "COPVSource",
-      "name": "COPV 1",
+      "name": "COPV-1",
       "volume_l": 9.0,
       "pressure_psia": 4503.2,
       "temperature_k": 293.0,
@@ -137,7 +137,7 @@
     },
     {
       "type": "COPVSource",
-      "name": "COPV 2",
+      "name": "COPV-2",
       "volume_l": 9.0,
       "pressure_psia": 4503.2,
       "temperature_k": 293.0,
@@ -149,7 +149,7 @@
   "tanks": {
     "oxidizer": {
       "type": "Tank",
-      "name": "LOX Tank",
+      "name": "OTANK",
       "propellant": "LOX",
       "volume_l": 15.867,
       "liquid_mass_kg": 15.9982029,
@@ -160,12 +160,12 @@
       "set_pressure_psia": 500.0,
       "deadband_high_psi": 5.0,
       "deadband_low_psi": 5.0,
-      "bang_bang_initial_state": 1.0,
+      "bang_bang_initial_state": 0.0,
       "note": "EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 45.54 - 10.27 lb wet - dry"
     },
     "fuel": {
       "type": "Tank",
-      "name": "Fuel Tank",
+      "name": "FTANK",
       "propellant": "RP-1",
       "volume_l": 17.929,
       "liquid_mass_kg": 12.9999573,
@@ -176,7 +176,7 @@
       "set_pressure_psia": 500.0,
       "deadband_high_psi": 5.0,
       "deadband_low_psi": 5.0,
-      "bang_bang_initial_state": 1.0,
+      "bang_bang_initial_state": 0.0,
       "note": "EDIT collapse factor assumed (user, 2026-10-27); Luca to supply conservative + Vespula values. Tank dimensions table (2026-10-30): 8.5 in OD, 10 % ullage; load = 42.22 - 13.56 lb wet - dry"
     }
   },
@@ -201,28 +201,28 @@
         "schedule": null,
         "length_in": null,
         "outlet_node": "OBB Outlet",
-        "open_time_s": 0.0,
-        "close_time_s": 0.0,
-        "note": "Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke"
+        "open_time_s": 0.05,
+        "close_time_s": 0.05,
+        "note": "OBB actuation 50 ms (user, 2026-11-16). Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke"
       },
       {
         "type": "Orifice",
-        "name": "OR-1",
+        "name": "OBBORF",
         "cda_mm2": 7.0,
         "length_in": null,
-        "outlet_node": "OR-1 Outlet",
+        "outlet_node": "OBBORF Outlet",
         "note": "EDIT (user, 2026-11-03; was 2.04 from vehicle_sim)"
       },
       {
         "type": "CheckValve",
         "name": "PROCK",
-        "cda_mm2": 12.0,
+        "cda_mm2": 44.2,
         "schedule": null,
         "length_in": null,
         "outlet_node": "PROCK Outlet",
         "open_time_s": 0.0,
         "close_time_s": 0.0,
-        "note": "EDIT"
+        "note": "EDIT 44.2 mm2 candidate (Cv ~2.6, check valve sizing 2026-11-11; was 12)"
       }
     ],
     "fuel_pressurant": [
@@ -245,28 +245,28 @@
         "schedule": null,
         "length_in": null,
         "outlet_node": "FBB Outlet",
-        "open_time_s": 0.0,
-        "close_time_s": 0.0,
-        "note": "Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke"
+        "open_time_s": 0.05,
+        "close_time_s": 0.05,
+        "note": "FBB actuation 50 ms (user, 2026-11-16). Instant solenoid (user assumption); set open/close times to model travel, which caps the time step at 1/10 of a stroke"
       },
       {
         "type": "Orifice",
-        "name": "OR-2",
+        "name": "FBBORF",
         "cda_mm2": 3.0,
         "length_in": null,
-        "outlet_node": "OR-2 Outlet",
+        "outlet_node": "FBBORF Outlet",
         "note": "EDIT (user, 2026-11-03; was 1.02 from vehicle_sim)"
       },
       {
         "type": "CheckValve",
         "name": "PRFCK",
-        "cda_mm2": 12.0,
+        "cda_mm2": 44.2,
         "schedule": null,
         "length_in": null,
         "outlet_node": "PRFCK Outlet",
         "open_time_s": 0.0,
         "close_time_s": 0.0,
-        "note": "EDIT"
+        "note": "EDIT 44.2 mm2 candidate (Cv ~2.6, check valve sizing 2026-11-11; was 12)"
       }
     ],
     "oxidizer_feed": [
@@ -279,8 +279,8 @@
         "height_change_in": 0,
         "outlet_node": "OTV Inlet",
         "outer_diameter_in": 0.375,
-        "wall_thickness_in": 0.01,
-        "note": "EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 1.0 m)"
+        "wall_thickness_in": 0.028,
+        "note": "EDIT 3/8 in x 0.028 in wall (user, 2026-11-16; was 0.010) (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 1.0 m)"
       },
       {
         "type": "ThrottleValve",
@@ -288,9 +288,9 @@
         "max_cda_mm2": 50.0,
         "full_scale_mass_flow_kg_s": 0.777,
         "outlet_node": "OTV Outlet",
-        "open_time_s": 0.0,
-        "close_time_s": 0.0,
-        "note": "EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
+        "open_time_s": 0.18,
+        "close_time_s": 0.18,
+        "note": "OTV actuation 180 ms (user, 2026-11-16). EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
       },
       {
         "type": "Line",
@@ -301,8 +301,8 @@
         "height_change_in": 0.0,
         "outlet_node": "LOX Injector Manifold",
         "outer_diameter_in": 0.375,
-        "wall_thickness_in": 0.01,
-        "note": "EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m)"
+        "wall_thickness_in": 0.028,
+        "note": "EDIT 3/8 in x 0.028 in wall (user, 2026-11-16; was 0.010) (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m)"
       },
       {
         "type": "Injector",
@@ -323,8 +323,8 @@
         "height_change_in": 0.0,
         "outlet_node": "FTV Inlet",
         "outer_diameter_in": 0.375,
-        "wall_thickness_in": 0.01,
-        "note": "EDIT 3/8 in x 0.01 in wall (user, 2026-11-03; was 1/4 in from vehicle_sim)"
+        "wall_thickness_in": 0.028,
+        "note": "EDIT 3/8 in x 0.028 in wall (user, 2026-11-16; was 0.010) (user, 2026-11-03; was 1/4 in from vehicle_sim)"
       },
       {
         "type": "ThrottleValve",
@@ -332,9 +332,9 @@
         "max_cda_mm2": 50.0,
         "full_scale_mass_flow_kg_s": 0.388,
         "outlet_node": "FTV Outlet",
-        "open_time_s": 0.0,
-        "close_time_s": 0.0,
-        "note": "EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
+        "open_time_s": 0.18,
+        "close_time_s": 0.18,
+        "note": "FTV actuation 180 ms (user, 2026-11-16). EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
       },
       {
         "type": "Line",
@@ -345,8 +345,8 @@
         "height_change_in": 0.0,
         "outlet_node": "Regen Inlet Manifold",
         "outer_diameter_in": 0.375,
-        "wall_thickness_in": 0.01,
-        "note": "EDIT 3/8 in x 0.01 in wall (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m)"
+        "wall_thickness_in": 0.028,
+        "note": "EDIT 3/8 in x 0.028 in wall (user, 2026-11-16; was 0.010) (user, 2026-11-03). Length EDIT (Vedanth, 2026-11-05; was 0.2032 m)"
       },
       {
         "type": "Regen",
@@ -373,23 +373,23 @@
   "regulators": [
     {
       "type": "Regulator",
-      "name": "PR-REG",
+      "name": "PUREG",
       "source": "COPV",
-      "set_pressure_psig": 750.0,
-      "cda_mm2": 0.8489,
-      "outlet_rise_psi_per_1000_psi_inlet_drop": 17.0,
+      "set_pressure_psig": 400.0,
+      "cda_mm2": 5.093,
+      "outlet_rise_psi_per_1000_psi_inlet_drop": 0.0,
       "reference_inlet_pressure_psia": null,
       "full_open_droop_psi": 10.0,
-      "note": "Droop GUESS (not on the datasheet): outlet falls 10 psi from lock-up to fully open. Aqua Environment 1026 dome-loaded reducing regulator (user, 2026-11-10): Cv 0.05 (0.07 in orifice) = 0.849 mm2, 6000 psi rated, 0-6000 psi out, 1/4 in NPT, 17 psi outlet rise per 1000 psi inlet drop. Set 750 psig EDIT (applies at the starting COPV pressure); dome loading not modelled. Was 5 mm2 GUESS"
+      "note": "TESCOM 44-1500 low-pressure regulator (user, 2026-11-15): Cv 0.3 = 5.093 mm2 (CdA = Cv/38 in^2), 6000 psig max inlet, outlet 0-200 / 0-400 psig spring loaded, 0-600 psig air/dome loaded, 3/8 or 1/2 in ports, 316 SS or brass body. Set EDIT 400 psig (user, 2026-11-15) = top of the spring-loaded range (was 750 psig with the Aqua 1026). Supply-pressure effect and droop are not on the product page: effect 0, droop 10 psi GUESS. Was Aqua 1026, Cv 0.05"
     }
   ],
   "side_paths": [
     {
       "type": "Branch",
-      "name": "PRVNT Vent",
+      "name": "OVNT-1 Vent",
       "source": "COPV",
       "elements": [
-        {"type": "Valve", "name": "PRVNT", "cda_mm2": 1.07, "schedule": "closed",
+        {"type": "Valve", "name": "OVNT-1", "cda_mm2": 1.07, "schedule": "closed",
          "note": "Marotta PLV34 (info); 1x PLV34 = 1.07 mm^2 (sheet FRV tab)"}
       ]
     },
@@ -404,17 +404,17 @@
     },
     {
       "type": "Branch",
-      "name": "ORV-1 Relief",
-      "source": "PR-REG Outlet",
+      "name": "PURV Relief",
+      "source": "PUREG Outlet",
       "elements": [
-        {"type": "ReliefValve", "name": "ORV-1", "cda_mm2": 2.0, "crack_pressure_psig": 825.0,
-         "note": "EDIT GUESS: 10 % above PR-REG set"}
+        {"type": "ReliefValve", "name": "PURV", "cda_mm2": 2.0, "crack_pressure_psig": 825.0,
+         "note": "EDIT GUESS: 10 % above PUREG set"}
       ]
     },
     {
       "type": "Branch",
       "name": "LOX Purge",
-      "source": "PR-REG Outlet",
+      "source": "PUREG Outlet",
       "sink": "OTV Outlet",
       "note": "P&ID: joins the LOX line below OTV",
       "elements": [
@@ -423,14 +423,14 @@
          "note": "EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS"},
         {"type": "Valve", "name": "OPV", "cda_mm2": 1.86, "schedule": "closed",
          "note": "EDIT candidate Chinese solenoid (user, 2026-10-31)"},
-        {"type": "CheckValve", "name": "CV-5", "cda_mm2": 8.5,
+        {"type": "CheckValve", "name": "OPCK", "cda_mm2": 8.5,
          "note": "EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2)"}
       ]
     },
     {
       "type": "Branch",
       "name": "Fuel Purge",
-      "source": "PR-REG Outlet",
+      "source": "PUREG Outlet",
       "sink": "FTV Outlet",
       "note": "P&ID: joins the fuel line below FTV",
       "elements": [
@@ -439,7 +439,7 @@
          "note": "EDIT 1/4 in x 0.035 in wall (user, 2026-11-08; was 0.028 in), 4.57 mm ID. Length GUESS"},
         {"type": "Valve", "name": "FPV", "cda_mm2": 1.86, "schedule": "closed",
          "note": "EDIT candidate Chinese solenoid (user, 2026-10-31)"},
-        {"type": "CheckValve", "name": "CV-4", "cda_mm2": 8.5,
+        {"type": "CheckValve", "name": "FPCK", "cda_mm2": 8.5,
          "note": "EDIT GUESS Cv ~0.5, typical 1/4 in poppet check (CdA = Cv/38 in^2)"}
       ]
     },
@@ -457,8 +457,8 @@
       "name": "ORV Relief",
       "source": "LOX Ullage",
       "elements": [
-        {"type": "ReliefValve", "name": "ORV", "cda_mm2": 30.8, "crack_pressure_psig": 550.0,
-         "note": "RegO PRV9432T550 (info); target CdA (sheet ORV)"}
+        {"type": "ReliefValve", "name": "ORV", "cda_mm2": 30.8, "crack_pressure_psig": 585.2,
+         "note": "Crack 600 psia (user, 2026-11-16; was 550 psig). RegO PRV9432T550 (info); target CdA (sheet ORV)"}
       ]
     },
     {
@@ -484,8 +484,8 @@
       "name": "FRV Relief",
       "source": "Fuel Ullage",
       "elements": [
-        {"type": "ReliefValve", "name": "FRV", "cda_mm2": 14.67, "crack_pressure_psig": 550.0,
-         "note": "EDIT PRV9432T550 = 550 psig (info); sheet FRV says 525"}
+        {"type": "ReliefValve", "name": "FRV", "cda_mm2": 14.67, "crack_pressure_psig": 585.2,
+         "note": "Crack 600 psia (user, 2026-11-16; was 550 psig). EDIT PRV9432T550 = 550 psig (info); sheet FRV says 525"}
       ]
     }
   ],
@@ -500,7 +500,7 @@
       "close_after_ignition_s": 0.055,
       "purge_open_after_ignition_s": 0.03,
       "purge_close_after_main_purges_s": 0.1,
-      "note": "Flight startup (user, 2026-11-10): OIMV T+0.08, FIMV T+0.19, both close 55 ms after main ignition (sequence.main_ignition_s); TFPV opens 30 ms after main ignition and closes 0.1 s after the last main purge ends. Each valve's open_time_s / close_time_s below is its stroke."
+      "note": "Flight startup (user, 2026-11-10): OIMV T+0.08, FIMV T+0.19, both close 55 ms after main ignition (sequence.main_ignition_s); FIPV opens 30 ms after main ignition and closes 0.1 s after the last main purge ends. Each valve's open_time_s / close_time_s below is its stroke."
     },
     "network": {
       "note": "Explicit torch fluid network. The independent cold-gas purge runner uses its purge leg, shared injector, chamber and throat. Keep torch.enabled false: full vehicle/combustion coupling is pending.",
@@ -515,11 +515,11 @@
         ]
       },
       "purge_leg": {
-        "source": "PR-REG Outlet",
+        "source": "PUREG Outlet",
         "sink": "FIORF Outlet",
         "note": "Same regulated GN2 source as the main-line purges. Joins downstream of FIORF; the fuel injector and chamber/throat are shared, not duplicated.",
         "elements": [
-          {"type": "Valve", "name": "TFPV", "cda_mm2": 2.2, "open_time_s": 0.08, "close_time_s": 0.08, "note": "Renamed FIPV to TFPV. Commands are in torch.standalone_purge.sequence; open/close times here describe hardware travel."},
+          {"type": "Valve", "name": "FIPV", "cda_mm2": 2.2, "open_time_s": 0.08, "close_time_s": 0.08, "note": "P&ID name FIPV (was TFPV until 2026-11-15). Commands are in torch.standalone_purge.sequence; open/close times here describe hardware travel."},
           {"type": "CheckValve", "name": "FIPCK", "cda_mm2": 5, "note": "Fuel purge igniter check valve; INPUT CdA."},
           {"type": "Orifice", "name": "FIPORF", "cda_mm2": 50.0, "note": "Current user-entered CdA 50 mm2; earlier exploratory cases used 8 mm2."}
         ]
@@ -570,10 +570,10 @@
         "note": "EDIT THE ENTIRE TORCH PURGE TIMELINE HERE. Absolute simulation seconds; valves hold their last command (0=closed, 1=open). Torch pressure holds its initial 150 psia until release_torch_pressure. The 7 s purge close is an editable example.",
         "end_time_s": 7.5,
         "events": [
-          {"time_s": 0.0, "valves": {"FIMV": 0.0, "OIMV": 0.0, "TFPV": 0.0}, "main_chamber_pressure_psia": 14.8},
+          {"time_s": 0.0, "valves": {"FIMV": 0.0, "OIMV": 0.0, "FIPV": 0.0}, "main_chamber_pressure_psia": 14.8},
           {"time_s": 0.2, "valves": {"FIMV": 1.0, "OIMV": 1.0}},
-          {"time_s": 2.0, "valves": {"FIMV": 0.0, "OIMV": 0.0, "TFPV": 1.0}, "main_chamber_pressure_psia": 300.0, "release_torch_pressure": true},
-          {"time_s": 7.0, "valves": {"TFPV": 0.0}}
+          {"time_s": 2.0, "valves": {"FIMV": 0.0, "OIMV": 0.0, "FIPV": 1.0}, "main_chamber_pressure_psia": 300.0, "release_torch_pressure": true},
+          {"time_s": 7.0, "valves": {"FIPV": 0.0}}
         ]
       },
       "main_chamber_gas_temperature_k": 293.0,
@@ -598,6 +598,49 @@
     "valve_stroke_s": 0.01,
     "simulate_in_transient": true
   },
+  "relief_sizing": {
+    "shared": {
+      "mass_flow_safety_factor": 1.5,
+      "pressure_sweep_points": 351
+    },
+    "frv": {
+      "failure_scenario": "FBB_fail_open_alone",
+      "simulation_maximum_gn2_inflow_kg_s": 0.198,
+      "simulation_inflow_status": "authoritative_latest_free_flight_simulation_result",
+      "tank_mawp_psia": 850.0,
+      "pressurant_model": "ideal_gas_constant_gamma",
+      "lift_model": "configured_relief_valve_linear",
+      "analysis_mode": "steady_state",
+      "output_subdirectory": "FRV_outputs"
+    },
+    "orv": {
+      "failure_scenario": "oxidizer_bang_bang_valves_failed_open",
+      "simulation_maximum_gn2_inflow_kg_s": 0.314,
+      "simulation_inflow_status": "authoritative_latest_free_flight_simulation_result",
+      "tank_mawp_psia": 850.0,
+      "provisional_gox_generation_kg_s": 0.024847,
+      "effective_heat_transfer_rate_w": null,
+      "heat_to_vaporization_fraction": 1.0,
+      "liquid_to_ullage_ua_w_k": null,
+      "wall_to_ullage_ua_w_k": null,
+      "tank_wall_temperature_k": null,
+      "net_external_sensible_heat_rate_w": null,
+      "output_subdirectory": "ORV_outputs"
+    },
+    "prrv": {
+      "failure_scenario": "LFS_fill_valves_failed_open",
+      "maximum_lfs_fill_flow_kg_s": null,
+      "maximum_lfs_fill_flow_status": "unresolved_pending_LFS_team",
+      "copv_mawp_psia": 4500.0,
+      "copv_mawp_status": "unconfirmed",
+      "trade_fill_flow_min_kg_s": 0.025,
+      "trade_fill_flow_max_kg_s": 0.50,
+      "trade_fill_flow_points": 40,
+      "target_fill_time_minutes": 30.0,
+      "real_gas_pressure_points": 800,
+      "output_subdirectory": "PRRV_outputs"
+    }
+  },
   "not_modelled": {
     "PRQD": "Pressurant fill quick disconnect (disconnected in flight)",
     "OQD": "LOX fill quick disconnect below OFD (disconnected in flight)",
@@ -620,7 +663,7 @@
       "Initial tank pressure": {"distribution": "uniform", "size": 0.02, "mode": "rel",
                                 "inputs": ["LOX_TANK.pressure", "FUEL_TANK.pressure"], "how": "each", "note": "EDIT +-2 % (user)"},
       "Initial COPV pressure": {"distribution": "uniform", "size": 0.02, "mode": "rel",
-                                "inputs": ["COPV 1.pressure", "COPV 2.pressure"], "how": "shared", "note": "EDIT +-2 % (user); one draw, the bottles are filled together"},
+                                "inputs": ["COPV-1.pressure", "COPV-2.pressure"], "how": "shared", "note": "EDIT +-2 % (user); one draw, the bottles are filled together"},
       "Propellant load": {"distribution": "uniform", "size": 0.01, "mode": "rel",
                           "inputs": ["LOX_TANK.liquid_mass", "FUEL_TANK.liquid_mass"], "how": "each", "note": "EDIT +-1 % (user)"},
       "Collapse factor": {"distribution": "uniform", "size": 0.3, "mode": "abs",
@@ -630,7 +673,7 @@
       "Cf efficiency": {"distribution": "uniform", "size": 0.01, "mode": "rel",
                         "inputs": ["CF_EFFICIENCY_SCALE"], "how": "shared", "note": "EDIT +-1 % (user); moves the whole curve"},
       "COPV temperature": {"distribution": "uniform", "size": 10.0, "mode": "abs",
-                           "inputs": ["COPV 1.temperature", "COPV 2.temperature"], "how": "shared", "note": "EDIT GUESS +-10 K"},
+                           "inputs": ["COPV-1.temperature", "COPV-2.temperature"], "how": "shared", "note": "EDIT GUESS +-10 K"},
       "Mixture ratio": {"distribution": "uniform", "size": 0.03, "mode": "rel",
                         "inputs": ["MIXTURE_RATIO"], "how": "each", "note": "EDIT GUESS +-3 % controller MR bias"}
     },
@@ -657,7 +700,7 @@
     "outputs.keep_run_history": "false keeps only the latest raw history (Outputs/Hopper_Prop_System.h5, ~220 MB); true also keeps one in every run archive",
     "purge.sequence": "Shutdown (user, 2026-11-10): OPV opens with the OTV close, FPV with the FTV close, 2 s each; times from the shutdown request (end of the thrust profile). Was fuel 5 s then LOX 5 s (2026-11-08)",
     "purge.simulate_in_transient": "true opens the purge valves in the full transient after shutdown, so the COPV drain is simulated",
-    "torch.enabled": "true: the flight sim solves torch.network (torch chamber, throat into the main chamber, TFPV purge) on torch.sequence. false: torch not in the flight sim. The independent torch purge runner works either way.",
+    "torch.enabled": "true: the flight sim solves torch.network (torch chamber, throat into the main chamber, FIPV purge) on torch.sequence. false: torch not in the flight sim. The independent torch purge runner works either way.",
     "torch.open_time_s": "Legacy torch.branches window only; the network uses torch.sequence",
     "torch.duration_s": "Legacy torch.branches window only; the network uses torch.sequence",
     "torch.valve_stroke_s": "Legacy torch.branches window only; network valve strokes are open_time_s / close_time_s on each valve",

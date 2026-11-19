@@ -1,0 +1,12 @@
+item,requirement,candidate,verdict
+Part,-,not entered,-
+Pressure rating [psi],> 5445,,NOT ENTERED
+Cv (today's orifice),>= 0.531,2.603 (candidate CdA),PASS
+Cv (OR-2 x2),>= 1.024,2.603,PASS
+Leg CdA kept [%],>= 95,99.8,-
+Crack pressure [psid],"< 881, no partial lift",,NOT ENTERED
+Min temperature [K],<= 189,,NOT ENTERED
+Max temperature [K],>= 300,,NOT ENTERED
+Oxygen clean,not required,,-
+Seal material,RP-1 (hydrocarbon) compatible seals (outlet sees fuel ullage),,NOT ENTERED
+Reverse leak,seals at 605 psid,,NOT ENTERED

@@ -33,7 +33,7 @@ class TorchConfigTests(unittest.TestCase):
         self.assertEqual([e['name'] for e in fuel['elements']], ['FIMV','FICK','FIORF','Torch Fuel Injector'])
         self.assertEqual(ox['source'], 'OTV Inlet')
         self.assertEqual([e['name'] for e in ox['elements']], ['OIMV','OICK','OIORF','OTHX','Torch Ox Injector'])
-        self.assertEqual([e['name'] for e in purge['elements']], ['TFPV','FIPCK','FIPORF'])
+        self.assertEqual([e['name'] for e in purge['elements']], ['FIPV','FIPCK','FIPORF'])
         main_purge = next(b for b in data['BRANCHES'] if b.name == 'Fuel Purge')
         self.assertEqual(purge['source'], main_purge.source)
         self.assertEqual(purge['sink'], fuel['elements'][2]['outlet_node'])
@@ -66,7 +66,7 @@ class TorchConfigTests(unittest.TestCase):
     def test_hardware_inventory_includes_configured_torch_parts_as_unsolved(self):
         from Backend.Hopper_Hardware import hardware_rows
         rows = {row[1]: row for row in hardware_rows()}
-        for name in ('FIMV','FICK','FIORF','TFPV','FIPCK','FIPORF','OIMV','OICK','OIORF','OTHX',
+        for name in ('FIMV','FICK','FIORF','FIPV','FIPCK','FIPORF','OIMV','OICK','OIORF','OTHX',
                      'Torch Fuel Injector','Torch Ox Injector','Torch Chamber','Torch Throat'):
             self.assertIn(name, rows)
             self.assertIn('Solved in the flight transient' if name not in ('Torch Chamber', 'Torch Throat')
