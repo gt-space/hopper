@@ -7,10 +7,10 @@
 %   P = nav_sensor_params()          current parameters (defaults below)
 %   nav_sensor_params(P)             replace them (e.g. noise off), then
 %                                    clear the models' persistents:
-%                                    clear gps_model imu_model ...
+%                                    clear gps_model imu_model mag_model ...
 %   nav_sensor_params('reset')       back to the defaults
 %
-% P.gps P.imu P.baro P.lidar P.diffGps: the structs the models used to
+% P.gps P.imu P.baro P.lidar P.diffGps P.mag: the structs the models used to
 % build inside themselves, same values.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

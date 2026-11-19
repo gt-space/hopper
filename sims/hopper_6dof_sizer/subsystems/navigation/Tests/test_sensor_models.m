@@ -34,7 +34,7 @@ sp.diffGps.noise_std = zeros(3,1);
 sp.mag.noise_std = zeros(3,1);
 nav_sensor_params(sp);
 restoreParams = onCleanup(@() nav_sensor_params('reset'));
-clear gps_model imu_model barometer_model lidar_model_base diffGps_model
+clear gps_model imu_model barometer_model lidar_model_base diffGps_model mag_model
 
 nTrials = 200;
 simErr = struct('baro', 0, 'gyro', 0, 'gps', 0, 'lidar', 0, 'diffGps', 0, 'mag', 0);
