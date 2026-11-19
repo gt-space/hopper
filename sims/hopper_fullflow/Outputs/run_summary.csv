@@ -1,27 +1,27 @@
 Metric,Value
 Burn time [s],29.85
-Total impulse [N s],38886.0
-LOX residual [kg],2.28
-LOX residual [%],14.25
-Fuel residual [kg],1.958
-Fuel residual [%],15.06
-LOX used [kg],13.718
-Fuel used [kg],11.042
-COPV pressure at shutdown [psia],1510.2
-COPV end pressure [psia],1447.7
-COPV gas used [kg],2.366
-COPV gas left [kg],3.219
-LOX tank min in profile [psia],489.3
-Fuel tank min in profile [psia],489.9
-LOX tank max [psia],589.1
-Fuel tank max [psia],608.0
-Min LOX injector stiffness [% Pc],19.1
-Min fuel injector stiffness [% Pc],22.8
-Max |thrust error| at profile points [%],0.67
-RMS thrust error at profile points [%],0.05
+Total impulse [N s],38894.0
+LOX residual [kg],1.892
+LOX residual [%],11.82
+Fuel residual [kg],1.645
+Fuel residual [%],12.65
+LOX used [kg],14.106
+Fuel used [kg],11.355
+COPV pressure at shutdown [psia],1441.5
+COPV end pressure [psia],1389.2
+COPV gas used [kg],2.439
+COPV gas left [kg],3.146
+LOX tank min in profile [psia],490.4
+Fuel tank min in profile [psia],486.9
+LOX tank max [psia],588.4
+Fuel tank max [psia],607.7
+Min LOX injector stiffness [% Pc],23.2
+Min fuel injector stiffness [% Pc],27.8
+Max |thrust error| at profile points [%],0.6
+RMS thrust error at profile points [%],0.04
 Profile points judged,295 of 296
-Max OTV % of max CdA,26.7
-Max FTV % of max CdA,27.3
-Relief mass vented [kg],0.001
+Max OTV % of max CdA,24.0
+Max FTV % of max CdA,24.1
+Relief mass vented [kg],0.0009
 All thrust points reachable,yes
 Thrust within tolerance,yes

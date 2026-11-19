@@ -137,15 +137,12 @@ removed; with `enabled` false the network is listed as not modelled, as before.
 
 ### New isolated tools and plots
 
-- `isolated_sims/Hopper_Hotfire.py` with `isolated_sims/hotfire_config.json`:
-  test-stand hotfire with constant-pressure run tanks (1000 psia), the vehicle
-  engine, OTV/FTV, injector and regen, the torch legs into a zero-volume torch
-  chamber and throat, and the purge regulator, relief and purges from a constant
-  GN2 supply (2000 psia GUESS). Default profile: 100 → 500 lbf ramp over 2.5 s.
-  Writes `Outputs/Hotfire/<UTC>/` (history CSV, per-graph profiles, maxima,
-  summary and plots; the raw `.h5` is git-ignored). Its torch purge does not add
-  gas to the torch, unlike the flight sim. Inputs documented in
-  `docs/hotfire_inputs.md`.
+- `isolated_sims/Hopper_Hotfire.py` with `isolated_sims/hotfire_config.json`
+  (remade 2026-11-19): test-stand hotfire. Each side is a constant-pressure run
+  tank → test-stand CdA → OTV/FTV → line → (regen) → injector → chamber. The engine
+  has its own section (same fields as `hopper_config.json` engine); no torch or
+  purges. Writes `Outputs/Hotfire/<UTC>/` (history CSV, summary, holds, plots; the
+  raw `.h5` is git-ignored). Inputs documented in `docs/hotfire_inputs.md`.
 - New `isolated_sims/Hopper_Results_Page.py`: builds `Outputs/results_page/`
   (`flight_overview.png`, `free flight simulation.csv`, `flight_maxima.csv` and
   `results_page.md`, the Notion results page with every input table) from the

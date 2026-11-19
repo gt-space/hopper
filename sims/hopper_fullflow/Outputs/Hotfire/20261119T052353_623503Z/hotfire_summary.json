@@ -1,0 +1,173 @@
+{
+  "timeline_s": {
+    "main_fuel_opens_s": 0.3,
+    "main_ox_opens_s": 0.45,
+    "profile_start_s": 0.7,
+    "profile_end_s": 7.7,
+    "shutdown_end_s": 8.0,
+    "end_s": 8.3
+  },
+  "max_thrust_during_profile": {
+    "Thrust [lbf]": 549.9999982405218,
+    "time_s": 6.715,
+    "Chamber Pressure [psia]": 378.2075625254093,
+    "Mixture Ratio": 1.25,
+    "OTV Open [%]": 62.86538987824568,
+    "FTV Open [%]": 81.03103402592384,
+    "OTV CdA [mm2]": 15.087693570778965,
+    "FTV CdA [mm2]": 19.447448166221722,
+    "OINJ Stiffness [%]": 37.04714293261076,
+    "FINJ Stiffness [%]": 44.355650994039955,
+    "LOX Mass Flow [kg/s]": 0.7837192772197803,
+    "Fuel Mass Flow [kg/s]": 0.6269754217758243
+  },
+  "largest_thrust_shortfall_during_profile_lbf": 0.2918643217682586,
+  "throttle_valves_fully_open": {
+    "OTV": {
+      "fully_open": false,
+      "first_full_open_s": null,
+      "target_thrust_when_first_full_open_lbf": null
+    },
+    "FTV": {
+      "fully_open": false,
+      "first_full_open_s": null,
+      "target_thrust_when_first_full_open_lbf": null
+    }
+  },
+  "minimum_during_profile": {
+    "OINJ Stiffness [%]": 15.47951279286971,
+    "FINJ Stiffness [%]": 18.53324744224532,
+    "OTV dP [psi]": 169.12489885123966,
+    "FTV dP [psi]": 92.12552318396202
+  },
+  "maximum_during_profile": {
+    "Chamber Pressure [psia]": 378.2075625254093,
+    "OTV dP [psi]": 597.7311402568731,
+    "FTV dP [psi]": 583.0176180360314,
+    "OTV Open [%]": 62.95576942533289,
+    "FTV Open [%]": 81.24958270114185,
+    "OINJ dP [psi]": 140.123156078439,
+    "FINJ dP [psi]": 167.76356208326143,
+    "Regen Jacket dT [K]": 82.0
+  },
+  "holds": [
+    {
+      "hold": "200 lbf, 0.70-1.70 s",
+      "Thrust [lbf]": 200.00000000000014,
+      "Target Thrust [lbf]": 200.0,
+      "Chamber Pressure [psia]": 157.97182118921563,
+      "Mixture Ratio": 1.2500000000000004,
+      "Chamber Temperature [K]": 1871.693077293926,
+      "C* Efficiency": 0.8500000000000001,
+      "Cf Efficiency": 0.9515943642378429,
+      "Nozzle Exit Pressure [psia]": 9.13543606217393,
+      "LOX Tank Pressure [psia]": 800.0000000000001,
+      "LOX Mass Flow [kg/s]": 0.32740591462199253,
+      "LOX Stand Inlet Pressure [psia]": 800.0000000000001,
+      "LOX Stand dP [psi]": 6.1876424283863525,
+      "OTV Inlet Pressure [psia]": 793.8123575716136,
+      "OTV dP [psi]": 597.7311402568731,
+      "LOX Line Inlet Pressure [psia]": 196.08121731474048,
+      "LOX Line dP [psi]": 13.65612785541099,
+      "OINJ Inlet Pressure [psia]": 182.4250894593295,
+      "OINJ dP [psi]": 24.45326827011389,
+      "OTV Target Mass Flow [kg/s]": 0.32740591462199253,
+      "OTV CdA [mm2]": 3.3575586106410515,
+      "OTV Open [%]": 13.989827544337711,
+      "OINJ Stiffness [%]": 15.479512792869707,
+      "Fuel Tank Pressure [psia]": 800.0000000000001,
+      "Fuel Mass Flow [kg/s]": 0.2619247316975939,
+      "Fuel Stand Inlet Pressure [psia]": 800.0000000000001,
+      "Fuel Stand dP [psi]": 7.7979536604528406,
+      "FTV Inlet Pressure [psia]": 792.2020463395471,
+      "FTV dP [psi]": 583.0176180360314,
+      "Fuel Line Inlet Pressure [psia]": 209.18442830351592,
+      "Fuel Line dP [psi]": 15.14241452673155,
+      "Regen Jacket Inlet Pressure [psia]": 194.04201377678433,
+      "Regen Jacket dP [psi]": 6.792884077550067,
+      "FINJ Inlet Pressure [psia]": 187.24912969923423,
+      "FINJ dP [psi]": 29.27730851001865,
+      "FTV Target Mass Flow [kg/s]": 0.26192473169759395,
+      "FTV CdA [mm2]": 3.2382286949226433,
+      "FTV Open [%]": 13.492619562177683,
+      "FINJ Stiffness [%]": 18.533247442245315,
+      "Regen Jacket dT [K]": 82.0,
+      "Fuel Injector Inlet Temperature [K]": 375.0,
+      "Isp [s]": 153.93476406927698
+    },
+    {
+      "hold": "550 lbf, 6.70-7.70 s",
+      "Thrust [lbf]": 549.9999982405217,
+      "Target Thrust [lbf]": 550.0,
+      "Chamber Pressure [psia]": 378.2075625254093,
+      "Mixture Ratio": 1.25,
+      "Chamber Temperature [K]": 1874.0407377368858,
+      "C* Efficiency": 0.8500000000000001,
+      "Cf Efficiency": 0.9699999999999999,
+      "Nozzle Exit Pressure [psia]": 21.85444888988203,
+      "LOX Tank Pressure [psia]": 800.0000000000001,
+      "LOX Mass Flow [kg/s]": 0.7837192772197803,
+      "LOX Stand Inlet Pressure [psia]": 800.0000000000001,
+      "LOX Stand dP [psi]": 35.454651908505845,
+      "OTV Inlet Pressure [psia]": 764.5453480914942,
+      "OTV dP [psi]": 169.61153930089827,
+      "LOX Line Inlet Pressure [psia]": 594.933808790596,
+      "LOX Line dP [psi]": 76.6111499944551,
+      "OINJ Inlet Pressure [psia]": 518.3226587961408,
+      "OINJ dP [psi]": 140.11509627073158,
+      "OTV Target Mass Flow [kg/s]": 0.7837192772197803,
+      "OTV CdA [mm2]": 15.087693570778965,
+      "OTV Open [%]": 62.86538987824569,
+      "OINJ Stiffness [%]": 37.04714293261076,
+      "Fuel Tank Pressure [psia]": 800.0000000000001,
+      "Fuel Mass Flow [kg/s]": 0.6269754217758243,
+      "Fuel Stand Inlet Pressure [psia]": 800.0000000000001,
+      "Fuel Stand dP [psi]": 44.68159494182722,
+      "FTV Inlet Pressure [psia]": 755.3184050581729,
+      "FTV dP [psi]": 92.62313674995382,
+      "Fuel Line Inlet Pressure [psia]": 662.695268308219,
+      "Fuel Line dP [psi]": 77.80864549998205,
+      "Regen Jacket Inlet Pressure [psia]": 584.886622808237,
+      "Regen Jacket dP [psi]": 38.92263381599171,
+      "FINJ Inlet Pressure [psia]": 545.9639889922452,
+      "FINJ dP [psi]": 167.75642646683602,
+      "FTV Target Mass Flow [kg/s]": 0.6269754217758243,
+      "FTV CdA [mm2]": 19.447448166221726,
+      "FTV Open [%]": 81.03103402592384,
+      "FINJ Stiffness [%]": 44.355650994039955,
+      "Regen Jacket dT [K]": 82.0,
+      "Fuel Injector Inlet Temperature [K]": 375.0,
+      "Isp [s]": 176.84606235462394
+    }
+  ],
+  "propellant_used_kg": {
+    "LOX": 4.004651504252061,
+    "Fuel": 3.2844430144284553
+  },
+  "feeds": {
+    "LOX": [
+      "LOX Stand",
+      "OTV",
+      "LOX Line",
+      "OINJ"
+    ],
+    "Fuel": [
+      "Fuel Stand",
+      "FTV",
+      "Fuel Line",
+      "Regen Jacket",
+      "FINJ"
+    ]
+  },
+  "assumptions": [
+    "Run tanks are constant-pressure reservoirs (no blowdown, no pressurant, no ullage).",
+    "Each side: tank -> test-stand CdA -> throttle valve -> line -> (fuel: regen) -> injector -> chamber.",
+    "The test-stand CdA is one fixed incompressible restriction for all stand plumbing upstream of the throttle valve; it has a 1 cm passage length for flow inertia only (no steady dP).",
+    "OTV/FTV are flow controllers that track the thrust-targeter flows, capped at the full-open CdA.",
+    "Engine: chamber map from hopper_config.json; throat, exit area, MR and c*/Cf efficiencies from the hotfire engine section. Propellant ignites as soon as it reaches the chamber, which has no volume.",
+    "Liquids are incompressible at the reservoir pressure and temperature; the regen heats the fuel by the configured dT before the fuel injector.",
+    "Main-valve opening and closing timing (sequence section) come from hopper_config.json.",
+    "Not modelled: torch igniter, purges, line priming and chill-down, stand instrumentation."
+  ],
+  "elapsed_s": 15.126845599617809
+}
