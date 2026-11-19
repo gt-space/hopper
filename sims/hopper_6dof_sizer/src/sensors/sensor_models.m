@@ -121,6 +121,10 @@ for s = 1:L.N_SENSORS
                 noisy(L.GPS_POS) = gpsBus.pos;
                 noisy(L.GPS_VEL) = gpsBus.vel;
 
+            case L.S_MAG
+                magBus = mag_model(navState, t, sig.*noise, 10 * S.mag.field_ned(:));
+                noisy(L.MAG) = 0.1 * magBus.bfield_meas;
+
             case L.S_DGPS
                 dgpsBus = diffGps_model(navState, t, gpsFrame, sig.*noise);
                 noisy(L.DGPS) = dgpsBus.basisVec;

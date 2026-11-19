@@ -100,6 +100,22 @@ classdef NavAdapterTest < matlab.unittest.TestCase
             end
         end
 
+        function magnetometerUsesSeededNoise(tc)
+            IN = mission_inputs();
+            S = sim_sensor_params(IN);
+            L = sensor_layout();
+            C = angle2dcm(0, pi/2, 0);
+            state = [zeros(2, 1); -5; zeros(6, 1); nav_quat_from_dcm(C)];
+            xs = struct('pos_ned', state(1:3), 'vel_ned', state(4:6), ...
+                'w_b', state(7:9), 'dcm_be', C, 'f_b', [9.8; 0; 0], 'cg', tc.cg);
+            noise = zeros(L.N_MEAS, 1);
+            noise(L.MAG) = [0.7; -1.2; 0.35];
+
+            [meas, truth] = sensor_models(xs, noise, 0, S, sensor_state());
+            tc.verifyEqual(meas(L.MAG) - truth(L.MAG), ...
+                S.mag.sigma .* noise(L.MAG), 'AbsTol', 1e-12);
+        end
+
         function fdirMasksReachTheFilter(tc)
             % a sensor FDIR masks goes to the filter as invalid; the R scale
             % inflates every covariance; the mask bits are fdir_targets'
