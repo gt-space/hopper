@@ -62,8 +62,8 @@
   },
   "engine": {
     "mixture_ratio": 1.25,
-    "throat_area_in2": 1.0420050840101682,
-    "exit_area_in2": 3.651185814371629,
+    "throat_area_in2": 1.2330821851174643,
+    "exit_area_in2": 3.095,
     "nominal_chamber_pressure_psia": 300.0,
     "cstar_efficiency": {
       "mode": "linear",
@@ -285,12 +285,12 @@
       {
         "type": "ThrottleValve",
         "name": "OTV",
-        "max_cda_mm2": 50.0,
+        "max_cda_mm2": 24.0,
         "full_scale_mass_flow_kg_s": 0.777,
         "outlet_node": "OTV Outlet",
         "open_time_s": 0.18,
         "close_time_s": 0.18,
-        "note": "OTV actuation 180 ms (user, 2026-11-16). EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
+        "note": "OTV actuation 180 ms (user, 2026-11-16). Full-open CdA 24 mm2 (user, 2026-11-18; was 50). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
       },
       {
         "type": "Line",
@@ -329,12 +329,12 @@
       {
         "type": "ThrottleValve",
         "name": "FTV",
-        "max_cda_mm2": 50.0,
+        "max_cda_mm2": 24.0,
         "full_scale_mass_flow_kg_s": 0.388,
         "outlet_node": "FTV Outlet",
         "open_time_s": 0.18,
         "close_time_s": 0.18,
-        "note": "FTV actuation 180 ms (user, 2026-11-16). EDIT full-open CdA (user, 2026-11-03). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
+        "note": "FTV actuation 180 ms (user, 2026-11-16). Full-open CdA 24 mm2 (user, 2026-11-18; was 50). Moves at the sequence thrust slew limit; set open/close times to add valve travel"
       },
       {
         "type": "Line",

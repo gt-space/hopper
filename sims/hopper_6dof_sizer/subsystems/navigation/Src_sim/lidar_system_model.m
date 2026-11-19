@@ -10,12 +10,13 @@
 % 
 % Inputs:
 %   x: true state vector (20x1)
+%   measurementNoise: optional additive Sensors measurement noise (26x1)
 % 
 % Outputs:
 %   lidarBus: LIDAR measurement struct defined in the Navigation Dictionary
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function lidarBus = lidar_system_model(x, time, lidar_frames)
+function lidarBus = lidar_system_model(x, time, lidar_frames, measurementNoise)
 
     % Simulink gets touchy about dims
     x = x(1:20,1);
@@ -46,7 +47,11 @@ function lidarBus = lidar_system_model(x, time, lidar_frames)
              -(n*r4 + h)/(n*A4(:,1))];
 
     % Apply sensor model with noise
-    [d_vec, covariance, validity] = lidar_model_base(d_vec);
+    if nargin >= 4
+        [d_vec, covariance, validity] = lidar_model_base(d_vec, measurementNoise);
+    else
+        [d_vec, covariance, validity] = lidar_model_base(d_vec);
+    end
 
     % Build the output struct
     lidarBus.distance = d_vec;
