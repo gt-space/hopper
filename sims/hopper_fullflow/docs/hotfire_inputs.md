@@ -1,129 +1,89 @@
 # Test-Stand Hotfire Sim: Inputs
 
-Sim: `isolated_sims/Hopper_Hotfire.py` · Inputs: `isolated_sims/hotfire_config.json` · Engine data: `hopper_config.json`
-Pressures are absolute (psia) unless marked psig (gauge) or psi (difference). **GUESS** = nobody has confirmed it. **COPIED** = copied from the vehicle config, not measured on the stand.
+Sim: `isolated_sims/Hopper_Hotfire.py` · Inputs: `isolated_sims/hotfire_config.json` · Fluids, chamber map, ambient pressure and valve sequence timing: `hopper_config.json`
+Pressures are absolute (psia) unless marked psig (gauge) or psi (difference). **GUESS** = nobody has confirmed it. **COPIED** = copied from `hopper_config.json`.
 
-## Simulation
+```
+python isolated_sims/Hopper_Hotfire.py                 # run with isolated_sims/hotfire_config.json
+python isolated_sims/Hopper_Hotfire.py --check-inputs  # build the hardware and print the timeline only
+python isolated_sims/Hopper_Hotfire.py --config my_case.json --out some/folder
+```
+
+## Layout
+
+Each side runs tank → test-stand CdA → throttle valve → line → injector → chamber. On the fuel side the regen jacket sits between the line and the injector.
+
+```
+LOX tank  -> LOX Stand  -> OTV -> LOX Line  ----------------> OINJ -> Main Chamber -> nozzle
+Fuel tank -> Fuel Stand -> FTV -> Fuel Line -> Regen Jacket -> FINJ -> Main Chamber
+```
+
+The torch igniter and the purges are not modelled.
+
+## Reservoirs, stand and lines (per side)
+
+| Input | LOX | Fuel | Notes |
+|---|---|---|---|
+| Reservoir set pressure | 800 psia | 800 psia | Held constant: no blowdown, pressurant or ullage |
+| Liquid temperature | 90 K | 293 K | COPIED |
+| Test-stand CdA | 33 mm² | 28 mm² | All stand plumbing upstream of the throttle valve as one restriction |
+| Throttle valve full-open CdA | 24 mm² | 24 mm² | COPIED |
+| Throttle valve actuation | 0.18 s | 0.18 s | COPIED |
+| Stand-to-injector line | 72 in, 3/8 in OD × 0.028 in wall | 72 in, 3/8 in OD × 0.028 in wall | Roughness 0.00059 in |
+| Regen | n/a | 30 mm², +82 K at 150 and 300 psia Pc | COPIED |
+| Injector CdA | 16.6 mm² (OINJ) | 15.0 mm² (FINJ) | COPIED |
+
+## Engine
+
+These fields are the same as the `engine` section of `hopper_config.json`.
 
 | Input | Value | Notes |
 |---|---|---|
-| Maximum time step | 0.02 s | Solver also lands on every valve and thrust-ramp breakpoint |
-| Save interval | every step | |
-| Tail-off after last event | 0.3 s | |
-| Output folder | `Outputs/Hotfire/<UTC time>/` | |
-
-## Run tanks (reservoirs)
-
-| Tank | Propellant | Pressure | Temperature | Notes |
-|---|---|---|---|---|
-| LOX Tank | LOX | 1000 psia | 90 K | Constant pressure: no blowdown, pressurant or ullage |
-| Kerosene Tank | RP-1 | 1000 psia | 293 K | Constant pressure |
+| Mixture ratio | 1.25 | Regen TCA CDR |
+| Throat area | 1.0568 in² | Regen TCA CDR |
+| Exit area | 3.0946 in² | CDR exit radius 0.9925 in; expansion ratio 2.928 |
+| Nominal Pc | 300 psia | Regen TCA CDR |
+| c* efficiency | 0.80 at 100 psia → 0.85 at 300 psia | Linear in Pc, flat outside, as in `hopper_config.json`. 0.85 is the CDR value |
+| Cf efficiency | 0.94 at 100 psia → 0.97 at 250 psia | Linear in Pc, flat outside. COPIED (the CDR gives none) |
 
 ## Thrust profile
 
 | Input | Value | Notes |
 |---|---|---|
-| Start thrust | 100 lbf | |
-| End thrust | 500 lbf | |
-| Ramp duration | 2.5 s | |
-| Ramp points | 26 | One every 0.1 s |
-| Hold at end thrust | 0 s | Set > 0 to add a steady hold |
+| CSV | `thrust_curves/hotfire_ramp.csv` | Columns `time [s]`, `thrust [lbf]`; path relative to the hotfire config |
+| Profile | 0 → 550 lbf over 5 s (a point every 0.1 s), hold 550 lbf for 1 s | User, 2026-11-19 |
 | Interpolation | linear | `linear` or `step` |
-| Profile time 0 | 0.5 s on the sim clock | When OTV/FTV finish opening (from `hopper_config.json`) |
+| 0 lbf points | Both throttle valves shut | Zero flow targets; the targeter solves every other point |
+| Profile time 0 | 0.7 s on the sim clock | Main ignition (`sequence.main_ignition_s`); the last point is the shutdown request |
 
-## Engine (from `hopper_config.json`)
-
-| Input | Value | Notes |
-|---|---|---|
-| Target mixture ratio | 1.25 | |
-| Throat area | 1.042 in² | |
-| Exit area | 3.651 in² | Expansion ratio 3.50 |
-| c* efficiency | 0.80 at 100 psia → 0.85 at 300 psia | Linear, flat outside |
-| Cf efficiency | 0.94 at 100 psia → 0.97 at 250 psia | Linear, flat outside |
-| Ambient pressure | 14.8 psia | |
-| OTV/FTV start opening | 0.3 s | |
-| OTV/FTV opening (and closing) time | 0.2 s | |
-
-## LOX feed
-
-| Component | Type | Value | Notes |
-|---|---|---|---|
-| LOX Tank to OTV Line | Line | 3/8 in OD × 0.010 in wall (0.355 in ID), 48 in long | COPIED |
-| OTV | Throttle valve | 50 mm² full open | Opens to whatever CdA meets the flow target. COPIED |
-| OTV to LOX Injector Line | Line | 3/8 in OD × 0.010 in wall, 10 in long | COPIED |
-| OINJ | Injector | 16.6 mm² | COPIED |
-
-## Fuel feed
-
-| Component | Type | Value | Notes |
-|---|---|---|---|
-| Fuel Tank to FTV Line | Line | 3/8 in OD × 0.010 in wall, 12 in long | COPIED |
-| FTV | Throttle valve | 50 mm² full open | COPIED |
-| FTV to Regen Line | Line | 3/8 in OD × 0.010 in wall, 12 in long | FRMPT reads this manifold. COPIED |
-| Regen Jacket | Regen | 30 mm²; +82 K at 150 and 300 psia Pc | COPIED |
-| FINJ | Injector | 15.0 mm² | COPIED |
-
-All lines: roughness 0.00059 in, no height change.
-
-## Torch igniter
+## Simulation
 
 | Input | Value | Notes |
 |---|---|---|
-| OIMV / FIMV open | 0.2 s | |
-| OIMV / FIMV close | 2.0 s | |
-| OIMV / FIMV stroke | 0.08 s | |
-| Torch throat area | 0.006504 in² | About 0.091 in diameter |
-| Torch c* efficiency | 1.0 | GUESS (ideal) |
-| Zero-flow smoothing band | 0.5 psi | Numerical only |
+| Maximum time step | 0.015 s | The solver also lands on every valve and profile breakpoint |
+| Save interval | every step | |
+| Output folder | `Outputs/Hotfire/<UTC time>/` | |
 
-**Torch oxidizer leg** (tees off the LOX line above OTV)
+## Outputs
 
-| Component | Type | Value | Notes |
-|---|---|---|---|
-| OIMV | Valve | 0.68 mm² | |
-| OICK | Check valve | 5.0 mm² | |
-| OIORF | Orifice | 8.0 mm² | Provisional |
-| OTHX | Tube | 1/4 in OD × 0.065 in wall (0.120 in ID), 60 in long | Treated as a plain tube: no heating or vaporization |
-| Torch Ox Injector | Injector | 0.4398 mm² | |
-
-**Torch fuel leg** (tees off the kerosene line above FTV)
-
-| Component | Type | Value | Notes |
-|---|---|---|---|
-| FIMV | Valve | 2.2 mm² | |
-| FICK | Check valve | 5.0 mm² | |
-| FIORF | Orifice | 8.0 mm² | Provisional |
-| Torch Fuel Injector | Injector | 0.8051 mm² | |
-
-## Purge system
-
-| Input | Value | Notes |
-|---|---|---|
-| GN2 supply pressure | 2000 psia | GUESS, held constant |
-| GN2 supply temperature | 293 K | |
-| Purge Reg set pressure | 750 psig | Ideal regulator (no droop). From PR-REG |
-| Purge Reg CdA | 5.0 mm² | GUESS. From PR-REG |
-| FIPV opens | 2.0 s | When the torch valves close |
-| FIPV closes | 1.0 s after OTV/FTV are shut | GUESS |
-| OPV / FPV open | 0 s after OTV/FTV are shut | GUESS |
-| OPV / FPV open for | 1.0 s | GUESS |
-| Purge valve stroke | 0.01 s | |
-
-**Purge paths** (all start at the Purge Reg outlet)
-
-| Path | Components | Ends at | Notes |
-|---|---|---|---|
-| Purge Relief | Purge RV: 2.0 mm², cracks at 825 psig | Ambient | From ORV-1. GUESS |
-| LOX Purge | Line 1/4 in × 0.035 in wall (0.180 in ID), 39.4 in long → OPV 1.86 mm² → OPCK 8.5 mm² | LOX line below OTV | Line length GUESS; OPCK GUESS |
-| Fuel Purge | Line 1/4 in × 0.035 in wall, 39.4 in long → FPV 1.86 mm² → FPCK 8.5 mm² | Fuel line below FTV | Line length GUESS; FPCK GUESS |
-| Torch Purge | Line 1/4 in × 0.035 in wall, 39.4 in long → FIPV 2.2 mm² → FIPCK 5.0 mm² → FIPORF 50 mm² → torch fuel injector 0.8051 mm² | Torch chamber | FIPV is called TFPV in `hopper_config.json`. Keep the injector CdA equal to the torch fuel leg's |
+| File | Contents |
+|---|---|
+| `hotfire_history.csv` | Every time step: thrust, target, Pc, MR, Isp, c*/Cf efficiency, exit pressure; for each side the tank pressure and mass flow; each element's inlet pressure and dP; throttle valve target flow, CdA and % open; injector stiffness; regen dT |
+| `hotfire_summary.json` | Peak thrust and the state there; when each throttle valve first hits full open; minimum stiffness and TV dP; maximum Pc, TV dP, % open and injector dP; settled values for each hold; propellant used |
+| `hotfire_holds.csv` | Settled values (second half of each constant-thrust hold) |
+| `thrust_targets.csv` | Targeter Pc and flows for each profile point |
+| `hotfire_overview.png` | Time histories: thrust, Pc, mass flows, MR, TV % open, TV CdA, TV dP, injector dP, stiffness |
+| `hotfire_vs_thrust.png` | Pc, TV % open, TV dP, stiffness, mass flows and Isp against thrust |
+| `hotfire_pc_vs_thrust.png` | Chamber pressure against thrust |
+| `hotfire_element_dp.png` | dP of every element on each side over time |
+| `hotfire_pressure_ladder.png` | Pressure at each station at peak thrust |
+| `hopper_config_hotfire_engine.json` | The `hopper_config.json` the run used, with the hotfire engine in it |
+| `hotfire_config.json`, profile CSV | Copies of the inputs; the copied config points at the copied CSV |
 
 ## Modelling assumptions
 
 - Run tanks are constant-pressure reservoirs.
-- OTV/FTV deliver the thrust-targeter flows. The targets ignore the torch flow.
-- Propellant ignites as soon as it reaches a chamber. Neither chamber has volume.
-- The torch burns on the same LOX/RP-1 chamber data as the main engine. Its throat flow is ideal and can run either way.
-- Liquids are incompressible at the reservoir pressure and temperature.
-- Purge gas only sees its back pressure. It is not added to the propellant lines or chambers. Check valves block reverse flow.
-- The torch purge is solved as if FIMV is shut.
+- The test-stand CdA is one fixed incompressible restriction. It has a 1 cm passage length for flow inertia only, which adds no steady dP.
+- OTV/FTV deliver the thrust-targeter flows up to their full-open CdA. Past that the valve stays fully open and the thrust falls short of the target.
+- Propellant ignites as soon as it reaches the chamber. The chamber has no volume.
+- Liquids are incompressible at the reservoir pressure and temperature. The regen heats the fuel by the configured dT.

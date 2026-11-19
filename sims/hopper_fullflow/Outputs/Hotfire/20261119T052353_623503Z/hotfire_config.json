@@ -1,0 +1,61 @@
+{
+  "description": "Test-stand hotfire (isolated_sims/Hopper_Hotfire.py). Each side: run tank (constant set pressure) -> test-stand CdA -> throttle valve -> line -> (fuel: regen) -> injector -> main chamber. The engine section has the same fields as hopper_config.json engine. Fluids, the chamber map, ambient pressure and the main-valve sequence timing come from hopper_config.json. Pressures psia unless psig/psi.",
+  "simulation": {
+    "maximum_step_s": 0.015,
+    "save_interval_s": null,
+    "output_directory": "Outputs/Hotfire",
+    "note": "save_interval_s null saves every step. The solver also lands on every profile and valve-ramp breakpoint."
+  },
+  "engine": {
+    "mixture_ratio": 1.25,
+    "throat_area_in2": 1.0568,
+    "exit_area_in2": 3.0946,
+    "nominal_chamber_pressure_psia": 300.0,
+    "cstar_efficiency": {
+      "mode": "linear",
+      "low": 0.85,
+      "high": 0.85,
+      "pc_low_psia": 100.0,
+      "pc_span_psi": 200.0,
+      "csv": null
+    },
+    "cf_efficiency": {
+      "mode": "linear",
+      "low": 0.94,
+      "high": 0.97,
+      "pc_low_psia": 100.0,
+      "pc_span_psi": 150.0,
+      "csv": null
+    },
+    "note": "Regen TCA CDR: throat 1.0568 in2, exit radius 0.9925 in (exit area 3.0946 in2, expansion ratio 2.928), c* efficiency 85 %, MR 1.25, Pc 300 psia. The CDR gives no Cf efficiency, so the curve is copied from hopper_config.json."
+  },
+  "profile": {
+    "points_s_lbf": [[0.0, 200.0], [1.0, 200.0], [6.0, 550.0], [7.0, 550.0]],
+    "interpolation": "linear",
+    "resample_s": 0.1,
+    "note": "GUESS: CDR throttle range, 40 % (200 lbf) hold, ramp to 110 % (550 lbf), hold. Profile time 0 is main ignition (sequence.main_ignition_s in hopper_config.json); the last point is the shutdown request. Ramps are resampled every resample_s so the flow targets follow the thrust exactly."
+  },
+  "oxidizer": {
+    "reservoir_pressure_psia": 800.0,
+    "temperature_k": 90.0,
+    "stand_cda_mm2": 33.0,
+    "throttle_valve_max_cda_mm2": 24.0,
+    "throttle_valve_actuation_s": 0.18,
+    "line": {"length_in": 72.0, "outer_diameter_in": 0.375, "wall_thickness_in": 0.028, "roughness_in": 0.0005905511811023622},
+    "injector_cda_mm2": 16.6,
+    "injector_length_in": 0.3937007874015748,
+    "note": "Stand CdA, line and reservoir pressure: user, 2026-11-19. Valve actuation, injector CdA and liquid temperature copied from hopper_config.json (OTV, OINJ, LOX tank)."
+  },
+  "fuel": {
+    "reservoir_pressure_psia": 800.0,
+    "temperature_k": 293.0,
+    "stand_cda_mm2": 28.0,
+    "throttle_valve_max_cda_mm2": 24.0,
+    "throttle_valve_actuation_s": 0.18,
+    "line": {"length_in": 72.0, "outer_diameter_in": 0.375, "wall_thickness_in": 0.028, "roughness_in": 0.0005905511811023622},
+    "regen": {"cda_mm2": 30.0, "pc_psia_delta_t_k": [[150, 82], [300, 82]], "length_in": 11.811023622047244},
+    "injector_cda_mm2": 15.0,
+    "injector_length_in": 0.3937007874015748,
+    "note": "Stand CdA, line and reservoir pressure: user, 2026-11-19. Valve actuation, regen (CdA and fuel heating) and injector CdA copied from hopper_config.json (FTV, Regen Jacket, FINJ)."
+  }
+}
