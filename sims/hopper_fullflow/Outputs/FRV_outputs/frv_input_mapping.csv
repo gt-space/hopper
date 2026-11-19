@@ -1,0 +1,40 @@
+python_variable,json_source_path,source_units,purpose
+pressurant.name,fluids.pressurant,-,Pressurant identity
+ambient_pressure_psia,fluids.ambient_pressure_psia,psia,FRV outlet pressure and gauge comparison
+source.model,pressurization.copv_model,-,COPV topology
+source.header_volume_l,pressurization.header_volume_l,L,Shared-header context; unused in lumped steady case
+source.volume_l,bottles[*].volume_l,L,COPV inventory context
+source.pressure_psia,bottles[*].pressure_psia,psia,FBB upstream stagnation pressure
+source.temperature_k,bottles[*].temperature_k,K,FBB upstream stagnation temperature
+source.outlet_cda_mm2,bottles[*].outlet_cda_mm2,mm^2,Parallel COPV outlet restrictions
+tank.initial_pressure_psia,tanks.fuel.pressure_psia,psia,Initial tank-pressure check
+tank.control_set_pressure_psia,tanks.fuel.set_pressure_psia,psia,Bang-bang control setpoint
+tank.meop_psia,tanks.fuel.set_pressure_psia,psia,Authoritative 500 psia MEOP source per engineering direction
+tank.total_volume_l,tanks.fuel.volume_l,L,Future transient context
+tank.initial_liquid_mass_kg,tanks.fuel.liquid_mass_kg,kg,Future ullage-volume context
+tank.ullage_temperature_k,tanks.fuel.ullage_temperature_k,K,Preliminary FRV upstream temperature
+failure.pressurant_line.length_in,flow_paths.fuel_pressurant[name=Fuel Pressurant Line].length_in,in,Pressurant-line length
+failure.pressurant_line.inner_diameter_in,flow_paths.fuel_pressurant[name=Fuel Pressurant Line].inner_diameter_in,in,Optional direct ID; null means derive from OD and wall
+failure.pressurant_line.outer_diameter_in,flow_paths.fuel_pressurant[name=Fuel Pressurant Line].outer_diameter_in,in,Pressurant-line OD
+failure.pressurant_line.wall_thickness_in,flow_paths.fuel_pressurant[name=Fuel Pressurant Line].wall_thickness_in,in,Pressurant-line wall thickness
+failure.pressurant_line.roughness_in,flow_paths.fuel_pressurant[name=Fuel Pressurant Line].roughness_in,in,Fully rough line-CdA approximation
+failure.pressurant_line.inertia,flow_paths.fuel_pressurant[name=Fuel Pressurant Line].inertia,boolean,Selects steady equivalent-CdA line model
+failure.fbb_cda_mm2,flow_paths.fuel_pressurant[name=FBB].cda_mm2,mm^2,Failed-open valve restriction
+failure.fbb_open_time_s,flow_paths.fuel_pressurant[name=FBB].open_time_s,s,Future opening transient
+failure.fbb_close_time_s,flow_paths.fuel_pressurant[name=FBB].close_time_s,s,Future valve-dynamics context
+failure.orifice_cda_mm2,flow_paths.fuel_pressurant[name=OR-2 or FBBORF].cda_mm2,mm^2,Downstream orifice restriction
+failure.check_valve_cda_mm2,flow_paths.fuel_pressurant[name=PRFCK].cda_mm2,mm^2,Downstream check-valve restriction
+failure.simulation_maximum_gn2_inflow_kg_s,relief_sizing.frv.simulation_maximum_gn2_inflow_kg_s,kg/s,Authoritative latest free-flight maximum
+frv.configured_hardware_crack_pressure_psig,side_paths[name=FRV Relief].elements[name=FRV].crack_pressure_psig,psig,Existing hardware comparison only
+frv.configured_full_open_cda_mm2,side_paths[name=FRV Relief].elements[name=FRV].cda_mm2,mm^2,Analytical fully-open envelope only
+context.regulator_set_pressure_psig,regulators[name=PR-REG or PUREG].set_pressure_psig,psig,Purge-regulator context; excluded from FBB path
+context.regulator_cda_mm2,regulators[name=PR-REG or PUREG].cda_mm2,mm^2,Purge-regulator context; excluded from FBB path
+frv.proposed_set_pressure_psia,FRV crack_pressure_psig + fluids.ambient_pressure_psia,psia,Configured relief set pressure
+tank.mawp_psia,relief_sizing.frv.tank_mawp_psia,psia,Tank MAWP requirement
+tank.maximum_allowable_relieving_pressure_psia,FRV full_open_pressure_psig + ambient (default 1.1 * crack gauge),psia,Configured full-open pressure
+failure.name,relief_sizing.frv.failure_scenario,-,Primary analytical failure case
+failure.sizing_margin_fraction,relief_sizing.shared.mass_flow_safety_factor - 1,-,Positive sizing margin M
+pressurant.properties,CoolProp from fluids.pressurant and configured COPV state,SI,Ideal-gas equation properties
+analysis.pressure_sweep_points,relief_sizing.shared.pressure_sweep_points,-,Pressure-grid resolution
+analysis.mode,relief_sizing.frv.analysis_mode,-,Steady-state-only analysis selection
+paths.output_directory,files.results_directory + relief_sizing.frv.output_subdirectory,-,FRV CSV and plot destination

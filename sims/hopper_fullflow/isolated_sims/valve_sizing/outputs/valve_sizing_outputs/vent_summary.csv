@@ -1,0 +1,4 @@
+valve,fluid,tank,configured_CdA_mm2,water_equivalent_Cv,EOL_liquid_mass_kg,EOL_liquid_volume_L,EOL_ullage_volume_L,EOL_ullage_fraction,start_pressure_psia,ullage_temperature_K,source_burn_time_s,source_state_time_s,vent_time_to_1psig_s,CdA_required_for_target_mm2,meets_60s_target
+OVNT,Nitrogen,LOX Tank,9.4,0.553,2.32036,2.034,13.833,0.871833,496.796,203.556,29.85,29.85,28.819,4.518,True
+FVNT,Nitrogen,Fuel Tank,15.0,0.883,2.02756,2.503,15.426,0.860385,498.868,228.858,29.85,29.85,19.015,4.758,True
+OFD_conditional_ullage_vent,Nitrogen,LOX Tank,9.4,0.553,2.32036,2.034,13.833,0.871833,496.796,203.556,29.85,29.85,28.819,4.518,True
