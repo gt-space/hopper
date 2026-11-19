@@ -15,6 +15,10 @@ function [S, delta, rate, cur] = tvcEmUpdate(S, cmd, thrust, T) %#codegen
 %     tau_h  = kh delta + tauf sgn deltadot + thrust * e
 %     delta  = IK^-1(x) from the sizer kinematics (T.pD, T.pR), with a
 %              backlash band between the motor side and the gimbal
+%   With a finite T.accel_lim (rad/s^2) the servo follows a profiled
+%   setpoint instead of the raw command, as the drive's configurable
+%   acceleration ramp does: the setpoint accelerates at no more than
+%   T.accel_lim and brakes to stop on the command. Inf = no profile.
 %   Integrated with T.n_sub semi-implicit Euler steps per servo period.
 
 dt = T.dt_c / T.n_sub;
@@ -24,6 +28,15 @@ for a = 1:2
     S.buf(2:end, a) = S.buf(1:end-1, a);
     S.buf(1, a) = min(max(cmd(a), -T.max_angle), T.max_angle);
     c = S.buf(T.lat_steps + 1, a);
+    if isfinite(T.accel_lim)
+        % time-optimal approach: brake so the setpoint stops on c
+        ea = c - S.ref(a);
+        vdes = sign(ea) * min(sqrt(2 * T.accel_lim * abs(ea)), abs(ea) / T.dt_c);
+        dv = min(max(vdes - S.vref(a), -T.accel_lim * T.dt_c), T.accel_lim * T.dt_c);
+        S.vref(a) = S.vref(a) + dv;
+        S.ref(a) = S.ref(a) + S.vref(a) * T.dt_c;
+        c = S.ref(a);
+    end
 
     % ---- built-in servo (once per period) ----
     dm = polyval(T.pD, S.x(a));
