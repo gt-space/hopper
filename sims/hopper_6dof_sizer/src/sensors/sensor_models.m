@@ -20,6 +20,7 @@ function [meas, truth, valid, stamp, st] = sensor_models(x, noise, t, S, st)
 %#codegen
 
 L = sensor_layout();
+noise = noise(:);
 pos = x.pos_ned(:); C = x.dcm_be;
 cg = x.cg(:); w = x.w_b(:);
 p_cg = pos - sim_pos_offset(cg);            % CG, NED
@@ -51,6 +52,30 @@ tr(L.GPS_SATS) = S.gps.sats;
 tr(L.GPS_AGE)  = 0;
 tr(L.MAG)      = C * S.mag.field_ned(:);
 
+% Build the state and frames expected by the navigation Src_sim models.
+navState = zeros(20, 1);
+navState(1:3) = p_cg;
+navState(4:6) = x.vel_ned(:);
+navState(7:9) = w;
+navState(10:13) = nav_quat_from_dcm(C);
+navParams = nav_sensor_params();
+accelerationTrue = C' * x.f_b(:) + [0; 0; navParams.imu.gravity_scalar];
+
+baroState = navState;
+baroState(3) = pos(3);
+
+lidarFrames.heightCOM = 0;
+lidarFrames.A1 = completeFrame(d_lid(:, 1));
+lidarFrames.A2 = completeFrame(d_lid(:, 2));
+lidarFrames.A3 = completeFrame(d_lid(:, 3));
+lidarFrames.A4 = completeFrame(d_lid(:, 4));
+lidarFrames.r1 = r_lid(:, 1) - cg;
+lidarFrames.r2 = r_lid(:, 2) - cg;
+lidarFrames.r3 = r_lid(:, 3) - cg;
+lidarFrames.r4 = r_lid(:, 4) - cg;
+gpsFrame.r1 = ant(:, 1) - cg;
+gpsFrame.r2 = ant(:, 2) - cg;
+
 % ---- noisy channels ----
 sig = zeros(L.N_MEAS, 1);
 sig(L.ACCEL) = S.imu.accel_sigma(:);
@@ -63,17 +88,47 @@ sig(L.GPS_VEL) = S.gps.vel_sigma(:);
 sig(L.DGPS)  = S.dgps.sigma(:);
 noisy = tr + sig .* noise(:);
 noisy(L.ACCEL) = min(max(noisy(L.ACCEL), -S.imu.accel_fs), S.imu.accel_fs);
-noisy(L.GYRO)  = min(max(noisy(L.GYRO),  -S.imu.gyro_fs),  S.imu.gyro_fs);
+noisy(L.GYRO)  = min(max(noisy(L.GYRO),  -S.imu.gyro_fs), S.imu.gyro_fs);
 noisy(L.LIDAR) = max(noisy(L.LIDAR), 0);
 
 % ---- sample and hold, per sensor ----
 period = [S.imu.period; S.baro.period; repmat(S.lidar.period, 4, 1); S.gps.period; S.mag.period; S.dgps.period];
 for s = 1:L.N_SENSORS
     if t - st.stamp(s) >= period(s) - 1e-9 || st.stamp(s) < 0
+        switch s
+            case L.S_IMU
+                [accelBus, angvelBus] = imu_model(navState, accelerationTrue, ...
+                    zeros(3, 1), zeros(3, 1), t, sig.*noise);
+                noisy(L.ACCEL) = min(max(accelBus.accel, -S.imu.accel_fs), S.imu.accel_fs);
+                noisy(L.GYRO) = min(max(angvelBus.angvel, -S.imu.gyro_fs), S.imu.gyro_fs);
+
+            case L.S_BARO
+                baroBus = barometer_model(baroState, 0, t, sig.*noise);
+                noisy(L.BARO) = baroBus.height;
+
+            case L.S_LIDAR(1)
+                lidarBus = lidar_system_model(navState, t, lidarFrames, sig.*noise);
+                noisy(L.LIDAR) = max(lidarBus.distance, 0);
+                for k = 1:4
+                    d_n = C' * d_lid(:, k);
+                    if d_n(3) <= 1e-3
+                        noisy(L.LIDAR(k)) = max(tr(L.LIDAR(k)) + sig(L.LIDAR(k))*noise(L.LIDAR(k)), 0);
+                    end
+                end
+
+            case L.S_GPS
+                gpsBus = gps_model(navState, t, gpsFrame, sig.*noise);
+                noisy(L.GPS_POS) = gpsBus.pos;
+                noisy(L.GPS_VEL) = gpsBus.vel;
+
+            case L.S_DGPS
+                dgpsBus = diffGps_model(navState, t, gpsFrame, sig.*noise);
+                noisy(L.DGPS) = dgpsBus.basisVec;
+        end
         ch = L.CHANNEL_SENSOR(:) == s;
         st.meas(ch)  = noisy(ch);
         st.truth(ch) = tr(ch);
-        st.stamp(s)   = t;
+        st.stamp(s)  = t;
     end
 end
 meas = st.meas;
@@ -87,4 +142,13 @@ for k = 1:4   % lidar returns only inside its rated range
     r = meas(L.LIDAR(k));
     valid(L.S_LIDAR(k)) = r >= S.lidar.r_min && r <= S.lidar.r_max;
 end
+end
+
+function A = completeFrame(direction)
+d = direction(:) / norm(direction);
+a = [1; 0; 0];
+if abs(d(1)) > 0.9, a = [0; 1; 0]; end
+e2 = cross(d, a);
+e2 = e2 / norm(e2);
+A = [d, e2, cross(d, e2)];
 end

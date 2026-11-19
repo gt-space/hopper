@@ -58,8 +58,8 @@ out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('NAVIGATION', 'gmek
 plot(out.get('nav_error'))   % estimate - truth, in the controller's 13-state
 ```
 
-**The filter is the nav team's.** `subsystems/navigation` is their `origin/GMEKF` work, merged as is; `tools/refactor/syncNavigation.m` merges newer commits. The harness references `Hopper_GMEKF.slx` as a Model block and links `config/hopper_harness.sldd`, which references their `NavigationDictionary.sldd` for the bus types. Our side is the adapter in `src/navigation`:
-- `nav_measurements`: one sample of the shared `Sensors` block as their buses, with lever arms from the current CG and each measurement's covariance from the sigmas that made the noise.
+**The filter is the nav team's.** `subsystems/navigation` came from the branch `origin/GMEKF` work. It was merged with `tools/refactor/syncNavigation.m`, although no newer commits will be taken from that branch. The harness references `Hopper_GMEKF.slx` as a Model block and links `config/hopper_harness.sldd`, which references their `NavigationDictionary.sldd` for the bus types. Our side is the adapter in `src/navigation`:
+- `nav_measurements`: one sample of the shared `Sensors` block as their buses, with lever arms from the current CG and each measurement's covariance from the sigmas that made the noise. This function references all the `subsystems/navigation` sensor models, keeping work synced and the sensor modelling modular.
 - `nav_state_to_sim` / `nav_state_from_sim`: their 20-state (CG position from its pad rest point, nav body z down the long axis, scalar-first Hamilton quaternion) to and from the controller's 13-state. `nav_frames` holds the mapping: on the pad the nav attitude is the identity and sim +x (up) is nav −z.
 - `navWorkspace`: P0, Qc and the 500 Hz rate come from their `filter_sim_initializer`; the lidar and antenna geometry from the vehicle config.
 
@@ -81,8 +81,6 @@ plot(out.get('nav_error'))   % estimate - truth, in the controller's 13-state
 - **A sign-continuous quaternion out of the adapter.** `nav_state_to_sim` composes the filter's quaternion with the fixed frame change instead of going through a DCM (w ≥ 0), which flipped sign wherever w crossed zero. The LQR scheduler aligns the sign itself; `nav_error` and anything comparing quaternions did not.
 
 **Checks:** `tests/unit/NavAdapterTest.m` (frames round-trip; with noise off each of their measurement models predicts exactly what our sensor model measured; FDIR's masks and R scale reach the buses), `tests/sim/NavigationFlightTest.m` (the flights above) and their own `subsystems/navigation/Tests` (in `buildtool test`). Their sensor models read their parameters from `Src_sim/nav_sensor_params.m`, which tests override.
-
-**Their files are edited on this branch** (the requests in the nav team note): the correct steps' diagnostics, `update`/`kalman_measurement_update` returning the NIS, the torque noise, the fixed-step CTV filter (`tools/refactor/updateNavigationFilters.m`), `nav_sensor_params` and the tests, the shadow estimator, and the removed debug prints. `tools/refactor/syncNavigation.m` leaves a file both sides changed for a person instead of taking theirs.
 
 ## The CTV
 

@@ -11,6 +11,7 @@
 % 
 % Inputs:
 %   dist_true: true distances to measure (m) (4x1)
+%   measurementNoise: optional additive Sensors measurement noise (26x1)
 % 
 % Outputs:
 %   dist_meas: measured distances with noise (m) (4x1)
@@ -18,17 +19,15 @@
 %   validity: false if sensor misbehaves
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [dist_meas, covariance, validity] = lidar_model_base(dist_true)
+function [dist_meas, covariance, validity] = lidar_model_base(dist_true, measurementNoise)
 
 % Retrieve parameters from the workspace (set by filter_sim_initializer)
-persistent lidar_params;
+persistent lidar_params L;
 if isempty(lidar_params)
     P = nav_sensor_params();   % defaults there; tests can override
     lidar_params = P.lidar;
+    L = sensor_layout();
 end
-
-% 4. Validity Flag Assignment
-validity = rand(4,1) > lidar_params.packet_invalid_prob;
 
 % Handle noise and validity according to the true distance of each beam
 num_sensors = size(dist_true,1);
@@ -36,9 +35,16 @@ noise_std = lidar_params.noise_std_1*ones(num_sensors,1);   % 0.2-3m
 far = dist_true > 3;
 noise_std(far) = lidar_params.noise_std_2*dist_true(far);   % 3-8m
 inRange = dist_true >= 0.2 & dist_true <= 8;
-validity = validity & inRange;
 
-dist_noise = noise_std.*randn(num_sensors,1);
+hasInjectedNoise = nargin >= 2 && ~isempty(measurementNoise);
+if hasInjectedNoise
+    dist_noise = measurementNoise(L.LIDAR);
+    validity = inRange;
+else
+    validity = rand(numel(L.LIDAR),1) > lidar_params.packet_invalid_prob;
+    dist_noise = noise_std.*randn(num_sensors,1);
+    validity = validity & inRange;
+end
 
 % Compute the measured distance
 dist_meas = dist_true + dist_noise;
