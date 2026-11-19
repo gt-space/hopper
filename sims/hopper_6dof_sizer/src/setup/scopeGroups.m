@@ -67,6 +67,10 @@ G(end+1) = grp('navigation', {
     'Filter diagnostics',               {'nav_bus.nav_diag'}
     'Shadow estimator',                 {'nav_bus.shadow'}
     });
+G(end+1) = grp('nav_attitude', {
+    'Angular Velocity: estimate vs truth (deg/s)', {'nav_bus.x_nav:i7-9', 'dyn_bus.w_body:deg'}
+    'Quaternion: estimate vs truth', {'nav_bus.x_nav:i10-13', 'dyn_bus.quat'}
+    });
 G(end+1) = grp('fdir', {
     'Nav sensor mask',                  {'gnc_bus.nav_mask'}
     'Nav R scale',                      {'gnc_bus.nav_r_scale'}
