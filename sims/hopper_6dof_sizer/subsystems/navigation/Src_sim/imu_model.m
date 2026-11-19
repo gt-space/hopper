@@ -6,18 +6,20 @@
 %   accelBias  - True accelerometer bias, body frame (3x1)
 %   gyroBias   - True gyroscope bias, body frame (3x1)
 %   simtime    - Simulation time (s)
+%   measurementNoise - Optional additive Sensors measurement noise (26x1)
 %
 % Outputs:
 %   accelBus   - struct defined in the Navigation Dictionary
 %   angvelBus  - struct defined in the Navigation Dictionary
 function [accelBus, angvelBus] = imu_model(...
-    trueState, accelerationTrue, accelerometerBiasTrue, gyroBiasTrue, simtime)
+    trueState, accelerationTrue, accelerometerBiasTrue, gyroBiasTrue, simtime, measurementNoise)
     
     % Retrieve simulation parameters
-    persistent imu_params;
+    persistent imu_params L;
     if isempty(imu_params)
         P = nav_sensor_params();   % defaults there; tests can override
         imu_params = P.imu;
+        L = sensor_layout();
     end
     
     timestamp = simtime;
@@ -34,8 +36,14 @@ function [accelBus, angvelBus] = imu_model(...
     specificForceBodyTrue = rotationInertialToBody * (accelerationTrue(:) - gravityInertial);
     
 
-    accelerometerNoise = imu_params.accel_noise_std .* randn(3, 1);
-    gyroNoise = imu_params.gyro_noise_std .* randn(3,1);
+    hasInjectedNoise = nargin >= 6 && ~isempty(measurementNoise);
+    if hasInjectedNoise
+        accelerometerNoise = measurementNoise(L.ACCEL);
+        gyroNoise = measurementNoise(L.GYRO);
+    else
+        accelerometerNoise = imu_params.accel_noise_std .* randn(3, 1);
+        gyroNoise = imu_params.gyro_noise_std .* randn(3,1);
+    end
     
     accelerationSimulated = specificForceBodyTrue + accelerometerBiasTrue(:) + accelerometerNoise;
     angularVelocitySimulated = angularVelocityTrue + gyroBiasTrue(:) + gyroNoise;
@@ -43,7 +51,11 @@ function [accelBus, angvelBus] = imu_model(...
     
     
     % Packet validity
-    validity = rand() >= imu_params.packet_invalid_prob;
+    if hasInjectedNoise
+        validity = true;
+    else
+        validity = rand() >= imu_params.packet_invalid_prob;
+    end
 
     % Build the output structs
     accelBus.accel = accelerationSimulated;

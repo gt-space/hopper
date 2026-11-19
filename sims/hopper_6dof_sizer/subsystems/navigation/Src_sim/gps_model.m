@@ -10,19 +10,21 @@
 %   trueState       - True vehicle state (20x1)
 %   simtime         - Simulation time (s)
 %   gpsFrameBus     - Struct with antenna placement from COM
+%   measurementNoise - Optional additive Sensors measurement noise (26x1)
 %
 % Outputs:
 %   gpsBus          - struct defined in the Navigation Dictionary
-function gpsBus = gps_model(trueState, simtime, gpsFrameBus)
+function gpsBus = gps_model(trueState, simtime, gpsFrameBus, measurementNoise)
 
     % Simulink gets touchy about dims
     trueState = trueState(1:20,1);
 
     % Load in the gps_params struct
-    persistent gps_params;
+    persistent gps_params L;
     if isempty(gps_params)
         P = nav_sensor_params();   % defaults there; tests can override
         gps_params = P.gps;
+        L = sensor_layout();
     end
     
     timestamp = simtime;
@@ -44,13 +46,27 @@ function gpsBus = gps_model(trueState, simtime, gpsFrameBus)
     antennaVelocity = velocityTrue + C_IB * correction(1:3,1); % Simulink gets touchy about dims
     
     % Measurement noise
-    positionNoise = gps_params.pos_noise_std(:) .* randn(3,1);
-    velocityNoise = gps_params.vel_noise_std(:) .* randn(3,1);
+    hasInjectedNoise = nargin >= 4 && ~isempty(measurementNoise);
+    if hasInjectedNoise
+        positionNoise = measurementNoise(L.GPS_POS);
+        velocityNoise = measurementNoise(L.GPS_VEL);
+    else
+        positionNoise = gps_params.pos_noise_std(:) .* randn(3,1);
+        velocityNoise = gps_params.vel_noise_std(:) .* randn(3,1);
+    end
     
     % Simulated measurements
-    position = antennaPosition + gps_params.bias(:) + gps_params.multipath(:) + positionNoise;
+    if hasInjectedNoise
+        position = antennaPosition + positionNoise;
+    else
+        position = antennaPosition + gps_params.bias(:) + gps_params.multipath(:) + positionNoise;
+    end
     velocity = antennaVelocity + velocityNoise;
-    validity = rand() >= gps_params.packet_invalid_prob;
+    if hasInjectedNoise
+        validity = true;
+    else
+        validity = rand() >= gps_params.packet_invalid_prob;
+    end
 
     % Load the output struct
     gpsBus.pos = position(1:3,1); % Simulink gets touchy about dims

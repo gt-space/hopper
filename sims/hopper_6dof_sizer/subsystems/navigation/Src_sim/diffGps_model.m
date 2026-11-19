@@ -18,16 +18,18 @@
 %   trueState       - True vehicle state (20x1)
 %   simtime         - Simulation time (s)
 %   gpsFrameBus     - Struct with antenna placement from COM
+%   measurementNoise - Optional additive Sensors measurement noise (26x1)
 %
 % Outputs:
 %   diffGpsBus      - struct defined in the Navigation Dictionary
-function diffGpsBus = diffGps_model(trueState, simtime, gpsFrameBus)
+function diffGpsBus = diffGps_model(trueState, simtime, gpsFrameBus, measurementNoise)
 
     % Load in the diffGps_params struct
-    persistent diffGps_params;
+    persistent diffGps_params L;
     if isempty(diffGps_params)
         P = nav_sensor_params();   % defaults there; tests can override
         diffGps_params = P.diffGps;
+        L = sensor_layout();
     end
 
     timestamp = simtime;
@@ -44,11 +46,20 @@ function diffGpsBus = diffGps_model(trueState, simtime, gpsFrameBus)
     baselineInertial = C_IB * baselineBody;
 
     % Measurement noise
-    baselineNoise = diffGps_params.noise_std(:) .* randn(3,1);
+    hasInjectedNoise = nargin >= 4 && ~isempty(measurementNoise);
+    if hasInjectedNoise
+        baselineNoise = measurementNoise(L.DGPS);
+    else
+        baselineNoise = diffGps_params.noise_std(:) .* randn(3,1);
+    end
 
     % Simulated measurement
     basisVec = baselineInertial + baselineNoise;
-    validity = rand() >= diffGps_params.packet_invalid_prob;
+    if hasInjectedNoise
+        validity = true;
+    else
+        validity = rand() >= diffGps_params.packet_invalid_prob;
+    end
 
     % Load the output struct
     diffGpsBus.basisVec = basisVec;
