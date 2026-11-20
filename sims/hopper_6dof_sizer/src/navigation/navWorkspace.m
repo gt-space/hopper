@@ -15,11 +15,10 @@ function W = navWorkspace(W, variants)
 %   The tuning stays the nav team's: P0, Qc and the filter rate come from
 %   their filter_sim_initializer (subsystems/navigation), run as is. To try
 %   other tuning, set W.nav_Qc (13 x 13) or W.nav_P0 (19 x 19) before
-%   buildSimInput; they are kept, like W.faults. The torque block of Qc
-%   comes from the vehicle config (VC.nav.torque_psd), since it scales with
-%   the vehicle's inertia. The
-%   lidar and GPS geometry comes from the vehicle config instead of their
-%   hard-coded frames, so the filter and the sensor model agree.
+%   buildSimInput; they are kept, like W.faults. Qc's IMU measurement-noise
+%   blocks come from the navigation initializer. The lidar and GPS
+%   geometry comes from the vehicle config instead of their hard-coded
+%   frames, so the filter and the sensor model agree.
 
 if ~isfield(W, 'sensor_params')
     error('navWorkspace:sensors', 'Run sensorWorkspace first: the filter reads the shared Sensors block.');
@@ -40,13 +39,6 @@ x_pad = [sim_pos_offset(cg0) + [0; 0; -W.cg_init]; zeros(6, 1); nav_quat_from_dc
 if ~isfield(W, 'nav_P0'), W.nav_P0 = N.P0; end
 if ~isfield(W, 'nav_Qc')
     W.nav_Qc = N.qc;
-    VC = W.IN.vehicle;
-    if isfield(VC, 'nav') && isfield(VC.nav, 'torque_psd')
-        % the vehicle's torque disturbance (it scales with inertia), body
-        % axes [roll pitch yaw] into the nav frame
-        R = P.F.R;
-        W.nav_Qc(4:6, 4:6) = R * diag(VC.nav.torque_psd) * R';
-    end
 end
 W.nav_init = struct('x0', nav_state_from_sim(x_pad, dcm_pad, cg0, F), 'P0', W.nav_P0);
 W.nav_dt = N.filter_st;
