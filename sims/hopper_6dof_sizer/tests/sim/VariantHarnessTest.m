@@ -81,8 +81,8 @@ classdef VariantHarnessTest < matlab.unittest.TestCase
         function choiceRuns(tc, choice)
             V = variantConfig(choice{:});
             W = tc.W;
-            if V.VARIANT_VEHICLE ~= 1 || V.VARIANT_CONTROLLER == 2
-                W = [];   % another parameter set, or the LQI gains: build it
+            if V.VARIANT_VEHICLE ~= 1 || V.VARIANT_CONTROLLER == 2 || V.VARIANT_CONTROLLER == 4
+                W = [];   % another parameter set, or that choice's own gains: build it
             end
             in = buildSimInput(tc.Model, [], W, V);
             in = in.setModelParameter('StopTime', tc.SmokeTime);
