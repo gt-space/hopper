@@ -173,23 +173,24 @@ if startsWith(s, 'ref.')
     p = get_param(fw, 'PortHandles').Outport;
     name = v;
 else
-    [base, tf] = strtok(s, ':'); tf = erase(tf, ':');
+    [base, tf] = strtok(s, ':');
     p = sel(base);
     name = extractAfter(base, '.');
-    switch extractBefore([tf '0'], 2)   % first letter: d(eg/iag), i(ndices)
-        case 'd'
-            if strcmp(tf, 'deg')
-                p = chain(c, p, 'simulink/Math Operations/Gain', {'Gain', '180/pi'});
-                name = [name '_deg'];
-            else   % diag
-                p = chain(c, p, 'simulink/Math Operations/Reshape', {'OutputDimensionality', '1-D array'});
-                p = chain(c, p, 'simulink/Signal Routing/Selector', {'Indices', '[1 5 9]', 'InputPortWidth', '9'});
-                name = [name '_diag'];
-            end
-        case 'i'
-            r = sscanf(tf, 'i%d-%d');
+    transforms = split(extractAfter(tf, ':'), ':');
+    for k = 1:numel(transforms)
+        tfk = transforms{k};
+        if startsWith(tfk, 'i')
+            r = sscanf(tfk, 'i%d-%d');
             p = chain(c, p, 'simulink/Signal Routing/Selector', {'Indices', sprintf('[%d:%d]', r(1), r(2)), 'InputPortWidth', '-1'});
             name = sprintf('%s_%d_%d', name, r(1), r(2));
+        elseif strcmp(tfk, 'deg')
+            p = chain(c, p, 'simulink/Math Operations/Gain', {'Gain', '180/pi'});
+            name = [name '_deg'];
+        elseif strcmp(tfk, 'diag')
+            p = chain(c, p, 'simulink/Math Operations/Reshape', {'OutputDimensionality', '1-D array'});
+            p = chain(c, p, 'simulink/Signal Routing/Selector', {'Indices', '[1 5 9]', 'InputPortWidth', '9'});
+            name = [name '_diag'];
+        end
     end
 end
 end
