@@ -16,7 +16,7 @@ out = sim(buildSimInput('hopper_6dof', [], [], V));
 | Axis | Block | Choices (first is the default) |
 |---|---|---|
 | `VEHICLE` | *(setup only)* | Picks the vehicle config file ([VEHICLE_CONFIG.md](VEHICLE_CONFIG.md)) and its mission. `hopper`: `vehicles/hopper/hopper_config.m` with `inputs/mission_inputs.m`. `ctv`: the controls test vehicle, `vehicles/ctv/ctv_config.m`, flying the mission overrides in `inputs/ctv_inputs.m`. See [The CTV](#the-ctv). |
-| `CONTROLLER` | `Controller` | `lqr_sched`: time-scheduled LQR along the reference trajectory (`subsystems/gnc/LQR_Gain_Scheduler.slx` plus its gain tables). `lqi`: LQI-DEV's fixed-gain LQI hover regulator, which is experimental. `lqr_sched_legacy`: the March scheduler from the archived lqr/LQ_6DOF_V3 models, which lacks the quaternion sign fix. |
+| `CONTROLLER` | `Controller` | `lqr_sched`: time-scheduled LQR along the reference trajectory (`subsystems/gnc/LQR_Gain_Scheduler.slx` plus its gain tables). `lqi`: LQI-DEV's fixed-gain LQI hover regulator, which is experimental. `lqr_sched_legacy`: the March scheduler from the archived lqr/LQ_6DOF_V3 models, which lacks the quaternion sign fix. `lqr_ctv_tuning`: the same scheduler (`subsystems/gnc/LQR_CTV_Tuning.slx`) reading its own gain tables, `K1flat_ctv`/`K2grid_ctv`, designed by `src/gnc/ctvTuningGains.m` with 30x the pitch/yaw TVC effort weight, 10x the body-rate weights and 1000x the lateral (x, y, vx, vy) weights, which holds the CTV's landing offset on the filter: 0.09-0.34 m on the 5 seeded runs flying on the GMEKF, against 0.3-10 m (two crashes) with the nominal weights (2026-11-20). Built by `tools/refactor/addCtvTuningController.m`; the file must be a subsystem file, not a model. |
 | `SLOSH` | `Slosh` | `full`: slosh pendulums, `subsystems/slosh/Slosh.slx`. `off`: zero slosh force, moment and CG offsets. |
 | `PROPULSION` | `Propulsion` | `lut`: thrust command passes through; `Thrust_to_Mdot_LUT` gives ox and fuel mdot. `fluid_network`: #26's Simscape feed system and engine give thrust and mdot. |
 | `GROUND` | `Ground_Contact` | `none`: no ground reaction. `strut`: #27's strut spring/damper per leg (`subsystems/ground/Ground_Contact.slx`), into the body force and moment sums. |
@@ -177,7 +177,7 @@ They combine with any axis, for example `variantConfig('NAVIGATION', 'gmekf', 'S
 | Group | Displays |
 |---|---|
 | `trajectory` | x and y; altitude vs `z_ref`; vertical speed vs `vz_ref`; NED velocity |
-| `attitude` | roll, pitch and yaw (deg); body rates (deg/s); quaternion |
+| `attitude` | tilt of the long axis from vertical (deg); body rates (deg/s); quaternion |
 | `propulsion` | thrust: actual, command, request and profile; ox and fuel mass; vehicle mass |
 | `actuation` | TVC pitch and yaw; body force; body moment; controller command `u` |
 | `mass_props` | CG; CG with slosh; engine CG; MOI and dI/dt diagonals |

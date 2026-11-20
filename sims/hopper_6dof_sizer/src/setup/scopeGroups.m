@@ -12,6 +12,7 @@ function G = scopeGroups()
 %     :deg      times 180/pi
 %     :diag     a 3x3 matrix's diagonal
 %     :i1-3     elements 1 to 3
+%     :tilt     angle of body x from vertical, from a NED->body DCM
 %   or 'ref.<variable>', a workspace timeseries read with From Workspace
 %   (references the setup already makes). Signals in one display are
 %   overlaid.
@@ -27,7 +28,7 @@ G(end+1) = grp('trajectory', {
     'Velocity NED (m/s)',               {'dyn_bus.vel_ned'}
     });
 G(end+1) = grp('attitude', {
-    'Roll, pitch, yaw (deg)',           {'dyn_bus.phi:deg', 'dyn_bus.theta:deg', 'dyn_bus.psi:deg'}
+    'Tilt from vertical (deg)',         {'dyn_bus.dcm_be:tilt'}
     'Body rates (deg/s)',               {'dyn_bus.w_body:deg'}
     'Quaternion',                       {'dyn_bus.quat'}
     });

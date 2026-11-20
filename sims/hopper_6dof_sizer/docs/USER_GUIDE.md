@@ -154,7 +154,7 @@ V = variantConfig('SCOPES', 'all');
 | Group | Displays |
 |---|---|
 | `trajectory` | x and y; altitude vs `z_ref`; vertical speed vs `vz_ref`; NED velocity |
-| `attitude` | roll, pitch and yaw (deg); body rates (deg/s); quaternion |
+| `attitude` | tilt of the long axis from vertical (deg); body rates (deg/s); quaternion |
 | `propulsion` | thrust: actual, command, request and profile; ox and fuel mass; vehicle mass |
 | `actuation` | TVC pitch and yaw; body force; body moment; controller command `u` |
 | `mass_props` | CG; CG with slosh; engine CG; MOI and dI/dt diagonals |
