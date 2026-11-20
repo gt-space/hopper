@@ -23,6 +23,11 @@ L = sensor_layout();
 noise = noise(:);
 pos = x.pos_ned(:); C = x.dcm_be;
 cg = x.cg(:); w = x.w_b(:);
+persistent nav_frame_R;
+if isempty(nav_frame_R)
+    dcm_pad = angle2dcm(0, pi/2, 0);
+    nav_frame_R = nav_frames(dcm_pad, 0).R;
+end
 p_cg = pos - sim_pos_offset(cg);            % CG, NED
 % a point fixed in the body (r_b from the base, body axes): position, velocity
 at = @(r_b) p_cg + C' * (r_b - cg);
@@ -56,8 +61,9 @@ tr(L.MAG)      = C * S.mag.field_ned(:);
 navState = zeros(20, 1);
 navState(1:3) = p_cg;
 navState(4:6) = x.vel_ned(:);
-navState(7:9) = w;
-navState(10:13) = nav_quat_from_dcm(C);
+navState(7:9) = nav_frame_R * w;
+C_nav = nav_frame_R * C;
+navState(10:13) = nav_quat_from_dcm(C_nav);
 navParams = nav_sensor_params();
 accelerationTrue = C' * x.f_b(:) + [0; 0; navParams.imu.gravity_scalar];
 
@@ -65,16 +71,16 @@ baroState = navState;
 baroState(3) = pos(3);
 
 lidarFrames.heightCOM = 0;
-lidarFrames.A1 = completeFrame(d_lid(:, 1));
-lidarFrames.A2 = completeFrame(d_lid(:, 2));
-lidarFrames.A3 = completeFrame(d_lid(:, 3));
-lidarFrames.A4 = completeFrame(d_lid(:, 4));
-lidarFrames.r1 = r_lid(:, 1) - cg;
-lidarFrames.r2 = r_lid(:, 2) - cg;
-lidarFrames.r3 = r_lid(:, 3) - cg;
-lidarFrames.r4 = r_lid(:, 4) - cg;
-gpsFrame.r1 = ant(:, 1) - cg;
-gpsFrame.r2 = ant(:, 2) - cg;
+lidarFrames.A1 = completeFrame(nav_frame_R * d_lid(:, 1));
+lidarFrames.A2 = completeFrame(nav_frame_R * d_lid(:, 2));
+lidarFrames.A3 = completeFrame(nav_frame_R * d_lid(:, 3));
+lidarFrames.A4 = completeFrame(nav_frame_R * d_lid(:, 4));
+lidarFrames.r1 = nav_frame_R * (r_lid(:, 1) - cg);
+lidarFrames.r2 = nav_frame_R * (r_lid(:, 2) - cg);
+lidarFrames.r3 = nav_frame_R * (r_lid(:, 3) - cg);
+lidarFrames.r4 = nav_frame_R * (r_lid(:, 4) - cg);
+gpsFrame.r1 = nav_frame_R * (ant(:, 1) - cg);
+gpsFrame.r2 = nav_frame_R * (ant(:, 2) - cg);
 
 % ---- noisy channels ----
 sig = zeros(L.N_MEAS, 1);
@@ -91,6 +97,11 @@ noisy(L.ACCEL) = min(max(noisy(L.ACCEL), -S.imu.accel_fs), S.imu.accel_fs);
 noisy(L.GYRO)  = min(max(noisy(L.GYRO),  -S.imu.gyro_fs), S.imu.gyro_fs);
 noisy(L.LIDAR) = max(noisy(L.LIDAR), 0);
 
+navInjectedNoise = sig .* noise(:);
+navInjectedNoise(L.ACCEL) = nav_frame_R * navInjectedNoise(L.ACCEL);
+navInjectedNoise(L.GYRO) = nav_frame_R * navInjectedNoise(L.GYRO);
+navInjectedNoise(L.MAG) = nav_frame_R * navInjectedNoise(L.MAG);
+
 % ---- sample and hold, per sensor ----
 period = [S.imu.period; S.baro.period; repmat(S.lidar.period, 4, 1); S.gps.period; S.mag.period; S.dgps.period];
 for s = 1:L.N_SENSORS
@@ -98,9 +109,11 @@ for s = 1:L.N_SENSORS
         switch s
             case L.S_IMU
                 [accelBus, angvelBus] = imu_model(navState, accelerationTrue, ...
-                    zeros(3, 1), zeros(3, 1), t, sig.*noise);
-                noisy(L.ACCEL) = min(max(accelBus.accel, -S.imu.accel_fs), S.imu.accel_fs);
-                noisy(L.GYRO) = min(max(angvelBus.angvel, -S.imu.gyro_fs), S.imu.gyro_fs);
+                    zeros(3, 1), zeros(3, 1), t, navInjectedNoise);
+                noisy(L.ACCEL) = nav_frame_R' * accelBus.accel;
+                noisy(L.ACCEL) = min(max(noisy(L.ACCEL), -S.imu.accel_fs), S.imu.accel_fs);
+                noisy(L.GYRO) = nav_frame_R' * angvelBus.angvel;
+                noisy(L.GYRO) = min(max(noisy(L.GYRO), -S.imu.gyro_fs), S.imu.gyro_fs);
 
             case L.S_BARO
                 baroBus = barometer_model(baroState, 0, t, sig.*noise);
@@ -122,8 +135,8 @@ for s = 1:L.N_SENSORS
                 noisy(L.GPS_VEL) = gpsBus.vel;
 
             case L.S_MAG
-                magBus = mag_model(navState, t, sig.*noise, 10 * S.mag.field_ned(:));
-                noisy(L.MAG) = 0.1 * magBus.bfield_meas;
+                magBus = mag_model(navState, t, navInjectedNoise, 10 * S.mag.field_ned(:));
+                noisy(L.MAG) = 0.1 * (nav_frame_R' * magBus.bfield_meas);
 
             case L.S_DGPS
                 dgpsBus = diffGps_model(navState, t, gpsFrame, sig.*noise);

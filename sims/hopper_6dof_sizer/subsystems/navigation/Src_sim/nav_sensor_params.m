@@ -52,7 +52,7 @@ function P = defaults()
     P.imu.accel_noise_std = [880e-6; 880e-6; 732e-6] * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
     P.imu.acovariance = diag([880e-6; 880e-6; 732e-6].^2 * (1/(2*imu_st)));
     P.imu.gyro_noise_std = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]) * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
-    P.imu.gcovariance = diag(deg2rad([6.1e-3; 6.1e-3; 7.0e-3].^2) * (1/(2*imu_st)));
+    P.imu.gcovariance = diag(deg2rad([6.1e-3; 6.1e-3; 7.0e-3]).^2 * (1/(2*imu_st)));
     P.imu.gravity_scalar = 9.81;                % Gravity acceleration
     P.imu.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
 

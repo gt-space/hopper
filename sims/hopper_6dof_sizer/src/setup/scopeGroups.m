@@ -69,7 +69,7 @@ G(end+1) = grp('navigation', {
     'Shadow estimator',                 {'nav_bus.shadow'}
     });
 G(end+1) = grp('nav_attitude', {
-    'Angular Velocity: estimate vs truth (deg/s)', {'nav_bus.x_nav:i7-9', 'dyn_bus.w_body:deg'}
+    'Angular Velocity: estimate vs truth (deg/s)', {'nav_bus.x_nav:i7-9:deg', 'dyn_bus.w_body:deg'}
     'Quaternion: estimate vs truth', {'nav_bus.x_nav:i10-13', 'dyn_bus.quat'}
     });
 G(end+1) = grp('fdir', {
