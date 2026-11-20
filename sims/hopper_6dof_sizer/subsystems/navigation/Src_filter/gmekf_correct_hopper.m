@@ -7,7 +7,6 @@
 %   xnp1: np1 propagated state vector (20x1)
 %   Pnp1: np1 propagated covariance (19x19)
 %   meas_posvel: GPS measurement struct
-%   meas_angvel: gyro measurement struct
 %   meas_baro: barometer measurement struct
 %   meas_LID: LIDAR measurement struct
 %   lidar_frames: LIDAR frame measurement struct
@@ -23,11 +22,10 @@
 
 function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct_hopper( ...
     xnp1, Pnp1, meas_posvel, ...
-    meas_angvel, meas_baro, meas_LID, lidar_frames, meas_diffGps, gps_frame)
+    meas_baro, meas_LID, lidar_frames, meas_diffGps, gps_frame)
 
     % Declare persistent timestamps for last sensor read
     persistent gps_timestamp;
-    persistent gyro_timestamp;
     persistent baro_timestamp;
     persistent lid_timestamp;
     persistent diffGps_timestamp;
@@ -35,17 +33,17 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct_hopper( ...
     % Init persistents if needed
     if isempty(gps_timestamp)
         gps_timestamp = -1;
-        gyro_timestamp = -1;
         baro_timestamp = -1;
         lid_timestamp = -1;
         diffGps_timestamp = -1;
     end
 
-    % Per-sensor update diagnostics, in update order: baro, gyro, GPS,
-    % LIDAR 1-4, differential GPS. diagnostics(1:8): 1 accepted, 0 gated
+    % Per-sensor update diagnostics, in update order: baro, reserved gyro,
+    % GPS, LIDAR 1-4, differential GPS. diagnostics(1:8): 1 accepted, 0 gated
     % out, -1 no new sample this step; diagnostics(9:16): its NIS (-1 none).
     % FDIR's estimator checks read them.
     diagnostics = -ones(16, 1);
+    % diagnostics(2) and diagnostics(10) remain -1: gyro is not corrected here.
 
     % initialize corrected outputs with propagated values
     xnp1_c = xnp1;
@@ -53,7 +51,6 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct_hopper( ...
 
     % Innovation gate thresholds
     baroGateThreshold = 6.635;      % 99%, 1 DOF
-    gyroGateThreshold = 11.345;     % 99%, 3 DOF
     gpsGateThreshold  = 16.812;     % 99%, 6 DOF
     lidarGateThreshold = 6.635;     % 99%, 1 DOF (per beam)
     diffGpsGateThreshold = 11.345;  % 99%, 3 DOF
@@ -63,7 +60,6 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct_hopper( ...
 
     % Check if each sensor should be incorporated
     gps_incorp = meas_posvel.validity && meas_posvel.timestamp > gps_timestamp;
-    gyro_incorp = meas_angvel.validity && meas_angvel.timestamp > gyro_timestamp;
     baro_incorp = meas_baro.validity && meas_baro.timestamp > baro_timestamp;
     lid1_incorp = meas_LID.validity(1) && meas_LID.timestamp > lid_timestamp;
     lid2_incorp = meas_LID.validity(2) && meas_LID.timestamp > lid_timestamp;
@@ -86,22 +82,6 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct_hopper( ...
         diagnostics(1) = double(acc); diagnostics(9) = nis;   % accepted, NIS
 
         baro_timestamp = meas_baro.timestamp; % consume measurement even if gated out
-    end
-
-    if gyro_incorp
-
-        gyroParams.gateThreshold = gyroGateThreshold;
-
-        [xnp1_c, Pnp1_c, acc, nis] = update( ...
-            xnp1_c, ...
-            Pnp1_c, ...
-            @gyro_update_model, ...
-            meas_angvel, ...
-            gyroParams);
-        diagnostics(2) = double(acc); diagnostics(10) = nis;   % accepted, NIS
-
-        gyro_timestamp = meas_angvel.timestamp;
-
     end
 
     if gps_incorp

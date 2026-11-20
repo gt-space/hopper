@@ -11,12 +11,13 @@
 %   xn: n state vector (20x1)
 %   Pn: n covariance (19x19)
 %   accel_meas: IMU acceleration measured (3x1) (m/s^2) (body frame)
-%   torque: control torque applied (3x1) (N*m) (body frame)
+%   angvel_meas: gyroscope measurement struct with angvel (3x1) (rad/s)
 %   validity: if IMU measurement is valid
 %   J: Inertia tensor, xyz aligning with body frame (kg*m^2)
 %   g: acceleration of gravity (scalar)
 %   dt: time delta to propagate (s)
-%   Qc: process noise intensity matrix (13x13)
+%   Qc: process noise matrix (13x13): per-sample IMU covariance followed by
+%       continuous-time bias and barometer bias random-walk PSDs
 % 
 % Outputs:
 %   xnp1: n+1 state (20x1)
@@ -24,7 +25,7 @@
 %   aux: struct with useful shared variables for the filter
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity, J, g, dt, Qc)
+function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, angvel_meas, validity, J, g, dt, Qc)
     
     % Generate some shared quantities
     % NOTE: aux is built in one go at each stage, since code generation
@@ -34,8 +35,8 @@ function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity,
     auxProp = struct('A_IB', A_IB);
 
     % Propagate the state
-    xnp1 = propagate_state(xn, auxProp, accel_meas, torque, validity, J, g, dt);
-    xnp05 = propagate_state(xn, auxProp, accel_meas, torque, validity, J, g, dt*0.5);
+    xnp1 = propagate_state(xn, auxProp, accel_meas, angvel_meas, validity, J, g, dt);
+    xnp05 = propagate_state(xn, auxProp, accel_meas, angvel_meas, validity, J, g, dt*0.5);
     % ^xnp05 is the propagation to time step 0.5 which allows better STM
     % estimation
 
@@ -48,11 +49,11 @@ function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, torque, validity,
     else
         a_I = g_vec; % Assume vehicle is unaccelerated
     end
-    w_I = A_IB05*xnp05(7:9);
+    w_I = A_IB05*(0.5*(xn(7:9) + xnp1(7:9)));
 
     % Get the error state Jacobians
     auxJac = struct('A_IB', A_IB, 'A_IB05', A_IB05, 'a_I', a_I, 'w_I', w_I);
-    [F05, G05] = error_state_jacobian(xnp05, auxJac, J);
+    [F05, G05] = error_state_jacobian(xnp05, auxJac, dt, validity, J);
     aux = struct('A_IB', A_IB, 'A_IB05', A_IB05, 'a_I', a_I, 'w_I', w_I, 'F', F05, 'G', G05);
 
     % Propagate the covariance

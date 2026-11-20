@@ -26,7 +26,7 @@ filter_st = 1/500;      % Filter sample time (seconds)
 % gy, gz, b
 x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
 
-% TODO! TUNE THIS COVARIANCE
+% TODO! Tune the position, velocity, attitude, and bias uncertainties.
 P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
@@ -65,6 +65,10 @@ imu_params_init.gyro_noise_std = imu_params_init.gyro_noise_density * sqrt(1/(2*
 imu_params_init.gcovariance = diag(imu_params_init.gyro_noise_std.^2);
 imu_params_init.gravity_scalar = 9.81;                % Gravity acceleration
 imu_params_init.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
+
+% The angular-rate state is a bias-corrected gyro sample; initialize its
+% covariance from the gyro rather than the former torque-driven rate model.
+P0(7:9,7:9) = diag(imu_params_init.gyro_noise_std.^2);
 
 % GPS parameters
 gps_st = 0.1;           % sample time (s)
@@ -115,14 +119,11 @@ lidar_st = 0.01;        % sample time (s)
 % lidar_params.packet_invalid_prob = 0.0; % set to zero for now
 % Note- any distances over 8m will be not valid it appears
 
-%% GMEKF continuous-time process-noise spectral densities
+%% GMEKF process-noise covariance
 
-% Accel noise and the bias errors are expressed in the inertial frame in the
-% filter, so use the largest body-axis value on all three channels.
-
-% Translational acceleration disturbance: 3 channels
-accelerationNoisePSD = max(imu_params_init.accel_noise_std)^2 * imu_st * ones(3,1);
-imu_params_init.gyro_R = diag(imu_params_init.gyro_noise_std.^2);
+% The first six channels are per-sample IMU measurement covariances. Bias
+% random walks and barometer bias remain continuous-time spectral densities.
+% Block order: accelerometer, gyroscope, accel bias, gyro bias, barometer bias.
 
 % Bias random walks from the in-run bias stability. TUNING STARTING POINT:
 % the data sheet gives no rate random walk, so assume the bias wanders by
@@ -131,17 +132,11 @@ biasCorrelationTime = 100;  % (s)
 accelBiasNoisePSD = max(imu_params_init.accel_bias_stability)^2 / biasCorrelationTime * ones(3,1);
 gyroBiasNoisePSD = max(imu_params_init.gyro_bias_stability)^2 / biasCorrelationTime * ones(3,1);
 
-% Torque disturbance: the commanded torque leaves out wind, slosh and other
-% unmodeled moments (~7 N m on the hopper in the 6DOF sim). At 1e-4 the
-% rate model trusted the command, the gyro was gated out within 0.07 s of
-% liftoff and the filter diverged; 1 (N m)^2/Hz tracks to ~4 cm and
-% ~0.01 in attitude over the full flight. Still to be calibrated.
-torqueNoisePSD = [1; 1; 1];
 baroBiasNoisePSD = 0.001;
 
 qc = blkdiag( ...
-    diag(accelerationNoisePSD), ...
-    diag(torqueNoisePSD), ...
+    imu_params_init.acovariance, ...
+    imu_params_init.gcovariance, ...
     diag(accelBiasNoisePSD), ...
     diag(gyroBiasNoisePSD), ...
     baroBiasNoisePSD);
