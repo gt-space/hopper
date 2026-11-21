@@ -37,7 +37,11 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
         end
 
         function flyingOnTheEstimateLands(tc)
-            out = sim(buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf')));
+            [in, W] = buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf'));
+            tc.verifyEqual(W.controller_start_time, W.IN.mission.filter_warmup_time);
+            tc.verifyEqual(W.tgrid(1), W.controller_start_time);
+            tc.verifyEqual(W.VARIANT_GROUND, 2);
+            out = sim(in);
             K = NominalFlightTest.keyNumbers(out);
             IN = tc.W.IN;
             tc.verifyGreaterThan(K.max_altitude, IN.mission.target_altitude, 'apex');
