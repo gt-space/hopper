@@ -31,8 +31,8 @@ S.lidar.r_min    = 0.05;                       % m, blind zone (masked on the pa
 S.lidar.r_max    = 40;                         % m
 
 S.gps.period = 0.2;                            % s (GNSS 5 Hz)
-S.gps.sigma  = [0.02; 0.02; 0.05];             % m
-S.gps.vel_sigma = [0.05; 0.05; 0.1];          % m/s (nav team's placeholder, filter_sim_initializer)
+S.gps.sigma  = [1.5; 1.61; 4.42];              % m
+S.gps.vel_sigma = [0.029; 0.032; 0.023];       % m/s (nav team's placeholder, filter_sim_initializer)
 S.gps.fix    = 3;                              % 3D
 S.gps.sats   = 12;
 
