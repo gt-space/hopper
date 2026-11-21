@@ -56,7 +56,7 @@ function [dist_meas, covariance, validity] = lidar_model_base(dist_true, measure
     noiseOff = (d <= 3 & params.lidar.noise_std_1 == 0) | ...
                (d > 3 & params.lidar.noise_std_2 == 0);
     useHistogram = beamValid & ~noiseOff;
-
+    
     [~, runIndex] = min(abs(d - targets), [], 2);
     recordedStd = [runs.std_dev_m].';
     varying = useHistogram & recordedStd(runIndex) > 0;
@@ -66,19 +66,27 @@ function [dist_meas, covariance, validity] = lidar_model_base(dist_true, measure
     dist_meas = zeros(4,1);
     dist_meas(beamValid) = d(beamValid);
     covariance = zeros(4,1);
-
+    
     for k = 1:4
         if useHistogram(k)
             h = runs(runIndex(k));
             sample_m = h.mean_m;  % The recorded value when the spread is zero.
             if varying(k)
                 bin = 1 + sum(h.cdf <= draw(k));
-                lo = h.buckets_m(bin,1);
-                hi = h.buckets_m(bin,2);
-                sample_m = lo + rand() * (hi - lo);
+                sample_m = h.reading_m(bin);
+                covariance(k) = h.std_dev_m^2;
             end
+            %adds error
             dist_meas(k) = d(k) + (sample_m - h.nominal_m);
-            covariance(k) = h.std_dev_m^2;
+            %computes covarience which is a vector containing the standard
+            %deviation of the chosen distribution squared. Will inflate
+            %to account for bias. Added additional
+            %checks in case more tuning is needed. This is only for the
+            %brick measurements a better solution should be developed
+            %eventually. uses the squared measured bias as the inflation as
+            %opposed to tunable parameters for consistency.
+            Rinflation = (h.mean_m - h.nominal_m)^2;  % m²
+            covariance(k) = h.std_dev_m^2 + Rinflation;
         end
     end
 end
