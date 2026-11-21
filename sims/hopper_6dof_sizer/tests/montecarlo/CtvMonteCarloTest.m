@@ -1,12 +1,13 @@
 classdef CtvMonteCarloTest < matlab.unittest.TestCase
     % Seeded 5-run Monte Carlo (plus nominal) of the CTV on the variant
-    % harness (VEHICLE=ctv, inputs/mc_params_ctv.json). The nominal flight
-    % must meet the CTV's mission requirements, and every dispersed run
-    % must get through setup and simulation: a run may diverge (the CTV's
-    % controller isn't robust to its dispersions yet) but not error.
-    % Dispersed runs are reported in outputs/montecarlo/mc_ctv_summary.csv,
-    % not required to meet requirements: the CTV's geometry and tuning are
-    % still provisional (docs/VARIANTS.md, The CTV).
+    % harness (VEHICLE=ctv, inputs/mc_params_ctv.json). VEHICLE=ctv defaults
+    % to the tuned CTV gain tables (CONTROLLER=lqr_ctv_tuning), so these
+    % runs use them. The nominal flight must meet the CTV's mission
+    % requirements, and every dispersed run must get through setup and
+    % simulation: a run may diverge but not error. Dispersed runs are
+    % reported in outputs/montecarlo/mc_ctv_summary.csv, not required to
+    % meet requirements: the CTV's geometry and tuning are still
+    % provisional (docs/VARIANTS.md, The CTV).
 
     properties (Constant)
         N = 5

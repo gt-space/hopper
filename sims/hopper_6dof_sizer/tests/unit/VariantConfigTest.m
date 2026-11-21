@@ -18,13 +18,18 @@ classdef VariantConfigTest < matlab.unittest.TestCase
         end
 
         function ctvDefaults(tc)
-            % the CTV burns no propellant: slosh off, constant mass properties
+            % the CTV burns no propellant (slosh off, constant mass) and
+            % flies the tuned gain tables
             V = variantConfig('VEHICLE', 'ctv');
             tc.verifyEqual(V.VARIANT_VEHICLE, 2);
             tc.verifyEqual(V.VARIANT_SLOSH, 2);
             tc.verifyEqual(V.VARIANT_MASS_PROPS, 2);
-            V = variantConfig('VEHICLE', 'ctv', 'SLOSH', 'full');   % named axes win
+            tc.verifyEqual(V.VARIANT_CONTROLLER, 4);
+            tc.verifyEqual(variantAxes().CONTROLLER(V.VARIANT_CONTROLLER), "lqr_ctv_tuning");
+            % named axes win
+            V = variantConfig('VEHICLE', 'ctv', 'SLOSH', 'full', 'CONTROLLER', 'lqr_sched');
             tc.verifyEqual(V.VARIANT_SLOSH, 1);
+            tc.verifyEqual(V.VARIANT_CONTROLLER, 1);
         end
 
         function ctvInputs(tc)

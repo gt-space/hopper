@@ -9,10 +9,11 @@ What's wrong, unfinished or surprising in the sim today (2026-10-31), and what t
   - The other 9 land 1.3–2.1 m from the pad against the 1 m requirement (`IN.mission.max_landing_offset`). Every other requirement holds.
   - Re-fly one case with `R.scenarios(k)` and `SCOPES` to investigate ([User guide](USER_GUIDE.md#debugging-a-monte-carlo-run)).
 - **The nominal hopper lands 0.66 m off the pad.** That's inside the 1 m requirement, but it was 0.43 m on the earlier stand-in mass properties. The CAD dry mass properties (114.894 kg, since 2026-10-29) moved it.
-- **The dispersed CTV mostly fails.**
+- **The dispersed CTV needs its tuned controller.**
   - The nominal CTV meets every requirement in calm air and lands on the nav estimate.
-  - In `CtvMonteCarloTest`'s 5 seeded runs, only 1 meets requirements; the rest miss the landing offset, one also the touchdown tilt. Across 10 seeded runs, most land metres off or tilt badly, and some diverge.
-  - Suspects, in order: LQR tuning on hopper-derived weights, products-of-inertia coupling (dropped from the flown tensor), and the unmodelled EDF reaction torque. See [VARIANTS: The CTV](VARIANTS.md#the-ctv).
+  - With the CTV's default tuned gain tables (`CONTROLLER=lqr_ctv_tuning`, `src/gnc/ctvTuningGains.m`), all 5 runs in `CtvMonteCarloTest` meet every requirement: landing offset 0.07-0.33 m, touchdown tilt 0.25-0.92 deg, impact 0.29-0.31 m/s (2026-11-21, truth state).
+  - On the hopper-derived nominal weights (`CONTROLLER=lqr_sched`) only 1 of those 5 met requirements; the rest missed the landing offset, one also the touchdown tilt. The earlier 10-run result stands for those weights.
+  - Remaining suspects: products-of-inertia coupling (dropped from the flown tensor) and the unmodelled EDF reaction torque. See [VARIANTS: The CTV](VARIANTS.md#the-ctv).
 - **`CONTROLLER=lqi` is experimental.** LQI-DEV's fixed-gain hover regulator was designed on a toy plant and isn't tuned. It compiles and runs, and the variant test only checks that. It may not hold the vehicle up.
 
 ## Model fidelity
