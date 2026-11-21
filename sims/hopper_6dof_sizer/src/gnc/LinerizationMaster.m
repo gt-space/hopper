@@ -188,6 +188,20 @@ if n_run > 0
     B      = cat(3, B, repmat(B_r, 1, 1, n_run));
     Fref   = [Fref; repmat(f_r.', n_run, 1)];
 end
+% Body-rate weight scale (IN.gnc.lqr.rate_weight_scale, e.g. the CTV tuning
+% variant): weighting the measured rates more than the attitude error is
+% more damping, which stops the command oscillating against actuator lag.
+if isfield(IN, 'gnc') && isfield(IN.gnc, 'lqr') && isfield(IN.gnc.lqr, 'rate_weight_scale')
+    Q(7:9, 7:9) = Q(7:9, 7:9) * IN.gnc.lqr.rate_weight_scale;
+end
+% Lateral weight scale (IN.gnc.lqr.lateral_weight_scale, e.g. the CTV
+% tuning variant): x, y, vx, vy. More weight is a stiffer station-keeping
+% loop, which holds the landing offset down against wind and drift.
+if isfield(IN, 'gnc') && isfield(IN.gnc, 'lqr') && isfield(IN.gnc.lqr, 'lateral_weight_scale')
+    for i = [1 2 4 5]
+        Q(i, i) = Q(i, i) * IN.gnc.lqr.lateral_weight_scale;
+    end
+end
 % Roll angle weight (IN.gnc.lqr.roll_angle_weight, e.g. the CTV): the
 % diagonal quaternion weights can't single out roll, since at the vertical
 % attitude roll and a tilt axis share quaternion components. Weight the

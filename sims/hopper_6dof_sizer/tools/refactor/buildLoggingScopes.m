@@ -176,7 +176,7 @@ else
     [base, tf] = strtok(s, ':'); tf = erase(tf, ':');
     p = sel(base);
     name = extractAfter(base, '.');
-    switch extractBefore([tf '0'], 2)   % first letter: d(eg/iag), i(ndices)
+    switch extractBefore([tf '0'], 2)   % first letter: d(eg/iag), i(ndices), t(ilt)
         case 'd'
             if strcmp(tf, 'deg')
                 p = chain(c, p, 'simulink/Math Operations/Gain', {'Gain', '180/pi'});
@@ -190,6 +190,17 @@ else
             r = sscanf(tf, 'i%d-%d');
             p = chain(c, p, 'simulink/Signal Routing/Selector', {'Indices', sprintf('[%d:%d]', r(1), r(2)), 'InputPortWidth', '-1'});
             name = sprintf('%s_%d_%d', name, r(1), r(2));
+        case 't'
+            % tilt of body x from vertical: acos(-R(1,3)) of a NED->body
+            % DCM. The Euler angles can't be used for it: both vehicles
+            % hover nose-up at pitch 90 deg, where yaw (and roll) is undefined
+            p = chain(c, p, 'simulink/Math Operations/Reshape', {'OutputDimensionality', '1-D array'});
+            p = chain(c, p, 'simulink/Signal Routing/Selector', {'Indices', '7', 'InputPortWidth', '9'});
+            p = chain(c, p, 'simulink/Discontinuities/Saturation', {'UpperLimit', '1', 'LowerLimit', '-1'});
+            p = chain(c, p, 'simulink/Math Operations/Gain', {'Gain', '-1'});
+            p = chain(c, p, 'simulink/Math Operations/Trigonometric Function', {'Operator', 'acos'});
+            p = chain(c, p, 'simulink/Math Operations/Gain', {'Gain', '180/pi'});
+            name = [name '_tilt'];
     end
 end
 end

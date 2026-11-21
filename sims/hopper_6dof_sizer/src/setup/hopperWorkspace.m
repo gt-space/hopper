@@ -48,6 +48,13 @@ end
 if A.CONTROLLER(variants.VARIANT_CONTROLLER) == "lqi"
     [W.Klqi, W.p] = lqiGains();
 end
+if A.CONTROLLER(variants.VARIANT_CONTROLLER) == "lqr_ctv_tuning"
+    % the variant's own gain tables (src/gnc/ctvTuningGains.m); the nominal
+    % K1flat/K2grid stay for the choices and FDIR that read them
+    G = ctvTuningGains();
+    W.K1flat_ctv = G.K1flat_ctv;
+    W.K2grid_ctv = G.K2grid_ctv;
+end
 
 % Data a model callback loads into base itself: the fluid network's InitFcn
 % loads FuelProps (Simscape tank fluid properties). buildSimInput only sets
