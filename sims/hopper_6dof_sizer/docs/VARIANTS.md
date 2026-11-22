@@ -16,7 +16,7 @@ out = sim(buildSimInput('hopper_6dof', [], [], V));
 | Axis | Block | Choices (first is the default) |
 |---|---|---|
 | `VEHICLE` | *(setup only)* | Picks the vehicle config file ([VEHICLE_CONFIG.md](VEHICLE_CONFIG.md)) and its mission. `hopper`: `vehicles/hopper/hopper_config.m` with `inputs/mission_inputs.m`. `ctv`: the controls test vehicle, `vehicles/ctv/ctv_config.m`, flying the mission overrides in `inputs/ctv_inputs.m`. See [The CTV](#the-ctv). |
-| `CONTROLLER` | `Controller` | `lqr_sched`: time-scheduled LQR along the reference trajectory (`subsystems/gnc/LQR_Gain_Scheduler.slx` plus its gain tables). `lqi`: LQI-DEV's fixed-gain LQI hover regulator, which is experimental. `lqr_sched_legacy`: the March scheduler from the archived lqr/LQ_6DOF_V3 models, which lacks the quaternion sign fix. `lqr_ctv_tuning`: the same scheduler (`subsystems/gnc/LQR_CTV_Tuning.slx`) reading its own gain tables, `K1flat_ctv`/`K2grid_ctv`, designed by `src/gnc/ctvTuningGains.m` with 30x the pitch/yaw TVC effort weight, 10x the body-rate weights and 1000x the lateral (x, y, vx, vy) weights, which holds the CTV's landing offset on the filter: 0.09-0.34 m on the 5 seeded runs flying on the GMEKF, against 0.3-10 m (two crashes) with the nominal weights (2026-11-20). Built by `tools/refactor/addCtvTuningController.m`; the file must be a subsystem file, not a model. It is the CTV's default controller (`variantConfig('VEHICLE', 'ctv')`). |
+| `CONTROLLER` | `Controller` | `lqr_sched`: time-scheduled LQR along the reference trajectory (`subsystems/gnc/LQR_Gain_Scheduler.slx` plus its gain tables). `lqi`: LQI-DEV's fixed-gain LQI hover regulator, which is experimental. `lqr_sched_legacy`: the March scheduler from the archived lqr/LQ_6DOF_V3 models, which lacks the quaternion sign fix. `lqr_ctv_tuning`: the same scheduler (`subsystems/gnc/LQR_CTV_Tuning.slx`) reading its own gain tables, `K1flat_ctv`/`K2grid_ctv`, designed by `src/gnc/ctvTuningGains.m` with 30x the pitch/yaw TVC effort weight, 10x the body-rate weights and 1000x the lateral (x, y, vx, vy) weights, which holds the CTV's landing offset on the filter: 0.09-0.34 m on the 5 seeded runs flying on the GMEKF, against 0.3-10 m (two crashes) with the nominal weights (2026-11-20). Built by `tools/refactor/addCtvTuningController.m`; the file must be a subsystem file, not a model. It is the CTV's default controller (`variantConfig('VEHICLE', 'ctv')`). `fsw`: flight software flies. The command comes in through the root inport `u_fsw` and the controller's state goes out through the root outport `x_fsw`; in a simulation `u_fsw` replays `W.fsw_u` (see [Flight software in the loop](#flight-software-in-the-loop)). |
 | `SLOSH` | `Slosh` | `full`: slosh pendulums, `subsystems/slosh/Slosh.slx`. `off`: zero slosh force, moment and CG offsets. |
 | `PROPULSION` | `Propulsion` | `lut`: thrust command passes through; `Thrust_to_Mdot_LUT` gives ox and fuel mdot. `fluid_network`: #26's Simscape feed system and engine give thrust and mdot. |
 | `GROUND` | `Ground_Contact` | `none`: no ground reaction. `strut`: #27's strut spring/damper per leg (`subsystems/ground/Ground_Contact.slx`), into the body force and moment sums. |
@@ -36,6 +36,8 @@ Combinations to know:
   - Its law is u = −Klqi·[pos − cmd; vel; rates; MRP; ∫(pos − cmd)]. v4's own `Apply Gains` block joined these terms with Mux blocks and didn't compile, so the harness builds the same law with one gain block.
   - It has no hover-thrust feedforward, so on the hopper it doesn't hold the vehicle up; it falls from the pad. CI only checks that it compiles and runs.
   - Retune it in `lqiGains.m`, and add the feedforward in the `Controller_LQI` choice.
+
+- **`CONTROLLER=fsw` is for the FSW bridge** (`fsw_bridge/`, [README](../fsw_bridge/README.md)). See [Flight software in the loop](#flight-software-in-the-loop).
 
 - **`FAULT_INJECTION=on` with `FDIR=off`** shows the unmitigated response. Sensor faults then reach no one, because only FDIR reads the sensor model and the controller flies on truth state. Actuator faults still act.
 - **`FDIR=on` with no fault** flies exactly like `FDIR=off`.
@@ -218,3 +220,12 @@ They combine with any axis, for example `variantConfig('NAVIGATION', 'gmekf', 'S
    - A change you'd want to redo on a fresh copy, such as wiring a choice into many blocks, belongs in a `tools/refactor/` script.
 3. **Test it.** `tests/sim/VariantHarnessTest.m` runs every non-default choice for 2 s automatically. Add a longer test if the choice should fly a full mission.
 4. **Update the axes table** above.
+
+## Flight software in the loop
+
+`CONTROLLER=fsw` turns the harness into the plant the flight software flies (`tools/refactor/addFswControllerChoice.m` added it):
+
+- **Ports.** `GNC/Controller/Controller_FSW` passes the root inport `u_fsw` (thrust N, TVC pitch rad, TVC yaw rad, RCS torque N m) through as the command, and hands the controller's state (`nav_bus.x_nav`: position NED, velocity NED, body rates, quaternion) out on the root outport `x_fsw`. With any other controller the two ports drop out of the generated code; in a simulation `x_fsw` stays in `yout` as a grounded signal.
+- **Timing.** `fswWorkspace` sets `fsw_period` (0.01 s, flight2's 100 Hz) and `fsw_latency` (one plant step, 1 ms). The command is held for one period and taken `fsw_latency` after each period starts, the way the flight software reads the state at the start of its cycle and commands within it.
+- **Simulation.** `u_fsw` replays `W.fsw_u` (rows of `[t, u]`, held, not interpolated). The default is the nominal command `unom`, open loop, so the vehicle doesn't hold its trajectory without a real command history.
+- **Code.** `fsw_bridge/build_plant_c` generates C straight from the harness with these choices (default `VEHICLE=ctv`); `fsw_bridge/verify_plant_c` checks it against the Simulink replay.
