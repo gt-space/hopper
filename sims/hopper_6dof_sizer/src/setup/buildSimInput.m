@@ -47,6 +47,9 @@ fsw = isFswController(variants);
 if fsw
     W = fswWorkspace(W);              % the FSW command period and its replay
 end
+if variantAxes().CONTROLLER(variants.VARIANT_CONTROLLER) == "lqr_ctv_tuning"
+    W = ctrlRateWorkspace(W);         % the scheduler's holds: every step unless W sets a rate
+end
 
 if isa(model, 'Simulink.SimulationInput')
     in = model;

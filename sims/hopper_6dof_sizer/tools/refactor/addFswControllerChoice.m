@@ -1,10 +1,11 @@
 function addFswControllerChoice()
 %ADDFSWCONTROLLERCHOICE  CONTROLLER=fsw: flight software flies the harness.
-%   Adds the fourth CONTROLLER choice to models/hopper_6dof.slx, so the
+%   Adds the CONTROLLER=fsw choice to models/hopper_6dof.slx, so the
 %   FSW bridge (fsw_bridge/) can generate the plant straight from the
 %   harness instead of from a copied model:
 %   - GNC/Controller gets an input u_fsw and an output x_fsw, and a choice
-%     Controller_FSW (VARIANT_CONTROLLER == 4) that passes u_fsw through as
+%     Controller_FSW (VARIANT_CONTROLLER == fsw's index in variantAxes, 5
+%     since lqr_ctv_tuning took 4) that passes u_fsw through as
 %     the command u and hands the controller's state x out as x_fsw.
 %   - Both ports run up through GNC to a root Inport u_fsw (4 x 1: thrust
 %     N, TVC pitch rad, TVC yaw rad, RCS torque N m; the choice takes it
@@ -45,7 +46,11 @@ add_block('simulink/Discrete/Zero-Order Hold', [choice '/FSW_Period_Hold'], ...
 add_line(choice, 'u_fsw/1', 'FSW_Period_Hold/1');
 add_line(choice, 'FSW_Period_Hold/1', 'u/1');
 add_line(choice, 'x/1', 'x_fsw/1');
-set_param(choice, 'VariantControl', 'VARIANT_CONTROLLER == 4');
+% the index comes from variantAxes, never a literal: two branches once both
+% claimed 4 (fsw and lqr_ctv_tuning)
+k = find(variantAxes().CONTROLLER == "fsw");
+assert(isscalar(k), 'addFswControllerChoice:axis', 'variantAxes has no single fsw choice');
+set_param(choice, 'VariantControl', sprintf('VARIANT_CONTROLLER == %d', k));
 set_param(ctl, 'PropagateVariantConditions', 'on');
 
 % ---- through GNC ----
