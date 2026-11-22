@@ -72,7 +72,7 @@ for i = 1:size(tables, 1)
     fprintf(fid, [strjoin(repmat({'%.17g'}, 1, size(T, 2)), ',') '\n'], T.');
     fclose(fid);
     sizes.(tables{i, 1}) = size(T);
-    sha256.(tables{i, 1}) = fileSha256(f);
+    sha256.(tables{i, 1}) = sha256File(f);
     fprintf('%-7s %-18s %d x %d\n', tables{i, 1}, tables{i, 2}, size(T, 1), size(T, 2));
 end
 n = sizes.tgrid(1);
@@ -85,7 +85,8 @@ info = struct('vehicle', vehicle, 'controller', controller, ...
     'law', 'u = unom - K1*(x - xref) - K2', ...
     'interpolation', 'linear in t between tgrid rows, held at both ends', ...
     'quaternion', 'scalar-first; negate x quaternion when dot(q, qref) < 0; dx is plain subtraction', ...
-    'k1flat_layout', 'row-major K1: flat(13*i + j) = K1(i, j), 0-based; MATLAB reshape(K1.'', 1, 52)', ...
+    'k1flat_layout', 'row-major', ...   % machine-checked by the flight software: keep exact
+    'k1flat_layout_note', 'flat(13*i + j) = K1(i, j), 0-based; MATLAB reshape(K1.'', 1, 52)', ...
     'state', 'pos NED m, vel NED m/s, body rates rad/s, quaternion scalar-first (13)', ...
     'command', 'thrust N, TVC pitch rad, TVC yaw rad, RCS torque N m', ...
     'simulink_controller_rate_hz', 1000, ...
@@ -97,14 +98,6 @@ fclose(fid);
 fprintf('%s gains (%s) -> %s\n', vehicle, controller, outDir);
 end
 
-function h = fileSha256(f)
-md = java.security.MessageDigest.getInstance('SHA-256');
-fid = fopen(f, 'r');
-bytes = fread(fid, Inf, '*uint8');
-fclose(fid);
-md.update(bytes);
-h = lower(reshape(dec2hex(typecast(md.digest(), 'uint8'), 2).', 1, []));
-end
 
 function c = gitCommit(here)
 [s, r] = system(sprintf('git -C "%s" rev-parse --short HEAD', here));

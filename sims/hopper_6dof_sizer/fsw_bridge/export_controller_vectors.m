@@ -11,8 +11,8 @@ function outDir = export_controller_vectors(varargin)
 %
 %   u comes from the model's own scheduler code: the Gain_Selector MATLAB
 %   Function in the vehicle controller's subsystem file
-%   (subsystems/gnc/LQR_CTV_Tuning.slx for lqr_ctv_tuning,
-%   LQR_Gain_Scheduler.slx for lqr_sched) is read out of the file and run
+%   (subsystems/gnc/LQR_Gain_Scheduler.slx, which both lqr_sched and
+%   LQR_CTV_Tuning.slx reference) is read out of the file and run
 %   as is, with the exported tables. So the vectors test the law, the
 %   interpolation, the clamping, the K1 layout and the quaternion
 %   hemisphere flip exactly as Simulink flies them.
@@ -49,12 +49,15 @@ switch info.controller
     case "lqr_ctv_tuning", file = 'LQR_CTV_Tuning';
     case "lqr_sched",      file = 'LQR_Gain_Scheduler';
 end
-[gainSelector, srcSha] = schedulerFunction(file);
+[gainSelector, srcSha, where] = schedulerFunction(file);
 
 % ---- cases ----
-V = variantConfig('VEHICLE', vehicle, 'CONTROLLER', char(info.controller));
-out = sim(buildSimInput('hopper_6dof', [], [], V));
-xs = out.get('x');
+% the controller's own input, nav_bus.x_nav, from the signal dump
+logFile = fullfile(tempdir, 'hopper_controller_vectors', 'flight_log.mat');
+V = variantConfig('VEHICLE', vehicle, 'CONTROLLER', char(info.controller), 'LOG', logFile);
+sim(buildSimInput('hopper_6dof', [], [], V));
+L = load(logFile, 'logsout');
+xs = L.logsout.get('nav_bus').Values.x_nav;
 X = squeeze(xs.Data);
 if size(X, 2) ~= 13, X = X.'; end
 assert(size(X, 2) == 13, 'export_controller_vectors:x', 'logged x is not the 13-state');
@@ -103,7 +106,7 @@ fprintf(fid, [strjoin(repmat({'%.17g'}, 1, 18), ',') '\n'], rows.');
 fclose(fid);
 
 vinfo = struct('vehicle', vehicle, 'controller', info.controller, ...
-    'source', sprintf('Gain_Selector in subsystems/gnc/%s.slx', file), ...
+    'source', where, ...
     'source_sha256', srcSha, 'gains_sha256', info.sha256, 'git_commit', info.git_commit, ...
     'columns', 't s; x1..x13 pos NED m, vel NED m/s, body rates rad/s, quaternion scalar-first; u1..u4 thrust N, TVC pitch rad, TVC yaw rad, RCS torque N m', ...
     'tolerance', '|u - u_ref| <= 1e-9 * max(1, |u_ref|) per component', ...
@@ -115,20 +118,13 @@ fclose(fid);
 fprintf('%d controller vectors (%s) -> %s\n', size(rows, 1), info.controller, f);
 end
 
-function [fh, sha] = schedulerFunction(file)
-% The Gain_Selector MATLAB Function's code out of a subsystem file, as a
-% callable function handle, and the SHA-256 of that code.
-load_system(file);
-closeIt = onCleanup(@() close_system(file, 0));
-charts = sfroot().find('-isa', 'Stateflow.EMChart');
-charts = charts(arrayfun(@(c) startsWith(c.Path, [file '/']), charts));
-code = '';
-for c = charts(:)'
-    if contains(c.Script, 'function u = Gain_Selector')
-        code = c.Script;
-    end
-end
+function [fh, sha, where] = schedulerFunction(file)
+% The Gain_Selector MATLAB Function's code out of a subsystem file (or a
+% subsystem file it references, e.g. LQR_CTV_Tuning -> LQR_Gain_Scheduler),
+% as a callable function handle, and the SHA-256 of that code.
+[code, where] = findGainSelector(file, {});
 assert(~isempty(code), 'export_controller_vectors:source', 'no Gain_Selector in %s', file);
+fprintf('Gain_Selector from %s\n', where);
 d = fullfile(tempdir, 'hopper_controller_vectors');
 if ~isfolder(d), mkdir(d); end
 fid = fopen(fullfile(d, 'Gain_Selector.m'), 'w');
@@ -137,7 +133,28 @@ fclose(fid);
 addpath(d);
 clear Gain_Selector
 fh = @Gain_Selector;
-md = java.security.MessageDigest.getInstance('SHA-256');
-md.update(uint8(code));
-sha = lower(reshape(dec2hex(typecast(md.digest(), 'uint8'), 2).', 1, []));
+sha = sha256File(fullfile(d, 'Gain_Selector.m'));
+end
+
+function [code, where] = findGainSelector(file, seen)
+code = ''; where = '';
+if ismember(file, seen), return; end
+seen{end+1} = file;
+wasLoaded = bdIsLoaded(file);
+load_system(file);
+if ~wasLoaded, closeIt = onCleanup(@() close_system(file, 0)); end
+charts = sfroot().find('-isa', 'Stateflow.EMChart');
+for c = charts(:)'
+    if startsWith(c.Path, [file '/']) && contains(c.Script, 'function u = Gain_Selector')
+        code = c.Script; where = c.Path; return
+    end
+end
+subs = find_system(file, 'LookUnderMasks', 'all', 'FollowLinks', 'on', 'BlockType', 'SubSystem');
+for k = 1:numel(subs)
+    ref = get_param(subs{k}, 'ReferencedSubsystem');
+    if ~isempty(ref)
+        [code, where] = findGainSelector(ref, seen);
+        if ~isempty(code), return; end
+    end
+end
 end
