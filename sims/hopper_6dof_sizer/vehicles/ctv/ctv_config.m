@@ -99,4 +99,13 @@ VC.aero.cp_x = 0.35;                           % m, ASSUMPTION: centre of pressu
 % the CG in its frame, i.e. 0.2 m above the CG and 0.1 m along body z
 % (the CTV keeps its CG); antenna 2 is unused (no differential GPS)
 VC.sensors.gps.antenna = [VC.mass.dry_cg + 0.2, VC.mass.dry_cg + 0.2; 0 0; 0.1 -0.1];   % m, ASSUMPTION: body x y z from the base
+VC.sensors.imu.period = 1/500;                 % s, ADIS16500 at the filter rate
+
+% ---- Navigation filter process-noise tuning ----
+% Scales multiply the corresponding Qc covariance blocks (not sigma).
+VC.navigation.gmekf.Qc_scale.accel       = 1;
+VC.navigation.gmekf.Qc_scale.gyro        = 1;
+VC.navigation.gmekf.Qc_scale.accel_bias  = 1;
+VC.navigation.gmekf.Qc_scale.gyro_bias   = 1;
+VC.navigation.gmekf.Qc_scale.baro_bias   = 1;
 end

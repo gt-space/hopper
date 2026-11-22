@@ -26,6 +26,9 @@ function Pnp1 = propagate_covariance(Pn, F05, G05, Qc, dt)
     assert(all(size(G05) == [19,13]));
     assert(all(size(Qc) == [13,13]));
 
+    % F05 is already the discrete state-transition matrix for this sample
+    % (including its identity and dt terms); it is not a continuous-time
+    % Jacobian to be integrated again.
     % The IMU noise is sampled once per propagation; bias random walks are
     % scaled by sqrt(dt) in G05.
     Pnp1 = F05 * Pn * F05' + G05 * Qc * G05';

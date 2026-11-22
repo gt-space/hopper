@@ -146,4 +146,13 @@ VC.sensors.lidar.mount_x = 0.1;                % m (ASSUMPTION)
 % the axis and 0.2 m above the nominal CG; replace with CAD
 VC.sensors.gps.antenna = [1.343 1.343; 0 0; 0.25 -0.25];   % m, body x y z
 VC.sensors.imu.period  = 1/500;                % s, ADIS16500 at the filter rate (nav team: DEC_RATE = 3)
+
+% ---- Navigation filter process-noise tuning ----
+% Scales multiply the corresponding Qc covariance blocks (not sigma).
+% Native IMU noise is the baseline; adjust these only for estimator tuning.
+VC.navigation.gmekf.Qc_scale.accel       = 1;
+VC.navigation.gmekf.Qc_scale.gyro        = 1;
+VC.navigation.gmekf.Qc_scale.accel_bias  = 1;
+VC.navigation.gmekf.Qc_scale.gyro_bias   = 1;
+VC.navigation.gmekf.Qc_scale.baro_bias   = 1;
 end

@@ -20,6 +20,7 @@ function [F, G] = error_state_jacobian(x, aux, dt, validity, J)
     F = eye(19);
     G = zeros(19,13);
 
+    C0 = aux.A_IB;
     C = aux.A_IB05;
     a_I = aux.a_I;
     w_I = aux.w_I;
@@ -27,6 +28,8 @@ function [F, G] = error_state_jacobian(x, aux, dt, validity, J)
     F(1:3, 4:6) = dt*eye(3);
 
     if validity
+        % Acceleration is evaluated using the start-of-step attitude in
+        % propagate_state; use that same frame for its state/noise Jacobians.
         F(1:3, 10:12) = -0.5*skew(a_I)*dt^2;
         F(1:3, 13:15) = -0.5*eye(3)*dt^2;
         F(4:6, 10:12) = -skew(a_I)*dt;
@@ -44,8 +47,8 @@ function [F, G] = error_state_jacobian(x, aux, dt, validity, J)
 
         % Accelerometer and gyro sample noise; Qc contains per-sample
         % measurement covariance in its first six channels.
-        G(1:3, 1:3) = 0.5*C*dt^2;
-        G(4:6, 1:3) = C*dt;
+        G(1:3, 1:3) = 0.5*C0*dt^2;
+        G(4:6, 1:3) = C0*dt;
         G(7:9, 4:6) = eye(3);
         G(10:12, 4:6) = 0.5*C*dt;
     else

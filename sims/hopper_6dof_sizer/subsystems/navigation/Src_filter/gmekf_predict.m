@@ -37,15 +37,14 @@ function [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel_meas, angvel_meas, vali
     % Propagate the state
     xnp1 = propagate_state(xn, auxProp, accel_meas, angvel_meas, validity, J, g, dt);
     xnp05 = propagate_state(xn, auxProp, accel_meas, angvel_meas, validity, J, g, dt*0.5);
-    % ^xnp05 is the propagation to time step 0.5 which allows better STM
-    % estimation
+    % Evaluate the discrete transition Jacobian at the propagation midpoint.
 
     % Calculate rotation matrix at the one-half time step
     A_IB05 = quaternion_to_rotation(xnp05(10:13));
 
     % fill aux params
     if validity
-        a_I = A_IB05*(accel_meas - xnp05(14:16));
+        a_I = A_IB*(accel_meas - xnp05(14:16));
     else
         a_I = g_vec; % Assume vehicle is unaccelerated
     end

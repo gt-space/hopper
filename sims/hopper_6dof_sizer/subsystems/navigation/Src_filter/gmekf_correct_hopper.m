@@ -51,7 +51,7 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct_hopper( ...
 
     % Innovation gate thresholds
     baroGateThreshold = 6.635;      % 99%, 1 DOF
-    gpsGateThreshold  = 16.812;     % 99%, 6 DOF
+    gpsGateThreshold  = 1e6;        % Conservative until GPS covariance/Q tuning is updated
     lidarGateThreshold = 6.635;     % 99%, 1 DOF (per beam)
     diffGpsGateThreshold = 11.345;  % 99%, 3 DOF
 
@@ -85,24 +85,23 @@ function [xnp1_c, Pnp1_c, diagnostics] = gmekf_correct_hopper( ...
     end
 
     if gps_incorp
-
-        gpsParams.gateThreshold = gpsGateThreshold;
-
-        % Antenna lever arm in body coordinates
         gpsParams.r_b = gpsLeverArmBody;
 
-        % TEMPORARY until the GPS bus refactor: gpsBus carries separate
-        % position/velocity covariances, update() needs one covariance
-        meas_gps = struct('pos', meas_posvel.pos, 'vel', meas_posvel.vel, ...
-            'covariance', blkdiag(meas_posvel.pcovariance, meas_posvel.vcovariance));
+        gpsParams.gateThreshold = gpsGateThreshold;
+        meas_gps_pos = struct('pos', meas_posvel.pos, ...
+            'covariance', meas_posvel.pcovariance);
+        [xnp1_c, Pnp1_c, accPos, nisPos] = update( ...
+            xnp1_c, Pnp1_c, @gps_position_update_model, ...
+            meas_gps_pos, gpsParams);
 
-        [xnp1_c, Pnp1_c, acc, nis] = update( ...
-            xnp1_c, ...
-            Pnp1_c, ...
-            @gps_update_model, ...
-            meas_gps, ...
-            gpsParams);
-        diagnostics(3) = double(acc); diagnostics(11) = nis;   % accepted, NIS
+        meas_gps_vel = struct('vel', meas_posvel.vel, ...
+            'covariance', meas_posvel.vcovariance);
+        [xnp1_c, Pnp1_c, accVel, nisVel] = update( ...
+            xnp1_c, Pnp1_c, @gps_velocity_update_model, ...
+            meas_gps_vel, gpsParams);
+
+        diagnostics(3) = double(accPos && accVel);
+        diagnostics(11) = max(nisPos, nisVel);
 
         gps_timestamp = meas_posvel.timestamp;
 

@@ -14,9 +14,12 @@ addpath("Filter Sims");
 addpath("Src_sim");
 addpath("Src_filter");
 addpath("Filters");
+projectRoot = fileparts(fileparts(fileparts(mfilename('fullpath'))));
+addpath(fullfile(projectRoot, 'src', 'sensors'));
+sensorParams = sim_sensor_params();
 
 %% Filter parameters
-filter_st = 1/500;      % Filter sample time (seconds)
+filter_st = sensorParams.imu.period; % Filter sample time (seconds)
 % NOTE: This comes from IMU sample rate. ADIS16500 output rate is
 % 2000/(DEC_RATE+1) Hz, so 500 Hz needs DEC_RATE = 3 in the FSW driver.
 % IT IS ASSUMED THE FILTER ITERATES (PROPAGATES) AT THE IMU SENSE RATE.
@@ -26,7 +29,7 @@ filter_st = 1/500;      % Filter sample time (seconds)
 % gy, gz, b
 x0 = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]';
 
-% TODO! Tune the position, velocity, attitude, and bias uncertainties.
+% TODO! TUNE THIS COVARIANCE
 P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 0 0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
@@ -53,15 +56,9 @@ P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
 
 % IMU parameters
 imu_st = filter_st;     % sample time (s)
-% --- IMU Sensor Parameters (ADIS16500, data sheet Rev. A, Table 1) ---
-% Per-sample white noise at the output rate: std = density * sqrt(rate/2)
-imu_params_init.accel_noise_density = [880e-6; 880e-6; 732e-6];   % (m/s^2)/sqrt(Hz), x y z
-imu_params_init.gyro_noise_density = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]); % (rad/s)/sqrt(Hz), x y z
-imu_params_init.accel_bias_stability = [125e-6; 125e-6; 134e-6];  % In-run bias stability (m/s^2)
-imu_params_init.gyro_bias_stability = deg2rad([7.5; 8.1; 4.9])/3600; % In-run bias stability (rad/s)
-imu_params_init.accel_noise_std = imu_params_init.accel_noise_density * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
+imu_params_init.accel_noise_std = sensorParams.imu.accel_sigma(:);
 imu_params_init.acovariance = diag(imu_params_init.accel_noise_std.^2);
-imu_params_init.gyro_noise_std = imu_params_init.gyro_noise_density * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
+imu_params_init.gyro_noise_std = sensorParams.imu.gyro_sigma(:);
 imu_params_init.gcovariance = diag(imu_params_init.gyro_noise_std.^2);
 imu_params_init.gravity_scalar = 9.81;                % Gravity acceleration
 imu_params_init.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
@@ -125,14 +122,9 @@ lidar_st = 0.01;        % sample time (s)
 % random walks and barometer bias remain continuous-time spectral densities.
 % Block order: accelerometer, gyroscope, accel bias, gyro bias, barometer bias.
 
-% Bias random walks from the in-run bias stability. TUNING STARTING POINT:
-% the data sheet gives no rate random walk, so assume the bias wanders by
-% about its in-run stability over biasCorrelationTime.
-biasCorrelationTime = 100;  % (s)
-accelBiasNoisePSD = max(imu_params_init.accel_bias_stability)^2 / biasCorrelationTime * ones(3,1);
-gyroBiasNoisePSD = max(imu_params_init.gyro_bias_stability)^2 / biasCorrelationTime * ones(3,1);
-
-baroBiasNoisePSD = 0.001;
+accelBiasNoisePSD = sensorParams.imu.accel_bias_rw_psd(:);
+gyroBiasNoisePSD = sensorParams.imu.gyro_bias_rw_psd(:);
+baroBiasNoisePSD = sensorParams.baro.bias_noise_psd;
 
 qc = blkdiag( ...
     imu_params_init.acovariance, ...

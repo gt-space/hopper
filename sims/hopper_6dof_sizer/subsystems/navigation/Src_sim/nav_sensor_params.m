@@ -30,6 +30,8 @@ function P = nav_sensor_params(set)
 end
 
 function P = defaults()
+    S = sim_sensor_params();
+
     % --- GPS (u-blox ZED-F9P) ---
     P.gps.r1 = [0.25; 0.0; -0.2];             % Antenna 1 vector from COM (3x1) (m)
     P.gps.r2 = [-0.25; 0.0; -0.2];            % Antenna 2 vector from COM (3x1) (m)
@@ -43,16 +45,13 @@ function P = defaults()
     % Replace with receiver specifications.
     P.gps.vel_noise_std = [0.1; 0.1; 0.1];
 
-    % --- IMU (ADIS16500, data sheet Rev. A, Table 1) ---
-    imu_st = 1/500;
-    P.imu.accel_noise_density = [880e-6; 880e-6; 732e-6];   % (m/s^2)/sqrt(Hz), x y z
-    P.imu.gyro_noise_density = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]); % (rad/s)/sqrt(Hz), x y z
-    P.imu.accel_bias_stability = [125e-6; 125e-6; 134e-6];  % In-run bias stability (m/s^2)
-    P.imu.gyro_bias_stability = deg2rad([7.5; 8.1; 4.9])/3600; % In-run bias stability (rad/s)
-    P.imu.accel_noise_std = [880e-6; 880e-6; 732e-6] * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
-    P.imu.acovariance = diag([880e-6; 880e-6; 732e-6].^2 * (1/(2*imu_st)));
-    P.imu.gyro_noise_std = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]) * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
-    P.imu.gcovariance = diag(deg2rad([6.1e-3; 6.1e-3; 7.0e-3]).^2 * (1/(2*imu_st)));
+    % --- IMU ---
+    P.imu.accel_noise_std = S.imu.accel_sigma(:);
+    P.imu.acovariance = diag(S.imu.accel_sigma(:).^2);
+    P.imu.gyro_noise_std = S.imu.gyro_sigma(:);
+    P.imu.gcovariance = diag(S.imu.gyro_sigma(:).^2);
+    P.imu.accel_bias_rw_psd = S.imu.accel_bias_rw_psd(:);
+    P.imu.gyro_bias_rw_psd = S.imu.gyro_bias_rw_psd(:);
     P.imu.gravity_scalar = 9.81;                % Gravity acceleration
     P.imu.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
 

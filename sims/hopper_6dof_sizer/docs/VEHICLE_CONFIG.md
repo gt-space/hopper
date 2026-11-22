@@ -59,6 +59,13 @@ Two things are generated from the geometry and need regenerating by hand:
 | `structure.modal.*` | -, Hz, - | first bending mode: a stopgap until a structural response model exists. `enabled` false (the CTV) turns its coupling off |
 | `aero.area`, `.cd`, `.cp_x` | m², -, m | side area, drag coefficient, centre of pressure |
 | `sensors.lidar.*` | deg, m | mounting: `azimuth`, `cant`, `radius`, `mount_x` |
+| `sensors.imu.period` | s | IMU sample period |
+| `navigation.gmekf.Qc_scale.*` | - | per-block covariance scale factors for accel, gyro, bias walks, and barometer bias |
+
+The calibrated IMU sample standard deviations and continuous-time bias
+random-walk PSDs are centralized in `src/sensors/sim_sensor_params.m`, not
+copied into each vehicle config. The GMEKF builds its default `Qc` from
+those same values and applies the selected vehicle's `Qc_scale` factors.
 
 **Derived values (from `vehicleConfig`):**
 - `tanks.ox/fu.floor_x`: the tank bottom, read by `Slosh` and `Mass_Properties`.

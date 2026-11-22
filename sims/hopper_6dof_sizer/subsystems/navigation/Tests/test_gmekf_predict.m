@@ -131,9 +131,36 @@ checks(end+1,:) = {'discrete F matches finite-difference state transition', stmE
 [xn, Pn, accel, gyro] = random_case(g);
 [~, Pq0, auxq] = gmekf_predict(xn, Pn, accel, gyro, true, J, g, dt, zeros(13));
 Pexpected = auxq.F*Pn*auxq.F';
-checks(end+1,:) = {'Qc = 0 gives F*Pn*F''', ...
+checks(end+1,:) = {'Qc = 0 gives discrete F05 sandwich', ...
     norm(Pq0 - 0.5*(Pexpected + Pexpected'), 'fro') ...
     < 1e-12 * max(1, norm(Pq0, 'fro'))};
+
+%% Discrete G against finite differences of accel and gyro sample noise
+[xn, ~, accel, gyro] = random_case(g);
+dtG = 1e-3;
+deltaG = 1e-3;
+[~, ~, auxG] = gmekf_predict(xn, zeros(19), accel, gyro, true, J, g, dtG, zeros(13));
+Gfd = zeros(19, 6);
+for i = 1:6
+    accelPlus = accel; accelMinus = accel;
+    gyroPlus = gyro; gyroMinus = gyro;
+    if i <= 3
+        accelPlus(i) = accelPlus(i) + deltaG;
+        accelMinus(i) = accelMinus(i) - deltaG;
+    else
+        gyroPlus.angvel(i - 3) = gyroPlus.angvel(i - 3) + deltaG;
+        gyroMinus.angvel(i - 3) = gyroMinus.angvel(i - 3) - deltaG;
+    end
+    xPlus = prop(xn, accelPlus, gyroPlus, true, J, g, dtG);
+    xMinus = prop(xn, accelMinus, gyroMinus, true, J, g, dtG);
+    Gfd(:, i) = state_difference(xMinus, xPlus) / (2 * deltaG);
+end
+gNoiseErr = max(abs(Gfd - auxG.G(:, 1:6)), [], 'all');
+fprintf('max |finite-difference sample-noise Jacobian - G| = %.1e\n', gNoiseErr);
+if gNoiseErr >= 1e-7
+    disp(max(abs(Gfd - auxG.G(:, 1:6)), [], 1));
+end
+checks(end+1,:) = {'discrete G maps accel and gyro sample noise', gNoiseErr < 1e-7};
 
 fprintf('\n');
 for i = 1:size(checks,1)
@@ -175,6 +202,18 @@ function e_out = err_after(xn, e, accel, gyro, validity, J, g, dt)
              Ce*(est(14:16) - tru(14:16));
              Ce*(est(17:19) - tru(17:19));
              est(20) - tru(20)];
+end
+
+function e = state_difference(xBase, xPerturbed)
+    Cb = quaternion_to_rotation(xBase(10:13));
+    Cp = quaternion_to_rotation(xPerturbed(10:13));
+    M = Cp*Cb';
+    attitude = 0.5*[M(3,2)-M(2,3); M(1,3)-M(3,1); M(2,1)-M(1,2)];
+    e = [xPerturbed(1:9) - xBase(1:9);
+         attitude;
+         Cp*(xPerturbed(14:16) - xBase(14:16));
+         Cp*(xPerturbed(17:19) - xBase(17:19));
+         xPerturbed(20) - xBase(20)];
 end
 
 function x = prop(x0, accel, gyro, validity, J, g, dt)
