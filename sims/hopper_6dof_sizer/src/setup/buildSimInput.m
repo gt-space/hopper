@@ -18,8 +18,8 @@ function [in, W] = buildSimInput(model, scenario, W, variants)
 %   With FDIR on, StopTime is the trajectory end + 30 s so an abort to
 %   land can finish.
 %   The mission warm-up delays the reference schedule while navigation
-%   continues running. Filter-enabled runs hold zero actuator commands on
-%   the pad using GROUND=strut; the controller output is released afterward.
+%   continues running. Filter-enabled runs keep engine thrust off and use
+%   unilateral GROUND=strut contact; the struts unload on confirmed liftoff.
 %
 %   model can also be an existing Simulink.SimulationInput (for example
 %   inside a parsim PreSimFcn); the variables are added to it.

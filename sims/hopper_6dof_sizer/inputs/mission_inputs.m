@@ -18,7 +18,7 @@ IN.const.FS_struct = 2;             % structural factor of safety
 IN.mission.target_altitude = 51;    % m          [req] minimum peak altitude
 IN.mission.hover_time_55m = 2;      % s
 IN.mission.three_sec_check = false; % true: hold 3 s on the pad before ascent (ThreeSecTrajectory2)
-IN.mission.filter_warmup_time = 10; % s, open-loop hold when a navigation filter is enabled
+IN.mission.filter_warmup_time = 5;  % s, open-loop hold when a navigation filter is enabled
 % Landing limits follow the GNC PDR (slide 107): radius < 1 m, normal
 % velocity < 1.5 m/s, lateral velocity < 0.5 m/s, touchdown tilt < 2 deg.
 IN.mission.max_ascent_vel = 10;     % m/s        [req]

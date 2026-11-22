@@ -36,6 +36,31 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
             tc.verifyEstimate(out);
         end
 
+        function warmupHoldsEngineAndAllowsLiftoff(tc)
+            [in, W] = buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf'));
+            in = in.setModelParameter('StopTime', '8');
+            out = sim(in);
+
+            thrust = out.get('thrust');
+            warmup = thrust.Time < W.controller_start_time;
+            tc.verifyEqual(max(abs(thrust.Data(warmup))), 0, 'AbsTol', 1e-10, ...
+                'engine thrust stays off during filter warm-up');
+
+            z = out.get('z');
+            warmup = z.Time < W.controller_start_time;
+            tc.verifyLessThan(max(abs(z.Data(warmup))), 0.01, ...
+                'vehicle remains supported on the pad during filter warm-up');
+
+            tracking = z.Time >= W.controller_start_time;
+            z_ref = interp1(W.z_ref_ts.Time, W.z_ref_ts.Data, z.Time, 'linear', 'extrap');
+            tc.verifyLessThan(max(abs(z.Data(tracking) - z_ref(tracking))), 1, ...
+                'vehicle tracks the vertical reference after warm-up');
+
+            velocity = out.get('velocity');
+            ascent = z.Time >= W.controller_start_time & z.Data < -0.01 & velocity.Data(:, 3) < -0.1;
+            tc.verifyTrue(any(ascent), 'vehicle lifts off after filter warm-up');
+        end
+
         function flyingOnTheEstimateLands(tc)
             [in, W] = buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf'));
             tc.verifyEqual(W.controller_start_time, W.IN.mission.filter_warmup_time);
