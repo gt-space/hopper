@@ -34,16 +34,16 @@ for f = fieldnames(variants)'
     W.(f{1}) = variants.(f{1});   % only models with variants read these
 end
 W = tvcWorkspace(W, variants);       % TVCEM for the TVC_MODEL variant (keeps one already in W)
-if variants.VARIANT_FDIR == 2 || variants.VARIANT_NAVIGATION > 1 || variants.VARIANT_FAULT_INJECTION == 2
-    W = sensorWorkspace(W, variants); % the shared Sensors block: FDIR and navigation read it
-end                                   % (keeps a fault table already in W.faults)
+fsw = isFswController(variants);
+if variants.VARIANT_FDIR == 2 || variants.VARIANT_NAVIGATION > 1 || variants.VARIANT_FAULT_INJECTION == 2 || fsw
+    W = sensorWorkspace(W, variants); % the shared Sensors block: FDIR, navigation and the
+end                                   % fsw plant's sens_* ports read it (keeps W.faults)
 if variants.VARIANT_NAVIGATION > 1
     W = navWorkspace(W, variants);
 end
 if variants.VARIANT_FDIR == 2 || variants.VARIANT_FAULT_INJECTION == 2
     W = fdirWorkspace(W, variants);   % reads the sensor and nav parameters above
 end
-fsw = isFswController(variants);
 if fsw
     W = fswWorkspace(W);              % the FSW command period and its replay
 end

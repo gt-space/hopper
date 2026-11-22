@@ -17,6 +17,14 @@ function codeDir = build_plant_c(varargin)
 %     'Target'    'arm64' (default; the CTV flight computer, LP64) or
 %                 'x86_64' (desktop Linux / WSL, also LP64).
 %     'Folder'    output folder. Default fsw_bridge/build/plant.
+%     'SensorParams'  struct merged over the vehicle's sensor parameters
+%                 (IN.sensors, read by sim_sensor_params), e.g.
+%                 struct('gps', struct('sigma', [1.5; 1.61; 4.43])).
+%                 Default none: the hopper defaults and the vehicle config.
+%     'Faults'    fault table (faultScenario(...)) baked into the plant; it
+%                 acts only with FAULT_INJECTION on in 'Variants' (sensor
+%                 faults in the gates before sens_*, actuator faults on
+%                 u_fsw). Default faultScenario(): none.
 %
 %   Output, in Folder:
 %     src/          every .c/.h the plant needs (packNGo, flat), so it
@@ -25,13 +33,18 @@ function codeDir = build_plant_c(varargin)
 %     defines.txt   the macros MATLAB's build defined (NAME or NAME=VALUE),
 %                   one per line
 %     plant.json    what was built: vehicle, variants, step, git commit,
-%                   gusts, target, ports
+%                   gusts, target, ports, and the sensor parameters
+%                   and layout baked into the sens_* ports
 %
 %   The interface (hopper_6dof.h): hopper_6dof_initialize(), then per
 %   1 ms step hopper_6dof_output() (outputs at t) and hopper_6dof_update()
 %   (advance to t + step); hopper_6dof_U.u_fsw[4] = [thrust N, TVC pitch
 %   rad, TVC yaw rad, RCS torque N m]; hopper_6dof_Y.x_fsw[13] = [pos NED
-%   m, vel NED m/s, body rates rad/s, quaternion]. The touchdown stop sets
+%   m, vel NED m/s, body rates rad/s, quaternion]; hopper_6dof_Y.sens_meas[26],
+%   sens_valid[9], sens_stamp[9] = the shared Sensors block's output after
+%   the fault gates (FAULT_INJECTION on), laid out as src/sensors/sensor_layout.m:
+%   valid is 1/0 per sensor, stamp the time (s) of each sensor's latest
+%   sample, which changes when a new sample arrives. The touchdown stop sets
 %   rtmGetStopRequested(hopper_6dof_M); the model keeps stepping if called.
 %
 %   Parameters are inlined, so changing a workspace value means a rebuild.
@@ -42,6 +55,8 @@ p.addParameter('Variants', variantConfig('VEHICLE', 'ctv', 'CONTROLLER', 'fsw'),
 p.addParameter('Gusts', true, @islogical);
 p.addParameter('Target', 'arm64', @(s) any(strcmp(s, {'arm64', 'x86_64'})));
 p.addParameter('Folder', fullfile(here, 'build', 'plant'), @(s) ischar(s) || isstring(s));
+p.addParameter('SensorParams', struct(), @isstruct);
+p.addParameter('Faults', faultScenario(), @isnumeric);
 p.parse(varargin{:});
 V = p.Results.Variants;
 out = char(p.Results.Folder);
@@ -61,7 +76,14 @@ restoreGen = onCleanup(@() Simulink.fileGenControl('setConfig', 'config', old));
 Simulink.fileGenControl('set', 'CodeGenFolder', work, 'CacheFolder', work);
 
 t0 = tic;
-[in, W] = buildSimInput(m, [], [], V);
+W = hopperWorkspace([], V);
+sensOverride = p.Results.SensorParams;
+if ~isempty(fieldnames(sensOverride))
+    if ~isfield(W.IN, 'sensors'), W.IN.sensors = struct(); end
+    W.IN.sensors = mergeStruct(W.IN.sensors, sensOverride);
+end
+W.faults = p.Results.Faults;
+[in, W] = buildSimInput(m, [], W, V);
 load_system(m);
 closeModel = onCleanup(@() closeDiscarding(m));
 in.applyToModel();
@@ -85,6 +107,7 @@ set_param(m, ...
     'SupportContinuousTime',   'on', ...   % 6DOF block, integrators, transfer functions
     'SupportAbsoluteTime',     'on', ...   % Clock blocks
     'SupportNonFinite',        'on', ...
+    'SupportVariableSizeSignals', 'on', ... % the Sensors block's MATLAB code (sensor_frame) needs it; no malloc results
     'CombineOutputUpdateFcns', 'off', ...  % output() = outputs at t, update() = advance
     'GenerateSampleERTMain',   'off', ...  % the flight software owns main
     'MatFileLogging',          'off', ...
@@ -123,10 +146,20 @@ info = struct( ...
     'gusts', p.Results.Gusts, ...
     'target', p.Results.Target, ...
     'git_commit', gitCommit(here), ...
+    'sensors', true, ...
+    'fault_injection', A.FAULT_INJECTION(V.VARIANT_FAULT_INJECTION), ...
+    'faults', {num2cell(W.faults, 2)}, ...    % faultScenario rows [target mode t_on t_off magnitude param] (fault_codes); inf -> null
+    'sensor_overrides', sensOverride, ...
+    'sensor_params', W.sensor_params.S, ...   % sim_sensor_params after the vehicle config and overrides
+    'sensor_step', W.sensor_params.dt, ...    % the block's step (the IMU period)
+    'sensor_layout', sensor_layout(), ...
     'built', char(datetime('now', 'Format', 'yyyy-MM-dd''T''HH:mm:ss')), ...
     'inputs', struct('u_fsw', {{'thrust_N', 'tvc_pitch_rad', 'tvc_yaw_rad', 'rcs_torque_Nm'}}), ...
     'outputs', struct('x_fsw', {{'pos_n', 'pos_e', 'pos_d', 'vel_n', 'vel_e', 'vel_d', ...
-        'p', 'q', 'r', 'q0', 'q1', 'q2', 'q3'}}));
+        'p', 'q', 'r', 'q0', 'q1', 'q2', 'q3'}}, ...
+        'sens_meas', {sensorChannels()}, ...
+        'sens_valid', {sensorNames()}, ...
+        'sens_stamp', {sensorNames()}));
 fid = fopen(fullfile(out, 'plant.json'), 'w');
 fprintf(fid, '%s\n', jsonencode(info, 'PrettyPrint', true));
 fclose(fid);
@@ -134,6 +167,40 @@ fclose(fid);
 rmdir(work, 's');
 codeDir = fullfile(out, 'src');
 fprintf('Plant code: %d .c files in %s (%.1f s total)\n', numel(srcs), codeDir, toc(t0));
+end
+
+function n = sensorChannels()
+% names of sens_meas's 26 channels, from sensor_layout
+L = sensor_layout();
+n = cell(1, L.N_MEAS);
+groups = {'ACCEL', {'accel_x', 'accel_y', 'accel_z'}; 'GYRO', {'gyro_x', 'gyro_y', 'gyro_z'}; ...
+    'BARO', {'baro_alt'}; 'LIDAR', {'lidar_1', 'lidar_2', 'lidar_3', 'lidar_4'}; ...
+    'GPS_POS', {'gps_pos_n', 'gps_pos_e', 'gps_pos_d'}; 'GPS_FIX', {'gps_fix'}; ...
+    'GPS_SATS', {'gps_sats'}; 'GPS_AGE', {'gps_age'}; 'MAG', {'mag_x', 'mag_y', 'mag_z'}; ...
+    'GPS_VEL', {'gps_vel_n', 'gps_vel_e', 'gps_vel_d'}; 'DGPS', {'dgps_n', 'dgps_e', 'dgps_d'}};
+for g = 1:size(groups, 1)
+    n(L.(groups{g, 1})) = groups{g, 2};
+end
+assert(all(~cellfun(@isempty, n)), 'build_plant_c:layout', 'sensor_layout has channels this list misses');
+end
+
+function n = sensorNames()
+% names of sens_valid / sens_stamp's 9 entries, from sensor_layout
+L = sensor_layout();
+n = cell(1, L.N_SENSORS);
+n(L.S_IMU) = {'imu'}; n(L.S_BARO) = {'baro'}; n(L.S_LIDAR) = {'lidar_1', 'lidar_2', 'lidar_3', 'lidar_4'};
+n(L.S_GPS) = {'gps'}; n(L.S_MAG) = {'mag'}; n(L.S_DGPS) = {'dgps'};
+assert(all(~cellfun(@isempty, n)), 'build_plant_c:layout', 'sensor_layout has sensors this list misses');
+end
+
+function a = mergeStruct(a, b)
+for f = fieldnames(b)'
+    if isstruct(b.(f{1})) && isfield(a, f{1}) && isstruct(a.(f{1}))
+        a.(f{1}) = mergeStruct(a.(f{1}), b.(f{1}));
+    else
+        a.(f{1}) = b.(f{1});
+    end
+end
 end
 
 function closeDiscarding(m)

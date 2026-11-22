@@ -9,7 +9,7 @@ Each group is a plain (virtual) subsystem holding the original v2 blocks unchang
 | Group | What's inside | Sends | Reads |
 |---|---|---|---|
 | `Environment` | `Wind_Forces` (shared file), the body-axis rotations of wind force and moment, the random roll-torque disturbance (`Random Source` × `Bernoulli Binary Generator`) | `env_bus` | `dyn_bus`, `prop_bus` |
-| `Navigation_Sensors` | `Sensors` (shared sensor model; active when FDIR, fault injection or navigation is on), `Navigation` variant (`None` passes truth; `GMEKF_Shadow` / `GMEKF` run the nav team's filter), the truth-state mux | `nav_bus` | `dyn_bus`, `prop_bus`, `act_bus`, `gnc_bus` |
+| `Navigation_Sensors` | `Sensors` (shared sensor model; active when FDIR or navigation is on, or `CONTROLLER=fsw`, which also sends it out on root `sens_*` ports through `FSW_Sensor_Ports`), `Navigation` variant (`None` passes truth; `GMEKF_Shadow` / `GMEKF` run the nav team's filter), the truth-state mux | `nav_bus` | `dyn_bus`, `prop_bus`, `act_bus`, `gnc_bus` |
 | `GNC` | `Controller` (CONTROLLER variant: LQR scheduler, LQI, legacy), `FDIR` variant, `Actuator_Faults` (fault injection on commands) | `gnc_bus` | `nav_bus`, `dyn_bus`, `prop_bus`, `act_bus` |
 | `Actuation` | command demux, the thrust command chain (IC, rate limit, saturation, delay, quantizer), `Actuators_TVC_RCS` (shared file), weight from gravity | `act_bus` | `gnc_bus`, `prop_bus`, `dyn_bus` |
 | `Mass_Propulsion` | `Landing_Engine_Cutoff`, `Propellant_Depletion_Cutoff`, `Propulsion` (PROPULSION variant), `Propellant_Flow`, `Propellant_Mass_Integration`, `Mass_Properties` (MASS_PROPS variant), total mass | `prop_bus` | `act_bus`, `dyn_bus` |

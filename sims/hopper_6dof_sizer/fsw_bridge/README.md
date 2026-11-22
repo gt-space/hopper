@@ -9,12 +9,24 @@ which the flight software replaces through the root ports `u_fsw`
 (thrust N, TVC pitch rad, TVC yaw rad, RCS torque N m) and `x_fsw` (position
 NED, velocity NED, body rates, quaternion). No model is copied.
 
+It also puts out the harness's shared sensor model (`src/sensors`), so the
+flight software can fly its own navigation filter: `sens_meas` (26),
+`sens_valid` (9, 1/0) and `sens_stamp` (9, s), laid out as
+`src/sensors/sensor_layout.m` and taken after the fault gates. A sensor's
+stamp changes when it takes a new sample. `plant.json` records the sensor
+parameters baked in (`sensor_params`, after the vehicle config and any
+`'SensorParams'` override), the layout, the channel names under `outputs`,
+`fault_injection` and the fault table (`'Faults'`, used only with
+`FAULT_INJECTION=on` in `'Variants'`). Parameters are inlined: a different
+GPS sigma or fault means a rebuild, e.g.
+`build_plant_c('SensorParams', struct('gps', struct('sigma', [1.5; 1.61; 4.43])))`.
+
 | Script | What it does |
 |---|---|
 | `build_plant_c` | Embedded Coder C for the harness with `CONTROLLER=fsw` (default `VEHICLE=ctv`, ARM64), packed with every header into `build/plant/` with `sources.txt`, `defines.txt` and `plant.json` |
 | `export_plant_gains` | The scheduled LQR tables the vehicle's controller flies (for the CTV, `CONTROLLER=lqr_ctv_tuning`: `K1flat_ctv`/`K2grid_ctv`) as CSV in `build/gains/<vehicle>/`, plus `gains.json` with the controller, the K1 layout (row-major), the law, a SHA-256 per CSV and the git commit |
 | `export_controller_vectors` | Golden `(t, x) -> u` cases for the flight software's LQR, next to the gains: `controller_vectors.csv` and `.json`. `u` comes from the model's own `Gain_Selector` code run on the exported tables. The cases cover the nominal flight every 10 ms, grid points, dispersed states with half the quaternions negated, and times past both ends. |
-| `verify_plant_c` | Replays the LQR flight's commands at 100 Hz through Simulink (`CONTROLLER=fsw`) and through the generated C (`plant_replay.c`, gcc in WSL), and compares every state. Gusts off. |
+| `verify_plant_c` | Replays the LQR flight's commands at 100 Hz through Simulink (`CONTROLLER=fsw`) and through the generated C (`plant_replay.c`, gcc in WSL), and compares every state and every sensor port. Gusts off. |
 
 The flight software's side, the Rust wrapper and flight2's `--sim-plant`
 bench mode, live in luna (`sitl/hopper_plant`, flight2 feature

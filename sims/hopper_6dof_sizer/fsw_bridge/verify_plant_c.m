@@ -9,15 +9,18 @@ function R = verify_plant_c(varargin)
 %        and run in WSL with plant_replay.c
 %   and compares x_fsw at every command. Gusts are off in all three runs,
 %   since generated code draws different random numbers than Simulink.
+%   It also compares the sensor ports (sens_meas, sens_valid, sens_stamp)
+%   at every command.
 %
 %   Options: 'Vehicle' (default 'ctv'), 'Build' (default true: regenerate
 %   the code; false reuses build/verify/plant), 'Tol' (default 1e-6, max
 %   abs difference allowed in any state), 'Excite' (default true: add
 %   0.5 deg TVC and 2 mN m roll sines to the replayed command, so the
-%   lateral and attitude states move too).
+%   lateral and attitude states move too), 'SensTol' (default 1e-6, max
+%   abs difference allowed in any sensor channel, valid flag or stamp).
 %
 %   R has the max abs error per state, the time of the worst one, both
-%   state histories and pass. Needs WSL with gcc (wsl -e gcc).
+%   state histories, the sensor comparison (R.sens) and pass. Needs WSL with gcc (wsl -e gcc).
 
 here = fileparts(mfilename('fullpath'));
 p = inputParser;
@@ -25,6 +28,7 @@ p.addParameter('Vehicle', 'ctv');
 p.addParameter('Build', true, @islogical);
 p.addParameter('Tol', 1e-6, @isnumeric);
 p.addParameter('Excite', true, @islogical);
+p.addParameter('SensTol', 1e-6, @isnumeric);
 p.parse(varargin{:});
 vehicle = char(p.Results.Vehicle);
 dir_ = fullfile(here, 'build', 'verify');
@@ -62,10 +66,11 @@ Vfsw = variantConfig('VEHICLE', vehicle, 'CONTROLLER', 'fsw');
 W.fsw_u = cmd;
 in = noGusts(buildSimInput(m, [], W, Vfsw), m);
 sl = sim(in);
-xs = sl.yout{1}.Values;
+xs = rootPort(sl, 'x_fsw');
 xsl = squeeze(xs.Data);
 if size(xsl, 1) == 13 && size(xsl, 2) ~= 13, xsl = xsl.'; end
 xsl = interp1(xs.Time, xsl, tc, 'previous');
+ssl = [portAt(sl, 'sens_meas', 26, tc), portAt(sl, 'sens_valid', 9, tc), portAt(sl, 'sens_stamp', 9, tc)];
 
 % ---- 3. the generated C ----
 code = fullfile(dir_, 'plant');
@@ -82,21 +87,55 @@ cc = sprintf('gcc -O2 -o %s %s %s -I%s %s -lm', w(fullfile(dir_, 'plant_replay')
     w(fullfile(here, 'plant_replay.c')), strjoin(w(fullfile(code, 'src', srcs)), ' '), ...
     w(fullfile(code, 'src')), strjoin("-D" + defs, ' '));
 run(sprintf('wsl -e bash -c "%s"', cc));
-run(sprintf('wsl -e %s %s %s %d', w(fullfile(dir_, 'plant_replay')), w(fullfile(dir_, 'commands.csv')), ...
-    w(fullfile(dir_, 'states_c.csv')), round(dt / info.fixed_step)));
+run(sprintf('wsl -e %s %s %s %d %s', w(fullfile(dir_, 'plant_replay')), w(fullfile(dir_, 'commands.csv')), ...
+    w(fullfile(dir_, 'states_c.csv')), round(dt / info.fixed_step), w(fullfile(dir_, 'sensors_c.csv'))));
 xc = readmatrix(fullfile(dir_, 'states_c.csv'));
 tcC = xc(:, 1); xc = xc(:, 2:14);
+sc = readmatrix(fullfile(dir_, 'sensors_c.csv'));
+sc = sc(:, 2:end);
 
 % ---- compare where both ran ----
 n = min([size(xc, 1), find(~isnan(xsl(:, 1)), 1, 'last')]);
 err = abs(xc(1:n, :) - xsl(1:n, :));
 [worst, at] = max(err, [], 1);
+serr = abs(sc(1:n, :) - ssl(1:n, :));
+serr(isnan(sc(1:n, :)) & isnan(ssl(1:n, :))) = 0;
+[sworst, sat] = max(serr, [], 1);
+L = sensor_layout();
+groups = {'accel', L.ACCEL; 'gyro', L.GYRO; 'baro', L.BARO; 'lidar', L.LIDAR; 'gps_pos', L.GPS_POS; ...
+    'gps_fix/sats/age', [L.GPS_FIX L.GPS_SATS L.GPS_AGE]; 'mag', L.MAG; 'gps_vel', L.GPS_VEL; ...
+    'dgps', L.DGPS; 'valid', 26 + (1:9); 'stamp', 35 + (1:9)};
+sens = struct('max_err', sworst, 'worst_time', tcC(sat).', 's_c', sc(1:n, :), 's_sim', ssl(1:n, :), ...
+    'pass', all(sworst < p.Results.SensTol));
 R = struct('max_err', worst, 'worst_time', tcC(at).', 'n', n, 'x_c', xc(1:n, :), ...
-    'x_sim', xsl(1:n, :), 't', tcC(1:n), 'pass', all(worst < p.Results.Tol));
+    'x_sim', xsl(1:n, :), 't', tcC(1:n), 'sens', sens, ...
+    'pass', all(worst < p.Results.Tol) && sens.pass);
 names = {'pN', 'pE', 'pD', 'vN', 'vE', 'vD', 'p', 'q', 'r', 'q0', 'q1', 'q2', 'q3'};
 fprintf('C vs Simulink over %d commands (%.2f s):\n', n, tcC(n));
 for k = 1:13, fprintf('  %-3s max |err| %.3g at t = %.2f\n', names{k}, worst(k), R.worst_time(k)); end
+fprintf('Sensor ports:\n');
+for g = 1:size(groups, 1)
+    fprintf('  %-16s max |err| %.3g\n', groups{g, 1}, max(sworst(groups{g, 2})));
+end
+fprintf('  (sensor tol %g)\n', p.Results.SensTol);
 fprintf('%s (tol %g)\n', ternary(R.pass, 'PASS', 'FAIL'), p.Results.Tol);
+end
+
+function v = portAt(out, name, n, t)
+% a root outport's value at times t (held), n columns
+s = rootPort(out, name);
+d = squeeze(double(s.Data));
+if size(d, 1) == n && size(d, 2) ~= n, d = d.'; end
+v = interp1(s.Time, d, t, 'previous');
+end
+
+function s = rootPort(out, name)
+% a root outport's timeseries from yout (its elements are unnamed: match the block)
+for k = 1:out.yout.numElements
+    e = out.yout{k};
+    if strcmp(e.BlockPath.getBlock(1), ['hopper_6dof/' name]), s = e.Values; return; end
+end
+error('verify_plant_c:port', 'no root outport %s in yout', name);
 end
 
 function in = noGusts(in, m)

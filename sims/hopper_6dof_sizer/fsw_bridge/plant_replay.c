@@ -9,10 +9,12 @@
  * the command one step into the period (fsw_latency). Writes
  * (t, x_fsw[13], stop_requested) at each period start, for comparison
  * with the Simulink run of the same commands (verify_plant_c), and the
- * same sequence hopper_plant's Plant::state / run_period use.
+ * same sequence hopper_plant's Plant::state / run_period use. With a
+ * fourth argument it also writes (t, sens_meas[26], sens_valid[9],
+ * sens_stamp[9]) at each period start (src/sensors/sensor_layout.m).
  *
  * build: cc -O2 -o plant_replay plant_replay.c $(cat sources.txt) -Isrc -D... -lm
- * usage: plant_replay <commands.csv> <states.csv> <steps per command>
+ * usage: plant_replay <commands.csv> <states.csv> <steps per command> [sensors.csv]
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,14 +23,15 @@
 
 int main(int argc, char **argv)
 {
-  if (argc != 4) {
-    fprintf(stderr, "usage: %s <commands.csv> <states.csv> <steps per command>\n", argv[0]);
+  if (argc != 4 && argc != 5) {
+    fprintf(stderr, "usage: %s <commands.csv> <states.csv> <steps per command> [sensors.csv]\n", argv[0]);
     return 2;
   }
   FILE *in = fopen(argv[1], "r");
   FILE *out = fopen(argv[2], "w");
+  FILE *sens = argc == 5 ? fopen(argv[4], "w") : NULL;
   int per = atoi(argv[3]);
-  if (in == NULL || out == NULL || per < 1) {
+  if (in == NULL || out == NULL || per < 1 || (argc == 5 && sens == NULL)) {
     fprintf(stderr, "cannot open files, or bad steps per command\n");
     return 2;
   }
@@ -45,6 +48,19 @@ int main(int argc, char **argv)
       fprintf(out, ",%.17g", hopper_6dof_Y.x_fsw[i]);
     }
     fprintf(out, ",%d\n", rtmGetStopRequested(hopper_6dof_M) ? 1 : 0);
+    if (sens != NULL) {
+      fprintf(sens, "%.17g", rtmGetT(hopper_6dof_M));
+      for (int i = 0; i < 26; i++) {
+        fprintf(sens, ",%.17g", hopper_6dof_Y.sens_meas[i]);
+      }
+      for (int i = 0; i < 9; i++) {
+        fprintf(sens, ",%.17g", (double)hopper_6dof_Y.sens_valid[i]);
+      }
+      for (int i = 0; i < 9; i++) {
+        fprintf(sens, ",%.17g", hopper_6dof_Y.sens_stamp[i]);
+      }
+      fprintf(sens, "\n");
+    }
     if (rtmGetErrorStatus(hopper_6dof_M) != NULL || rtmGetStopRequested(hopper_6dof_M)) {
       stopped = 1;
       break;
@@ -70,6 +86,9 @@ int main(int argc, char **argv)
   hopper_6dof_terminate();
   fclose(in);
   fclose(out);
+  if (sens != NULL) {
+    fclose(sens);
+  }
 
   const char *err = rtmGetErrorStatus(hopper_6dof_M);
   printf("replayed %ld commands%s%s\n", commands, stopped ? " (stopped: touchdown or error)" : "",
