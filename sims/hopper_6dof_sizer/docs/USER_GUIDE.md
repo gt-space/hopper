@@ -114,7 +114,7 @@ V = variantConfig(struct('VEHICLE', 'ctv', 'NAVIGATION', 'gmekf'));
 | `PROPULSION` | `lut`, `fluid_network` (Simscape feed system) |
 | `GROUND` | `none`, `strut` |
 | `MASS_PROPS` | `varying`, `constant` |
-| `CONTROLLER` | `lqr_sched`, `lqi` (experimental), `lqr_sched_legacy` |
+| `CONTROLLER` | `lqr_sched`, `lqi` (experimental), `lqr_sched_legacy`, `fsw` (flight software flies; `fsw_bridge/`) |
 | `FDIR` | `off`, `on` |
 | `FAULT_INJECTION` | `off`, `on` |
 | `NAVIGATION` | `none` (truth), `gmekf_shadow`, `gmekf` |
@@ -209,7 +209,7 @@ close_system('hopper_6dof', 0)
 ```
 `buildSimInput` doesn't work on a model with an input applied. Close it first.
 
-**Older route:** `sim_setup`, which fills the base workspace, still exists for the `fsw_bridge` scripts. It predates the variants, so it doesn't set the variant controls the harness needs.
+**Older route:** `sim_setup`, which fills the base workspace, still exists for the older `fsw_bridge` scripts (`build_env_c` and friends, on `hopper_6dof_NED_v2_fswBridge.slx`); the harness route is `build_plant_c` with `CONTROLLER=fsw`. It predates the variants, so it doesn't set the variant controls the harness needs.
 
 **Just looking:** to open the model without running it, use `open_system('hopper_6dof')`.
 

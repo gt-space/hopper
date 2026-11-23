@@ -104,6 +104,8 @@ IN.throttle_valve.mass = 2.3;       % kg
 %  LANDING LEGS
 IN.legs.material = 'Al6061';
 IN.legs.tip_factor = 2;             % non-symmetric landing factor
+IN.legs.friction_v0 = 0.1;          % m/s: foot friction is mu N v / (|v| + v0) (Ground_Contact),
+                                    % viscous below v0 so the 1 ms step resolves it at rest
 
 % WIND DEFAULTS
 IN.wind.mode = 2;

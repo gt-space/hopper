@@ -5,7 +5,8 @@ function [meas, truth, valid, stamp, st] = sensor_models(x, noise, t, S, st)
 %          shifted to the base as if upright, sim_pos_offset; z = 0 on the
 %          pad), .vel_ned (3, CG velocity), .dcm_be (3x3, NED to body),
 %          .w_b (3), .f_b (3, specific force, body), .cg (3, Mass_Properties
-%          CG from the base, body)
+%          CG from the base, body). The accelerometer reads f_b at the
+%          CG, or at S.imu.mount with the lever-arm terms when that is set.
 %   noise  26 x 1 standard-normal samples for this frame (seeded Random
 %          Number block, so runs repeat exactly)
 %   t      sim time (s)
@@ -28,9 +29,24 @@ p_cg = pos - sim_pos_offset(cg);            % CG, NED
 at = @(r_b) p_cg + C' * (r_b - cg);
 vat = @(r_b) x.vel_ned(:) + C' * cross(w, r_b - cg);
 
+% ---- the IMU's specific force ----
+% At the CG unless S.imu.mount is set; then the lever r from the CG adds
+% alpha x r + w x (w x r). alpha is the backward difference of the true
+% body rate over the block's step (noise-free; 1/2 step late).
+alpha = zeros(3, 1);
+if st.t_prev >= 0 && t > st.t_prev
+    alpha = (w - st.w_prev) / (t - st.t_prev);
+end
+st.w_prev = w; st.t_prev = t;
+f_imu = x.f_b(:);
+if all(isfinite(S.imu.mount(:)))
+    r_imu = S.imu.mount(:) - cg;
+    f_imu = f_imu + cross(alpha, r_imu) + cross(w, cross(w, r_imu));
+end
+
 % ---- noise-free channels ----
 tr = zeros(L.N_MEAS, 1);
-tr(L.ACCEL) = x.f_b(:);
+tr(L.ACCEL) = f_imu;
 tr(L.GYRO)  = x.w_b(:);
 tr(L.BARO)  = -pos(3);
 [d_lid, r_lid] = lidar_geometry(S.lidar);
@@ -59,7 +75,7 @@ navState(4:6) = x.vel_ned(:);
 navState(7:9) = w;
 navState(10:13) = nav_quat_from_dcm(C);
 navParams = nav_sensor_params();
-accelerationTrue = C' * x.f_b(:) + [0; 0; navParams.imu.gravity_scalar];
+accelerationTrue = C' * f_imu + [0; 0; navParams.imu.gravity_scalar];
 
 baroState = navState;
 baroState(3) = pos(3);

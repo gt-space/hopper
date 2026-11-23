@@ -31,7 +31,10 @@ function A = variantAxes()
 %                             the quaternion sign fix
 %               lqr_ctv_tuning    the scheduler with the CTV tuning variant's
 %                             gain tables (subsystems/gnc/LQR_CTV_Tuning,
-%                             built by src/gnc/ctv_tuning_gains.m)
+%                             built by src/gnc/ctvTuningGains.m)
+%               fsw           flight software flies: the command comes in
+%                             through the root inport u_fsw (fsw_bridge/;
+%                             replayed from W.fsw_u in a simulation)
 %   FDIR        off           commands pass straight to the actuators (v2)
 %               on            sensors, GNC monitors, FDIR executive, PDR mode
 %                             manager and responses R0/R1/R2/R4
@@ -56,7 +59,9 @@ A.SLOSH      = ["full", "off"];
 A.PROPULSION = ["lut", "fluid_network"];
 A.GROUND     = ["none", "strut"];
 A.MASS_PROPS = ["varying", "constant"];
-A.CONTROLLER = ["lqr_sched", "lqi", "lqr_sched_legacy", "lqr_ctv_tuning"];
+% Append new choices: VARIANT_CONTROLLER is the index, and the model's
+% variant conditions and the FSW bridge's plant.json use the numbers
+A.CONTROLLER = ["lqr_sched", "lqi", "lqr_sched_legacy", "lqr_ctv_tuning", "fsw"];
 A.FDIR       = ["off", "on"];
 A.FAULT_INJECTION = ["off", "on"];
 A.NAVIGATION = ["none", "gmekf_shadow", "gmekf"];

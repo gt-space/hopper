@@ -7,6 +7,11 @@ function addCtvTuningController()
 %   Controller_LQR_Sched) reading its own gain tables: K1flat_ctv and
 %   K2grid_ctv, which src/gnc/ctvTuningGains.m designs for the CTV.
 %
+%   The scheduler's inputs (state, clock) and its command pass through
+%   Zero-Order Holds whose sample times, ctrl_ts_in and ctrl_ts_out, come
+%   from ctrlRateWorkspace: inherited (every solver step) by default, or the
+%   flight computer's period and latency.
+%
 %   Harmless to rerun: it deletes and rebuilds the file. The harness block
 %   already references the file by name.
 %
@@ -59,6 +64,15 @@ for b = get_param(name, 'Blocks')'
     end
 end
 
+% The flight computer's timing (ctrlRateWorkspace): the scheduler reads
+% the state and the clock at each control period's start (ctrl_ts_in) and
+% its command lands ctrl_latency into the period (ctrl_ts_out). Both are
+% -1 (inherited) by default, which leaves the holds as pass-throughs and
+% the controller running every solver step.
+insertHold(name, 'x', 'Ctrl_State_Hold', 'ctrl_ts_in', 'src');
+insertHold(name, 'Clock', 'Ctrl_Clock_Hold', 'ctrl_ts_in', 'src');
+insertHold(name, 'u', 'Ctrl_Command_Hold', 'ctrl_ts_out', 'dst');
+
 save_system(name, file);
 close_system(name, 0);
 load_system(name);
@@ -73,4 +87,32 @@ if isempty(ips) || isempty(ops)
     error('addCtvTuningController:ports', '%s has no inport/outport at its top level.', file);
 end
 fprintf('%s: %d in, %d out, reads K1flat_ctv and K2grid_ctv\n', file, numel(ips), numel(ops));
+end
+
+function insertHold(sys, block, holdName, tsVar, side)
+% Puts a Zero-Order Hold (sample time tsVar) on every line leaving block
+% (side 'src') or on the line into block (side 'dst').
+hold = [sys '/' holdName];
+pos = get_param([sys '/' block], 'Position');
+if side == "src", dx = 60; else, dx = -60; end
+add_block('simulink/Discrete/Zero-Order Hold', hold, 'SampleTime', tsVar, ...
+    'Position', [pos(1) + dx, pos(2), pos(1) + dx + 30, pos(2) + 24]);
+ph = get_param([sys '/' block], 'PortHandles');
+if side == "src"
+    l = get_param(ph.Outport(1), 'Line');
+    dsts = get_param(l, 'DstPortHandle');
+    delete_line(l);
+    hp = get_param(hold, 'PortHandles');
+    add_line(sys, ph.Outport(1), hp.Inport(1), 'autorouting', 'smart');
+    for d = dsts(:)'
+        add_line(sys, hp.Outport(1), d, 'autorouting', 'smart');
+    end
+else
+    l = get_param(ph.Inport(1), 'Line');
+    s = get_param(l, 'SrcPortHandle');
+    delete_line(l);
+    hp = get_param(hold, 'PortHandles');
+    add_line(sys, s, hp.Inport(1), 'autorouting', 'smart');
+    add_line(sys, hp.Outport(1), ph.Inport(1), 'autorouting', 'smart');
+end
 end
