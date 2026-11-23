@@ -15,7 +15,10 @@ flight software can fly its own navigation filter: `sens_meas` (26),
 `src/sensors/sensor_layout.m` and taken after the fault gates. A sensor's
 stamp changes when it takes a new sample. `plant.json` records the sensor
 parameters baked in (`sensor_params`, after the vehicle config and any
-`'SensorParams'` override), the layout, the channel names under `outputs`,
+`'SensorParams'` override), the layout, `cg_height` (the full-tank CG
+above the base on the pad, m: sensor positions in `sensor_params` are from
+the base, while the GPS and LiDAR outputs are referred to the CG), the
+channel names under `outputs`,
 `fault_injection` and the fault table (`'Faults'`, used only with
 `FAULT_INJECTION=on` in `'Variants'`). Parameters are inlined: a different
 GPS sigma or fault means a rebuild, e.g.

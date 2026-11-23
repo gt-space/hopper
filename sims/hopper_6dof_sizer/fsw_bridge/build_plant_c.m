@@ -34,7 +34,8 @@ function codeDir = build_plant_c(varargin)
 %                   one per line
 %     plant.json    what was built: vehicle, variants, step, git commit,
 %                   gusts, target, ports, and the sensor parameters
-%                   and layout baked into the sens_* ports
+%                   and layout baked into the sens_* ports, and
+%                   cg_height (the pad CG above the base, m)
 %
 %   The interface (hopper_6dof.h): hopper_6dof_initialize(), then per
 %   1 ms step hopper_6dof_output() (outputs at t) and hopper_6dof_update()
@@ -153,6 +154,7 @@ info = struct( ...
     'sensor_params', W.sensor_params.S, ...   % sim_sensor_params after the vehicle config and overrides
     'sensor_step', W.sensor_params.dt, ...    % the block's step (the IMU period)
     'sensor_layout', sensor_layout(), ...
+    'cg_height', W.cg_init, ...               % full-tank CG above the base on the pad (m, body x; nav_frames heightCOM): sensor geometry is from the base, GPS/LiDAR outputs from the CG
     'built', char(datetime('now', 'Format', 'yyyy-MM-dd''T''HH:mm:ss')), ...
     'inputs', struct('u_fsw', {{'thrust_N', 'tvc_pitch_rad', 'tvc_yaw_rad', 'rcs_torque_Nm'}}), ...
     'outputs', struct('x_fsw', {{'pos_n', 'pos_e', 'pos_d', 'vel_n', 'vel_e', 'vel_d', ...
