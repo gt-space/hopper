@@ -45,14 +45,21 @@ for f = fieldnames(variants)'
 end
 W = applyControllerWarmup(W, warmup_time);
 W = tvcWorkspace(W, variants);       % TVCEM for the TVC_MODEL variant (keeps one already in W)
-if variants.VARIANT_FDIR == 2 || variants.VARIANT_NAVIGATION > 1 || variants.VARIANT_FAULT_INJECTION == 2
-    W = sensorWorkspace(W, variants); % the shared Sensors block: FDIR and navigation read it
-end                                   % (keeps a fault table already in W.faults)
+fsw = isFswController(variants);
+if variants.VARIANT_FDIR == 2 || variants.VARIANT_NAVIGATION > 1 || variants.VARIANT_FAULT_INJECTION == 2 || fsw
+    W = sensorWorkspace(W, variants); % the shared Sensors block: FDIR, navigation and the
+end                                   % fsw plant's sens_* ports read it (keeps W.faults)
 if variants.VARIANT_NAVIGATION > 1
     W = navWorkspace(W, variants);
 end
 if variants.VARIANT_FDIR == 2 || variants.VARIANT_FAULT_INJECTION == 2
     W = fdirWorkspace(W, variants);   % reads the sensor and nav parameters above
+end
+if fsw
+    W = fswWorkspace(W);              % the FSW command period and its replay
+end
+if variantAxes().CONTROLLER(variants.VARIANT_CONTROLLER) == "lqr_ctv_tuning"
+    W = ctrlRateWorkspace(W);         % the scheduler's holds: every step unless W sets a rate
 end
 
 if isa(model, 'Simulink.SimulationInput')
@@ -74,9 +81,21 @@ if isfield(variants, 'VARIANT_LOG') && variants.VARIANT_LOG == 2
     if strlength(d) > 0 && ~isfolder(d), mkdir(d); end
     in = in.setModelParameter('SignalLogging', 'on', 'LoggingToFile', 'on', 'LoggingFileName', char(variants.LOG_FILE));
 end
+if fsw
+    % CONTROLLER=fsw: the command arrives on the root inport u_fsw. In a
+    % simulation it is replayed from W.fsw_u ([t, thrust, TVC pitch,
+    % TVC yaw, RCS torque] rows); generated code takes it from the flight
+    % software instead.
+    in = in.setExternalInput(W.fsw_u);
+end
 if variants.VARIANT_FDIR == 2 && isfield(W, 'tgrid')
     % An abort to land can start late and high; leave it time to come
     % down (the touchdown stop still ends a normal flight on time)
     in = in.setModelParameter('StopTime', num2str(W.tgrid(end) + 30));
 end
+end
+
+function tf = isFswController(variants)
+A = variantAxes();
+tf = A.CONTROLLER(variants.VARIANT_CONTROLLER) == "fsw";
 end

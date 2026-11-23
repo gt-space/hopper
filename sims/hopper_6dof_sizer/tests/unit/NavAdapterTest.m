@@ -118,6 +118,37 @@ classdef NavAdapterTest < matlab.unittest.TestCase
             end
         end
 
+        function imuLeverArm(tc)
+            % S.imu.mount unset: the accelerometer reads f_b at the CG.
+            % Set: f_b + alpha x r + w x (w x r), alpha from the rate change
+            % between frames; the gyro is unchanged either way
+            S = sim_sensor_params(mission_inputs());
+            L = sensor_layout();
+            C = angle2dcm(0, pi/2, 0);
+            w1 = [0.3; -0.8; 0.5]; w2 = w1 + [0.02; 0.01; -0.03]; dt = S.imu.period;
+            xs = struct('pos_ned', [0; 0; -3], 'vel_ned', zeros(3, 1), 'w_b', w1, 'dcm_be', C, ...
+                        'f_b', [9.8; 0.1; -0.2], 'cg', tc.cg);
+            z = zeros(L.N_MEAS, 1);
+            [~, tr, ~, ~, st] = sensor_models(xs, z, 0, S, sensor_state());
+            tc.verifyEqual(tr(L.ACCEL), xs.f_b, 'AbsTol', 1e-15, 'at the CG by default');
+            xs.w_b = w2;
+            [~, tr] = sensor_models(xs, z, dt, S, st);
+            tc.verifyEqual(tr(L.ACCEL), xs.f_b, 'AbsTol', 1e-15, 'at the CG by default, rates changing');
+
+            S.imu.mount = tc.cg + [0.1; 0.05; -0.02];
+            r = S.imu.mount - tc.cg;
+            xs.w_b = w1;
+            [~, tr, ~, ~, st] = sensor_models(xs, z, 0, S, sensor_state());
+            tc.verifyEqual(tr(L.ACCEL), xs.f_b + cross(w1, cross(w1, r)), 'AbsTol', 1e-12, ...
+                'first frame: no alpha yet');
+            xs.w_b = w2;
+            [~, tr] = sensor_models(xs, z, dt, S, st);
+            alpha = (w2 - w1) / dt;
+            tc.verifyEqual(tr(L.ACCEL), xs.f_b + cross(alpha, r) + cross(w2, cross(w2, r)), 'AbsTol', 1e-12, ...
+                'lever arm terms');
+            tc.verifyEqual(tr(L.GYRO), w2, 'AbsTol', 1e-15, 'gyro unchanged');
+        end
+
         function predictorImuNoiseMatchesSensorModel(tc)
             V = variantConfig('NAVIGATION', 'gmekf');
             W = hopperWorkspace([], V);

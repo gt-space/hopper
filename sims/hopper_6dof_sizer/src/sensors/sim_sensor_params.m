@@ -28,6 +28,8 @@ S.imu.accel_bias_rw_psd = [9.09e-5; 7.77e-5; 7.16e-5]; % (m/s^2)^2/s, Allan K es
 S.imu.gyro_bias_rw_psd = [3.52e-6; 2.97e-6; 4.36e-6]; % (rad/s)^2/s, Allan K estimates
 S.imu.accel_fs    = 16 * 9.80665;              % m/s^2, +/-16 g
 S.imu.gyro_fs     = deg2rad(2000);             % rad/s
+S.imu.mount       = [NaN; NaN; NaN];           % m from the base, body; NaN: the IMU rides at the CG.
+                                               % Set, the accelerometer also reads alpha x r + w x (w x r)
 
 S.baro.period = 0.05;                          % s
 S.baro.sigma  = 0.1;                           % m
