@@ -12,14 +12,12 @@ function W = navWorkspace(W, variants)
 %                 state) and P0
 %   W.nav_Qc, W.nav_dt, W.nav_g, W.nav_reset   the filter's other inputs
 %
-%   The tuning stays the nav team's: P0, Qc and the filter rate come from
-%   their filter_sim_initializer (subsystems/navigation), run as is. To try
-%   other tuning, set W.nav_Qc (13 x 13) or W.nav_P0 (19 x 19) before
-%   buildSimInput; they are kept, like W.faults. The torque block of Qc
-%   comes from the vehicle config (VC.nav.torque_psd), since it scales with
-%   the vehicle's inertia. The
-%   lidar and GPS geometry comes from the vehicle config instead of their
-%   hard-coded frames, so the filter and the sensor model agree.
+%   P0 and filter rate come from filter_sim_initializer. Default Qc is built
+%   from the vehicle's native IMU noise parameters and navigation tuning
+%   scales in IN.vehicle.navigation.gmekf. To override tuning, set W.nav_Qc
+%   (13 x 13) or W.nav_P0 (19 x 19) before buildSimInput; they are kept,
+%   like W.faults. The lidar and GPS geometry comes from the vehicle config
+%   instead of hard-coded frames, so the filter and sensor model agree.
 
 if ~isfield(W, 'sensor_params')
     error('navWorkspace:sensors', 'Run sensorWorkspace first: the filter reads the shared Sensors block.');
@@ -39,14 +37,14 @@ cg0 = [W.cg_init; 0; 0];
 x_pad = [sim_pos_offset(cg0) + [0; 0; -W.cg_init]; zeros(6, 1); nav_quat_from_dcm(dcm_pad)];
 if ~isfield(W, 'nav_P0'), W.nav_P0 = N.P0; end
 if ~isfield(W, 'nav_Qc')
-    W.nav_Qc = N.qc;
     VC = W.IN.vehicle;
-    if isfield(VC, 'nav') && isfield(VC.nav, 'torque_psd')
-        % the vehicle's torque disturbance (it scales with inertia), body
-        % axes [roll pitch yaw] into the nav frame
-        R = P.F.R;
-        W.nav_Qc(4:6, 4:6) = R * diag(VC.nav.torque_psd) * R';
-    end
+    T = VC.navigation.gmekf;
+    W.nav_Qc = zeros(13);
+    W.nav_Qc(1:3, 1:3) = T.Qc_scale.accel * diag(S.imu.accel_sigma(:).^2);
+    W.nav_Qc(4:6, 4:6) = T.Qc_scale.gyro * diag(S.imu.gyro_sigma(:).^2);
+    W.nav_Qc(7:9, 7:9) = T.Qc_scale.accel_bias * diag(S.imu.accel_bias_rw_psd(:));
+    W.nav_Qc(10:12, 10:12) = T.Qc_scale.gyro_bias * diag(S.imu.gyro_bias_rw_psd(:));
+    W.nav_Qc(13, 13) = T.Qc_scale.baro_bias * S.baro.bias_noise_psd;
 end
 W.nav_init = struct('x0', nav_state_from_sim(x_pad, dcm_pad, cg0, F), 'P0', W.nav_P0);
 W.nav_dt = N.filter_st;
@@ -64,5 +62,4 @@ end
 run(fullfile(here, 'filter_sim_initializer.m'));
 N.filter_st = filter_st;
 N.P0 = P0;
-N.qc = qc;
 end

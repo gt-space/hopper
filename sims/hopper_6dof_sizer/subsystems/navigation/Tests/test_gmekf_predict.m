@@ -1,142 +1,167 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % test_gmekf_predict.m
-% 
-% Lowkey made with Claude bc i do not have enough time, but I reviewed it 
-% and it looks good - David
-% 
-% Checks for gmekf_predict:
-%   1. Interface: sizes, finite values, unit quaternion, aux contents
-%   2. xnp1 matches propagate_state called directly; dt = 0 is identity
-%   3. Pnp1 is symmetric and positive semi-definite
-%   4. With Qc = 0, Pnp1 = STM*Pn*STM' (using aux.F)
-%   5. With Pn = 0 and small dt, each noise-driven block grows like
-%      (G*Qc*G')*dt  (checks the G/Qc column layout)
-%   6. F is the Jacobian of the real propagation: the error-state STM from
-%      finite differences through propagate_state matches I + F*dt + F^2*dt^2/2.
-%      Error convention: error = estimate - truth, attitude error is
-%      inertial: C_est = (I + [alpha x]) C_true.
 %
-% Errors if any check fails.
+% Checks the predictor's direct gyro-rate input, torque-free Euler
+% propagation when the IMU is invalid, and discrete covariance model.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 rng(7);
 g = 9.81;
 J = [0.50 0.02 0.01; 0.02 0.60 0.03; 0.01 0.03 0.80];
-qa = 0.2; qt = 0.3; qab = 0.05; qgb = 0.07; qbb = 0.11;
-Qc = diag([qa*ones(3,1); qt*ones(3,1); qab*ones(3,1); qgb*ones(3,1); qbb]);
+qa = 0.2; qg = 0.3; qab = 0.05; qgb = 0.07; qbb = 0.11;
+Qc = diag([qa*ones(3,1); qg*ones(3,1); qab*ones(3,1); ...
+           qgb*ones(3,1); qbb]);
 
 checks = cell(0,2);
-add = @(name, ok) evalin('base', sprintf('checks(end+1,:) = {''%s'', %d};', name, ok));
-
-%% 1-5: general behavior over random trials
 nTrials = 50;
 dt = 0.01;
-ifaceOK = true; dt0OK = true; matchOK = true; symOK = true; psdOK = true;
-stmOK = true; invalidOK = true;
+ifaceOK = true; validRateOK = true; invalidEulerOK = true;
+symOK = true; psdOK = true; zeroStepOK = true;
 for k = 1:nTrials
-    [xn, Pn, accel, torque] = random_case(g);
+    [xn, Pn, accel, gyro] = random_case(g);
 
     for validity = [true false]
-        [xnp1, Pnp1, aux] = gmekf_predict(xn, Pn, accel, torque, validity, J, g, dt, Qc);
+        [xnp1, Pnp1, aux] = gmekf_predict( ...
+            xn, Pn, accel, gyro, validity, J, g, dt, Qc);
 
-        ok = isequal(size(xnp1), [20 1]) && isequal(size(Pnp1), [19 19]) ...
+        ifaceOK = ifaceOK && isequal(size(xnp1), [20 1]) ...
+            && isequal(size(Pnp1), [19 19]) ...
             && all(isfinite(xnp1)) && all(isfinite(Pnp1(:))) ...
             && abs(norm(xnp1(10:13)) - 1) < 1e-9 ...
             && all(isfield(aux, {'A_IB','A_IB05','a_I','w_I','F','G'})) ...
             && isequal(size(aux.F), [19 19]) && isequal(size(aux.G), [19 13]) ...
-            && norm(aux.A_IB*aux.A_IB' - eye(3), 'fro') < 1e-9 ...
-            && norm(aux.A_IB - quaternion_to_rotation(xn(10:13)), 'fro') < 1e-12;
-        ifaceOK = ifaceOK && ok;
+            && norm(aux.A_IB*aux.A_IB' - eye(3), 'fro') < 1e-9;
 
-        symOK = symOK && norm(Pnp1 - Pnp1', 'fro') < 1e-12 * max(1, norm(Pnp1, 'fro'));
+        symOK = symOK && norm(Pnp1 - Pnp1', 'fro') ...
+            < 1e-12 * max(1, norm(Pnp1, 'fro'));
         psdOK = psdOK && min(eig(0.5*(Pnp1 + Pnp1'))) > -1e-10;
 
-        if ~validity
-            invalidOK = invalidOK && all(isfinite(aux.a_I));
+        auxProp = struct('A_IB', quaternion_to_rotation(xn(10:13)));
+        xRef = propagate_state(xn, auxProp, accel, gyro, validity, J, g, dt);
+        ifaceOK = ifaceOK && norm(xnp1 - xRef) < 1e-12;
+
+        if validity
+            validRateOK = validRateOK && norm(xnp1(7:9) - ...
+                (gyro.angvel - xn(17:19))) < 1e-12;
+        else
+            omegaDot = -J \ cross(xn(7:9), J*xn(7:9));
+            invalidEulerOK = invalidEulerOK && norm(xnp1(7:9) - ...
+                (xn(7:9) + omegaDot*dt)) < 1e-12;
         end
     end
 
-    % xnp1 equals propagate_state directly
-    [xnp1, ~, ~] = gmekf_predict(xn, Pn, accel, torque, true, J, g, dt, Qc);
-    auxProp = struct('A_IB', quaternion_to_rotation(xn(10:13)));
-    xRef = propagate_state(xn, auxProp, accel, torque, true, J, g, dt);
-    matchOK = matchOK && norm(xnp1 - xRef) < 1e-12;
-
-    % dt = 0 is the identity
-    [x0, P0, ~] = gmekf_predict(xn, Pn, accel, torque, true, J, g, 0, Qc);
-    dt0OK = dt0OK && norm(x0 - xn) < 1e-12 && norm(P0 - Pn, 'fro') < 1e-12;
-
-    % Qc = 0: pure STM propagation
-    [~, Pq0, auxq] = gmekf_predict(xn, Pn, accel, torque, true, J, g, dt, zeros(13));
-    STM = eye(19) + auxq.F*dt + 0.5*(auxq.F*auxq.F)*dt^2;
-    stmOK = stmOK && norm(Pq0 - 0.5*(STM*Pn*STM' + (STM*Pn*STM')'), 'fro') ...
-        < 1e-10 * max(1, norm(Pq0, 'fro'));
+    % A zero-length valid step still loads the measured, bias-corrected rate.
+    [x0, Pzero, ~] = gmekf_predict( ...
+        xn, Pn, accel, gyro, true, J, g, 0, zeros(13));
+    zeroStepOK = zeroStepOK && norm(x0(1:6) - xn(1:6)) < 1e-12 ...
+        && norm(x0(7:9) - (gyro.angvel - xn(17:19))) < 1e-12 ...
+        && norm(x0(10:20) - xn(10:20)) < 1e-12 ...
+        && all(isfinite(Pzero(:)));
 end
-checks(end+1,:) = {'interface (sizes, finite, unit quat, aux fields)', ifaceOK};
-checks(end+1,:) = {'xnp1 matches propagate_state', matchOK};
-checks(end+1,:) = {'dt = 0 leaves x and P unchanged', dt0OK};
+checks(end+1,:) = {'interface, finite output, unit quaternion, aux dimensions', ifaceOK};
+checks(end+1,:) = {'valid gyro directly sets rate minus bias', validRateOK};
+checks(end+1,:) = {'invalid gyro uses torque-free Euler dynamics', invalidEulerOK};
+checks(end+1,:) = {'zero step does not integrate state but loads valid gyro rate', zeroStepOK};
 checks(end+1,:) = {'Pnp1 symmetric', symOK};
 checks(end+1,:) = {'Pnp1 positive semi-definite', psdOK};
-checks(end+1,:) = {'Qc = 0 gives STM*Pn*STM''', stmOK};
-checks(end+1,:) = {'invalid-IMU branch gives finite a_I', invalidOK};
 
-%% 5: process noise growth layout (Pn = 0, small dt)
-[xn, ~, accel, torque] = random_case(g);
+%% Process-noise layout and scaling
+[xn, ~, accel, gyro] = random_case(g);
 dtS = 1e-4;
-[~, Pn1, ~] = gmekf_predict(xn, zeros(19), accel, torque, true, J, g, dtS, Qc);
-Ji = inv(J);
-exp_vel  = qa*dtS*eye(3);
-exp_om   = qt*dtS*(Ji*Ji');
-exp_ab   = qab*dtS*eye(3);
-exp_gb   = qgb*dtS*eye(3);
-exp_baro = qbb*dtS;
-relerr = @(A, B) norm(A - B, 'fro') / norm(B, 'fro');
-noiseErr = [relerr(Pn1(4:6,4:6),   exp_vel), ...
-            relerr(Pn1(7:9,7:9),   exp_om), ...
-            relerr(Pn1(13:15,13:15), exp_ab), ...
-            relerr(Pn1(16:18,16:18), exp_gb), ...
-            abs(Pn1(19,19) - exp_baro)/exp_baro];
-fprintf('5. noise growth rel. error [vel, omega, accelBias, gyroBias, baro]: %s\n', ...
+[~, Pn1, ~] = gmekf_predict(xn, zeros(19), accel, gyro, true, J, g, dtS, Qc);
+noiseErr = [ ...
+    relerr(Pn1(4:6,4:6), qa*dtS^2*eye(3)), ...
+    relerr(Pn1(7:9,7:9), qg*eye(3)), ...
+    relerr(Pn1(13:15,13:15), qab*dtS*eye(3)), ...
+    relerr(Pn1(16:18,16:18), qgb*dtS*eye(3)), ...
+    abs(Pn1(19,19) - qbb*dtS)/(qbb*dtS)];
+fprintf('process-noise relative errors [vel, rate, accelBias, gyroBias, baro]: %s\n', ...
     mat2str(noiseErr, 2));
-checks(end+1,:) = {'process-noise growth matches G*Qc*G''*dt', all(noiseErr < 0.02)};
+checks(end+1,:) = {'sample IMU covariance and bias random-walk scaling', all(noiseErr < 1e-10)};
 
-%% 6: F against finite differences through propagate_state
+%% Discrete F against finite differences of the state propagation
 dtF = 1e-3;
 delta = 1e-5;
 stmErr = 0;
-for k = 1:10
-    [xn, Pn, accel, torque] = random_case(g);
-    [~, ~, aux] = gmekf_predict(xn, Pn, accel, torque, true, J, g, dtF, Qc);
-    STM = eye(19) + aux.F*dtF + 0.5*(aux.F*aux.F)*dtF^2;
-
-    Phi = zeros(19);
-    for i = 1:19
-        e = zeros(19,1); e(i) = delta;
-        Phi(:,i) = (err_after(xn, e,  accel, torque, J, g, dtF) ...
-                  - err_after(xn, -e, accel, torque, J, g, dtF)) / (2*delta);
-    end
-    stmErr = max(stmErr, max(abs(Phi - STM), [], 'all'));
-    if k == 1, PhiFirst = Phi; STMFirst = STM; end
-end
-fprintf('6. max |STM_fd - STM(F)| = %.1e\n', stmErr);
-if stmErr >= 1e-5
-    % Per-block report to localize the problem
-    blocks = {'pos',1:3; 'vel',4:6; 'omega',7:9; 'att',10:12; ...
-              'accBias',13:15; 'gyrBias',16:18; 'baro',19};
-    fprintf('   per-block max error (first trial), rows x cols:\n');
-    for r = 1:size(blocks,1)
-        for c = 1:size(blocks,1)
-            d = max(abs(PhiFirst(blocks{r,2},blocks{c,2}) - STMFirst(blocks{r,2},blocks{c,2})), [], 'all');
-            if d > 1e-6
-                fprintf('   %-8s <- %-8s : %.1e\n', blocks{r,1}, blocks{c,1}, d);
+blocks = {1:3; 4:6; 7:9; 10:12; 13:15; 16:18; 19};
+blockErr = zeros(7);
+for validity = [true false]
+    for k = 1:10
+        [xn, Pn, accel, gyro] = random_case(g);
+        [~, ~, aux] = gmekf_predict( ...
+            xn, Pn, accel, gyro, validity, J, g, dtF, Qc);
+        Phi = zeros(19);
+        for i = 1:19
+            e = zeros(19,1); e(i) = delta;
+            Phi(:,i) = (err_after(xn, e, accel, gyro, validity, J, g, dtF) ...
+                      - err_after(xn, -e, accel, gyro, validity, J, g, dtF)) ...
+                      / (2*delta);
+        end
+        thisErr = max(abs(Phi - aux.F), [], 'all');
+        if thisErr > stmErr
+            stmErr = thisErr;
+            PhiMax = Phi;
+            FMax = aux.F;
+            validMax = validity;
+        end
+        for r = 1:numel(blocks)
+            for c = 1:numel(blocks)
+                blockErr(r,c) = max(blockErr(r,c), ...
+                    max(abs(Phi(blocks{r},blocks{c}) - ...
+                    aux.F(blocks{r},blocks{c})), [], 'all'));
             end
         end
     end
 end
-checks(end+1,:) = {'F matches finite-difference error-state STM', stmErr < 1e-5};
+fprintf('max |finite-difference transition - F| = %.1e\n', stmErr);
+if stmErr >= 1e-5
+    fprintf('   max block errors (row block x column block):\n');
+    disp(blockErr);
+    fprintf('   validity = %d, attitude rows vs rate/bias columns:\n', validMax);
+    disp([PhiMax(10:12,7:9), FMax(10:12,7:9), ...
+          PhiMax(10:12,16:18), FMax(10:12,16:18)]);
+    fprintf('   gyro-bias transition:\n');
+    disp([PhiMax(16:18,10:12), FMax(16:18,10:12), ...
+          PhiMax(16:18,16:18), FMax(16:18,16:18)]);
+end
+checks(end+1,:) = {'discrete F matches finite-difference state transition', stmErr < 1e-5};
 
-%% Pass/fail
+%% Qc = 0 applies the discrete transition exactly
+[xn, Pn, accel, gyro] = random_case(g);
+[~, Pq0, auxq] = gmekf_predict(xn, Pn, accel, gyro, true, J, g, dt, zeros(13));
+Pexpected = auxq.F*Pn*auxq.F';
+checks(end+1,:) = {'Qc = 0 gives discrete F05 sandwich', ...
+    norm(Pq0 - 0.5*(Pexpected + Pexpected'), 'fro') ...
+    < 1e-12 * max(1, norm(Pq0, 'fro'))};
+
+%% Discrete G against finite differences of accel and gyro sample noise
+[xn, ~, accel, gyro] = random_case(g);
+dtG = 1e-3;
+deltaG = 1e-3;
+[~, ~, auxG] = gmekf_predict(xn, zeros(19), accel, gyro, true, J, g, dtG, zeros(13));
+Gfd = zeros(19, 6);
+for i = 1:6
+    accelPlus = accel; accelMinus = accel;
+    gyroPlus = gyro; gyroMinus = gyro;
+    if i <= 3
+        accelPlus(i) = accelPlus(i) + deltaG;
+        accelMinus(i) = accelMinus(i) - deltaG;
+    else
+        gyroPlus.angvel(i - 3) = gyroPlus.angvel(i - 3) + deltaG;
+        gyroMinus.angvel(i - 3) = gyroMinus.angvel(i - 3) - deltaG;
+    end
+    xPlus = prop(xn, accelPlus, gyroPlus, true, J, g, dtG);
+    xMinus = prop(xn, accelMinus, gyroMinus, true, J, g, dtG);
+    Gfd(:, i) = state_difference(xMinus, xPlus) / (2 * deltaG);
+end
+gNoiseErr = max(abs(Gfd - auxG.G(:, 1:6)), [], 'all');
+fprintf('max |finite-difference sample-noise Jacobian - G| = %.1e\n', gNoiseErr);
+if gNoiseErr >= 1e-7
+    disp(max(abs(Gfd - auxG.G(:, 1:6)), [], 1));
+end
+checks(end+1,:) = {'discrete G maps accel and gyro sample noise', gNoiseErr < 1e-7};
+
 fprintf('\n');
 for i = 1:size(checks,1)
     if checks{i,2}, tag = 'PASS'; else, tag = 'FAIL'; end
@@ -146,7 +171,7 @@ assert(all([checks{:,2}]), 'test_gmekf_predict: one or more checks failed');
 fprintf('test_gmekf_predict: all checks passed\n');
 
 %% Helpers
-function [xn, Pn, accel, torque] = random_case(g)
+function [xn, Pn, accel, gyro] = random_case(g)
     q = randn(4,1); q = q/norm(q);
     xn = zeros(20,1);
     xn(1:3)   = randn(3,1);
@@ -156,33 +181,46 @@ function [xn, Pn, accel, torque] = random_case(g)
     xn(14:20) = 0.01*randn(7,1);
     A = randn(19);
     Pn = 1e-4*(A*A') + 1e-6*eye(19);
-    accel  = [0; 0; -g] + 0.3*randn(3,1);   % body-frame specific force
-    torque = 0.1*randn(3,1);
+    accel = [0; 0; -g] + 0.3*randn(3,1);
+    gyro = struct('angvel', 0.5*randn(3,1));
 end
 
-function e_out = err_after(xn, e, accel, torque, J, g, dt)
-% Propagate the estimate and a truth that differs by error e
-% (error = estimate - truth), then return the error after dt.
-    xTrue = state_injection(xn, e);   % truth = estimate - e
-    xEst  = xn;
-    est  = prop(xEst,  accel, torque, J, g, dt);
-    tru  = prop(xTrue, accel, torque, J, g, dt);
+function e_out = err_after(xn, e, accel, gyro, validity, J, g, dt)
+    xTrue = state_injection(xn, e);
+    est = prop(xn, accel, gyro, validity, J, g, dt);
+    tru = prop(xTrue, accel, gyro, validity, J, g, dt);
 
-    Ce = quaternion_to_rotation(est(10:13));    % C_IB
+    Ce = quaternion_to_rotation(est(10:13));
     Ct = quaternion_to_rotation(tru(10:13));
-    M  = Ce*Ct';                                 % I + [alpha x]
+    M = Ce*Ct';
     alpha = 0.5*[M(3,2)-M(2,3); M(1,3)-M(3,1); M(2,1)-M(1,2)];
 
-    e_out = [est(1:3)   - tru(1:3);
-             est(4:6)   - tru(4:6);
-             est(7:9)   - tru(7:9);
+    e_out = [est(1:3) - tru(1:3);
+             est(4:6) - tru(4:6);
+             est(7:9) - tru(7:9);
              alpha;
-             Ce*(est(14:16) - tru(14:16));       % inertial-aligned accel bias error
-             Ce*(est(17:19) - tru(17:19));       % inertial-aligned gyro bias error
-             est(20)    - tru(20)];
+             Ce*(est(14:16) - tru(14:16));
+             Ce*(est(17:19) - tru(17:19));
+             est(20) - tru(20)];
 end
 
-function x = prop(x0, accel, torque, J, g, dt)
+function e = state_difference(xBase, xPerturbed)
+    Cb = quaternion_to_rotation(xBase(10:13));
+    Cp = quaternion_to_rotation(xPerturbed(10:13));
+    M = Cp*Cb';
+    attitude = 0.5*[M(3,2)-M(2,3); M(1,3)-M(3,1); M(2,1)-M(1,2)];
+    e = [xPerturbed(1:9) - xBase(1:9);
+         attitude;
+         Cp*(xPerturbed(14:16) - xBase(14:16));
+         Cp*(xPerturbed(17:19) - xBase(17:19));
+         xPerturbed(20) - xBase(20)];
+end
+
+function x = prop(x0, accel, gyro, validity, J, g, dt)
     auxP = struct('A_IB', quaternion_to_rotation(x0(10:13)));
-    x = propagate_state(x0, auxP, accel, torque, true, J, g, dt);
+    x = propagate_state(x0, auxP, accel, gyro, validity, J, g, dt);
+end
+
+function err = relerr(A, B)
+    err = norm(A - B, 'fro') / max(norm(B, 'fro'), eps);
 end

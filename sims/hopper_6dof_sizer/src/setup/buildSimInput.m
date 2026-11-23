@@ -17,6 +17,9 @@ function [in, W] = buildSimInput(model, scenario, W, variants)
 %
 %   With FDIR on, StopTime is the trajectory end + 30 s so an abort to
 %   land can finish.
+%   When NAVIGATION=gmekf (controller flies on the estimate), the mission
+%   warm-up delays the reference schedule, keeps engine thrust off and uses
+%   unilateral GROUND=strut contact until confirmed liftoff.
 %
 %   model can also be an existing Simulink.SimulationInput (for example
 %   inside a parsim PreSimFcn); the variables are added to it.
@@ -30,9 +33,17 @@ if nargin < 1 || isempty(model), model = 'hopper_6dof'; end
 if nargin < 2, scenario = []; end
 if nargin < 4 || isempty(variants), variants = variantConfig(); end
 if nargin < 3 || isempty(W), W = hopperWorkspace(scenario, variants); end
+warmup_time = 0;
+axes = variantAxes();
+navigationMode = axes.NAVIGATION(variants.VARIANT_NAVIGATION);
+if navigationMode == "gmekf"
+    warmup_time = W.IN.mission.filter_warmup_time;
+    variants.VARIANT_GROUND = 2;
+end
 for f = fieldnames(variants)'
     W.(f{1}) = variants.(f{1});   % only models with variants read these
 end
+W = applyControllerWarmup(W, warmup_time);
 W = tvcWorkspace(W, variants);       % TVCEM for the TVC_MODEL variant (keeps one already in W)
 fsw = isFswController(variants);
 if variants.VARIANT_FDIR == 2 || variants.VARIANT_NAVIGATION > 1 || variants.VARIANT_FAULT_INJECTION == 2 || fsw

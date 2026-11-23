@@ -26,7 +26,11 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
 
     methods (Test)
         function shadowTracksTruth(tc)
-            out = sim(buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf_shadow')));
+            [in, W] = buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf_shadow'));
+            tc.verifyEqual(W.controller_start_time, 0, 'shadow mode does not delay the flight');
+            tc.verifyEqual(W.tgrid(1), 0, 'shadow mode preserves the nominal reference schedule');
+            tc.verifyEqual(W.VARIANT_GROUND, 1, 'shadow mode preserves nominal ground contact');
+            out = sim(in);
             % the controller still flies on truth: the nominal flight
             B = load(NominalFlightTest.BaselineFile);
             K = NominalFlightTest.keyNumbers(out);
@@ -36,8 +40,37 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
             tc.verifyEstimate(out);
         end
 
+        function warmupHoldsEngineAndAllowsLiftoff(tc)
+            [in, W] = buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf'));
+            in = in.setModelParameter('StopTime', '8');
+            out = sim(in);
+
+            thrust = out.get('thrust');
+            warmup = thrust.Time < W.controller_start_time;
+            tc.verifyEqual(max(abs(thrust.Data(warmup))), 0, 'AbsTol', 1e-10, ...
+                'engine thrust stays off during filter warm-up');
+
+            z = out.get('z');
+            warmup = z.Time < W.controller_start_time;
+            tc.verifyLessThan(max(abs(z.Data(warmup))), 0.01, ...
+                'vehicle remains supported on the pad during filter warm-up');
+
+            tracking = z.Time >= W.controller_start_time;
+            z_ref = interp1(W.z_ref_ts.Time, W.z_ref_ts.Data, z.Time, 'linear', 'extrap');
+            tc.verifyLessThan(max(abs(z.Data(tracking) - z_ref(tracking))), 1, ...
+                'vehicle tracks the vertical reference after warm-up');
+
+            velocity = out.get('velocity');
+            ascent = z.Time >= W.controller_start_time & z.Data < -0.01 & velocity.Data(:, 3) < -0.1;
+            tc.verifyTrue(any(ascent), 'vehicle lifts off after filter warm-up');
+        end
+
         function flyingOnTheEstimateLands(tc)
-            out = sim(buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf')));
+            [in, W] = buildSimInput(tc.Model, [], tc.W, variantConfig('NAVIGATION', 'gmekf'));
+            tc.verifyEqual(W.controller_start_time, W.IN.mission.filter_warmup_time);
+            tc.verifyEqual(W.tgrid(1), W.controller_start_time);
+            tc.verifyEqual(W.VARIANT_GROUND, 2);
+            out = sim(in);
             K = NominalFlightTest.keyNumbers(out);
             IN = tc.W.IN;
             tc.verifyGreaterThan(K.max_altitude, IN.mission.target_altitude, 'apex');
@@ -90,17 +123,21 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
         end
 
         function ctvFliesOnTheEstimate(tc)
-            % The CTV flying its hop on the estimate lands within its
-            % requirements (it used to climb to 21 m: hopper thrust
-            % weights made the thrust chatter on estimate noise)
-            V = variantConfig('VEHICLE', 'ctv', 'NAVIGATION', 'gmekf');
-            out = sim(buildSimInput(tc.Model, [], [], V));
-            tc.verifyCtvFlight(out);
+            % Use the CTV-specific gains, which damp the estimate-feedback
+            % oscillation that appears with the hopper-weighted controller.
+            V = variantConfig('VEHICLE', 'ctv', 'NAVIGATION', 'gmekf', ...
+                'CONTROLLER', 'lqr_ctv_tuning');
+            [in, W] = buildSimInput(tc.Model, [], [], V);
+            out = sim(in);
+            tc.verifyCtvFlight(out, W.controller_start_time);
         end
     end
 
     methods
-        function verifyCtvFlight(tc, out)
+        function verifyCtvFlight(tc, out, estimateStartTime)
+            if nargin < 3
+                estimateStartTime = 0;
+            end
             X = NavigationFlightTest.logged(out, 'nav_estimate');
             E = NavigationFlightTest.logged(out, 'nav_error');
             p = X(:, 7) - E(:, 7);   % true body roll rate
@@ -111,11 +148,19 @@ classdef NavigationFlightTest < matlab.unittest.TestCase
             tc.verifyLessThan(abs(K.final_altitude), 0.1, 'landed');
             tc.verifyLessThan(K.landing_offset, IN.mission.max_landing_offset, 'landing offset');
             tc.verifyLessThan(abs(K.final_velocity(3)), IN.mission.max_impact_vel, 'impact velocity');
-            tc.verifyEstimate(out);
+            tc.verifyEstimate(out, estimateStartTime);
         end
 
-        function verifyEstimate(tc, out)
+        function verifyEstimate(tc, out, startTime)
+            if nargin < 3
+                startTime = 0;
+            end
             E = NavigationFlightTest.logged(out, 'nav_error');
+            if startTime > 0
+                t = out.get('nav_error').Time;
+                E = E(t >= startTime, :);
+                tc.verifyNotEmpty(E, 'estimate verification window is nonempty');
+            end
             tc.verifyLessThan(max(vecnorm(E(:, 1:3), 2, 2)), tc.MaxPosErr, 'position error (m)');
             tc.verifyLessThan(max(vecnorm(E(:, 4:6), 2, 2)), tc.MaxVelErr, 'velocity error (m/s)');
             tc.verifyLessThan(max(vecnorm(E(:, 7:9), 2, 2)), tc.MaxRateErr, 'rate error (rad/s)');

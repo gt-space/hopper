@@ -48,6 +48,24 @@ classdef NavAdapterTest < matlab.unittest.TestCase
             end
         end
 
+        function gyroRatesRemainRadiansPerSecond(tc)
+            IN = mission_inputs();
+            S = sim_sensor_params(IN);
+            L = sensor_layout();
+            C = angle2dcm(0, pi/2, 0);
+            w = deg2rad([35; -12; 4]);
+            xs = struct('pos_ned', [0; 0; -5], 'vel_ned', zeros(3, 1), ...
+                'w_b', w, 'dcm_be', C, 'f_b', [9.8; 0; 0], 'cg', tc.cg);
+            noise = zeros(L.N_MEAS, 1);
+            noise(L.GYRO) = [0.2; -0.3; 0.1];
+
+            [meas, truth] = sensor_models(xs, noise, 0, S, sensor_state());
+            tc.verifyEqual(meas(L.GYRO), ...
+                w + S.imu.gyro_sigma .* noise(L.GYRO), 'AbsTol', 1e-12);
+            tc.verifyEqual(meas(L.GYRO) - truth(L.GYRO), ...
+                S.imu.gyro_sigma .* noise(L.GYRO), 'AbsTol', 1e-12);
+        end
+
         function estimateKeepsTheFilterSign(tc)
             % the controller's quaternion follows the filter's sign (q and
             % -q are one attitude): no flip where w crosses zero
@@ -129,6 +147,83 @@ classdef NavAdapterTest < matlab.unittest.TestCase
             tc.verifyEqual(tr(L.ACCEL), xs.f_b + cross(alpha, r) + cross(w2, cross(w2, r)), 'AbsTol', 1e-12, ...
                 'lever arm terms');
             tc.verifyEqual(tr(L.GYRO), w2, 'AbsTol', 1e-15, 'gyro unchanged');
+        end
+
+        function predictorImuNoiseMatchesSensorModel(tc)
+            V = variantConfig('NAVIGATION', 'gmekf');
+            W = hopperWorkspace([], V);
+            W = sensorWorkspace(W, V);
+            W = navWorkspace(W, V);
+            S = W.sensor_params.S;
+            scale = W.IN.vehicle.navigation.gmekf.Qc_scale;
+
+            tc.verifyEqual(W.nav_Qc(1:3, 1:3), ...
+                scale.accel * diag(S.imu.accel_sigma(:).^2), 'AbsTol', 1e-15, ...
+                'accelerometer sample covariance');
+            tc.verifyEqual(W.nav_Qc(4:6, 4:6), ...
+                scale.gyro * diag(S.imu.gyro_sigma(:).^2), 'AbsTol', 1e-15, ...
+                'gyroscope sample covariance');
+            tc.verifyEqual(W.nav_Qc(7:9, 7:9), ...
+                scale.accel_bias * diag(S.imu.accel_bias_rw_psd(:)), 'AbsTol', 1e-15, ...
+                'accelerometer bias random-walk PSD');
+            tc.verifyEqual(W.nav_Qc(10:12, 10:12), ...
+                scale.gyro_bias * diag(S.imu.gyro_bias_rw_psd(:)), 'AbsTol', 1e-15, ...
+                'gyroscope bias random-walk PSD');
+            tc.verifyEqual(W.nav_Qc(13, 13), ...
+                scale.baro_bias * S.baro.bias_noise_psd, 'AbsTol', 1e-15, ...
+                'barometer bias random-walk PSD');
+
+            scale.accel = 3;
+            scale.gyro = 4;
+            scale.accel_bias = 5;
+            scale.gyro_bias = 6;
+            scale.baro_bias = 7;
+            W.IN.vehicle.navigation.gmekf.Qc_scale = scale;
+            W = rmfield(W, 'nav_Qc');
+            W = navWorkspace(W, V);
+            tc.verifyEqual(W.nav_Qc(1:3, 1:3), ...
+                scale.accel * diag(S.imu.accel_sigma(:).^2), 'AbsTol', 1e-15, ...
+                'vehicle accelerometer Q scale');
+            tc.verifyEqual(W.nav_Qc(4:6, 4:6), ...
+                scale.gyro * diag(S.imu.gyro_sigma(:).^2), 'AbsTol', 1e-15, ...
+                'vehicle gyroscope Q scale');
+            tc.verifyEqual(W.nav_Qc(7:9, 7:9), ...
+                scale.accel_bias * diag(S.imu.accel_bias_rw_psd(:)), 'AbsTol', 1e-15, ...
+                'vehicle accelerometer bias Q scale');
+            tc.verifyEqual(W.nav_Qc(10:12, 10:12), ...
+                scale.gyro_bias * diag(S.imu.gyro_bias_rw_psd(:)), 'AbsTol', 1e-15, ...
+                'vehicle gyroscope bias Q scale');
+            tc.verifyEqual(W.nav_Qc(13, 13), ...
+                scale.baro_bias * S.baro.bias_noise_psd, 'AbsTol', 1e-15, ...
+                'vehicle barometer bias Q scale');
+
+            customQc = 2 * W.nav_Qc;
+            W.nav_Qc = customQc;
+            W = navWorkspace(W, V);
+            tc.verifyEqual(W.nav_Qc, customQc, 'AbsTol', 0, ...
+                'explicit Qc override is preserved');
+        end
+
+        function magnetometerUsesSeededNoise(tc)
+            IN = mission_inputs();
+            S = sim_sensor_params(IN);
+            L = sensor_layout();
+            rng(12);
+            for k = 1:20
+                eul = [0 pi/2 0] + deg2rad(20) * (rand(1, 3) - 0.5);
+                C = angle2dcm(eul(3), eul(2), eul(1));
+                xs = struct('pos_ned', [randn(2, 1); -5], 'vel_ned', randn(3, 1), ...
+                    'w_b', randn(3, 1) * 0.2, 'dcm_be', C, 'f_b', [9.8; 0; 0], 'cg', tc.cg);
+                noise = zeros(L.N_MEAS, 1);
+                noise(L.MAG) = [0.7; -1.2; 0.35];
+
+                [meas, truth] = sensor_models(xs, noise, 0, S, sensor_state());
+                tc.verifyEqual(meas(L.MAG), ...
+                    C * S.mag.field_ned(:) + S.mag.sigma .* noise(L.MAG), ...
+                    'AbsTol', 1e-12);
+                tc.verifyEqual(meas(L.MAG) - truth(L.MAG), ...
+                    S.mag.sigma .* noise(L.MAG), 'AbsTol', 1e-12);
+            end
         end
 
         function fdirMasksReachTheFilter(tc)

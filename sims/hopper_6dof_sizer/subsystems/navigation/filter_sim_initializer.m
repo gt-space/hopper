@@ -14,9 +14,12 @@ addpath("Filter Sims");
 addpath("Src_sim");
 addpath("Src_filter");
 addpath("Filters");
+projectRoot = fileparts(fileparts(fileparts(mfilename('fullpath'))));
+addpath(fullfile(projectRoot, 'src', 'sensors'));
+sensorParams = sim_sensor_params();
 
 %% Filter parameters
-filter_st = 1/500;      % Filter sample time (seconds)
+filter_st = sensorParams.imu.period; % Filter sample time (seconds)
 % NOTE: This comes from IMU sample rate. ADIS16500 output rate is
 % 2000/(DEC_RATE+1) Hz, so 500 Hz needs DEC_RATE = 3 in the FSW driver.
 % IT IS ASSUMED THE FILTER ITERATES (PROPAGATES) AT THE IMU SENSE RATE.
@@ -48,23 +51,25 @@ P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1];
 % Note covariance is 19x19, not 20x20, because covariance uses a 3-element
 % rotation representation
+% The launch position is known to about 0.1 m. A 1 rad/s gyro-bias prior
+% lets startup GPS/DGPS residuals create large spurious bias corrections.
+P0(1:3, 1:3) = 0.01 * eye(3);
+P0(16:18, 16:18) = 0.01 * eye(3);
 
 %% Sensor sampling and noise parameters
 
 % IMU parameters
 imu_st = filter_st;     % sample time (s)
-% --- IMU Sensor Parameters (ADIS16500, data sheet Rev. A, Table 1) ---
-% Per-sample white noise at the output rate: std = density * sqrt(rate/2)
-imu_params_init.accel_noise_density = [880e-6; 880e-6; 732e-6];   % (m/s^2)/sqrt(Hz), x y z
-imu_params_init.gyro_noise_density = deg2rad([6.1e-3; 6.1e-3; 7.0e-3]); % (rad/s)/sqrt(Hz), x y z
-imu_params_init.accel_bias_stability = [125e-6; 125e-6; 134e-6];  % In-run bias stability (m/s^2)
-imu_params_init.gyro_bias_stability = deg2rad([7.5; 8.1; 4.9])/3600; % In-run bias stability (rad/s)
-imu_params_init.accel_noise_std = imu_params_init.accel_noise_density * sqrt(1/(2*imu_st)); % Accelerometer noise standard deviation (m/s^2)
+imu_params_init.accel_noise_std = sensorParams.imu.accel_sigma(:);
 imu_params_init.acovariance = diag(imu_params_init.accel_noise_std.^2);
-imu_params_init.gyro_noise_std = imu_params_init.gyro_noise_density * sqrt(1/(2*imu_st)); % Gyroscope noise standard deviation (rad/s)
+imu_params_init.gyro_noise_std = sensorParams.imu.gyro_sigma(:);
 imu_params_init.gcovariance = diag(imu_params_init.gyro_noise_std.^2);
 imu_params_init.gravity_scalar = 9.81;                % Gravity acceleration
 imu_params_init.packet_invalid_prob = 0.0;            % Set to 0 for now as requested
+
+% The angular-rate state is a bias-corrected gyro sample; initialize its
+% covariance from the gyro rather than the former torque-driven rate model.
+P0(7:9,7:9) = diag(imu_params_init.gyro_noise_std.^2);
 
 % GPS parameters
 gps_st = 0.1;           % sample time (s)
@@ -104,6 +109,9 @@ barometer_st = 0.05;    % sample time (s)
 % baro_params.packet_invalid_prob = 0.0;  % Set to 0 for now
 % baro_params.bias = 0.5;                 % Placeholder
 
+% Magnetometer parameters
+mag_st = 0.01; % sample time
+
 % LIDAR parameters
 lidar_st = 0.01;        % sample time (s)
 % --- Barometer Sensor Parameters (SJ-GU-TF-Luna A03)---
@@ -112,33 +120,19 @@ lidar_st = 0.01;        % sample time (s)
 % lidar_params.packet_invalid_prob = 0.0; % set to zero for now
 % Note- any distances over 8m will be not valid it appears
 
-%% GMEKF continuous-time process-noise spectral densities
+%% GMEKF process-noise covariance
 
-% Accel noise and the bias errors are expressed in the inertial frame in the
-% filter, so use the largest body-axis value on all three channels.
+% The first six channels are per-sample IMU measurement covariances. Bias
+% random walks and barometer bias remain continuous-time spectral densities.
+% Block order: accelerometer, gyroscope, accel bias, gyro bias, barometer bias.
 
-% Translational acceleration disturbance: 3 channels
-accelerationNoisePSD = max(imu_params_init.accel_noise_std)^2 * imu_st * ones(3,1);
-imu_params_init.gyro_R = diag(imu_params_init.gyro_noise_std.^2);
-
-% Bias random walks from the in-run bias stability. TUNING STARTING POINT:
-% the data sheet gives no rate random walk, so assume the bias wanders by
-% about its in-run stability over biasCorrelationTime.
-biasCorrelationTime = 100;  % (s)
-accelBiasNoisePSD = max(imu_params_init.accel_bias_stability)^2 / biasCorrelationTime * ones(3,1);
-gyroBiasNoisePSD = max(imu_params_init.gyro_bias_stability)^2 / biasCorrelationTime * ones(3,1);
-
-% Torque disturbance: the commanded torque leaves out wind, slosh and other
-% unmodeled moments (~7 N m on the hopper in the 6DOF sim). At 1e-4 the
-% rate model trusted the command, the gyro was gated out within 0.07 s of
-% liftoff and the filter diverged; 1 (N m)^2/Hz tracks to ~4 cm and
-% ~0.01 in attitude over the full flight. Still to be calibrated.
-torqueNoisePSD = [1; 1; 1];
-baroBiasNoisePSD = 0.001;
+accelBiasNoisePSD = sensorParams.imu.accel_bias_rw_psd(:);
+gyroBiasNoisePSD = sensorParams.imu.gyro_bias_rw_psd(:);
+baroBiasNoisePSD = sensorParams.baro.bias_noise_psd;
 
 qc = blkdiag( ...
-    diag(accelerationNoisePSD), ...
-    diag(torqueNoisePSD), ...
+    imu_params_init.acovariance, ...
+    imu_params_init.gcovariance, ...
     diag(accelBiasNoisePSD), ...
     diag(gyroBiasNoisePSD), ...
     baroBiasNoisePSD);
