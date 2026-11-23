@@ -44,6 +44,9 @@ xTrue = state_injection(xNominal, trueError);
 % Measurements from the sim models at truth
 t = 0.1;
 meas_posvel = gps_model(xTrue, t, gps_frame);
+% Single-antenna GPS position also observes attitude through its lever arm;
+% disable that update here to isolate the DGPS contribution to roll.
+meas_posvel.validity = false;
 meas_baro = barometer_model(xTrue, 0, t);
 meas_LID = lidar_system_model(xTrue, t, lidar_frames);
 meas_diffGps = diffGps_model(xTrue, t, gps_frame);

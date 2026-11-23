@@ -17,9 +17,9 @@ function [in, W] = buildSimInput(model, scenario, W, variants)
 %
 %   With FDIR on, StopTime is the trajectory end + 30 s so an abort to
 %   land can finish.
-%   The mission warm-up delays the reference schedule while navigation
-%   continues running. Filter-enabled runs keep engine thrust off and use
-%   unilateral GROUND=strut contact; the struts unload on confirmed liftoff.
+%   When NAVIGATION=gmekf (controller flies on the estimate), the mission
+%   warm-up delays the reference schedule, keeps engine thrust off and uses
+%   unilateral GROUND=strut contact until confirmed liftoff.
 %
 %   model can also be an existing Simulink.SimulationInput (for example
 %   inside a parsim PreSimFcn); the variables are added to it.
@@ -34,7 +34,9 @@ if nargin < 2, scenario = []; end
 if nargin < 4 || isempty(variants), variants = variantConfig(); end
 if nargin < 3 || isempty(W), W = hopperWorkspace(scenario, variants); end
 warmup_time = 0;
-if variants.VARIANT_NAVIGATION > 1
+axes = variantAxes();
+navigationMode = axes.NAVIGATION(variants.VARIANT_NAVIGATION);
+if navigationMode == "gmekf"
     warmup_time = W.IN.mission.filter_warmup_time;
     variants.VARIANT_GROUND = 2;
 end

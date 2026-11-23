@@ -51,6 +51,10 @@ P0 = [0.1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
       0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1];
 % Note covariance is 19x19, not 20x20, because covariance uses a 3-element
 % rotation representation
+% The launch position is known to about 0.1 m. A 1 rad/s gyro-bias prior
+% lets startup GPS/DGPS residuals create large spurious bias corrections.
+P0(1:3, 1:3) = 0.01 * eye(3);
+P0(16:18, 16:18) = 0.01 * eye(3);
 
 %% Sensor sampling and noise parameters
 
