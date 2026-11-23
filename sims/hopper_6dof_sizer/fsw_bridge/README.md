@@ -24,6 +24,33 @@ channel names under `outputs`,
 GPS sigma or fault means a rebuild, e.g.
 `build_plant_c('SensorParams', struct('gps', struct('sigma', [1.5; 1.61; 4.43])))`.
 
+IMU placement: by default the accelerometer reads the specific force at
+the CG (`imu_from_cg` = 0 in `plant.json`). Setting `imu.mount` (m from
+the base, body axes, like the other sensor mounts) puts it there, and the
+accelerometer then also reads alpha × r + ω × (ω × r), with r from the CG
+and alpha the true rate's backward difference over the IMU step:
+`build_plant_c('SensorParams', struct('imu', struct('mount', [0.45; 0.03; 0])))`.
+`plant.json`'s `imu_from_cg` is that mount minus the pad CG (`cg_height`
+along body x).
+
+Ground: `build_plant_c('Ground', 'strut')` builds the plant with leg
+springs (`GROUND=strut`) and no touchdown stop, so the vehicle lands,
+comes to rest and stays flying in the plant until the flight software
+stops; the IMU sees the impact and the rest. `plant.json` says `ground`
+and `touchdown_stop`. Without it (the default) the plant stops at the first
+descending contact, as before. On the struts the plant's own engine cutoff
+(`IN.mission.engine_cutoff_alt`, 5 mm on the CTV) still cuts thrust and
+does not latch, and `u_fsw` thrust below the throttle floor (7 N on the
+CTV) is raised to the floor. The CTV's leg stiffness is the sizer's
+(2.19 MN/m per leg, critically damped per leg) and its feet are an
+ASSUMPTION (4 at 0.15 m radius): use it to exercise touchdown logic, not
+for landing loads. Only the feet touch the ground: a vehicle that tips
+over falls through the pad. `verify_plant_c('Ground', 'strut')` checks the
+C against Simulink through contact and 2 s past it (its open-loop replay
+crashes and tips, which is fine for an equality check). `build_plant_c`
+writes the strut build to its own folder if you pass one, e.g.
+`build_plant_c('Ground', 'strut', 'Folder', 'fsw_bridge/build/plant_strut')`.
+
 | Script | What it does |
 |---|---|
 | `build_plant_c` | Embedded Coder C for the harness with `CONTROLLER=fsw` (default `VEHICLE=ctv`, ARM64), packed with every header into `build/plant/` with `sources.txt`, `defines.txt` and `plant.json` |

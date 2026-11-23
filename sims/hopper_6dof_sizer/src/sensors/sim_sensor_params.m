@@ -21,6 +21,8 @@ S.imu.accel_sigma = [0.05; 0.05; 0.05];        % m/s^2
 S.imu.gyro_sigma  = [0.005; 0.005; 0.005];     % rad/s
 S.imu.accel_fs    = 16 * 9.80665;              % m/s^2, +/-16 g
 S.imu.gyro_fs     = deg2rad(2000);             % rad/s
+S.imu.mount       = [NaN; NaN; NaN];           % m from the base, body; NaN: the IMU rides at the CG.
+                                               % Set, the accelerometer also reads alpha x r + w x (w x r)
 
 S.baro.period = 0.05;                          % s
 S.baro.sigma  = 0.1;                           % m

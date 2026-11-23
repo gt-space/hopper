@@ -17,7 +17,10 @@ function R = verify_plant_c(varargin)
 %   abs difference allowed in any state), 'Excite' (default true: add
 %   0.5 deg TVC and 2 mN m roll sines to the replayed command, so the
 %   lateral and attitude states move too), 'SensTol' (default 1e-6, max
-%   abs difference allowed in any sensor channel, valid flag or stamp).
+%   abs difference allowed in any sensor channel, valid flag or stamp),
+%   'Ground' (default 'none'; 'strut' flies the plant on its leg springs
+%   with no touchdown stop, and appends 2 s of thrust-floor commands so the
+%   contact and the rest after it are compared too).
 %
 %   R has the max abs error per state, the time of the worst one, both
 %   state histories, the sensor comparison (R.sens) and pass. Needs WSL with gcc (wsl -e gcc).
@@ -29,7 +32,9 @@ p.addParameter('Build', true, @islogical);
 p.addParameter('Tol', 1e-6, @isnumeric);
 p.addParameter('Excite', true, @islogical);
 p.addParameter('SensTol', 1e-6, @isnumeric);
+p.addParameter('Ground', 'none', @(s) any(strcmp(s, {'none', 'strut'})));
 p.parse(varargin{:});
+ground = char(p.Results.Ground);
 vehicle = char(p.Results.Vehicle);
 dir_ = fullfile(here, 'build', 'verify');
 if ~isfolder(dir_), mkdir(dir_); end
@@ -37,7 +42,7 @@ m = 'hopper_6dof';
 
 % ---- 1. reference command: the harness's own LQR, gusts off ----
 logFile = fullfile(dir_, 'reference_log.mat');
-Vlqr = variantConfig('VEHICLE', vehicle, 'LOG', logFile);   % the signal dump has gnc_bus.u_cmd
+Vlqr = variantConfig('VEHICLE', vehicle, 'GROUND', ground, 'LOG', logFile);   % the signal dump has gnc_bus.u_cmd
 [in, W] = buildSimInput(m, [], [], Vlqr);
 in = noGusts(in, m);
 ref = sim(in);
@@ -56,15 +61,23 @@ if p.Results.Excite
     uc(:, 4) = uc(:, 4) + 2e-3 * sin(2*pi*0.2*tc);
 end
 cmd = [tc, uc];
+if strcmp(ground, 'strut')
+    % the reference stops at touchdown; past it, what a flight computer
+    % does on detecting it: thrust to the floor, gimbal centred, RCS off
+    tr = (tc(end) + dt:dt:tc(end) + 2).';
+    cmd = [cmd; tr, zeros(numel(tr), 4)];
+    tc = cmd(:, 1);
+end
 fid = fopen(fullfile(dir_, 'commands.csv'), 'w');
 fprintf(fid, '%.17g,%.17g,%.17g,%.17g,%.17g\n', cmd.');
 fclose(fid);
 fprintf('Reference LQR flight: %.2f s, %d commands at %g s\n', ref.tout(end), numel(tc), dt);
 
 % ---- 2. the same commands through CONTROLLER=fsw in Simulink ----
-Vfsw = variantConfig('VEHICLE', vehicle, 'CONTROLLER', 'fsw');
+Vfsw = variantConfig('VEHICLE', vehicle, 'CONTROLLER', 'fsw', 'GROUND', ground);
 W.fsw_u = cmd;
 in = noGusts(buildSimInput(m, [], W, Vfsw), m);
+in = in.setModelParameter('StopTime', num2str(cmd(end, 1) + dt));
 sl = sim(in);
 xs = rootPort(sl, 'x_fsw');
 xsl = squeeze(xs.Data);

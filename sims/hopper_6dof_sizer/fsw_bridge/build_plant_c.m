@@ -25,6 +25,17 @@ function codeDir = build_plant_c(varargin)
 %                 acts only with FAULT_INJECTION on in 'Variants' (sensor
 %                 faults in the gates before sens_*, actuator faults on
 %                 u_fsw). Default faultScenario(): none.
+%     'Ground'    'none' or 'strut': sets GROUND in 'Variants'. Default ''
+%                 (keep the Variants' choice, none by default). With 'strut'
+%                 the vehicle stands and lands on its leg springs
+%                 (subsystems/ground/Ground_Contact.slx) and the touchdown
+%                 stop is off (tools/refactor/gateTouchdownStop.m): the
+%                 plant keeps flying after contact, and the vehicle comes to
+%                 rest, so the flight software's own touchdown detection
+%                 sees the impact and the rest period. The plant's engine
+%                 cutoff (IN.mission.engine_cutoff_alt, 5 mm on the CTV) still
+%                 acts and does not latch, and u_fsw thrust below the
+%                 throttle floor is raised to it.
 %
 %   Output, in Folder:
 %     src/          every .c/.h the plant needs (packNGo, flat), so it
@@ -35,7 +46,9 @@ function codeDir = build_plant_c(varargin)
 %     plant.json    what was built: vehicle, variants, step, git commit,
 %                   gusts, target, ports, and the sensor parameters
 %                   and layout baked into the sens_* ports, and
-%                   cg_height (the pad CG above the base, m)
+%                   cg_height (the pad CG above the base, m), imu_from_cg
+%                   (the IMU from that CG, m, body axes), ground and
+%                   touchdown_stop
 %
 %   The interface (hopper_6dof.h): hopper_6dof_initialize(), then per
 %   1 ms step hopper_6dof_output() (outputs at t) and hopper_6dof_update()
@@ -45,8 +58,9 @@ function codeDir = build_plant_c(varargin)
 %   sens_valid[9], sens_stamp[9] = the shared Sensors block's output after
 %   the fault gates (FAULT_INJECTION on), laid out as src/sensors/sensor_layout.m:
 %   valid is 1/0 per sensor, stamp the time (s) of each sensor's latest
-%   sample, which changes when a new sample arrives. The touchdown stop sets
-%   rtmGetStopRequested(hopper_6dof_M); the model keeps stepping if called.
+%   sample, which changes when a new sample arrives. The touchdown stop
+%   (off with 'Ground', 'strut') sets rtmGetStopRequested(hopper_6dof_M);
+%   the model keeps stepping if called.
 %
 %   Parameters are inlined, so changing a workspace value means a rebuild.
 
@@ -58,10 +72,14 @@ p.addParameter('Target', 'arm64', @(s) any(strcmp(s, {'arm64', 'x86_64'})));
 p.addParameter('Folder', fullfile(here, 'build', 'plant'), @(s) ischar(s) || isstring(s));
 p.addParameter('SensorParams', struct(), @isstruct);
 p.addParameter('Faults', faultScenario(), @isnumeric);
+p.addParameter('Ground', '', @(s) any(strcmp(s, {'', 'none', 'strut'})));
 p.parse(varargin{:});
 V = p.Results.Variants;
 out = char(p.Results.Folder);
 A = variantAxes();
+if ~isempty(p.Results.Ground)
+    V.VARIANT_GROUND = find(A.GROUND == string(p.Results.Ground));
+end
 assert(A.CONTROLLER(V.VARIANT_CONTROLLER) == "fsw", 'build_plant_c:controller', ...
     'build_plant_c needs CONTROLLER=fsw (the flight software is the controller).');
 
@@ -155,6 +173,9 @@ info = struct( ...
     'sensor_step', W.sensor_params.dt, ...    % the block's step (the IMU period)
     'sensor_layout', sensor_layout(), ...
     'cg_height', W.cg_init, ...               % full-tank CG above the base on the pad (m, body x; nav_frames heightCOM): sensor geometry is from the base, GPS/LiDAR outputs from the CG
+    'imu_from_cg', imuFromCg(W), ...          % IMU from that CG (m, sim body: x up the thrust axis); 0 = the accelerometer reads f at the CG
+    'ground', A.GROUND(V.VARIANT_GROUND), ...
+    'touchdown_stop', A.GROUND(V.VARIANT_GROUND) ~= "strut", ...   % gateTouchdownStop: off on the struts
     'built', char(datetime('now', 'Format', 'yyyy-MM-dd''T''HH:mm:ss')), ...
     'inputs', struct('u_fsw', {{'thrust_N', 'tvc_pitch_rad', 'tvc_yaw_rad', 'rcs_torque_Nm'}}), ...
     'outputs', struct('x_fsw', {{'pos_n', 'pos_e', 'pos_d', 'vel_n', 'vel_e', 'vel_d', ...
@@ -169,6 +190,16 @@ fclose(fid);
 rmdir(work, 's');
 codeDir = fullfile(out, 'src');
 fprintf('Plant code: %d .c files in %s (%.1f s total)\n', numel(srcs), codeDir, toc(t0));
+end
+
+function r = imuFromCg(W)
+% S.imu.mount (from the base) relative to the pad CG; zeros when unset (at the CG)
+mount = W.sensor_params.S.imu.mount(:);
+if all(isfinite(mount))
+    r = mount - [W.cg_init; 0; 0];
+else
+    r = zeros(3, 1);
+end
 end
 
 function n = sensorChannels()
