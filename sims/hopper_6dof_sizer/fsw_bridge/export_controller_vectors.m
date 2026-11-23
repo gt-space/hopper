@@ -55,6 +55,11 @@ end
 % the controller's own input, nav_bus.x_nav, from the signal dump
 logFile = fullfile(tempdir, 'hopper_controller_vectors', 'flight_log.mat');
 V = variantConfig('VEHICLE', vehicle, 'CONTROLLER', char(info.controller), 'LOG', logFile);
+if ~bdIsLoaded('hopper_6dof')
+    % sim loads the harness; close it again so build_plant_c, which needs
+    % it closed, can run next in the same session
+    closeModel = onCleanup(@() close_system('hopper_6dof', 0)); %#ok<NASGU>
+end
 sim(buildSimInput('hopper_6dof', [], [], V));
 L = load(logFile, 'logsout');
 xs = L.logsout.get('nav_bus').Values.x_nav;
