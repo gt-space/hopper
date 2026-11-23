@@ -67,8 +67,17 @@ eu.t = t; eu.phase = phase; eu.alt = alt; eu.tw = in.thrust / max(in.mass * P.g,
 % ---- touchdown and mode manager ----
 thrust_cut = alt <= P.cutoff_alt && x(6) > 0;
 L = sensor_layout();
-lid = sort(meas(L.LIDAR));
-td.lidar_median = (lid(2) + lid(3)) / 2;
+
+%takes in measured ranges
+ranges = meas(L.LIDAR);
+%sets median to inf if all lidars are out of range
+td.lidar_median = Inf;
+%if anything useable then use just those measurements to calc range
+%this check is so hovering out of range is not detected as landing
+if any(ranges == 0)
+    td.lidar_median = median(ranges(ranges ~= 0));
+end
+
 f_now = norm(in.f_b);
 td.accel_impulse = abs(f_now - st.prev_f);
 st.prev_f = f_now;

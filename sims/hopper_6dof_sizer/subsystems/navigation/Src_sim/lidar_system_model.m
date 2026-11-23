@@ -14,9 +14,10 @@
 % 
 % Outputs:
 %   lidarBus: LIDAR measurement struct defined in the Navigation Dictionary
+%   validity: one logical flag, true if at least one beam has a return
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function lidarBus = lidar_system_model(x, time, lidar_frames, measurementNoise)
+function [lidarBus, validity] = lidar_system_model(x, time, lidar_frames, measurementNoise)
 
     % Simulink gets touchy about dims
     x = x(1:20,1);
@@ -57,6 +58,7 @@ function lidarBus = lidar_system_model(x, time, lidar_frames, measurementNoise)
     lidarBus.distance = d_vec;
     lidarBus.covariance = covariance;
     lidarBus.timestamp = time;
-    lidarBus.validity = validity;
+    % The navigation bus marks each beam separately. A missed return is zero.
+    lidarBus.validity = validity & (d_vec > 0);
 
 end
