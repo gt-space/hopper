@@ -65,7 +65,9 @@ plot(out.get('nav_error'))   % estimate - truth, in the controller's 13-state
 - `nav_state_to_sim` / `nav_state_from_sim`: their 20-state (CG position from its pad rest point, nav body z down the long axis, scalar-first Hamilton quaternion) to and from the controller's 13-state. `nav_frames` holds the mapping: on the pad the nav attitude is the identity and sim +x (up) is nav −z.
 - `navWorkspace`: P0, Qc and the 500 Hz rate come from their `filter_sim_initializer`; the lidar and antenna geometry from the vehicle config.
 
-**Torque process noise is per vehicle:** the commanded torque leaves out wind, slosh and other moments, so the filter's rate model needs torque noise sized to the vehicle (`VC.nav.torque_psd`, body axes; 1 (N·m)²/Hz on the hopper, scaled by inertia on the CTV). At their original 1e-4 the hopper's gyro was gated out within 0.07 s. Set `W.nav_Qc` or `W.nav_P0` before `buildSimInput` to try other tuning.
+**Process noise:** Qc comes from the calibrated IMU noise and bias walks in `sim_sensor_params`, each block scaled by the vehicle config's `navigation.gmekf.Qc_scale`. Set `W.nav_Qc` or `W.nav_P0` before `buildSimInput` to try other tuning.
+
+**Warm-up:** with `NAVIGATION=gmekf`, `buildSimInput` holds the vehicle on the pad with the engine off for `IN.mission.filter_warmup_time` (5 s), delays the reference by the same time and sets `GROUND=strut`. The IMU reads stationary and moments are locked until confirmed liftoff, and ground contact is off after it. This pad logic also runs in flights without a warm-up, except with `CONTROLLER=fsw`.
 
 **What the filter now gives FDIR, and takes from it:**
 - per-sensor diagnostics out of the correct step (accepted flag and NIS for baro, gyro, GPS, lidar 1–4, differential GPS; `nav_diagnostics`), which FDIR's estimator checks judge at 99.99 % gates

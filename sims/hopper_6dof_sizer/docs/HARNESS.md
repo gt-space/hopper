@@ -132,6 +132,7 @@ Variant activation time is *update diagram*: only the active choice is compiled,
 | `updateNavigationFilters`, `syncNavigation` | The nav team's filter changes the harness needs, and merging their newer work. |
 | `addFswSensorPorts` | With `CONTROLLER=fsw`, the shared Sensors block runs and its output goes out on root `sens_*` ports. |
 | `gateTouchdownStop` | `Touchdown_Stop` became a variant subsystem: off with `CONTROLLER=fsw` and `GROUND=strut`, so the flight-software plant rests on its legs. Every other configuration is bit-identical. |
+| `integrateWarmup` | With `CONTROLLER=fsw` only: the warm-up command gate uses a discrete clock, so the held command stays discrete, and the pad logic (stationary IMU and locked moments until liftoff, no contact after it) runs only with a warm-up configured. |
 
 **Adding a signal between groups:**
 1. Wire it to an Out Bus Element on the sending group's bus. Copy an existing one inside that group and change its `Element`; a new block can't take an existing port name.

@@ -2,7 +2,7 @@ function updateNavigationFilters()
 %UPDATENAVIGATIONFILTERS  Filter-model changes the harness needs (nav team's files).
 %   Hopper_GMEKF.slx and CTV_GMEKF.slx (subsystems/navigation/Filters):
 %   - the Correct step returns its per-sensor diagnostics (accepted flags
-%     and NIS, gmekf_correct_hopper / gmekf_correct) on a third outport,
+%     and NIS, gmekf_correct_hopper / gmekf_correct_ctv) on a third outport,
 %     'diagnostics', which FDIR's estimator checks read
 %   - CTV_GMEKF uses a fixed-step solver like Hopper_GMEKF: a model
 %     referenced from the fixed-step harness must be fixed-step
@@ -22,7 +22,7 @@ if ~isequal(b.Elements(k).Dimensions, [3 1])
     fprintf('NavigationDictionary: magBus.bfield_E is 3x1\n');
 end
 
-filters = {'Hopper_GMEKF', 'gmekf_correct_hopper'; 'CTV_GMEKF', 'gmekf_correct'};
+filters = {'Hopper_GMEKF', 'gmekf_correct_hopper'; 'CTV_GMEKF', 'gmekf_correct_ctv'};
 for k = 1:size(filters, 1)
     m = filters{k, 1};
     load_system(m);

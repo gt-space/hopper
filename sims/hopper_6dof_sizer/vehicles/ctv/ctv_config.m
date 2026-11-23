@@ -95,7 +95,7 @@ VC.aero.cd   = 1.2;                            % ASSUMPTION
 VC.aero.cp_x = 0.35;                           % m, ASSUMPTION: centre of pressure
 
 % ---- Sensors: the hopper's lidar layout; GPS antennas near the top ----
-% Antenna 1 where CTV_GMEKF's gmekf_correct assumes it: [0.1; 0; -0.2] m from
+% Antenna 1 where CTV_GMEKF's gmekf_correct_ctv assumes it: [0.1; 0; -0.2] m from
 % the CG in its frame, i.e. 0.2 m above the CG and 0.1 m along body z
 % (the CTV keeps its CG); antenna 2 is unused (no differential GPS)
 VC.sensors.gps.antenna = [VC.mass.dry_cg + 0.2, VC.mass.dry_cg + 0.2; 0 0; 0.1 -0.1];   % m, ASSUMPTION: body x y z from the base

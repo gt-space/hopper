@@ -38,7 +38,10 @@ springs (`GROUND=strut`) and no touchdown stop, so the vehicle lands,
 comes to rest and stays flying in the plant until the flight software
 stops; the IMU sees the impact and the rest. `plant.json` says `ground`
 and `touchdown_stop`. Without it (the default) the plant stops at the first
-descending contact, as before. On the struts the plant's own engine cutoff
+descending contact, but only after the vehicle has been 0.1 m up: one that
+never climbs that far falls through the pad and does not stop. With no
+ground the vehicle also sinks about 0.1 m while thrust builds, so fly the
+strut plant for liftoff. On the struts the plant's own engine cutoff
 (`IN.mission.engine_cutoff_alt`, 5 mm on the CTV) still cuts thrust and
 does not latch, and `u_fsw` thrust below the throttle floor (7 N on the
 CTV) is raised to the floor. The CTV's leg stiffness is the sizer's
