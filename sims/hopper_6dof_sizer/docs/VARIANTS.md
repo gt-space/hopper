@@ -16,7 +16,7 @@ out = sim(buildSimInput('hopper_6dof', [], [], V));
 | Axis | Block | Choices (first is the default) |
 |---|---|---|
 | `VEHICLE` | *(setup only)* | Picks the vehicle config file ([VEHICLE_CONFIG.md](VEHICLE_CONFIG.md)) and its mission. `hopper`: `vehicles/hopper/hopper_config.m` with `inputs/mission_inputs.m`. `ctv`: the controls test vehicle, `vehicles/ctv/ctv_config.m`, flying the mission overrides in `inputs/ctv_inputs.m`. See [The CTV](#the-ctv). |
-| `CONTROLLER` | `Controller` | `lqr_sched`: time-scheduled LQR along the reference trajectory (`subsystems/gnc/LQR_Gain_Scheduler.slx` plus its gain tables). `lqi`: LQI-DEV's fixed-gain LQI hover regulator, which is experimental. `lqr_sched_legacy`: the March scheduler from the archived lqr/LQ_6DOF_V3 models, which lacks the quaternion sign fix. `lqr_ctv_tuning`: the same scheduler (`subsystems/gnc/LQR_CTV_Tuning.slx`) reading its own gain tables, `K1flat_ctv`/`K2grid_ctv`, designed by `src/gnc/ctvTuningGains.m` with 30x the pitch/yaw TVC effort weight, 10x the body-rate weights and 1000x the lateral (x, y, vx, vy) weights, which holds the CTV's landing offset on the filter: 0.09-0.34 m on the 5 seeded runs flying on the GMEKF, against 0.3-10 m (two crashes) with the nominal weights (2026-11-20). Built by `tools/refactor/addCtvTuningController.m`; the file must be a subsystem file, not a model. |
+| `CONTROLLER` | `Controller` | `lqr_sched`: time-scheduled LQR along the reference trajectory (`subsystems/gnc/LQR_Gain_Scheduler.slx` plus its gain tables). `lqi`: LQI-DEV's fixed-gain LQI hover regulator, which is experimental. `lqr_sched_legacy`: the March scheduler from the archived lqr/LQ_6DOF_V3 models, which lacks the quaternion sign fix. `lqr_ctv_tuning`: the same scheduler (`subsystems/gnc/LQR_CTV_Tuning.slx`) reading its own gain tables, `K1flat_ctv`/`K2grid_ctv`, designed by `src/gnc/ctvTuningGains.m` with 30x the pitch/yaw TVC effort weight, 10x the body-rate weights and 1000x the lateral (x, y, vx, vy) weights, which holds the CTV's landing offset on the filter: 0.09-0.34 m on the 5 seeded runs flying on the GMEKF, against 0.3-10 m (two crashes) with the nominal weights (2026-11-20). Built by `tools/refactor/addCtvTuningController.m`; the file must be a subsystem file, not a model. It is the CTV's default controller (`variantConfig('VEHICLE', 'ctv')`). |
 | `SLOSH` | `Slosh` | `full`: slosh pendulums, `subsystems/slosh/Slosh.slx`. `off`: zero slosh force, moment and CG offsets. |
 | `PROPULSION` | `Propulsion` | `lut`: thrust command passes through; `Thrust_to_Mdot_LUT` gives ox and fuel mdot. `fluid_network`: #26's Simscape feed system and engine give thrust and mdot. |
 | `GROUND` | `Ground_Contact` | `none`: no ground reaction. `strut`: #27's strut spring/damper per leg (`subsystems/ground/Ground_Contact.slx`), into the body force and moment sums. |
@@ -96,12 +96,13 @@ out = sim(buildSimInput('hopper_6dof', [], [], variantConfig('VEHICLE', 'ctv')))
 
 **How the setup handles a vehicle with no propellant:**
 - **No propellant:** `variantConfig('VEHICLE', 'ctv')` defaults to `SLOSH=off` and `MASS_PROPS=constant`.
+- **Tuned controller:** it also defaults to `CONTROLLER=lqr_ctv_tuning`, the gain tables `src/gnc/ctvTuningGains.m` designs for the CTV. The untuned `lqr_sched` choice is still available for comparisons.
 - **Placeholders:** the propellant model carries 1 g placeholders inside the CAD mass, because the depletion cutoff stops thrust when a tank is empty.
 - **Constant mass:** `LinerizationMaster` holds the mass constant along the reference (`IN.propulsion.burns_propellant = false`).
 
 **How the CTV flies today** (hopper LQR weights, the assumptions below):
 - **Nominal, calm air: meets every requirement.** Apex 4.53 m, peak ascent and descent 1.64 and 1.59 m/s, impact 0.31 m/s, 0 m offset, 0° tilt.
-- **Monte Carlo (10 seeded runs, `inputs/mc_params_ctv.json`): none meet requirements.** Eight land 1.5–11.5 m off the pad, tilting 3–28°; two diverge. The dispersions are ±3% mass and CG, ±10% inertia, ±5% EDF thrust, 150–250°/s gimbal, 5–20 ms latency, ±2 mm thrust offset and ±1.5 m/s wind.
+- **Monte Carlo.** With the tuned controller (the CTV default), all 5 seeded runs in `CtvMonteCarloTest` meet requirements: 0.07–0.33 m landing offset, 0.25–0.92° touchdown tilt, 0.29–0.31 m/s impact (2026-11-21, truth state). On the hopper-derived LQR weights, none of the 10 seeded runs met requirements: eight landed 1.5–11.5 m off, tilting 3–28°; two diverged. The dispersions are ±3% mass and CG, ±10% inertia, ±5% EDF thrust, 150–250°/s gimbal, 5–20 ms latency, ±2 mm thrust offset and ±1.5 m/s wind.
 
 **What changed from the first CTV setup**, which drifted 8.5 m and landed at 0.96 m/s even in calm air:
 - **Engine cutoff on contact.** `Landing_Engine_Cutoff` now cuts at `IN.mission.engine_cutoff_alt`: 5 cm for the hopper as before, 5 mm for the CTV. A 5 cm drop alone lands at ~1 m/s, inside the hopper's 1.5 m/s normal-velocity requirement (GNC PDR) but well over the CTV's 0.5 m/s.
@@ -143,7 +144,7 @@ R = runMonteCarlo(10, Variants=variantConfig('VEHICLE', 'ctv'));
 2. **Nominal controller:** the run flies the reference trajectory and gains designed for the nominal CTV, cached per session, so the dispersions are something the controller has to reject. `mc_sim_setup` does the same for the hopper.
 3. **Scoring:** `mc_main` and `checkConstraints` score the run against the CTV's requirements.
 
-`tests/montecarlo/CtvMonteCarloTest.m` runs 5 seeded scenarios in `buildtool mc`. It requires the nominal flight to meet requirements and every dispersed run to get through setup and simulation (diverging is allowed). The hopper's Monte Carlo path (`mc_sim_setup`) is unchanged.
+`tests/montecarlo/CtvMonteCarloTest.m` runs 5 seeded scenarios in `buildtool mc`. It flies the CTV default, `CONTROLLER=lqr_ctv_tuning`, and requires the nominal flight to meet requirements and every dispersed run to get through setup and simulation (diverging is allowed). All 5 dispersed runs met requirements on 2026-11-21. The hopper's Monte Carlo path (`mc_sim_setup`) is unchanged.
 
 ## Wind moment
 

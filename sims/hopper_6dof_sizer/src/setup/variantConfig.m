@@ -11,9 +11,10 @@ function V = variantConfig(varargin)
 %   Unknown axes or choices are errors, so a typo can't silently run the
 %   default.
 %
-%   VEHICLE='ctv' changes two defaults, since the CTV carries no
-%   propellant: SLOSH='off' and MASS_PROPS='constant'. Axes you name
-%   explicitly always win.
+%   VEHICLE='ctv' changes three defaults: it carries no propellant, so
+%   SLOSH='off' and MASS_PROPS='constant', and it flies the tuned CTV gain
+%   tables, CONTROLLER='lqr_ctv_tuning' (src/gnc/ctvTuningGains.m). Axes
+%   you name explicitly always win.
 %
 %   Two logging options sit beside the axes; neither changes the flight:
 %     'SCOPES', ["attitude" "slosh"]   scope groups to open (scopeGroups
@@ -45,6 +46,9 @@ end
 if isfield(S, 'VEHICLE') && string(S.VEHICLE) == "ctv"
     if ~isfield(S, 'SLOSH'), S.SLOSH = "off"; end
     if ~isfield(S, 'MASS_PROPS'), S.MASS_PROPS = "constant"; end
+    % the tuned CTV gains (2026-11-20); the untuned scheduler is one axis
+    % choice away for a comparison
+    if ~isfield(S, 'CONTROLLER'), S.CONTROLLER = "lqr_ctv_tuning"; end
 end
 
 V = struct();
