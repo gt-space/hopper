@@ -28,12 +28,19 @@ for a = 1:2
     S.buf(2:end, a) = S.buf(1:end-1, a);
     S.buf(1, a) = min(max(cmd(a), -T.max_angle), T.max_angle);
     c = S.buf(T.lat_steps + 1, a);
-    if isfinite(T.accel_lim)
+    if isfinite(T.accel_lim) || isfinite(T.rate_lim)
         % time-optimal approach: brake so the setpoint stops on c
         ea = c - S.ref(a);
-        vdes = sign(ea) * min(sqrt(2 * T.accel_lim * abs(ea)), abs(ea) / T.dt_c);
-        dv = min(max(vdes - S.vref(a), -T.accel_lim * T.dt_c), T.accel_lim * T.dt_c);
-        S.vref(a) = S.vref(a) + dv;
+        if isfinite(T.accel_lim)
+            vdes = sign(ea) * min(sqrt(2 * T.accel_lim * abs(ea)), abs(ea) / T.dt_c);
+            dv = min(max(vdes - S.vref(a), -T.accel_lim * T.dt_c), T.accel_lim * T.dt_c);
+            S.vref(a) = S.vref(a) + dv;
+        else
+            S.vref(a) = sign(ea) * min(abs(ea) / T.dt_c, T.rate_lim);
+        end
+        if isfinite(T.rate_lim)
+            S.vref(a) = min(max(S.vref(a), -T.rate_lim), T.rate_lim);
+        end
         S.ref(a) = S.ref(a) + S.vref(a) * T.dt_c;
         c = S.ref(a);
     end

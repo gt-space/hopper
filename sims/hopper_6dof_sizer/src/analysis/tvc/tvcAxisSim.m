@@ -19,9 +19,11 @@ arguments
     opts.coulomb (1,1) logical = true
     opts.backlash (1,1) logical = true
     opts.decimate (1,1) double = 1   % unused, kept for older callers
+    opts.accel_lim (1,1) double = Inf  % rad/s^2, drive acceleration ramp; Inf = off
+    opts.rate_lim  (1,1) double = Inf  % rad/s,   drive speed clamp; Inf = off
 end
 e = opts.e;  if isnan(e), e = P.e_nom; end
-T = tvcEmParams(P, Offset=[e; e], Coulomb=opts.coulomb, Backlash=opts.backlash, MaxAngle=deg2rad(20));
+T = tvcEmParams(P, Offset=[e; e], Coulomb=opts.coulomb, Backlash=opts.backlash, MaxAngle=deg2rad(20), AccelLimit=opts.accel_lim, RateLimit=opts.rate_lim);
 N = round(t_end / T.dt_c);
 St = tvcEmInit();
 S.t = (0:N)' * T.dt_c;

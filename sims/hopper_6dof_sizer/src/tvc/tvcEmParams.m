@@ -20,6 +20,7 @@ arguments
     opts.Coulomb (1,1) logical = true
     opts.Backlash (1,1) logical = true
     opts.AccelLimit (1,1) double = Inf   % rad/s^2, drive acceleration ramp; Inf = off
+    opts.RateLimit  (1,1) double = Inf   % rad/s,   drive speed limit; Inf = off
 end
 K = tvcKinematics(P, -1:1, -1:1);   % only K.axis is used
 d = K.axis.delta;  x = K.axis.dL;  r = K.axis.r;
@@ -40,6 +41,7 @@ T.n_sub = 100;                       % integration sub-steps per servo period
 T.lat_steps = round(opts.Latency / P.dt_c);
 T.max_angle = opts.MaxAngle;         % rad, commanded-angle limit
 T.accel_lim = opts.AccelLimit;       % rad/s^2, setpoint acceleration ramp (Inf = off)
+T.rate_lim  = opts.RateLimit;        % rad/s,   setpoint speed clamp (Inf = off)
 if T.lat_steps > 100
     error('tvcEmParams:latency', 'Latency above 100 servo periods is not supported.');
 end

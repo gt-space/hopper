@@ -14,15 +14,19 @@ function W = tvcWorkspace(W, variants, opts)
 %   W = tvcWorkspace(W, variants, Layout='sizer', Offset=0.025) replaces
 %   any TVCEM in W: the actuator's layout and a fixed actuator load offset
 %   (m) for trade studies.  AccelLimit=deg2rad(300) sets the drive's
-%   acceleration ramp (rad/s^2; default Inf, no ramp).
+%   acceleration ramp (rad/s^2; default Inf, no ramp), and
+%   RateLimit=deg2rad(20.5) its speed clamp (rad/s; default Inf, none).
+%   Either one replaces any TVCEM in W.
 arguments
     W struct
     variants struct
     opts.Layout (1,:) char = ''
     opts.Offset double = []
     opts.AccelLimit (1,1) double = Inf
+    opts.RateLimit (1,1) double = Inf
 end
-if isfield(W, 'TVCEM') && isempty(opts.Layout) && isempty(opts.Offset) && isinf(opts.AccelLimit), return; end
+if isfield(W, 'TVCEM') && isempty(opts.Layout) && isempty(opts.Offset) ...
+        && isinf(opts.AccelLimit) && isinf(opts.RateLimit), return; end
 A = variantAxes();
 choice = "second_order";
 if isfield(variants, 'VARIANT_TVC_MODEL')
@@ -42,7 +46,7 @@ if isfield(W, 'IN')
     if isfield(W.IN, 'off_axis_y'), e(2) = max(abs(W.IN.off_axis_y), 0.01); end   % body y offset -> yaw
 end
 if ~isempty(opts.Offset), e = [opts.Offset; opts.Offset]; end
-W.TVCEM = tvcEmParams(P, Latency=lat, Offset=e, AccelLimit=opts.AccelLimit);
+W.TVCEM = tvcEmParams(P, Latency=lat, Offset=e, AccelLimit=opts.AccelLimit, RateLimit=opts.RateLimit);
 % the Electromech choice delays its inputs one servo period (to break the
 % algebraic loop through thrust); take it out of the delay line
 W.TVCEM.lat_steps = max(W.TVCEM.lat_steps - 1, 0);

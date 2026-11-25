@@ -14,7 +14,16 @@ function C = tvcLoopCampaign(n, opts)
 %   (default) every config also flies three deterministic cases built on
 %   the nominal scenario: a 12 m/s crosswind, a 2.5 cm thrust-line offset
 %   on both axes (the vehicle needs gimbal trim and the actuators carry the
-%   offset moment), and both together.
+%   offset moment), and both together. n = 0 flies the nominal (and the
+%   stress cases) only.
+%
+%   A config may set the drive's clamps, as fields of opts.Configs:
+%     accel_dps2  setpoint acceleration ramp (deg/s^2), [] or Inf = off
+%     rate_dps    setpoint speed clamp (deg/s),         [] or Inf = off
+%   (tvcWorkspace AccelLimit / RateLimit). Per run the row then also gives
+%   peak achieved rate/accel over the clamp, the share of flight time at
+%   each clamp, attitude error (tilt from vertical) and a sustained
+%   gimbal-oscillation check (see oscillation()).
 
 arguments
     n (1,1) double = 50
@@ -24,8 +33,11 @@ arguments
     opts.Stress (1,1) logical = true
 end
 nom = nominalScenario();
-scen = [{nom}, num2cell(generateScenarios('mc_params.json', n))];
-names = ["nominal", "mc_" + string(1:n)];
+scen = {nom};  names = "nominal";
+if n > 0                                      % n = 0: nominal (+ stress) only
+    scen = [scen, num2cell(generateScenarios('mc_params.json', n))];
+    names = [names, "mc_" + string(1:n)];
+end
 if opts.Stress
     w = 12 / sqrt(2);                         % 12 m/s resultant, diagonal
     s1 = nom;  s1.uwind = w;  s1.vwind = w;
@@ -110,9 +122,9 @@ else
     W = hopperWorkspace(r.scenario, V);
 end
 if r.cfg.model ~= "second_order"
-    alim = Inf;
-    if isfield(r.cfg, 'accel_dps2') && ~isempty(r.cfg.accel_dps2), alim = deg2rad(r.cfg.accel_dps2); end
-    W = tvcWorkspace(W, V, Layout=char(r.cfg.layout), Offset=r.cfg.offset, AccelLimit=alim);
+    [alim, rlim] = clamps(r.cfg);
+    W = tvcWorkspace(W, V, Layout=char(r.cfg.layout), Offset=r.cfg.offset, ...
+                     AccelLimit=deg2rad(alim), RateLimit=deg2rad(rlim));
 end
 in = buildSimInput(in, [], W, V);
 end
@@ -164,6 +176,27 @@ try
     % configuration reached anywhere in the run, while error > 0.2 deg
     lim = 0.9 * max(abs(rate(:)));
     row.rate_sat_pct = 100 * mean(any(abs(rate) >= lim & abs(err) > deg2rad(0.2), 2));
+    % ---- against the drive clamps (achieved gimbal, 25 Hz filtered) ----
+    % at clamp: within 5 % of it on either axis
+    [alim, rlim] = clamps(r.cfg);
+    row.accel_lim_dps2 = alim;  row.rate_lim_dps = rlim;
+    if isfinite(rlim)
+        row.rate_over_lim = row.max_rate_dps / rlim;
+        row.at_rate_lim_pct = 100 * mean(any(abs(rad2deg(rate)) >= 0.95 * rlim, 2));
+    end
+    if isfinite(alim)
+        row.accel_over_lim = row.max_accel_dps2 / alim;
+        row.at_accel_lim_pct = 100 * mean(any(abs(rad2deg(acc)) >= 0.95 * alim, 2));
+    end
+    % ---- attitude error: tilt from vertical (the hop's reference) ----
+    if res.status.success
+        tilt = abs(90 - res.timeseries.pitch);
+        row.rms_tilt_deg = sqrt(mean(tilt.^2, 'omitnan'));
+    end
+    % ---- sustained gimbal oscillation ----
+    O = oscillation(tt, ach);
+    row.osc_amp_deg = O.amp_deg;  row.osc_freq_hz = O.freq_hz;
+    row.osc_dur_s = O.dur_s;      row.osc_sustained = O.sustained;
 catch e
     row.success = false;
     row.error = string(e.message);
@@ -175,7 +208,55 @@ function row = emptyRow()
 row = struct('config', "", 'scenario', NaN, 'case', "", 'success', false, 'meets_requirements', false, ...
     'missed', "", 'landing_offset', NaN, 'landing_vel', NaN, 'max_tilt', NaN, 'touchdown_tilt', NaN, ...
     'max_cmd_deg', NaN, 'max_ach_deg', NaN, 'max_rate_dps', NaN, 'p99_rate_dps', NaN, ...
-    'max_accel_dps2', NaN, 'rms_err_deg', NaN, 'max_err_deg', NaN, 'rate_sat_pct', NaN, 'error', "");
+    'max_accel_dps2', NaN, 'rms_err_deg', NaN, 'max_err_deg', NaN, 'rate_sat_pct', NaN, ...
+    'rate_lim_dps', Inf, 'accel_lim_dps2', Inf, 'rate_over_lim', NaN, 'accel_over_lim', NaN, ...
+    'at_rate_lim_pct', NaN, 'at_accel_lim_pct', NaN, 'rms_tilt_deg', NaN, ...
+    'osc_amp_deg', NaN, 'osc_freq_hz', NaN, 'osc_dur_s', NaN, 'osc_sustained', false, 'error', "");
+end
+
+function [alim, rlim] = clamps(cfg)
+% drive clamps of a config, deg/s^2 and deg/s (Inf = off)
+alim = Inf;  rlim = Inf;
+if isfield(cfg, 'accel_dps2') && ~isempty(cfg.accel_dps2), alim = cfg.accel_dps2; end
+if isfield(cfg, 'rate_dps') && ~isempty(cfg.rate_dps), rlim = cfg.rate_dps; end
+end
+
+function O = oscillation(t, ach)
+% Sustained gimbal oscillation: achieved angle band-passed 0.5-10 Hz, its
+% amplitude (sqrt(2) x RMS) over 1 s windows stepped 0.25 s. Sustained =
+% the amplitude stays above 0.1 deg on one axis for 3 s or more in a row.
+% The first and last 1 s (lift-off, touchdown) are left out. Reports the
+% longest such stretch (dur_s), the largest window amplitude, and the
+% dominant frequency of that stretch (or of the whole flight if none).
+thr = 0.1;  minDur = 3;  win = 1;  hop = 0.25;  fs = 1 / (t(2) - t(1));
+[b, a] = butter(2, [0.5 10] / (fs / 2), 'bandpass');
+x = rad2deg(filtfilt(b, a, ach));
+k = t >= t(1) + 1 & t <= t(end) - 1;  t = t(k);  x = x(k, :);
+starts = t(1):hop:(t(end) - win);
+amp = zeros(numel(starts), size(x, 2));
+for j = 1:numel(starts)
+    m = t >= starts(j) & t < starts(j) + win;
+    amp(j, :) = sqrt(2) * sqrt(mean(x(m, :).^2, 1));
+end
+O.amp_deg = max(amp(:));
+best = 0;  ax = 1;  i0 = 1;
+for c = 1:size(amp, 2)
+    on = [false; amp(:, c) > thr; false];
+    d = diff(on);  s = find(d == 1);  e = find(d == -1) - 1;
+    [L, i] = max(e - s + 1);
+    if ~isempty(L) && L > best, best = L;  ax = c;  i0 = s(i); end
+end
+O.dur_s = 0;  m = true(size(t));
+if best > 0
+    O.dur_s = (best - 1) * hop + win;
+    m = t >= starts(i0) & t < starts(i0) + O.dur_s;
+end
+O.sustained = O.dur_s >= minDur;
+X = abs(fft(x(m, ax) - mean(x(m, ax))));
+f = (0:numel(X) - 1)' * fs / numel(X);
+h = f > 0.5 & f < 10;
+[~, i] = max(X(h));  fh = f(h);
+O.freq_hz = NaN;  if ~isempty(i), O.freq_hz = fh(i); end
 end
 
 function s = nominalScenario()
